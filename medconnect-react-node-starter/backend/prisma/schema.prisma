@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  fullName  String
+  role      Role
+  phone     String?
+  createdAt DateTime @default(now())
+  doctor    DoctorProfile?
+  appointmentsAsPatient Appointment[] @relation("patientAppointments")
+  appointmentsAsDoctor  Appointment[] @relation("doctorAppointments")
+}
+
+model DoctorProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  specialization  String
+  bio             String?
+  verified        Boolean  @default(false)
+  ratingAvg       Float    @default(0)
+  ratingCount     Int      @default(0)
+}
+
+model Appointment {
+  id         String   @id @default(cuid())
+  type       String   // "online" | "offline"
+  status     String   // "pending" | "confirmed" | "cancelled" | "completed" | "rescheduled"
+  startAt    DateTime
+  endAt      DateTime
+  reason     String?
+  patient    User     @relation("patientAppointments", fields: [patientId], references: [id])
+  patientId  String
+  doctor     User     @relation("doctorAppointments", fields: [doctorId], references: [id])
+  doctorId   String
+  payment    Payment?
+  video      VideoSession?
+  review     Review?
+}
+
+model Payment {
+  id             String      @id @default(cuid())
+  appointmentId  String      @unique
+  appointment    Appointment  @relation(fields: [appointmentId], references: [id])
+  provider       String       // "sandbox"
+  status         String       // "initiated" | "success" | "failed" | "refunded"
+  amount         Int
+  currency       String       @default("VND")
+  createdAt      DateTime     @default(now())
+}
+
+model VideoSession {
+  id             String      @id @default(cuid())
+  appointmentId  String      @unique
+  appointment    Appointment  @relation(fields: [appointmentId], references: [id])
+  roomId         String
+  patientToken   String
+  doctorToken    String
+  createdAt      DateTime     @default(now())
+}
+
+model Review {
+  id             String      @id @default(cuid())
+  appointmentId  String      @unique
+  appointment    Appointment  @relation(fields: [appointmentId], references: [id])
+  rating         Int
+  comment        String?
+  createdAt      DateTime     @default(now())
+}
