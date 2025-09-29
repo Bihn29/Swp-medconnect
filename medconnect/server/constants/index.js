@@ -1,0 +1,31 @@
+// Application constants
+export const COOKIE_NAME = "session";
+export const SESSION_EXPIRES_IN = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
+// HTTP Status Codes
+export const HTTP_STATUS = {
+  OK: 200,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  SERVER_ERROR: 500
+};
+
+// Error Codes
+export const ERROR_CODES = {
+  BAD_REQUEST: "BAD_REQUEST",
+  UNAUTHORIZED: "UNAUTHORIZED",
+  FORBIDDEN: "FORBIDDEN",
+  NOT_FOUND: "NOT_FOUND",
+  SERVER_ERROR: "SERVER_ERROR",
+  USER_NOT_FOUND: "USER_NOT_FOUND",
+  INVALID_CREDENTIALS: "INVALID_CREDENTIALS"
+};
+
+// User Roles
+export const USER_ROLES = {
+  PATIENT: "PATIENT",
+  DOCTOR: "DOCTOR",
+  ADMIN: "ADMIN"
+};
