@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { auth, signInWithGoogle } from "../../lib/firebase";
 import { signInWithCustomToken, signOut } from "firebase/auth";
-import "./Login.css";
+import "./Login.scss";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -32,15 +32,16 @@ export default function Login() {
 
   const goByRole = (role) => {
     switch ((role || "").toUpperCase()) {
-      case "PATIENT": navigate("/patient-dashboard"); break;
-      case "DOCTOR": navigate("/doctor-dashboard"); break;
-      case "ADMIN": navigate("/admin-dashboard"); break;
+      case "PATIENT": navigate("/benh-nhan"); break;
+      case "DOCTOR": navigate("/bac-si"); break;
+      case "ADMIN": navigate("/quan-tri"); break;
       default: navigate("/"); break;
     }
   };
 
   async function passwordLogin(identifier, pwd) {
-    const r = await fetch(import.meta.env.VITE_API_URL + "/api/auth/login-password", {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    const r = await fetch(apiUrl + "/api/auth/login-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -60,7 +61,7 @@ export default function Login() {
     const cred = await signInWithCustomToken(auth, data.customToken);
     const idToken = await cred.user.getIdToken();
 
-    const r2 = await fetch(import.meta.env.VITE_API_URL + "/api/auth/session", {
+    const r2 = await fetch(apiUrl + "/api/auth/session", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -70,7 +71,6 @@ export default function Login() {
 
     goByRole(data.role);
   }
-
 
   const validateForm = () => {
     setEmailError("");
@@ -111,9 +111,7 @@ export default function Login() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-
     if (!validateForm()) return;
-
     try {
       setLoading(true);
       const identifier = mode === "email" ? email.trim() : toE164(phone);
@@ -131,7 +129,8 @@ export default function Login() {
       const user = await signInWithGoogle();
       const idToken = await user.getIdToken();
 
-      const r = await fetch(import.meta.env.VITE_API_URL + "/api/auth/google-login", {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const r = await fetch(apiUrl + "/api/auth/google-login", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -152,7 +151,6 @@ export default function Login() {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="login-wrap">
@@ -208,7 +206,9 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="separator"><span>Hoặc</span></div>
+        <div className="separator">
+          <span>Hoặc</span>
+        </div>
 
         <div className="login-alt">
           <button
@@ -222,15 +222,15 @@ export default function Login() {
 
           <button type="button" onClick={onGoogle} disabled={loading} className="btn btn-google btn-full">
             <i className="bi bi-google" />
-           Đăng nhập bằng Google
+            Đăng nhập bằng Google
           </button>
         </div>
 
         {generalError && <div className="error-text">{generalError}</div>}
 
         <div className="login-links">
-          <Link to="/forgotpassword">Quên mật khẩu</Link>
-          <Link to="/register">Đăng ký tài khoản mới</Link>
+          <Link to="/quen-mat-khau">Quên mật khẩu</Link>
+          <Link to="/dang-ky">Đăng ký tài khoản mới</Link>
         </div>
       </div>
     </div>

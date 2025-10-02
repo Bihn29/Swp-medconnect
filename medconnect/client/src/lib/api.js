@@ -185,3 +185,5 @@ export async function markNotificationAsRead(notificationId) {
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+
