@@ -1,20 +1,44 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
-import { MenuOutlined } from "@ant-design/icons"; // 👈 import icon antd
+import { MenuOutlined, SearchOutlined } from "@ant-design/icons";
+import { Input } from "antd";
 import "./DefaultLayout.scss";
 
 const Header = () => {
   const categories = [
     { key: "all", label: "Trang chủ", path: "/" },
-    { key: "home", label: "Khám tại nhà", path: "/kham-tai-nha" },
-    { key: "hospital", label: "Tại viện", path: "/tai-vien" },
+    { key: "home", label: "Tại nhà", path: "/kham-tai-nha" },
+    { key: "hospital", label: "Tại viện", path: "/kham-tai-vien" },
     { key: "about", label: "Giới thiệu", path: "/gioi-thieu" },
   ];
+
   const [activeCat, setActiveCat] = useState("all");
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Hiển thị search ở các trang này
+  const showSearch = ["/kham-tai-nha", "/kham-tai-vien"].includes(
+    location.pathname
+  );
+
+  // ===== Placeholder tự đổi =====
+  const placeholders = [
+    "Tìm bác sĩ",
+    "Tìm chuyên khoa",
+    "Tìm lý do khám",
+    "Tìm điểm khám",
+  ];
+  const [phIndex, setPhIndex] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPhIndex((i) => (i + 1) % placeholders.length);
+    }, 2300); // đổi mỗi 2.3s (bạn chỉnh số ms tùy ý)
+    return () => clearInterval(id);
+  }, []); // chạy 1 lần
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));
@@ -36,8 +60,7 @@ const Header = () => {
         {/* Left */}
         <div className="header__left">
           <button className="hamburger" aria-label="Menu">
-            <MenuOutlined style={{ fontSize: "28px", color: "#111" }} /> 
-            {/* 👈 AntDesign icon */}
+            <MenuOutlined style={{ fontSize: 28, color: "#111" }} />
           </button>
           <div className="logo">
             <span className="logo-icon">+</span>
@@ -57,6 +80,23 @@ const Header = () => {
               {c.label}
             </Link>
           ))}
+
+          {/* Search (Ant Design) */}
+          {showSearch && (
+            <div className="header__search">
+              <Input.Search
+                className="search-custom"
+                placeholder={placeholders[phIndex]}
+                size="large"
+                allowClear
+                enterButton={<SearchOutlined />}
+                onSearch={(value) => {
+                  // TODO: gắn logic tìm kiếm thực tế ở đây
+                  console.log("Searching:", value);
+                }}
+              />
+            </div>
+          )}
         </nav>
 
         {/* Right */}
@@ -64,7 +104,9 @@ const Header = () => {
           <div className="auth-links">
             {user ? (
               <div className="user-section">
-                <span className="user-name">{user?.displayName || user?.email}</span>
+                <span className="user-name">
+                  {user?.displayName || user?.email}
+                </span>
                 <button onClick={handleLogout} className="btn-logout">
                   Đăng xuất
                 </button>
