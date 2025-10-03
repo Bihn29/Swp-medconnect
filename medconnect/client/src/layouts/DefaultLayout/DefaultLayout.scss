@@ -10,7 +10,7 @@
 /* ==== HEADER ==== */
 .header {
   background: var(--color-bg-soft);
-  padding: 4px 0;
+  padding: 12px 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   position: fixed;
   top: 0;
@@ -22,7 +22,7 @@
   .header__content {
     display: flex;
     align-items: center;
-    justify-content: flex-start; /* 👈 đưa tất cả item về bên trái */
+    justify-content: space-between;
     gap: 20px;
   }
 
@@ -33,11 +33,12 @@
     gap: 4px;
 
     .hamburger {
-      font-size: 32px; /* tăng kích thước icon */
-      padding: 8px; /* thêm khoảng cách click */
+      font-size: 32px;
+      padding: 8px;
       cursor: pointer;
       background: transparent;
       border: none;
+      line-height: 1;
     }
 
     .logo {
@@ -50,7 +51,6 @@
       .logo-icon {
         color: var(--color-brand);
       }
-
       .logo-text {
         color: var(--color-highlight);
       }
@@ -59,18 +59,21 @@
 
   /* ==== CENTER ==== */
   .header__center {
+    white-space: nowrap;
     display: flex;
     justify-content: flex-start;
-    gap: 2px;
-    flex: unset;
-    margin-left: 1px; /* 👈 chỉnh khoảng cách với logo */
+    align-items: center;
+    gap: 1px;
+    flex: 1;
+    margin-left: 20px;
 
     .cat {
-      padding: 6px 18px;
+      margin: 0 6px;
+      padding: 6px 10px;
       border-radius: var(--radius-pill);
       text-decoration: none;
       color: var(--color-text);
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       font-weight: 350;
       transition: background 0.25s ease, color 0.25s ease;
 
@@ -81,7 +84,80 @@
       &.active {
         background: var(--color-highlight);
         font-weight: 600;
-        color: #fff; /* 👈 chữ trắng */
+        color: #fff;
+      }
+    }
+
+    /* === Tăng size & canh giữa cho search === */
+    .header__search {
+      .ant-input-search.search-custom {
+        width: 35%; /* sẽ tự co lại theo kích thước màn hình */
+        max-width: 340px; /* giới hạn không dài quá */
+        min-width: 240px;
+        /* Chiều cao mục tiêu của cả khối */
+        --search-h: 46px; /* 46–48px trông đẹp như BookingCare */
+        --search-fs: 16px; /* 16–18px */
+
+        .ant-input-group {
+          border: 1.5px solid var(--color-brand);
+          border-radius: 9999px;
+          overflow: hidden;
+          background: #fff;
+          transition: box-shadow 0.2s, border-color 0.2s;
+          height: var(--search-h); /* <- quan trọng */
+        }
+
+        /* Wrapper chứa input */
+        .ant-input-affix-wrapper {
+          border: 0 !important;
+          box-shadow: none !important;
+          background: transparent;
+          height: var(--search-h); /* <- canh giữa dọc */
+          display: flex;
+          align-items: center; /* <- canh giữa caret/placeholder */
+          padding: 0; /* bỏ padding dư */
+        }
+
+        /* Chính input */
+        .ant-input {
+          height: var(--search-h);
+          font-size: var(--search-fs); /* <- chữ to hơn */
+          line-height: var(--search-h); /* canh giữa dọc cho placeholder */
+          padding: 0 16px; /* ngang */
+          border: 0;
+          box-shadow: none;
+
+          &::placeholder {
+            font-size: var(--search-fs); /* placeholder to */
+            color: #9aa0a6; /* màu dịu */
+            opacity: 1;
+          }
+        }
+
+        /* Nút search bên phải */
+        .ant-input-group-addon {
+          padding: 0;
+
+          .ant-btn {
+            height: var(--search-h); /* khớp chiều cao */
+            width: 56px;
+            border: 0;
+            border-radius: 0;
+            background: var(--color-brand);
+            color: #fff;
+            font-size: 18px;
+
+            &:hover {
+              background: var(--color-brand-dark);
+            }
+          }
+        }
+
+        /* Focus cả khối */
+        .ant-input-group:has(.ant-input-affix-wrapper-focused) {
+          border-color: var(--color-brand-dark);
+          box-shadow: 0 0 0 2px rgba(69, 195, 210, 0.2);
+        }
       }
     }
   }
@@ -102,7 +178,7 @@
       border-radius: 8px;
       text-decoration: none;
       font-size: 20px;
-      color: var(--color-brand); // icon xanh
+      color: var(--color-brand);
     }
 
     .auth-links {
@@ -115,21 +191,22 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        height: 40px;
-        min-width: 120px; /* 👈 ép độ rộng tối thiểu bằng nhau */
-        padding: 0 16px;
-        border-radius: 8px;
-        font-weight: 600;
+        height: 32px; /* nhỏ hơn */
+        min-width: 90px; /* ngắn lại */
+        padding: 0 10px; /* thu hẹp ngang */
+        font-size: 14px; /* chữ nhỏ lại */
+        border-radius: 6px;
+        font-weight: 300;
         text-decoration: none;
         line-height: normal;
         box-sizing: border-box;
-        vertical-align: middle;
       }
 
       .btn-outline {
         background: #fff;
         border: 2px solid var(--color-brand);
         color: var(--color-brand);
+        transition: background 0.25s ease;
 
         &:hover {
           background: rgba(69, 195, 210, 0.08);
@@ -141,9 +218,11 @@
         border: 2px solid var(--color-brand);
         color: #fff;
         box-shadow: 0 4px 14px rgba(69, 195, 210, 0.28);
+        transition: background 0.25s ease, box-shadow 0.25s ease;
 
         &:hover {
           background: var(--color-brand-dark);
+          box-shadow: 0 6px 18px rgba(69, 195, 210, 0.34);
         }
       }
 
@@ -237,13 +316,24 @@
 }
 
 /* ==== RESPONSIVE ==== */
+@media (max-width: 1200px) {
+  .header__center .header__search .ant-input-search.search-custom {
+    width: 280px;
+  }
+}
+
 @media (max-width: 900px) {
   .header__center {
-    display: none;
+    .header__search {
+      display: none;
+    } /* Ẩn search trên mobile nếu muốn */
   }
 }
 
 @media (max-width: 768px) {
+  .header__center {
+    display: none;
+  }
   .footer .footer-content {
     flex-direction: column;
     gap: 20px;
