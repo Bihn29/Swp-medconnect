@@ -1,10 +1,12 @@
 import DefaultLayout from "../layouts/DefaultLayout/DefaultLayout";
 import AuthLayout from "../layouts/AuthLayout/AuthLayout";
-import Home from "../pages/Home/Home";
+// The homepage component is located at pages/Home/Homepage.jsx
+import Home from "../pages/Home/Homepage";
 import About from "../pages/About/About";
 import Products from "../pages/Products/Products";
 import ProductDetail from "../pages/Products/ProductDetail";
 import Login from "../pages/Auth/Login";
+import Register from "../pages/Auth/Register";
 import { Route } from "react-router-dom";
 import GuestMiddleware from "../middlewares/GuestMiddleware";
 export const publicRoutes = (
@@ -20,6 +22,7 @@ export const publicRoutes = (
     <Route element={<AuthLayout />}>
       <Route element={<GuestMiddleware />}>
         <Route path="/dang-nhap" element={<Login />} />
+        <Route path="/dang-ky" element={<Register />} />
       </Route>
     </Route>
   </>

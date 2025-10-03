@@ -1,0 +1,197 @@
+/* THEMED LAYOUT STYLES */
+:root {
+  --color-brand: #45c3d2;
+  --color-brand-dark: #1095a8;
+  --color-highlight: #ffbf00;
+  --color-bg-soft: #f3fffe;
+  --color-text: #111;
+  --radius-pill: 40px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.nav-links .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  line-height: 1;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.nav-links .btn.btn-primary {
+  padding: 0 16px;
+}
+
+.nav-links .btn.btn-outline {
+  background: #fff;
+  border: 2px solid rgba(69, 195, 210, 0.35);
+  color: var(--color-brand);
+  transition: all 0.25s ease;
+}
+.nav-links .btn.btn-outline:hover {
+  background: rgba(69, 195, 210, 0.08);
+}
+.nav-links .btn.btn-primary {
+  background: var(--color-brand);
+  color: #fff;
+  border: 2px solid var(--color-brand);
+  box-shadow: 0 4px 14px rgba(69, 195, 210, 0.28);
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+.nav-links .btn.btn-primary:hover {
+  background: var(--color-brand-dark);
+  box-shadow: 0 6px 18px rgba(69, 195, 210, 0.34);
+}
+.nav-links .btn:focus {
+  outline: 3px solid rgba(69, 195, 210, 0.25);
+  outline-offset: 2px;
+}
+
+.header--booking {
+  background: var(--color-bg-soft);
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+.nav--booking {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hamburger {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 6px;
+}
+.nav-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+.center-cats {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.center-cats .cat {
+  padding: 6px 18px;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  color: var(--color-text);
+  background: transparent;
+  font-weight: 500;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.center-cats .cat:hover {
+  background: #fff;
+}
+.center-cats .cat.active {
+  background: var(--color-highlight);
+  font-weight: 600;
+}
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  text-decoration: none;
+  background: transparent;
+}
+.logo h2 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--color-text);
+  display: flex;
+  gap: 4px;
+}
+.logo-mark {
+  color: var(--color-highlight);
+}
+
+@media (max-width: 900px) {
+  .center-cats {
+    display: none;
+  }
+}
+
+/* User section styles */
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.user-info i {
+  font-size: 20px;
+  color: var(--color-brand);
+}
+
+.logout-btn {
+  font-size: 14px !important;
+  padding: 0 12px !important;
+  height: 36px !important;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 0, 0, 0.1) !important;
+  border-color: #dc3545 !important;
+  color: #dc3545 !important;
+}
+
+.nav-links .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;          /* ép cùng chiều cao */
+  min-width: 100px;      /* ép cùng chiều rộng nếu muốn */
+  padding: 0 16px;       /* padding đồng đều */
+  line-height: 1.2;
+  border-radius: 8px;
+  font-weight: 500;
+  box-sizing: border-box; /* tính cả border vào kích thước */
+}
+
+.nav-links .btn-outline {
+  border: 2px solid #2c5aa0;  /* cùng border với primary */
+}
+
+.nav-links .btn-primary {
+  border: 2px solid #2c5aa0;  /* thêm border để chiều cao khớp */
+  background: #2c5aa0;
+  color: #fff;
+}

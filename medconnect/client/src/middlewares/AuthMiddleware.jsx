@@ -1,8 +1,10 @@
 import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
-const isLogin = false;
 const AuthMiddleware = () => {
-  return isLogin ? <Outlet /> : <Navigate to="/dang-nhap" />;
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return user ? <Outlet /> : <Navigate to="/dang-nhap" />;
 };
 
 export default AuthMiddleware;

@@ -36,3 +36,5 @@ export function onAuth(cb) {
 export async function logout() {
   await signOut(auth);
 }
+
+
