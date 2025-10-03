@@ -5,8 +5,8 @@ import Home from "../pages/Home/Homepage";
 import About from "../pages/About/About";
 import Products from "../pages/Products/Products";
 import ProductDetail from "../pages/Products/ProductDetail";
+import HomeVisit from "../pages/HomeVisit/HomeVisit";
 import Login from "../pages/Auth/Login";
-import Register from "../pages/Auth/Register";
 import { Route } from "react-router-dom";
 import GuestMiddleware from "../middlewares/GuestMiddleware";
 export const publicRoutes = (
@@ -14,6 +14,7 @@ export const publicRoutes = (
     <Route element={<DefaultLayout />}>
       <Route path="/" element={<Home />} />
       <Route path="/gioi-thieu" element={<About />} />
+      <Route path="/kham-tai-nha" element={<HomeVisit />} />
       <Route path="/san-pham">
         <Route path="" element={<Products />} />
         <Route path=":id" element={<ProductDetail />} />
@@ -22,7 +23,6 @@ export const publicRoutes = (
     <Route element={<AuthLayout />}>
       <Route element={<GuestMiddleware />}>
         <Route path="/dang-nhap" element={<Login />} />
-        <Route path="/dang-ky" element={<Register />} />
       </Route>
     </Route>
   </>

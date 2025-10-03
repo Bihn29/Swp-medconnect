@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../../lib/firebase";
+import { signOut } from "firebase/auth";
 import "./PatientDashboard.scss";
 
 export default function PatientDashboard() {
@@ -20,6 +21,15 @@ export default function PatientDashboard() {
     return () => unsubscribe();
   }, [navigate]);
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate("/dang-nhap");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="patient-dashboard">
@@ -33,6 +43,25 @@ export default function PatientDashboard() {
 
   return (
     <div className="patient-dashboard">
+      <header className="dashboard-header">
+        <div className="header-content">
+          <div className="logo-section">
+            <h1>MedConnect</h1>
+            <span className="patient-badge">Bệnh nhân</span>
+          </div>
+          <div className="user-section">
+            <div className="user-info">
+              <i className="bi bi-person-circle" />
+              <span>{user?.displayName || user?.email || "Bệnh nhân"}</span>
+            </div>
+            <button onClick={handleLogout} className="logout-btn">
+              <i className="bi bi-box-arrow-right" />
+              Đăng xuất
+            </button>
+          </div>
+        </div>
+      </header>
+
       <main className="dashboard-main">
         <div className="welcome-section">
           <div className="welcome-card">
@@ -100,3 +129,5 @@ export default function PatientDashboard() {
     </div>
   );
 }
+
+

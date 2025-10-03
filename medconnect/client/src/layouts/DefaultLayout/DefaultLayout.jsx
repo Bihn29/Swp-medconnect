@@ -6,7 +6,7 @@ const DefaultLayout = () => {
   return (
     <div>
       <Header />
-      <main style={{ marginTop: "70px" }}>
+      <main style={{ paddingTop: "70px" }}>
         <Outlet />
       </main>
       <Footer />
