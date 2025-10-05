@@ -1,6 +1,4 @@
 import "./Home.scss";
-import Carousel from "./Carousel";
-import BestSeller from "./BestSeller";
 import { useEffect } from "react";
 import { getTodos } from "../../services/todoService";
 
@@ -14,8 +12,6 @@ const Home = () => {
   return (
     <div>
       <h1>Home</h1>
-      <Carousel />
-      <BestSeller />
     </div>
   );
 };
