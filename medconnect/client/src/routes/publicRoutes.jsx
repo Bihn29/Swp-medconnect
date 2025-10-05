@@ -7,6 +7,7 @@ import Products from "../pages/Products/Products";
 import ProductDetail from "../pages/Products/ProductDetail";
 import HomeVisit from "../pages/Home/HomeVisit/HomeVisit";
 import HospitalVisit from "../pages/Home/HospitalVisit/HospitalVisit";
+import SearchPage from "../pages/Home/SearchPage/SearchPage";
 import Login from "../pages/Auth/Login";
 import { Route } from "react-router-dom";
 import GuestMiddleware from "../middlewares/GuestMiddleware";
@@ -17,6 +18,7 @@ export const publicRoutes = (
       <Route path="/gioi-thieu" element={<About />} />
       <Route path="/kham-tai-nha" element={<HomeVisit />} />
       <Route path="/kham-tai-vien" element={<HospitalVisit />} />
+      <Route path="/tim-kiem" element={<SearchPage />} />
       <Route path="/san-pham">
         <Route path="" element={<Products />} />
         <Route path=":id" element={<ProductDetail />} />
