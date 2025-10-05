@@ -9,6 +9,9 @@ import HomeVisit from "../pages/Home/HomeVisit/HomeVisit";
 import HospitalVisit from "../pages/Home/HospitalVisit/HospitalVisit";
 import SearchPage from "../pages/Home/SearchPage/SearchPage";
 import Login from "../pages/Auth/Login";
+import ForgotPassword from "../pages/Auth/ForgotPassword";
+import VerifyOtp from "../pages/Auth/VerifyOtp";
+import ResetPassword from "../pages/Auth/ResetPassword";
 import { Route } from "react-router-dom";
 import GuestMiddleware from "../middlewares/GuestMiddleware";
 export const publicRoutes = (
@@ -27,6 +30,10 @@ export const publicRoutes = (
     <Route element={<AuthLayout />}>
       <Route element={<GuestMiddleware />}>
         <Route path="/dang-nhap" element={<Login />} />
+        <Route path="/dang-ky" element={<Login />} />
+        <Route path="/quen-mat-khau" element={<ForgotPassword />} />
+        <Route path="/xac-minh-otp" element={<VerifyOtp />} />
+        <Route path="/dat-lai-mat-khau" element={<ResetPassword />} />
       </Route>
     </Route>
   </>
