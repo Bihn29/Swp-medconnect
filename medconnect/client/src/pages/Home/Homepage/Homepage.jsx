@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
   Input,
@@ -31,12 +31,13 @@ const { Title, Paragraph } = Typography;
 const { Option } = Select;
 
 const Homepage = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [searchType, setSearchType] = useState("name");
 
   const handleSearch = (e) => {
     e.preventDefault();
-    console.log(`Searching for ${searchType}: ${searchTerm}`);
+    navigate("/tim-kiem");
   };
 
   const specializations = [
@@ -109,8 +110,8 @@ const Homepage = () => {
       {/* Hero Section */}
       <section className="hero-section">
         <div className="container">
-          <Row justify="center" align="middle" style={{ minHeight: "500px" }}>
-            <Col xs={24} lg={16} style={{ textAlign: "center" }}>
+          <Row justify="center" align="middle" style={{ minHeight: "350px" }}>
+            <Col xs={24} lg={20} style={{ textAlign: "center" }}>
               <Title
                 level={1}
                 style={{
@@ -139,73 +140,22 @@ const Homepage = () => {
               </Paragraph>
 
               {/* Search Section */}
-              <Card
+              <Input
+                placeholder="Tìm bệnh viện"
+                size="large"
+                prefix={<SearchOutlined style={{ color: "#45c3d2" }} />}
+                onClick={() => navigate("/tim-kiem")}
+                readOnly
                 style={{
-                  background: "rgba(255, 255, 255, 0.95)",
-                  borderRadius: "20px",
-                  border: "none",
-                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+                  borderRadius: "25px",
+                  width: "100%",
+                  maxWidth: "1500px",
+                  height: "55px",
+                  margin: "0 auto",
+                  fontSize: "16px",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
                 }}
-              >
-                <Space.Compact className="search-box" style={{ width: "100%" }}>
-                  <Select
-                    value={searchType}
-                    onChange={setSearchType}
-                    style={{ width: 160 }}
-                    size="large"
-                  >
-                    <Option value="name">Tên bác sĩ</Option>
-                    <Option value="specialization">Chuyên khoa</Option>
-                    <Option value="location">Địa điểm</Option>
-                  </Select>
-
-                  <Input
-                    placeholder={`Tìm kiếm theo ${
-                      searchType === "name"
-                        ? "tên bác sĩ"
-                        : searchType === "specialization"
-                        ? "chuyên khoa"
-                        : "địa điểm"
-                    }...`}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    size="large"
-                  />
-
-                  <Button
-                    type="primary"
-                    icon={<SearchOutlined />}
-                    size="large"
-                    onClick={handleSearch}
-                  >
-                    Tìm kiếm
-                  </Button>
-                </Space.Compact>
-
-                {/* Quick Specializations */}
-                <div style={{ marginTop: "20px", textAlign: "left" }}>
-                  <Paragraph style={{ marginBottom: "12px", color: "#666" }}>
-                    Chuyên khoa phổ biến:
-                  </Paragraph>
-                  <Space wrap>
-                    {specializations.map((spec, i) => (
-                      <Tag
-                        key={i}
-                        style={{
-                          cursor: "pointer",
-                          borderRadius: "20px",
-                          padding: "4px 12px",
-                          border: "1px solid #45c3d2",
-                          color: "#45c3d2",
-                        }}
-                        onClick={() => setSearchTerm(spec)}
-                      >
-                        {spec}
-                      </Tag>
-                    ))}
-                  </Space>
-                </div>
-              </Card>
+              />
             </Col>
           </Row>
         </div>
