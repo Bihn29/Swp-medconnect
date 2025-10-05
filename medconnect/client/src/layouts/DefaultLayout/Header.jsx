@@ -7,19 +7,33 @@ import { Input } from "antd";
 import "./DefaultLayout.scss";
 
 const Header = () => {
-  const categories = [
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Navigation categories cho trang chủ
+  const defaultCategories = [
     { key: "all", label: "Trang chủ", path: "/" },
     { key: "home", label: "Tại nhà", path: "/kham-tai-nha" },
     { key: "hospital", label: "Tại viện", path: "/kham-tai-vien" },
     { key: "about", label: "Giới thiệu", path: "/gioi-thieu" },
   ];
 
+  // Navigation categories cho trang search
+  const searchCategories = [
+    { key: "specialty", label: "Chuyên khoa", path: "/tim-kiem?type=specialty" },
+    { key: "facility", label: "Cơ sở y tế", path: "/tim-kiem?type=location" },
+    { key: "doctor", label: "Bác sĩ", path: "/tim-kiem?type=doctor" },
+    { key: "package", label: "Gói khám", path: "/tim-kiem?type=package" },
+  ];
+
+  // Chọn categories dựa trên trang hiện tại
+  const isSearchPage = location.pathname === "/tim-kiem";
+  const categories = isSearchPage ? searchCategories : defaultCategories;
+
   const [activeCat, setActiveCat] = useState("all");
   const [user, setUser] = useState(null);
-  const navigate = useNavigate();
-  const location = useLocation();
 
-  // Hiển thị search ở các trang này
+  // Hiển thị search ở các trang này (không hiển thị ở trang search)
   const showSearch = ["/kham-tai-nha", "/kham-tai-vien"].includes(
     location.pathname
   );
@@ -62,7 +76,7 @@ const Header = () => {
           <button className="hamburger" aria-label="Menu">
             <MenuOutlined style={{ fontSize: 28, color: "#111" }} />
           </button>
-          <div className="logo">
+          <div className="logo" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
             <span className="logo-icon">+</span>
             <span className="logo-text">MedConnect</span>
           </div>
@@ -83,17 +97,15 @@ const Header = () => {
 
           {/* Search (Ant Design) */}
           {showSearch && (
-            <div className="header__search">
-              <Input.Search
+            <div
+              className="header__search"
+              onClick={() => navigate("/tim-kiem")}
+            >
+              <Input
                 className="search-custom"
                 placeholder={placeholders[phIndex]}
-                size="large"
-                allowClear
-                enterButton={<SearchOutlined />}
-                onSearch={(value) => {
-                  // TODO: gắn logic tìm kiếm thực tế ở đây
-                  console.log("Searching:", value);
-                }}
+                readOnly
+                prefix={<SearchOutlined style={{ color: "#45c3d2" }} />}
               />
             </div>
           )}
