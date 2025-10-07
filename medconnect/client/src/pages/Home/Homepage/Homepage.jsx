@@ -161,6 +161,95 @@ const Homepage = () => {
         </div>
       </section>
 
+      {/* Recommendation Section */}
+      <section style={{ padding: "80px 0", background: "white" }}>
+        <div className="container">
+          <Title level={2} style={{ textAlign: "left", marginBottom: "40px" }}>
+            Dành cho bạn
+          </Title>
+
+          <Row gutter={[32, 32]} justify="start">
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Card
+                hoverable
+                style={{
+                  textAlign: "center",
+                  border: "none",
+                  background: "transparent",
+                }}
+                bodyStyle={{ padding: 0 }}
+              >
+                <div
+                  style={{
+                    width: "220px",
+                    height: "220px",
+                    borderRadius: "50%",
+                    backgroundColor: "#ffeb99",
+                    margin: "0 auto 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  <img
+                    src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152447-bac-si.png"
+                    alt="Bác sĩ"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                </div>
+                <Title level={4} style={{ margin: 0, color: "#004c4c" }}>
+                  Bác sĩ
+                </Title>
+              </Card>
+            </Col>
+
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Card
+                hoverable
+                style={{
+                  textAlign: "center",
+                  border: "none",
+                  background: "transparent",
+                }}
+                bodyStyle={{ padding: 0 }}
+              >
+                <div
+                  style={{
+                    width: "220px",
+                    height: "220px",
+                    borderRadius: "50%",
+                    backgroundColor: "#ffeb99",
+                    margin: "0 auto 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  <img
+                    src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152612-chuyen-khoa.png"
+                    alt="Chuyên khoa"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                </div>
+                <Title level={4} style={{ margin: 0, color: "#004c4c" }}>
+                  Chuyên khoa
+                </Title>
+              </Card>
+            </Col>
+          </Row>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section style={{ padding: "80px 0", background: "#f8f9fa" }}>
         <div className="container">

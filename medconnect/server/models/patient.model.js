@@ -9,9 +9,9 @@ const PatientSchema = new Schema(
       required: true,
       unique: true,
     },
-    fullName: { type: String, required: true },
+    fullName: { type: String, required: true, trim: true },
     dob: Date,
-    gender: String,
+    gender: { type: String, enum: ["male", "female", "other"] },
     nationalId: String,
     phone: String,
     address: String,
@@ -19,7 +19,9 @@ const PatientSchema = new Schema(
     districtCode: Number,
     provinceCode: Number,
   },
-  { timestamps: true, collection: "patients" }
+  { timestamps: true, versionKey: false, collection: "patients" }
 );
+
+PatientSchema.index({ provinceCode: 1, districtCode: 1, wardCode: 1 });
 
 export default model("Patient", PatientSchema);

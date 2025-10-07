@@ -3,7 +3,14 @@ const { Schema, model } = mongoose;
 
 const UserSchema = new Schema(
   {
-    email: { type: String, required: true, unique: true, index: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+      lowercase: true,
+      trim: true,
+    },
     passwordHash: { type: String, required: true },
     role: {
       type: String,
@@ -11,10 +18,10 @@ const UserSchema = new Schema(
       required: true,
     },
     status: { type: String, enum: ["active", "blocked"], default: "active" },
-    fullName: String,
-    phone: { type: String, unique: true, sparse: true },
+    fullName: { type: String, trim: true },
+    phone: { type: String, unique: true, sparse: true, trim: true },
   },
-  { timestamps: true, collection: "users" }
+  { timestamps: true, versionKey: false, collection: "users" }
 );
 
 export default model("User", UserSchema);

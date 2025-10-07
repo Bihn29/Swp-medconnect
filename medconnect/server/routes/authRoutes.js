@@ -7,7 +7,7 @@ import {
   getCurrentUser,
   logout,
   register,
-  googleRegister,
+  googleRegister
 } from "../controllers/authController.js";
 
 const router = express.Router();

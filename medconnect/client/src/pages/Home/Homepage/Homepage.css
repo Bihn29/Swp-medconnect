@@ -117,3 +117,13 @@ body {
   background: #3ba8b8;
   border-color: #3ba8b8;
 }
+
+/* Recommendation section */
+.recommendation-section img {
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+.recommendation-section img:hover {
+  transform: scale(1.05);
+}

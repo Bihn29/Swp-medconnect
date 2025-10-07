@@ -1,35 +1,37 @@
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
-// 1 dòng trên hóa đơn
+const isInt = (v) => Number.isInteger(v);
+
+// Một dòng trên hóa đơn (đơn vị: đồng)
 const InvoiceItemSchema = new Schema(
   {
-    description: { type: String, required: true }, // VD: "Khám tim mạch online 30'"
+    description: { type: String, required: true },
     quantity: { type: Number, required: true, min: 1, default: 1 },
-    unitPrice: { type: Number, required: true, min: 0 }, // VND
-    lineTotal: { type: Number, required: true, min: 0 }, // = quantity * unitPrice
+    unitPrice: { type: Number, required: true, min: 0, validate: isInt }, // đồng
+    lineTotal: { type: Number, required: true, min: 0, validate: isInt }, // đồng
   },
   { _id: false }
 );
 
-// Snapshot người trả tiền tại thời điểm xuất hóa đơn (tránh lệ thuộc thay đổi về sau)
+// Bên trả tiền
 const BillToSchema = new Schema(
   {
     patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true },
-    name: { type: String, required: true }, // tên bệnh nhân tại thời điểm xuất HĐ
-    email: { type: String }, // tùy chọn
-    phone: { type: String }, // tùy chọn (E.164 nếu có)
+    name: { type: String, required: true },
+    email: String,
+    phone: String,
   },
   { _id: false }
 );
 
-// Snapshot nơi cung cấp dịch vụ (bác sĩ/clinic) tại thời điểm xuất hóa đơn
+// Bên cung cấp dịch vụ
 const BillFromSchema = new Schema(
   {
     doctorId: { type: Schema.Types.ObjectId, ref: "Doctor", required: true },
     clinicId: { type: Schema.Types.ObjectId, ref: "Clinic" },
     doctorName: { type: String, required: true },
-    clinicName: { type: String }, // nếu có
+    clinicName: String,
   },
   { _id: false }
 );
@@ -44,10 +46,10 @@ const PaymentSchema = new Schema(
       unique: true,
     },
 
-    // Thông tin hóa đơn
-    invoiceNumber: { type: String, required: true, unique: true, trim: true }, // số HĐ duy nhất (tự sinh theo prefix của bạn)
+    // Hóa đơn
+    invoiceNumber: { type: String, required: true, unique: true, trim: true },
     currency: { type: String, default: "VND" },
-    issueDate: { type: Date, default: () => new Date() }, // ngày phát hành hóa đơn (không thuế)
+    issueDate: { type: Date, default: () => new Date() },
 
     billTo: { type: BillToSchema, required: true },
     billFrom: { type: BillFromSchema, required: true },
@@ -58,10 +60,16 @@ const PaymentSchema = new Schema(
       validate: (v) => v.length > 0,
     },
 
-    // Tổng tiền (không thuế)
-    subtotal: { type: Number, required: true, min: 0 }, // tổng lineTotal
-    discount: { type: Number, required: true, min: 0, default: 0 }, // giảm giá nếu có
-    total: { type: Number, required: true, min: 0 }, // = subtotal - discount
+    // Tổng tiền (đơn vị đồng, không thuế)
+    subtotal: { type: Number, required: true, min: 0, validate: isInt },
+    discount: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+      validate: isInt,
+    },
+    total: { type: Number, required: true, min: 0, validate: isInt },
 
     // Thanh toán qua cổng
     method: { type: String, enum: ["vnpay", "momo", "vietqr"], required: true },
@@ -70,13 +78,24 @@ const PaymentSchema = new Schema(
       enum: ["init", "pending", "paid", "failed", "refunded", "cancelled"],
       default: "init",
     },
-    providerTxnId: { type: String }, // mã GD từ cổng thanh toán
-    paidAt: { type: Date }, // set khi status = "paid"
+    providerTxnId: { type: String }, // mã giao dịch từ cổng
+    paidAt: { type: Date },
+
+    // VNPAY integration
+    gateway: { type: String, enum: ["vnpay"], default: "vnpay" },
+    bankCode: { type: String }, // VNPAY bankCode
+    payUrl: { type: String }, // URL redirect VNPAY
+    ipnPayload: Schema.Types.Mixed, // log raw IPN callback từ VNPAY
+
+    // Hoàn tiền
+    refundAmount: { type: Number, min: 0, default: 0, validate: isInt },
+    refundedAt: Date,
+    refundReason: String,
   },
-  { timestamps: true, collection: "payments" }
+  { timestamps: true, versionKey: false, collection: "payments" }
 );
 
-// Gợi ý logic tính toán trước khi save
+// Hook tính subtotal/total (không thuế, không làm tròn)
 PaymentSchema.pre("validate", function (next) {
   if (this.items?.length) {
     this.subtotal = this.items.reduce(
@@ -86,9 +105,16 @@ PaymentSchema.pre("validate", function (next) {
   } else {
     this.subtotal = 0;
   }
+
   if (this.discount == null) this.discount = 0;
+  if (this.discount > this.subtotal) this.discount = this.subtotal;
+
   this.total = Math.max(0, this.subtotal - this.discount);
+
+  // Chặn refund > total
+  if (this.refundAmount > this.total) this.refundAmount = this.total;
+
   next();
 });
-
+// real
 export default model("Payment", PaymentSchema);
