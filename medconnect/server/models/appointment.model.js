@@ -11,12 +11,37 @@ const AppointmentSchema = new Schema(
     scheduledEnd: { type: Date, required: true },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "cancelled", "done"],
+      enum: [
+        "pending",
+        "confirmed",
+        "in_progress",
+        "cancelled",
+        "done",
+        "no_show",
+      ],
       default: "pending",
     },
     reason: String,
+    cancelledAt: Date,
+    cancelledBy: { type: Schema.Types.ObjectId, ref: "User" },
+    cancelReason: String,
+    rescheduledFromId: { type: Schema.Types.ObjectId, ref: "Appointment" },
   },
-  { timestamps: true, collection: "appointments" }
+  { timestamps: true, versionKey: false, collection: "appointments" }
+);
+
+AppointmentSchema.index({ doctorId: 1, scheduledStart: 1 });
+AppointmentSchema.index({ patientId: 1, scheduledStart: 1 });
+AppointmentSchema.index({ status: 1, scheduledStart: 1 });
+
+AppointmentSchema.index(
+  { slotId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["pending", "confirmed", "in_progress", "done"] },
+    },
+  }
 );
 
 export default model("Appointment", AppointmentSchema);
