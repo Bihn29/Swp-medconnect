@@ -91,3 +91,77 @@ export async function findUserByIdentifier(identifier) {
   }
   return findUserByPhone(id);
 }
+
+export async function createUser(userData) {
+  const { fullName, email, phone, passwordHash, role } = userData;
+  
+  if (!fullName || !email || !role) {
+    throw new Error("Missing required user data");
+  }
+
+  const p = await getPool();
+  const transaction = p.transaction();
+  
+  try {
+    await transaction.begin();
+    
+    // Insert into Users table
+    const userResult = await transaction
+      .request()
+      .input("email", sql.NVarChar, email.toLowerCase())
+      .input("passwordHash", sql.NVarChar, passwordHash)
+      .input("role", sql.NVarChar, role.toUpperCase())
+      .input("status", sql.NVarChar, "ACTIVE")
+      .input("createdAt", sql.DateTime, new Date())
+      .query(`
+        INSERT INTO Users (Email, PasswordHash, Role, Status, CreatedAt)
+        OUTPUT INSERTED.UserID, INSERTED.Email, INSERTED.Role, INSERTED.Status
+        VALUES (@email, @passwordHash, @role, @status, @createdAt)
+      `);
+    
+    const newUser = userResult.recordset[0];
+    if (!newUser) {
+      throw new Error("Failed to create user");
+    }
+    
+    // Insert into role-specific table
+    if (role.toUpperCase() === "PATIENT") {
+      await transaction
+        .request()
+        .input("userID", sql.Int, newUser.UserID)
+        .input("fullName", sql.NVarChar, fullName)
+        .input("phone", sql.NVarChar, phone)
+        .input("createdAt", sql.DateTime, new Date())
+        .query(`
+          INSERT INTO Patients (UserID, FullName, Phone, CreatedAt)
+          VALUES (@userID, @fullName, @phone, @createdAt)
+        `);
+    } else if (role.toUpperCase() === "DOCTOR") {
+      await transaction
+        .request()
+        .input("userID", sql.Int, newUser.UserID)
+        .input("fullName", sql.NVarChar, fullName)
+        .input("phone", sql.NVarChar, phone)
+        .input("createdAt", sql.DateTime, new Date())
+        .query(`
+          INSERT INTO Doctors (UserID, FullName, Phone, CreatedAt)
+          VALUES (@userID, @fullName, @phone, @createdAt)
+        `);
+    }
+    
+    await transaction.commit();
+    
+    return {
+      UserID: newUser.UserID,
+      Email: newUser.Email,
+      Role: newUser.Role,
+      Status: newUser.Status,
+      FullName: fullName,
+      Phone: phone
+    };
+  } catch (error) {
+    await transaction.rollback();
+    console.error("❌ Create user error:", error);
+    throw error;
+  }
+}

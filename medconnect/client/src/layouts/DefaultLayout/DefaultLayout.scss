@@ -196,23 +196,19 @@
       gap: 10px;
       align-items: center;
 
-      .btn-outline,
-      .btn-primary {
+      .btn-outline {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        height: 40px; /* nhỏ hơn */
-        min-width: 100px; /* ngắn lại */
-        padding: 0 10px; /* thu hẹp ngang */
-        font-size: 16px; /* chữ nhỏ lại */
+        height: 40px;
+        min-width: 100px;
+        padding: 0 10px;
+        font-size: 16px;
         border-radius: 6px;
         font-weight: 300;
         text-decoration: none;
         line-height: normal;
         box-sizing: border-box;
-      }
-
-      .btn-outline {
         background: #fff;
         border: 2px solid var(--color-brand);
         color: var(--color-brand);
@@ -224,6 +220,18 @@
       }
 
       .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 40px;
+        min-width: 100px;
+        padding: 0 10px;
+        font-size: 16px;
+        border-radius: 6px;
+        font-weight: 300;
+        text-decoration: none;
+        line-height: normal;
+        box-sizing: border-box;
         background: var(--color-brand);
         border: 2px solid var(--color-brand);
         color: #fff;

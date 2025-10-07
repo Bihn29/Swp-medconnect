@@ -1,15 +1,29 @@
+// main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.jsx";
 import { BrowserRouter } from "react-router-dom";
 
-// ✅ Import style Ant Design (bắt buộc)
-import 'antd/dist/reset.css';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+import App from "./App.jsx";
+
+// Tạo 1 instance cho toàn app
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // tùy chọn hay dùng
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </React.StrictMode>,
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </QueryClientProvider>
+  </React.StrictMode>
 );

@@ -33,3 +33,14 @@ export async function verifyPassword(hash, plain) {
     return false;
   }
 }
+
+export async function hashPassword(plain) {
+  if (!plain) return null;
+  try {
+    // Use argon2 for new passwords
+    return await argon2.hash(plain);
+  } catch (e) {
+    console.error("❌ Password hashing error:", e);
+    throw new Error("Failed to hash password");
+  }
+}
