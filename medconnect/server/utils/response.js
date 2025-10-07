@@ -1,10 +1,18 @@
-/**
- * Standard response utilities
- */
-export function fail(res, status, code, message) {
-  return res.status(status).json({ ok: false, code, message });
-}
+export const responseHandler = {
+  successResponse: (res, data = {}, meta = {}, status = 200, message = "") => {
+    return res.status(status).json({
+      success: true,
+      data,
+      meta,
+      message,
+    });
+  },
 
-export function ok(res, data = {}) {
-  return res.json({ ok: true, ...data });
-}
+  errorResponse: (res, error = {}, status = 500, message = "") => {
+    return res.status(status).json({
+      success: false,
+      error,
+      message,
+    });
+  },
+};

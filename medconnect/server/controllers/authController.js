@@ -1,8 +1,17 @@
 import admin from "firebase-admin";
+
 import { verifyPassword, hashPassword } from "../helpers/auth.js";
-import { findUserByIdentifier, findUserByEmail, createUser } from "../helpers/db.mssql.js";
+import {
+  findUserByIdentifier,
+  findUserByEmail,
+  createUser,
+} from "../helpers/db.mssql.js";
 import { ok, fail } from "../utils/response.js";
-import { COOKIE_NAME, SESSION_EXPIRES_IN, ERROR_CODES } from "../constants/index.js";
+import {
+  COOKIE_NAME,
+  SESSION_EXPIRES_IN,
+  ERROR_CODES,
+} from "../constants/index.js";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -13,7 +22,12 @@ export async function loginPassword(req, res) {
   try {
     const { identifier, password } = req.body || {};
     if (!identifier || !password) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing identifier or password");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Missing identifier or password"
+      );
     }
 
     console.log("[login] identifier:", identifier);
@@ -27,7 +41,12 @@ export async function loginPassword(req, res) {
 
     const okPwd = await verifyPassword(user.PasswordHash, password);
     if (!okPwd) {
-      return fail(res, 401, ERROR_CODES.INVALID_CREDENTIALS, "Invalid credentials");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.INVALID_CREDENTIALS,
+        "Invalid credentials"
+      );
     }
 
     const uid = `app_${user.UserID}`;
@@ -136,8 +155,14 @@ export function getCurrentUser(req, res) {
  */
 export async function register(req, res) {
   try {
-    const { fullName, email, phone, password, role = "PATIENT" } = req.body || {};
-    
+    const {
+      fullName,
+      email,
+      phone,
+      password,
+      role = "PATIENT",
+    } = req.body || {};
+
     if (!fullName || !email || !phone || !password) {
       return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing required fields");
     }
@@ -156,7 +181,12 @@ export async function register(req, res) {
 
     // Validate password length
     if (password.length < 8) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Password must be at least 8 characters");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Password must be at least 8 characters"
+      );
     }
 
     // Check if user already exists
@@ -167,7 +197,12 @@ export async function register(req, res) {
 
     const existingUserByPhone = await findUserByIdentifier(phone);
     if (existingUserByPhone) {
-      return fail(res, 409, ERROR_CODES.CONFLICT, "Phone number already exists");
+      return fail(
+        res,
+        409,
+        ERROR_CODES.CONFLICT,
+        "Phone number already exists"
+      );
     }
 
     // Hash password
@@ -179,7 +214,7 @@ export async function register(req, res) {
       email: email.toLowerCase().trim(),
       phone: phone,
       passwordHash: hashedPassword,
-      role: role.toUpperCase()
+      role: role.toUpperCase(),
     });
 
     if (!newUser) {
@@ -194,16 +229,16 @@ export async function register(req, res) {
     });
 
     console.log("[register] success for user:", newUser.UserID);
-    return ok(res, { 
-      customToken, 
+    return ok(res, {
+      customToken,
       role: newUser.Role,
       user: {
         id: newUser.UserID,
         fullName: newUser.FullName,
         email: newUser.Email,
         phone: newUser.Phone,
-        role: newUser.Role
-      }
+        role: newUser.Role,
+      },
     });
   } catch (e) {
     console.error("❌ /api/auth/register error:", e);
@@ -239,7 +274,7 @@ export async function googleRegister(req, res) {
       email: email,
       phone: decoded.phone_number || null,
       passwordHash: null, // Google users don't have password
-      role: role.toUpperCase()
+      role: role.toUpperCase(),
     });
 
     if (!newUser) {
@@ -260,15 +295,15 @@ export async function googleRegister(req, res) {
     });
 
     console.log("[google-register] success for user:", newUser.UserID);
-    return ok(res, { 
+    return ok(res, {
       role: newUser.Role,
       user: {
         id: newUser.UserID,
         fullName: newUser.FullName,
         email: newUser.Email,
         phone: newUser.Phone,
-        role: newUser.Role
-      }
+        role: newUser.Role,
+      },
     });
   } catch (e) {
     console.error("❌ /api/auth/google-register error:", e);

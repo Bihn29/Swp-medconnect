@@ -1,0 +1,177 @@
+/* ==== Hospital Visit Page Styles ==== */
+.hospital-visit {
+  min-height: 100vh;
+  background-color: #fff;
+}
+
+/* ==== Hero Section ==== */
+.hero-section {
+  background: linear-gradient(135deg, #45c3d2 0%, #1095a8 100%);
+  position: relative;
+  overflow: hidden;
+  padding: 80px 0;
+}
+
+.hero-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><rect width='200' height='200' fill='none' stroke='rgba(255,255,255,0.05)'/></svg>");
+  opacity: 0.4;
+}
+
+.hero-section .container {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+/* ==== Services Section ==== */
+.service-card {
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.service-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.service-card-selected {
+  border: 2px solid #45c3d2;
+  background: rgba(69, 195, 210, 0.05);
+}
+
+.service-card-selected:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(69, 195, 210, 0.2);
+}
+
+/* ==== Doctors Section ==== */
+.hospital-visit .ant-card {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.hospital-visit .ant-card:hover {
+  transform: translateY(-5px);
+}
+
+.ant-card-meta-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+.ant-card-meta-description {
+  font-size: 14px;
+  color: #666;
+}
+
+/* ==== Booking Modal ==== */
+.ant-modal-header {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ant-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.ant-modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Custom scrollbar */
+.ant-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+.ant-modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.ant-modal-body::-webkit-scrollbar-thumb {
+  background: #45c3d2;
+  border-radius: 3px;
+}
+.ant-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #1095a8;
+}
+
+/* ==== Form Customization ==== */
+.ant-form-item-label > label {
+  font-weight: 600;
+  color: #333;
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-picker-focused,
+.ant-select-focused .ant-select-selector {
+  border-color: #45c3d2 !important;
+  box-shadow: 0 0 0 2px rgba(69, 195, 210, 0.1) !important;
+}
+
+/* Checkbox */
+.ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #45c3d2;
+  border-color: #45c3d2;
+}
+
+/* ==== Button Customization ==== */
+.ant-btn-primary {
+  background: #45c3d2;
+  border-color: #45c3d2;
+  font-weight: 600;
+}
+
+.ant-btn-primary:hover {
+  background: #1095a8;
+  border-color: #1095a8;
+}
+
+.ant-btn-lg {
+  height: 48px;
+  font-size: 16px;
+  border-radius: 8px;
+}
+
+/* ==== Responsive ==== */
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 60px 0;
+  }
+
+  .hero-section h1 {
+    font-size: 2rem !important;
+  }
+
+  .container {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 576px) {
+  .hero-section h1 {
+    font-size: 1.8rem !important;
+  }
+
+  .ant-btn-lg {
+    height: 44px;
+    font-size: 15px;
+  }
+
+  .ant-modal {
+    margin: 16px;
+    max-width: calc(100vw - 32px);
+  }
+}

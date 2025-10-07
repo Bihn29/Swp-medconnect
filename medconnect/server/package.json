@@ -1,8 +1,8 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "type": "module",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js"
@@ -16,7 +16,7 @@
     "express": "^4.21.2",
     "firebase-admin": "^12.6.0",
     "mongodb": "^6.20.0",
-    "mongoose": "^8.19.0",
+    "mongoose": "^8.19.1",
     "morgan": "^1.10.1",
     "mssql": "^10.0.1"
   },

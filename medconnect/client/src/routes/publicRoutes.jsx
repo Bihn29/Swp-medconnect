@@ -1,11 +1,18 @@
 import DefaultLayout from "../layouts/DefaultLayout/DefaultLayout";
 import AuthLayout from "../layouts/AuthLayout/AuthLayout";
-import Home from "../pages/Home/Home";
+// The homepage component is located at pages/Home/Homepage/Homepage.jsx
+import Home from "../pages/Home/Homepage/Homepage";
 import About from "../pages/About/About";
-
-
+import Products from "../pages/Products/Products";
+import ProductDetail from "../pages/Products/ProductDetail";
+import HomeVisit from "../pages/Home/HomeVisit/HomeVisit";
+import HospitalVisit from "../pages/Home/HospitalVisit/HospitalVisit";
+import SearchPage from "../pages/Home/SearchPage/SearchPage";
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
+import ForgotPassword from "../pages/Auth/ForgotPassword";
+import VerifyOtp from "../pages/Auth/VerifyOtp";
+import ResetPassword from "../pages/Auth/ResetPassword";
 import { Route } from "react-router-dom";
 import GuestMiddleware from "../middlewares/GuestMiddleware";
 export const publicRoutes = (
@@ -13,13 +20,21 @@ export const publicRoutes = (
     <Route element={<DefaultLayout />}>
       <Route path="/" element={<Home />} />
       <Route path="/gioi-thieu" element={<About />} />
+      <Route path="/kham-tai-nha" element={<HomeVisit />} />
+      <Route path="/kham-tai-vien" element={<HospitalVisit />} />
+      <Route path="/tim-kiem" element={<SearchPage />} />
       <Route path="/san-pham">
+        <Route path="" element={<Products />} />
+        <Route path=":id" element={<ProductDetail />} />
       </Route>
     </Route>
     <Route element={<AuthLayout />}>
       <Route element={<GuestMiddleware />}>
         <Route path="/dang-nhap" element={<Login />} />
         <Route path="/dang-ky" element={<Register />} />
+        <Route path="/quen-mat-khau" element={<ForgotPassword />} />
+        <Route path="/xac-minh-otp" element={<VerifyOtp />} />
+        <Route path="/dat-lai-mat-khau" element={<ResetPassword />} />
       </Route>
     </Route>
   </>
