@@ -138,25 +138,25 @@
   .container {
     padding: 0 15px;
   }
-  
+
   .facility-search-section {
     padding: 20px 0;
   }
-  
+
   .facility-list-section {
     padding: 20px 0;
   }
-  
+
   .facility-card .ant-card-body {
     padding: 16px;
   }
-  
+
   .facility-card .ant-row {
     flex-direction: column;
     text-align: center;
     gap: 16px;
   }
-  
+
   .facility-card .ant-col {
     flex: none;
     width: 100%;

@@ -5,7 +5,9 @@ import {
   googleLogin,
   createSession,
   getCurrentUser,
-  logout
+  logout,
+  register,
+  googleRegister,
 } from "../controllers/authController.js";
 
 const router = express.Router();
@@ -13,6 +15,8 @@ const router = express.Router();
 // Auth routes
 router.post("/login-password", loginPassword);
 router.post("/google-login", googleLogin);
+router.post("/register", register);
+router.post("/google-register", googleRegister);
 router.post("/session", createSession);
 router.get("/me", authGuard, getCurrentUser);
 router.post("/logout", logout);
