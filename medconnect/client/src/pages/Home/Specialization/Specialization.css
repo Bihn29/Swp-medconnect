@@ -1,5 +1,5 @@
-/* Facility Page Styles */
-.facility-page {
+/* Specialization Page Styles */
+.specialization-page {
   min-height: 100vh;
   background: #f8f9fa;
 }
@@ -11,27 +11,27 @@
 }
 
 /* Search Section */
-.facility-search-section {
+.specialization-search-section {
   background: white;
   padding: 30px 0;
   border-bottom: 1px solid #f0f0f0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.facility-search-section .ant-input-search {
+.specialization-search-section .ant-input-search {
   border-radius: 8px;
 }
 
-.facility-search-section .ant-select {
+.specialization-search-section .ant-select {
   border-radius: 8px;
 }
 
-/* Facility List Section */
-.facility-list-section {
+/* Specialization List Section */
+.specialization-list-section {
   padding: 30px 0;
 }
 
-.facility-list {
+.specialization-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -47,68 +47,55 @@
   font-weight: 500;
 }
 
-/* Facility Card */
-.facility-card {
+/* Specialization Card */
+.specialization-card {
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
-.facility-card:hover {
+.specialization-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
   border-color: #45c3d2 !important;
 }
 
-.facility-card .ant-card-body {
+.specialization-card .ant-card-body {
   padding: 20px;
 }
 
-.facility-info {
+.specialization-info {
   width: 100%;
 }
 
-.facility-info .ant-typography h4 {
+.specialization-info .ant-typography h4 {
   cursor: pointer;
   transition: color 0.3s ease;
 }
 
-.facility-info .ant-typography h4:hover {
+.specialization-info .ant-typography h4:hover {
   color: #45c3d2 !important;
 }
 
 /* Buttons */
-.facility-card .ant-btn {
+.specialization-card .ant-btn {
   font-weight: 500;
   transition: all 0.3s ease;
 }
 
-.facility-card .ant-btn-primary:hover {
+.specialization-card .ant-btn-primary:hover {
   background: #3ba8b8;
   border-color: #3ba8b8;
   transform: translateY(-1px);
 }
 
-.facility-card .ant-btn-default:hover {
-  background: rgba(69, 195, 210, 0.1);
-  border-color: #3ba8b8;
-  color: #3ba8b8;
-}
-
-/* Rating */
-.ant-rate {
-  font-size: 14px;
-}
-
-.ant-rate-star {
-  margin-right: 2px;
-}
-
 /* Tags */
-.facility-info .ant-tag {
+.specialization-info .ant-tag {
   border-radius: 12px;
   font-size: 12px;
   padding: 2px 8px;
   border: none;
+  background: rgba(69, 195, 210, 0.1);
+  color: #45c3d2;
 }
 
 /* Pagination */
@@ -139,32 +126,32 @@
     padding: 0 15px;
   }
 
-  .facility-search-section {
+  .specialization-search-section {
     padding: 20px 0;
   }
 
-  .facility-list-section {
+  .specialization-list-section {
     padding: 20px 0;
   }
 
-  .facility-card .ant-card-body {
+  .specialization-card .ant-card-body {
     padding: 16px;
   }
 
-  .facility-card .ant-row {
+  .specialization-card .ant-row {
     flex-direction: column;
     text-align: center;
     gap: 16px;
   }
 
-  .facility-card .ant-col {
+  .specialization-card .ant-col {
     flex: none;
     width: 100%;
   }
 }
 
 @media (max-width: 576px) {
-  .facility-search-section .ant-row {
+  .specialization-search-section .ant-row {
     flex-direction: column;
   }
 }

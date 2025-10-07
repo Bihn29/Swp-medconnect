@@ -31,7 +31,7 @@ const { Option } = Select;
 
 const Doctor = () => {
   const navigate = useNavigate();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,7 +50,8 @@ const Doctor = () => {
       reviewCount: 125,
       price: "500.000đ",
       image: "https://via.placeholder.com/100x100",
-      description: "Bác sĩ chuyên khoa tim mạch với nhiều năm kinh nghiệm trong điều trị các bệnh lý tim mạch phức tạp và can thiệp tim mạch.",
+      description:
+        "Bác sĩ chuyên khoa tim mạch với nhiều năm kinh nghiệm trong điều trị các bệnh lý tim mạch phức tạp và can thiệp tim mạch.",
       phone: "0901234567",
       qualifications: ["Tiến sĩ Y khoa", "Chứng chỉ Tim mạch can thiệp"],
     },
@@ -66,7 +67,8 @@ const Doctor = () => {
       reviewCount: 98,
       price: "300.000đ",
       image: "https://via.placeholder.com/100x100",
-      description: "Chuyên gia da liễu và thẩm mỹ da, có kinh nghiệm điều trị các bệnh lý da và các thủ thuật thẩm mỹ không xâm lấn.",
+      description:
+        "Chuyên gia da liễu và thẩm mỹ da, có kinh nghiệm điều trị các bệnh lý da và các thủ thuật thẩm mỹ không xâm lấn.",
       phone: "0912345678",
       qualifications: ["Thạc sĩ Y khoa", "Chứng chỉ Da liễu thẩm mỹ"],
     },
@@ -82,7 +84,8 @@ const Doctor = () => {
       reviewCount: 156,
       price: "400.000đ",
       image: "https://via.placeholder.com/100x100",
-      description: "Bác sĩ nhi khoa chuyên sâu về tim mạch trẻ em, có nhiều kinh nghiệm trong chẩn đoán và điều trị các bệnh tim bẩm sinh.",
+      description:
+        "Bác sĩ nhi khoa chuyên sâu về tim mạch trẻ em, có nhiều kinh nghiệm trong chẩn đoán và điều trị các bệnh tim bẩm sinh.",
       phone: "0923456789",
       qualifications: ["Tiến sĩ Y khoa", "Chuyên khoa II Nhi"],
     },
@@ -98,7 +101,8 @@ const Doctor = () => {
       reviewCount: 87,
       price: "600.000đ",
       image: "https://via.placeholder.com/100x100",
-      description: "Chuyên gia thần kinh với chuyên môn sâu về các bệnh lý cột sống và hệ thần kinh trung ương.",
+      description:
+        "Chuyên gia thần kinh với chuyên môn sâu về các bệnh lý cột sống và hệ thần kinh trung ương.",
       phone: "0934567890",
       qualifications: ["Tiến sĩ Y khoa", "Chuyên khoa II Thần kinh"],
     },
@@ -114,9 +118,13 @@ const Doctor = () => {
       reviewCount: 134,
       price: "800.000đ",
       image: "https://via.placeholder.com/100x100",
-      description: "Phẫu thuật viên chỉnh hình chuyên về cột sống, có nhiều kinh nghiệm trong các ca phẫu thuật phức tạp.",
+      description:
+        "Phẫu thuật viên chỉnh hình chuyên về cột sống, có nhiều kinh nghiệm trong các ca phẫu thuật phức tạp.",
       phone: "0945678901",
-      qualifications: ["Tiến sĩ Y khoa", "Chuyên khoa II Chấn thương chỉnh hình"],
+      qualifications: [
+        "Tiến sĩ Y khoa",
+        "Chuyên khoa II Chấn thương chỉnh hình",
+      ],
     },
     {
       id: 6,
@@ -130,7 +138,8 @@ const Doctor = () => {
       reviewCount: 112,
       price: "450.000đ",
       image: "https://via.placeholder.com/100x100",
-      description: "Bác sĩ chuyên khoa tim mạch, giỏi về chẩn đoán hình ảnh tim mạch và siêu âm tim.",
+      description:
+        "Bác sĩ chuyên khoa tim mạch, giỏi về chẩn đoán hình ảnh tim mạch và siêu âm tim.",
       phone: "0956789012",
       qualifications: ["Thạc sĩ Y khoa", "Chứng chỉ Siêu âm tim"],
     },
@@ -138,13 +147,15 @@ const Doctor = () => {
 
   // Filter doctors based on search term and specialty
   const filteredDoctors = doctors.filter((doctor) => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch =
+      searchTerm === "" ||
       doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doctor.subSpecialty.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesSpecialty = selectedSpecialty === "all" || doctor.specialty === selectedSpecialty;
-    
+
+    const matchesSpecialty =
+      selectedSpecialty === "all" || doctor.specialty === selectedSpecialty;
+
     return matchesSearch && matchesSpecialty;
   });
 
@@ -195,21 +206,33 @@ const Doctor = () => {
             <Title level={4} style={{ margin: "0 0 8px 0", color: "#1890ff" }}>
               {doctor.name}
             </Title>
-            <Text strong style={{ color: "#666", display: "block", marginBottom: "4px" }}>
+            <Text
+              strong
+              style={{ color: "#666", display: "block", marginBottom: "4px" }}
+            >
               {doctor.specialty} - {doctor.subSpecialty}
             </Text>
-            <Paragraph ellipsis={{ rows: 2 }} style={{ color: "#666", margin: "8px 0" }}>
+            <Paragraph
+              ellipsis={{ rows: 2 }}
+              style={{ color: "#666", margin: "8px 0" }}
+            >
               {doctor.description}
             </Paragraph>
             <Space direction="vertical" size="small" style={{ width: "100%" }}>
               <Space>
                 <StarOutlined style={{ color: "#fadb14" }} />
-                <Rate disabled defaultValue={doctor.rating} style={{ fontSize: "14px" }} />
+                <Rate
+                  disabled
+                  defaultValue={doctor.rating}
+                  style={{ fontSize: "14px" }}
+                />
                 <Text>({doctor.reviewCount} đánh giá)</Text>
               </Space>
               <Space>
                 <EnvironmentOutlined style={{ color: "#45c3d2" }} />
-                <Text>{doctor.hospital} - {doctor.location}</Text>
+                <Text>
+                  {doctor.hospital} - {doctor.location}
+                </Text>
               </Space>
               <Space>
                 <CalendarOutlined style={{ color: "#45c3d2" }} />
@@ -220,7 +243,15 @@ const Doctor = () => {
         </Col>
         <Col flex="160px">
           <div className="doctor-actions">
-            <div className="price" style={{ fontSize: "18px", fontWeight: "600", color: "#f5222d", marginBottom: "8px" }}>
+            <div
+              className="price"
+              style={{
+                fontSize: "18px",
+                fontWeight: "600",
+                color: "#f5222d",
+                marginBottom: "8px",
+              }}
+            >
               {doctor.price}
             </div>
             <Button
@@ -284,7 +315,9 @@ const Doctor = () => {
                 <Option value="Da liễu">Da liễu</Option>
                 <Option value="Nhi khoa">Nhi khoa</Option>
                 <Option value="Thần kinh">Thần kinh</Option>
-                <Option value="Chấn thương chỉnh hình">Chấn thương chỉnh hình</Option>
+                <Option value="Chấn thương chỉnh hình">
+                  Chấn thương chỉnh hình
+                </Option>
               </Select>
             </Col>
           </Row>
