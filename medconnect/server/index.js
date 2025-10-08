@@ -1,4 +1,3 @@
-
 /* ================ Core & Libs ================ */
 import express from "express";
 import http from "http";
@@ -9,13 +8,14 @@ import cors from "cors";
 import dotenv from "dotenv";
 dotenv.config();
 import apiRouter from "./routes/api.router.js";
+import { initializeFirebase } from "./config/firebase.js";
+
+// Initialize Firebase Admin SDK (will exit process if config missing)
+initializeFirebase();
 
 /* ================ App & CORS ================ */
 const app = express();
-const allowedOrigins = [
-  "http://localhost:5173",
-  
-];
+const allowedOrigins = ["http://localhost:5173"];
 const corsOptions = {
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
@@ -29,15 +29,17 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
-
 // app.use(morgan("dev"));
 app.use("/uploads", express.static("uploads"));
 app.use(cookieParser());
 
-
+// Parse JSON and urlencoded request bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // router
-app.use("/api/v1", apiRouter);
+// Expose APIs under /api to match frontend (frontend uses /api/auth/...)
+app.use("/api", apiRouter);
 
 /* ================ 404 & Error Handler ================ */
 app.use((_req, res) => {
@@ -51,14 +53,14 @@ app.use((err, _req, res, _next) => {
   });
 });
 
-
 /* ================ Start Server & Socket.IO ================ */
 const server = http.createServer(app);
 
-mongoose.connect(process.env.MONGODB_URL, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose
+  .connect(process.env.MONGODB_URL, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
   .then(() => {
     console.log("✅ Kết nối đến MongoDB thành công");
   })
@@ -67,8 +69,8 @@ mongoose.connect(process.env.MONGODB_URL, {
   });
 
 const PORT = process.env.PORT || 9999;
-  server.listen(PORT, () => {
-    const domain = `http://localhost:${PORT}`;
-    console.log(`🚀 Server đang chạy tại: ${domain}`);
-  });
+server.listen(PORT, () => {
+  const domain = `http://localhost:${PORT}`;
+  console.log(`🚀 Server đang chạy tại: ${domain}`);
+});
 // });
