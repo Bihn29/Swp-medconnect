@@ -8,10 +8,20 @@ const ClinicSchema = new Schema(
     latitude: Number,
     longitude: Number,
     phone: String,
-    geo: { type: { type: String, enum: ["Point"] }, coordinates: [Number] },
+    geo: { type: { type: String, enum: ["Point"] }, coordinates: [Number] }, // [lng, lat]
   },
   { timestamps: true, versionKey: false, collection: "clinics" }
 );
+
+// 🔴 NEW: validate GeoJSON
+ClinicSchema.path("geo").validate(function (v) {
+  if (!v) return true;
+  return (
+    v.type === "Point" &&
+    Array.isArray(v.coordinates) &&
+    v.coordinates.length === 2
+  );
+}, "geo must be GeoJSON Point with [lng, lat]");
 
 ClinicSchema.index({ geo: "2dsphere" });
 

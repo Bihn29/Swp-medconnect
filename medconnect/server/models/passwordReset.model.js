@@ -13,4 +13,12 @@ const PasswordResetSchema = new Schema(
   { collection: "password_resets" }
 );
 
+// 🔴 NEW: TTL index
+PasswordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// 🔴 NEW: 1 code active / user / type
+PasswordResetSchema.index(
+  { userId: 1, type: 1, used: 1, expiresAt: 1 },
+  { partialFilterExpression: { used: false }, name: "one_active_code_per_type" }
+);
+
 export default model("PasswordReset", PasswordResetSchema);

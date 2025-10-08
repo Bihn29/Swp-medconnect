@@ -13,4 +13,7 @@ const NotificationSchema = new Schema(
   { timestamps: true, collection: "notifications" }
 );
 
+// 🔴 NEW: index userId + status + createdAt
+NotificationSchema.index({ userId: 1, status: 1, createdAt: -1 });
+
 export default model("Notification", NotificationSchema);

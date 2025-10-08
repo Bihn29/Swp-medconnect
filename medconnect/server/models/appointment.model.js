@@ -30,9 +30,26 @@ const AppointmentSchema = new Schema(
   { timestamps: true, versionKey: false, collection: "appointments" }
 );
 
+// 🔴 NEW: validate start < end
+AppointmentSchema.pre("validate", function (next) {
+  if (
+    this.scheduledStart &&
+    this.scheduledEnd &&
+    this.scheduledStart >= this.scheduledEnd
+  ) {
+    this.invalidate(
+      "scheduledEnd",
+      "scheduledEnd must be after scheduledStart"
+    );
+  }
+  next();
+});
+
 AppointmentSchema.index({ doctorId: 1, scheduledStart: 1 });
 AppointmentSchema.index({ patientId: 1, scheduledStart: 1 });
 AppointmentSchema.index({ status: 1, scheduledStart: 1 });
+// 🔴 NEW: thêm index cho mode
+AppointmentSchema.index({ mode: 1, scheduledStart: 1 });
 
 AppointmentSchema.index(
   { slotId: 1 },
