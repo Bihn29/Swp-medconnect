@@ -117,3 +117,71 @@ body {
   background: #3ba8b8;
   border-color: #3ba8b8;
 }
+
+/* Recommendation section */
+.recommendation-section img {
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+.recommendation-section img:hover {
+  transform: scale(1.05);
+}
+
+/* Comprehensive Services Section */
+.ant-card-hoverable {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ant-card-hoverable:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Specialties Section */
+.slick-slide {
+  transition: transform 0.3s ease;
+}
+
+.slick-slide:hover {
+  transform: translateY(-5px);
+}
+
+.slick-prev:before,
+.slick-next:before {
+  color: #45c3d2 !important;
+  font-size: 24px;
+}
+
+.slick-prev {
+  left: -35px;
+}
+
+.slick-next {
+  right: -35px;
+}
+
+.specialty-slider .ant-card {
+  transition: all 0.3s ease;
+}
+
+.specialty-slider .ant-card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 8px 24px rgba(69, 195, 210, 0.25);
+}
+
+/* Promotion carousel */
+.slick-dots {
+  bottom: -35px;
+}
+
+.slick-dots li button:before {
+  font-size: 12px;
+  color: #45c3d2;
+  opacity: 0.6;
+}
+
+.slick-dots li.slick-active button:before {
+  color: #45c3d2;
+  opacity: 1;
+}

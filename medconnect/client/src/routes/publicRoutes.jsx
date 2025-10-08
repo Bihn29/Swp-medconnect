@@ -8,6 +8,10 @@ import ProductDetail from "../pages/Products/ProductDetail";
 import HomeVisit from "../pages/Home/HomeVisit/HomeVisit";
 import HospitalVisit from "../pages/Home/HospitalVisit/HospitalVisit";
 import SearchPage from "../pages/Home/SearchPage/SearchPage";
+import Doctor from "../pages/Home/Doctor/Doctor";
+import Specialization from "../pages/Home/Specialization/Specialization";
+import Facility from "../pages/Home/Facility/Facility";
+import Package from "../pages/Home/Package/Package";
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
 import ForgotPassword from "../pages/Auth/ForgotPassword";
@@ -23,6 +27,10 @@ export const publicRoutes = (
       <Route path="/kham-tai-nha" element={<HomeVisit />} />
       <Route path="/kham-tai-vien" element={<HospitalVisit />} />
       <Route path="/tim-kiem" element={<SearchPage />} />
+      <Route path="/bac-si" element={<Doctor />} />
+      <Route path="/chuyen-khoa" element={<Specialization />} />
+      <Route path="/co-so-y-te" element={<Facility />} />
+      <Route path="/goi-kham" element={<Package />} />
       <Route path="/san-pham">
         <Route path="" element={<Products />} />
         <Route path=":id" element={<ProductDetail />} />

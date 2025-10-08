@@ -34,11 +34,11 @@ const { Option } = Select;
 const SearchPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   // Lấy type từ URL params
   const searchParams = new URLSearchParams(location.search);
-  const urlType = searchParams.get('type') || 'all';
-  
+  const urlType = searchParams.get("type") || "all";
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState(urlType);
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,7 +62,7 @@ const SearchPage = () => {
       price: "500,000đ",
       avatar: "https://via.placeholder.com/80x80?text=Dr+An",
       schedule: "Thứ 2-6: 7:00-17:00",
-      type: "doctor"
+      type: "doctor",
     },
     {
       id: 2,
@@ -75,7 +75,7 @@ const SearchPage = () => {
       price: "400,000đ",
       avatar: "https://via.placeholder.com/80x80?text=Dr+Binh",
       schedule: "Thứ 2-7: 8:00-16:00",
-      type: "doctor"
+      type: "doctor",
     },
     {
       id: 3,
@@ -88,8 +88,8 @@ const SearchPage = () => {
       price: "800,000đ",
       avatar: "https://via.placeholder.com/80x80?text=Dr+Cuong",
       schedule: "Thứ 3-6: 9:00-15:00",
-      type: "doctor"
-    }
+      type: "doctor",
+    },
   ];
 
   // Mock data - Chuyên khoa
@@ -100,7 +100,7 @@ const SearchPage = () => {
       description: "Khám và điều trị các bệnh về tim mạch",
       doctorCount: 25,
       icon: "❤️",
-      type: "specialty"
+      type: "specialty",
     },
     {
       id: 2,
@@ -108,7 +108,7 @@ const SearchPage = () => {
       description: "Khám nội tổng quát, điều trị nội khoa",
       doctorCount: 40,
       icon: "🩺",
-      type: "specialty"
+      type: "specialty",
     },
     {
       id: 3,
@@ -116,7 +116,7 @@ const SearchPage = () => {
       description: "Phẫu thuật và điều trị ngoại khoa",
       doctorCount: 18,
       icon: "🔬",
-      type: "specialty"
+      type: "specialty",
     },
     {
       id: 4,
@@ -124,8 +124,8 @@ const SearchPage = () => {
       description: "Chăm sóc sức khỏe phụ nữ và trẻ em",
       doctorCount: 15,
       icon: "👶",
-      type: "specialty"
-    }
+      type: "specialty",
+    },
   ];
 
   // Mock data - Địa điểm khám
@@ -137,7 +137,7 @@ const SearchPage = () => {
       phone: "028-3829-1234",
       rating: 4.8,
       specialties: ["Tim mạch", "Nội khoa", "Ngoại khoa"],
-      type: "location"
+      type: "location",
     },
     {
       id: 2,
@@ -146,8 +146,8 @@ const SearchPage = () => {
       phone: "028-3829-5678",
       rating: 4.9,
       specialties: ["Tim mạch", "Phẫu thuật tim"],
-      type: "location"
-    }
+      type: "location",
+    },
   ];
 
   // Mock data - Lý do khám
@@ -157,28 +157,28 @@ const SearchPage = () => {
       name: "Đau tim, khó thở",
       specialty: "Tim mạch",
       description: "Triệu chứng liên quan đến tim mạch",
-      type: "reason"
+      type: "reason",
     },
     {
       id: 2,
       name: "Đau bụng, khó tiêu",
       specialty: "Tiêu hóa",
       description: "Triệu chứng liên quan đến hệ tiêu hóa",
-      type: "reason"
+      type: "reason",
     },
     {
       id: 3,
       name: "Đau đầu, chóng mặt",
       specialty: "Thần kinh",
       description: "Triệu chứng liên quan đến thần kinh",
-      type: "reason"
-    }
+      type: "reason",
+    },
   ];
 
   // Lọc dữ liệu theo filter
   const getFilteredData = () => {
     let allData = [];
-    
+
     if (filterType === "all" || filterType === "doctor") {
       allData = [...allData, ...doctors];
     }
@@ -194,10 +194,13 @@ const SearchPage = () => {
 
     // Lọc theo từ khóa tìm kiếm
     if (searchQuery) {
-      allData = allData.filter(item =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.specialty && item.specialty.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      allData = allData.filter(
+        (item) =>
+          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (item.specialty &&
+            item.specialty.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (item.description &&
+            item.description.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
 
@@ -214,10 +217,10 @@ const SearchPage = () => {
   const handleFilterChange = (value) => {
     setFilterType(value);
     setCurrentPage(1);
-    
+
     // Cập nhật URL khi thay đổi filter
-    if (value === 'all') {
-      navigate('/tim-kiem');
+    if (value === "all") {
+      navigate("/tim-kiem");
     } else {
       navigate(`/tim-kiem?type=${value}`);
     }
@@ -370,7 +373,7 @@ const SearchPage = () => {
           <Title level={2} style={{ textAlign: "center", marginBottom: 30 }}>
             Tìm kiếm dịch vụ y tế
           </Title>
-          
+
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={6}>
               <Select
@@ -414,9 +417,7 @@ const SearchPage = () => {
       <div className="search-results">
         <div className="container">
           <div className="results-header">
-            <Title level={3}>
-              Kết quả tìm kiếm ({filteredData.length})
-            </Title>
+            <Title level={3}>Kết quả tìm kiếm ({filteredData.length})</Title>
             {searchQuery && (
               <Text>
                 Kết quả cho: "<strong>{searchQuery}</strong>"

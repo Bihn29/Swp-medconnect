@@ -13,6 +13,7 @@ const PasswordResetSchema = new Schema(
   { collection: "password_resets" }
 );
 
+<<<<<<< HEAD
 // 🔴 NEW: TTL index
 PasswordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 // 🔴 NEW: 1 code active / user / type
@@ -21,4 +22,6 @@ PasswordResetSchema.index(
   { partialFilterExpression: { used: false }, name: "one_active_code_per_type" }
 );
 
+=======
+>>>>>>> 9480e022804b868197ee8c9a464643a6467f711b
 export default model("PasswordReset", PasswordResetSchema);

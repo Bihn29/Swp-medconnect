@@ -14,9 +14,12 @@ const SessionSchema = new Schema(
   { collection: "sessions" }
 );
 
+<<<<<<< HEAD
 // 🔴 NEW: TTL auto delete
 SessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 // 🔴 NEW: index để tra cứu nhanh
 SessionSchema.index({ userId: 1, revoked: 1, createdAt: -1 });
 
+=======
+>>>>>>> 9480e022804b868197ee8c9a464643a6467f711b
 export default model("Session", SessionSchema);

@@ -13,7 +13,10 @@ const NotificationSchema = new Schema(
   { timestamps: true, collection: "notifications" }
 );
 
+<<<<<<< HEAD
 // 🔴 NEW: index userId + status + createdAt
 NotificationSchema.index({ userId: 1, status: 1, createdAt: -1 });
 
+=======
+>>>>>>> 9480e022804b868197ee8c9a464643a6467f711b
 export default model("Notification", NotificationSchema);

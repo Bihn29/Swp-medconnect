@@ -28,7 +28,7 @@ const { Option } = Select;
 
 const Facility = () => {
   const navigate = useNavigate();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [selectedLocation, setSelectedLocation] = useState("all");
@@ -48,7 +48,8 @@ const Facility = () => {
       rating: 4.7,
       reviewCount: 289,
       image: "https://via.placeholder.com/100x100",
-      description: "Bệnh viện đa khoa hạng đặc biệt, là một trong những bệnh viện lớn nhất miền Nam.",
+      description:
+        "Bệnh viện đa khoa hạng đặc biệt, là một trong những bệnh viện lớn nhất miền Nam.",
     },
     {
       id: 2,
@@ -62,7 +63,8 @@ const Facility = () => {
       rating: 4.6,
       reviewCount: 234,
       image: "https://via.placeholder.com/100x100",
-      description: "Bệnh viện chuyên khoa hàng đầu về chấn thương chỉnh hình và phẫu thuật.",
+      description:
+        "Bệnh viện chuyên khoa hàng đầu về chấn thương chỉnh hình và phẫu thuật.",
     },
     {
       id: 3,
@@ -76,7 +78,8 @@ const Facility = () => {
       rating: 4.5,
       reviewCount: 167,
       image: "https://via.placeholder.com/100x100",
-      description: "Hệ thống phòng khám đa khoa hiện đại với trang thiết bị tiên tiến.",
+      description:
+        "Hệ thống phòng khám đa khoa hiện đại với trang thiết bị tiên tiến.",
     },
     {
       id: 4,
@@ -90,7 +93,8 @@ const Facility = () => {
       rating: 4.8,
       reviewCount: 198,
       image: "https://via.placeholder.com/100x100",
-      description: "Bệnh viện nhi đồng hàng đầu với đội ngũ bác sĩ chuyên khoa nhi giàu kinh nghiệm.",
+      description:
+        "Bệnh viện nhi đồng hàng đầu với đội ngũ bác sĩ chuyên khoa nhi giàu kinh nghiệm.",
     },
     {
       id: 5,
@@ -104,7 +108,8 @@ const Facility = () => {
       rating: 4.3,
       reviewCount: 89,
       image: "https://via.placeholder.com/100x100",
-      description: "Trung tâm y tế cung cấp dịch vụ chăm sóc sức khỏe cơ bản cho cộng đồng.",
+      description:
+        "Trung tâm y tế cung cấp dịch vụ chăm sóc sức khỏe cơ bản cho cộng đồng.",
     },
     {
       id: 6,
@@ -118,20 +123,26 @@ const Facility = () => {
       rating: 4.4,
       reviewCount: 156,
       image: "https://via.placeholder.com/100x100",
-      description: "Phòng khám chuyên về thẩm mỹ và điều trị da liễu với công nghệ hiện đại.",
+      description:
+        "Phòng khám chuyên về thẩm mỹ và điều trị da liễu với công nghệ hiện đại.",
     },
   ];
 
   // Filter facilities
   const filteredFacilities = facilities.filter((facility) => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch =
+      searchTerm === "" ||
       facility.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       facility.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      facility.specialties.some(spec => spec.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesType = selectedType === "all" || facility.type === selectedType;
-    const matchesLocation = selectedLocation === "all" || facility.location === selectedLocation;
-    
+      facility.specialties.some((spec) =>
+        spec.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+    const matchesType =
+      selectedType === "all" || facility.type === selectedType;
+    const matchesLocation =
+      selectedLocation === "all" || facility.location === selectedLocation;
+
     return matchesSearch && matchesType && matchesLocation;
   });
 
@@ -206,7 +217,11 @@ const Facility = () => {
                 <UserOutlined style={{ color: "#45c3d2" }} />
                 <Text>{facility.doctorCount} bác sĩ</Text>
                 <StarOutlined style={{ color: "#fadb14" }} />
-                <Rate disabled defaultValue={facility.rating} style={{ fontSize: "14px" }} />
+                <Rate
+                  disabled
+                  defaultValue={facility.rating}
+                  style={{ fontSize: "14px" }}
+                />
                 <Text>({facility.reviewCount} đánh giá)</Text>
               </Space>
               <Space wrap>
@@ -216,7 +231,9 @@ const Facility = () => {
                   </Tag>
                 ))}
                 {facility.specialties.length > 3 && (
-                  <Tag color="default">+{facility.specialties.length - 3} khác</Tag>
+                  <Tag color="default">
+                    +{facility.specialties.length - 3} khác
+                  </Tag>
                 )}
               </Space>
             </Space>
@@ -246,7 +263,9 @@ const Facility = () => {
               style={{ fontWeight: "500" }}
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/bac-si?facility=${encodeURIComponent(facility.name)}`);
+                navigate(
+                  `/bac-si?facility=${encodeURIComponent(facility.name)}`
+                );
               }}
             >
               Xem bác sĩ
@@ -309,7 +328,9 @@ const Facility = () => {
       <div className="facility-list-section">
         <div className="container">
           <div className="results-header">
-            <Title level={3}>Danh sách cơ sở y tế ({filteredFacilities.length})</Title>
+            <Title level={3}>
+              Danh sách cơ sở y tế ({filteredFacilities.length})
+            </Title>
           </div>
 
           <div className="facility-list">

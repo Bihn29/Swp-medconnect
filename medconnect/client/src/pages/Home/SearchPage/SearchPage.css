@@ -223,24 +223,24 @@
   .container {
     padding: 0 15px;
   }
-  
+
   .search-header {
     padding: 30px 0;
   }
-  
+
   .search-results {
     padding: 30px 0;
   }
-  
+
   .search-item .ant-card-body {
     padding: 15px;
   }
-  
+
   .search-item .ant-row {
     flex-direction: column;
     gap: 15px;
   }
-  
+
   .search-item .ant-col[flex="120px"],
   .search-item .ant-col[flex="100px"] {
     flex: auto;
@@ -251,11 +251,11 @@
   .search-header .ant-typography h2 {
     font-size: 1.5rem;
   }
-  
+
   .search-header .ant-row {
     flex-direction: column;
   }
-  
+
   .specialty-icon {
     width: 40px;
     height: 40px;

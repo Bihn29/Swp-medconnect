@@ -135,40 +135,40 @@
   .container {
     padding: 0 15px;
   }
-  
+
   .doctor-header {
     padding: 30px 0;
     text-align: center;
   }
-  
+
   .search-filter-section {
     padding: 20px 0;
   }
-  
+
   .doctor-list-section {
     padding: 20px 0;
   }
-  
+
   .doctor-card .ant-card-body {
     padding: 16px;
   }
-  
+
   .doctor-card .ant-row {
     flex-direction: column;
     text-align: center;
     gap: 16px;
   }
-  
+
   .doctor-card .ant-col {
     flex: none;
     width: 100%;
   }
-  
+
   .doctor-actions {
     flex-direction: row;
     gap: 8px;
   }
-  
+
   .doctor-actions .ant-btn {
     flex: 1;
   }
@@ -178,11 +178,11 @@
   .doctor-header .ant-typography h2 {
     font-size: 1.5rem;
   }
-  
+
   .search-filter-section .ant-row {
     flex-direction: column;
   }
-  
+
   .doctor-card .ant-avatar {
     width: 80px;
     height: 80px;
