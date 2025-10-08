@@ -12,7 +12,7 @@ export default function Register() {
     email: "",
     phone: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -28,17 +28,47 @@ export default function Register() {
     return country + num;
   };
 
-  const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(v || "").trim());
+  // Normalize error to readable string for UI
+  const getErrorMessage = (err) => {
+    if (!err) return "Có lỗi xảy ra";
+    if (typeof err === "string") return err;
+    if (err.message) {
+      return typeof err.message === "string"
+        ? err.message
+        : JSON.stringify(err.message);
+    }
+    if (err.error) {
+      return typeof err.error === "string"
+        ? err.error
+        : JSON.stringify(err.error);
+    }
+    try {
+      return JSON.stringify(err);
+    } catch (e) {
+      return String(err);
+    }
+  };
+
+  const isValidEmail = (v) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(v || "").trim());
   const isValidVNPhone = (raw) => /^\+84\d{9}$/.test(toE164(raw));
   const isValidPassword = (v) => String(v || "").length >= 8;
   const isValidName = (v) => String(v || "").trim().length >= 2;
 
   const goByRole = (role) => {
     switch ((role || "").toUpperCase()) {
-      case "PATIENT": navigate("/benh-nhan"); break;
-      case "DOCTOR": navigate("/bac-si"); break;
-      case "ADMIN": navigate("/quan-tri"); break;
-      default: navigate("/"); break;
+      case "PATIENT":
+        navigate("/benh-nhan");
+        break;
+      case "DOCTOR":
+        navigate("/bac-si");
+        break;
+      case "ADMIN":
+        navigate("/quan-tri");
+        break;
+      default:
+        navigate("/");
+        break;
     }
   };
 
@@ -63,7 +93,8 @@ export default function Register() {
     if (!formData.phone.trim()) {
       newErrors.phone = "Vui lòng nhập số điện thoại.";
     } else if (!isValidVNPhone(formData.phone)) {
-      newErrors.phone = "Số điện thoại không đúng định dạng (VD: 0xxxxxxxxx hoặc +84xxxxxxxxx).";
+      newErrors.phone =
+        "Số điện thoại không đúng định dạng (VD: 0xxxxxxxxx hoặc +84xxxxxxxxx).";
     }
 
     // Validate password
@@ -86,16 +117,16 @@ export default function Register() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ""
+        [name]: "",
       }));
     }
   };
@@ -106,8 +137,8 @@ export default function Register() {
 
     try {
       setLoading(true);
-      const apiUrl = import.meta.env.VITE_API_URL;
-      
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
       const response = await fetch(apiUrl + "/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,7 +148,7 @@ export default function Register() {
           email: formData.email.trim(),
           phone: toE164(formData.phone),
           password: formData.password,
-          role: "PATIENT" // Mặc định là bệnh nhân
+          role: "PATIENT", // Mặc định là bệnh nhân
         }),
       });
 
@@ -128,26 +159,43 @@ export default function Register() {
           setErrors({ general: "Email hoặc số điện thoại đã được sử dụng." });
           return;
         }
-        throw new Error(data?.error || "Không thể tạo tài khoản");
+        // Try to show server provided message or error
+        const serverMsg =
+          data?.message ||
+          data?.error ||
+          JSON.stringify(data || "Không thể tạo tài khoản");
+        setErrors({ general: serverMsg });
+        return;
       }
 
-      // Auto login after successful registration
-      const cred = await signInWithCustomToken(auth, data.customToken);
-      const idToken = await cred.user.getIdToken();
+      // If Firebase client is configured and server returned a customToken, try to sign in.
+      const fbConfigured = Boolean(import.meta.env.VITE_FB_PROJECT_ID);
+      if (fbConfigured && data?.customToken) {
+        try {
+          const cred = await signInWithCustomToken(auth, data.customToken);
+          const idToken = await cred.user.getIdToken();
 
-      const sessionResponse = await fetch(apiUrl + "/api/auth/session", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      });
+          const sessionResponse = await fetch(apiUrl + "/api/auth/session", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idToken }),
+          });
 
-      if (!sessionResponse.ok) throw new Error("Không tạo được phiên đăng nhập");
+          if (!sessionResponse.ok)
+            throw new Error("Không tạo được phiên đăng nhập");
+        } catch (err) {
+          console.warn("Firebase sign-in skipped/failed:", err);
+          // continue without blocking the user; still navigate by role
+        }
+      }
 
       goByRole(data.role);
     } catch (err) {
       console.error("Registration error:", err);
-      setErrors({ general: err.message || "Có lỗi xảy ra khi đăng ký" });
+      setErrors({
+        general: getErrorMessage(err) || "Có lỗi xảy ra khi đăng ký",
+      });
     } finally {
       setLoading(false);
     }
@@ -159,15 +207,15 @@ export default function Register() {
       const user = await signInWithGoogle();
       const idToken = await user.getIdToken();
 
-      const apiUrl = import.meta.env.VITE_API_URL;
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       const response = await fetch(apiUrl + "/api/auth/google-register", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           idToken,
           fullName: user.displayName || "",
-          role: "PATIENT" // Mặc định là bệnh nhân
+          role: "PATIENT", // Mặc định là bệnh nhân
         }),
       });
 
@@ -187,7 +235,9 @@ export default function Register() {
       goByRole(data.role);
     } catch (err) {
       console.error("Google registration error:", err);
-      setErrors({ general: err.message || "Có lỗi xảy ra khi đăng ký với Google" });
+      setErrors({
+        general: getErrorMessage(err) || "Có lỗi xảy ra khi đăng ký với Google",
+      });
     } finally {
       setLoading(false);
     }
@@ -210,7 +260,9 @@ export default function Register() {
             placeholder="Họ và tên"
             autoComplete="name"
           />
-          {errors.fullName && <div className="error-text">{errors.fullName}</div>}
+          {errors.fullName && (
+            <div className="error-text">{errors.fullName}</div>
+          )}
 
           <input
             className="register-input"
@@ -244,11 +296,15 @@ export default function Register() {
               autoComplete="new-password"
             />
             <i
-              className={`bi ${showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"} password-toggle`}
+              className={`bi ${
+                showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
+              } password-toggle`}
               onClick={() => setShowPassword(!showPassword)}
             />
           </div>
-          {errors.password && <div className="error-text">{errors.password}</div>}
+          {errors.password && (
+            <div className="error-text">{errors.password}</div>
+          )}
 
           <div className="password-group">
             <input
@@ -261,11 +317,15 @@ export default function Register() {
               autoComplete="new-password"
             />
             <i
-              className={`bi ${showConfirmPassword ? "bi-eye-fill" : "bi-eye-slash-fill"} password-toggle`}
+              className={`bi ${
+                showConfirmPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
+              } password-toggle`}
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
             />
           </div>
-          {errors.confirmPassword && <div className="error-text">{errors.confirmPassword}</div>}
+          {errors.confirmPassword && (
+            <div className="error-text">{errors.confirmPassword}</div>
+          )}
 
           <button type="submit" disabled={loading} className="btn btn-primary">
             Đăng ký

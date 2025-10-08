@@ -1,11 +1,8 @@
 import admin from "firebase-admin";
 
-import { verifyPassword, hashPassword } from "../helpers/auth.js";
-import {
-  findUserByIdentifier,
-  findUserByEmail,
-  createUser,
-} from "../helpers/db.mssql.js";
+import { verifyPassword, hashPassword, toE164 } from "../helpers/auth.js";
+import User from "../models/user.model.js";
+import Patient from "../models/patient.model.js";
 import { ok, fail } from "../utils/response.js";
 import {
   COOKIE_NAME,
@@ -32,7 +29,18 @@ export async function loginPassword(req, res) {
 
     console.log("[login] identifier:", identifier);
 
-    const user = await findUserByIdentifier(identifier);
+    // find user by email or phone in MongoDB
+    let user;
+    if (String(identifier || "").includes("@")) {
+      user = await User.findOne({
+        email: identifier.toLowerCase(),
+        status: "active",
+      }).lean();
+    } else {
+      const phone = toE164(identifier);
+      if (phone)
+        user = await User.findOne({ phone: phone, status: "active" }).lean();
+    }
     if (!user) {
       console.log("[login] user not found");
       return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
@@ -49,7 +57,7 @@ export async function loginPassword(req, res) {
       );
     }
 
-    const uid = `app_${user.UserID}`;
+    const uid = `app_${user._id}`;
     console.log("[login] creating customToken for uid:", uid);
 
     const customToken = await admin.auth().createCustomToken(uid, {
@@ -58,7 +66,7 @@ export async function loginPassword(req, res) {
     });
 
     console.log("[login] success!");
-    return ok(res, { customToken, role: user.Role ?? null });
+    return ok(res, { customToken, role: user.role || null });
   } catch (e) {
     console.error("❌ /api/auth/login-password error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
@@ -81,7 +89,10 @@ export async function googleLogin(req, res) {
       return fail(res, 403, ERROR_CODES.FORBIDDEN, "Email not found in token");
     }
 
-    const dbUser = await findUserByEmail(email);
+    const dbUser = await User.findOne({
+      email: email,
+      status: "active",
+    }).lean();
     if (!dbUser) {
       return fail(res, 403, ERROR_CODES.FORBIDDEN, "User not found in DB");
     }
@@ -98,7 +109,7 @@ export async function googleLogin(req, res) {
       path: "/",
     });
 
-    return ok(res, { role: dbUser.Role ?? null });
+    return ok(res, { role: dbUser.role ?? null });
   } catch (e) {
     console.error("❌ /api/auth/google-login error:", e);
     return fail(res, 401, ERROR_CODES.UNAUTHORIZED, e.message || String(e));
@@ -190,12 +201,22 @@ export async function register(req, res) {
     }
 
     // Check if user already exists
-    const existingUserByEmail = await findUserByEmail(email.toLowerCase());
+    // Check existing email
+    const existingUserByEmail = await User.findOne({
+      email: email.toLowerCase(),
+    }).lean();
     if (existingUserByEmail) {
       return fail(res, 409, ERROR_CODES.CONFLICT, "Email already exists");
     }
 
-    const existingUserByPhone = await findUserByIdentifier(phone);
+    // Normalize phone and check
+    const normalizedPhone = toE164(phone);
+    if (!normalizedPhone) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid phone format");
+    }
+    const existingUserByPhone = await User.findOne({
+      phone: normalizedPhone,
+    }).lean();
     if (existingUserByPhone) {
       return fail(
         res,
@@ -208,36 +229,46 @@ export async function register(req, res) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user in database
-    const newUser = await createUser({
-      fullName: fullName.trim(),
+    // Create user in MongoDB
+    const userDoc = await User.create({
       email: email.toLowerCase().trim(),
-      phone: phone,
       passwordHash: hashedPassword,
-      role: role.toUpperCase(),
+      role: (role || "patient").toLowerCase(),
+      status: "active",
+      fullName: fullName.trim(),
+      phone: normalizedPhone,
     });
 
-    if (!newUser) {
+    if (!userDoc) {
       return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Failed to create user");
     }
 
+    // Create patient document when role is patient
+    if ((role || "patient").toLowerCase() === "patient") {
+      await Patient.create({
+        userId: userDoc._id,
+        fullName: fullName.trim(),
+        phone: normalizedPhone,
+      });
+    }
+
     // Create Firebase custom token
-    const uid = `app_${newUser.UserID}`;
+    const uid = `app_${userDoc._id}`;
     const customToken = await admin.auth().createCustomToken(uid, {
-      app_user_id: String(newUser.UserID),
-      role: newUser.Role,
+      app_user_id: String(userDoc._id),
+      role: userDoc.role,
     });
 
-    console.log("[register] success for user:", newUser.UserID);
+    console.log("[register] success for user:", userDoc._id);
     return ok(res, {
       customToken,
-      role: newUser.Role,
+      role: userDoc.role,
       user: {
-        id: newUser.UserID,
-        fullName: newUser.FullName,
-        email: newUser.Email,
-        phone: newUser.Phone,
-        role: newUser.Role,
+        id: userDoc._id,
+        fullName: userDoc.fullName,
+        email: userDoc.email,
+        phone: userDoc.phone,
+        role: userDoc.role,
       },
     });
   } catch (e) {
@@ -263,22 +294,32 @@ export async function googleRegister(req, res) {
     }
 
     // Check if user already exists
-    const existingUser = await findUserByEmail(email);
+    const existingUser = await User.findOne({ email: email }).lean();
     if (existingUser) {
       return fail(res, 409, ERROR_CODES.CONFLICT, "User already exists");
     }
 
-    // Create user in database
-    const newUser = await createUser({
-      fullName: fullName || decoded.name || "Google User",
+    // Create user in MongoDB
+    const userDoc = await User.create({
       email: email,
+      passwordHash: null,
+      role: (role || "patient").toLowerCase(),
+      status: "active",
+      fullName: fullName || decoded.name || "Google User",
       phone: decoded.phone_number || null,
-      passwordHash: null, // Google users don't have password
-      role: role.toUpperCase(),
     });
 
-    if (!newUser) {
+    if (!userDoc) {
       return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Failed to create user");
+    }
+
+    // create patient doc if patient
+    if ((role || "patient").toLowerCase() === "patient") {
+      await Patient.create({
+        userId: userDoc._id,
+        fullName: userDoc.fullName,
+        phone: userDoc.phone,
+      });
     }
 
     // Create session cookie
