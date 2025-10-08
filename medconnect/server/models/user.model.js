@@ -11,15 +11,28 @@ const UserSchema = new Schema(
       lowercase: true,
       trim: true,
     },
-    passwordHash: { type: String, required: true },
+    // chỉ bắt buộc khi local
+    passwordHash: {
+      type: String,
+      select: false,
+      required: function () {
+        return this.authProvider === "local";
+      },
+    },
     role: {
       type: String,
       enum: ["patient", "doctor", "admin"],
-      required: true,
+      default: "patient",
     },
     status: { type: String, enum: ["active", "blocked"], default: "active" },
     fullName: { type: String, trim: true },
     phone: { type: String, unique: true, sparse: true, trim: true },
+    // thêm trường này
+    authProvider: {
+      type: String,
+      enum: ["local", "google", "phone"],
+      default: "local",
+    },
   },
   { timestamps: true, versionKey: false, collection: "users" }
 );

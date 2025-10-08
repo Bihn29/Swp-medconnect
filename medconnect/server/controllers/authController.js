@@ -3,6 +3,7 @@ import admin from "firebase-admin";
 import { verifyPassword, hashPassword, toE164 } from "../helpers/auth.js";
 import User from "../models/user.model.js";
 import Patient from "../models/patient.model.js";
+import AuthProvider from "../models/auth_providers.model.js";
 import { ok, fail } from "../utils/response.js";
 import {
   COOKIE_NAME,
@@ -47,7 +48,21 @@ export async function loginPassword(req, res) {
     }
     console.log("[login] user:", user);
 
-    const okPwd = await verifyPassword(user.PasswordHash, password);
+    // Ensure user has a local auth provider
+    const localAuth = await AuthProvider.findOne({
+      userId: user._id,
+      provider: "local",
+    }).lean();
+    if (!localAuth) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.INVALID_CREDENTIALS,
+        "User does not have local password login"
+      );
+    }
+
+    const okPwd = await verifyPassword(user.passwordHash, password);
     if (!okPwd) {
       return fail(
         res,
@@ -61,8 +76,8 @@ export async function loginPassword(req, res) {
     console.log("[login] creating customToken for uid:", uid);
 
     const customToken = await admin.auth().createCustomToken(uid, {
-      app_user_id: String(user.UserID),
-      role: user.Role,
+      app_user_id: String(user._id),
+      role: user.role,
     });
 
     console.log("[login] success!");
@@ -260,6 +275,20 @@ export async function register(req, res) {
     });
 
     console.log("[register] success for user:", userDoc._id);
+
+    // Create AuthProvider record for local login
+    try {
+      await AuthProvider.create({
+        userId: userDoc._id,
+        provider: "local",
+        providerUid: String(userDoc._id),
+        email: userDoc.email,
+        phone: userDoc.phone,
+        verified: true,
+      });
+    } catch (e) {
+      console.warn("Failed to create AuthProvider record:", e.message || e);
+    }
     return ok(res, {
       customToken,
       role: userDoc.role,
@@ -278,77 +307,145 @@ export async function register(req, res) {
 }
 
 /**
- * Google register controller
+ * Google register controller (đã sửa)
+ * - find-or-create theo email (tránh E11000 email trùng)
+ * - không set phone khi không có (tránh phone: null)
+ * - chỉ tạo Patient nếu chưa có
+ * - upsert AuthProvider, phát hiện xung đột providerUid
  */
 export async function googleRegister(req, res) {
   try {
     const { idToken, fullName, role = "PATIENT" } = req.body || {};
-    if (!idToken) {
+    if (!idToken)
       return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing idToken");
-    }
 
-    const decoded = await admin.auth().verifyIdToken(idToken, true);
-    const email = decoded.email?.toLowerCase();
-    if (!email) {
-      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Email not found in token");
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email: email }).lean();
-    if (existingUser) {
-      return fail(res, 409, ERROR_CODES.CONFLICT, "User already exists");
-    }
-
-    // Create user in MongoDB
-    const userDoc = await User.create({
-      email: email,
-      passwordHash: null,
-      role: (role || "patient").toLowerCase(),
-      status: "active",
-      fullName: fullName || decoded.name || "Google User",
-      phone: decoded.phone_number || null,
-    });
-
-    if (!userDoc) {
-      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Failed to create user");
-    }
-
-    // create patient doc if patient
-    if ((role || "patient").toLowerCase() === "patient") {
-      await Patient.create({
-        userId: userDoc._id,
-        fullName: userDoc.fullName,
-        phone: userDoc.phone,
+    // verify idToken
+    let decoded;
+    try {
+      decoded = await admin.auth().verifyIdToken(idToken, true);
+      console.log("[GG-REG] decoded:", {
+        uid: decoded?.uid,
+        email: decoded?.email,
+        name: decoded?.name,
+        phone: decoded?.phone_number,
       });
+    } catch (err) {
+      console.error("[GG-REG] verifyIdToken FAILED:", err?.message);
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Invalid or expired idToken"
+      );
     }
 
-    // Create session cookie
-    const sessionCookie = await admin.auth().createSessionCookie(idToken, {
-      expiresIn: SESSION_EXPIRES_IN,
-    });
+    const email = decoded.email?.toLowerCase();
+    if (!email)
+      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Email not found in token");
 
-    res.cookie(COOKIE_NAME, sessionCookie, {
-      maxAge: SESSION_EXPIRES_IN,
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      path: "/",
-    });
+    const normalizedRole = (role || "patient").toLowerCase();
 
-    console.log("[google-register] success for user:", newUser.UserID);
+    // 1) find-or-create User theo email
+    let userDoc = await User.findOne({ email });
+    if (!userDoc) {
+      try {
+        userDoc = await User.create({
+          email,
+          passwordHash: null, // Google không cần mật khẩu
+          role: normalizedRole, // "patient" | "doctor" | "admin"
+          status: "active",
+          fullName: fullName || decoded.name || "Google User",
+          // chỉ set phone nếu có, KHÔNG set null
+          ...(decoded.phone_number ? { phone: decoded.phone_number } : {}),
+          authProvider: "google",
+        });
+        console.log("[GG-REG] User.create OK:", String(userDoc._id));
+      } catch (e) {
+        console.error("[GG-REG] User.create FAILED:", {
+          name: e?.name,
+          code: e?.code,
+          keyValue: e?.keyValue,
+          message: e?.message,
+        });
+        return fail(
+          res,
+          500,
+          ERROR_CODES.SERVER_ERROR,
+          e?.message || String(e)
+        );
+      }
+    } else {
+      // đã có user cùng email → có thể cập nhật nhẹ nhàng nếu muốn
+      // (KHÔNG ghi đè phone/null)
+      console.log("[GG-REG] user existed:", String(userDoc._id));
+    }
+
+    // 2) tạo Patient nếu role là patient và chưa có
+    if (normalizedRole === "patient") {
+      const existsPatient = await Patient.findOne({
+        userId: userDoc._id,
+      }).lean();
+      if (!existsPatient) {
+        await Patient.create({
+          userId: userDoc._id,
+          fullName: userDoc.fullName,
+          phone: userDoc.phone || null,
+        });
+        console.log("[GG-REG] Patient.create OK");
+      }
+    }
+
+    // 3) upsert AuthProvider cho Google
+    const ap = await AuthProvider.findOne({
+      provider: "google",
+      providerUid: decoded.uid,
+    }).lean();
+
+    if (ap && String(ap.userId) !== String(userDoc._id)) {
+      // providerUid này đã liên kết user khác → báo xung đột
+      return fail(
+        res,
+        409,
+        ERROR_CODES.CONFLICT,
+        "Google account is linked to another user"
+      );
+    }
+
+    await AuthProvider.updateOne(
+      { provider: "google", providerUid: decoded.uid },
+      {
+        $setOnInsert: {
+          provider: "google",
+          providerUid: decoded.uid,
+          userId: userDoc._id,
+          email: userDoc.email,
+          phone: userDoc.phone || null,
+          verified: true,
+          linkedAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
+
+    console.log("[GG-REG] SUCCESS userId:", String(userDoc._id));
     return ok(res, {
-      role: newUser.Role,
+      role: userDoc.role,
       user: {
-        id: newUser.UserID,
-        fullName: newUser.FullName,
-        email: newUser.Email,
-        phone: newUser.Phone,
-        role: newUser.Role,
+        id: userDoc._id,
+        fullName: userDoc.fullName,
+        email: userDoc.email,
+        phone: userDoc.phone,
+        role: userDoc.role,
       },
     });
   } catch (e) {
-    console.error("❌ /api/auth/google-register error:", e);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+    console.error("❌ /api/auth/google-register error:", {
+      name: e?.name,
+      code: e?.code,
+      keyValue: e?.keyValue,
+      message: e?.message,
+    });
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e?.message || String(e));
   }
 }
 
