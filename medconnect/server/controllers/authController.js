@@ -20,73 +20,56 @@ export async function loginPassword(req, res) {
   try {
     const { identifier, password } = req.body || {};
     if (!identifier || !password) {
-      return fail(
-        res,
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        "Missing identifier or password"
-      );
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing identifier or password");
     }
 
     console.log("[login] identifier:", identifier);
 
-    // find user by email or phone in MongoDB
+    // 🔧 LẤY KÈM passwordHash (vì trong schema đang select:false)
     let user;
     if (String(identifier || "").includes("@")) {
       user = await User.findOne({
-        email: identifier.toLowerCase(),
+        email: String(identifier).toLowerCase().trim(),
         status: "active",
-      }).lean();
+      }).select("+passwordHash");               // 👈 THÊM DÒNG NÀY
     } else {
       const phone = toE164(identifier);
-      if (phone)
-        user = await User.findOne({ phone: phone, status: "active" }).lean();
+      if (phone) {
+        user = await User.findOne({
+          phone,
+          status: "active",
+        }).select("+passwordHash");             // 👈 THÊM DÒNG NÀY
+      }
     }
+
     if (!user) {
       console.log("[login] user not found");
       return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
     }
-    console.log("[login] user:", user);
 
-    // Ensure user has a local auth provider
-    const localAuth = await AuthProvider.findOne({
-      userId: user._id,
-      provider: "local",
-    }).lean();
-    if (!localAuth) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.INVALID_CREDENTIALS,
-        "User does not have local password login"
-      );
-    }
-
+    // 🔧 ĐÚNG THỨ TỰ so sánh: (plain, hash)
     const okPwd = await verifyPassword(user.passwordHash, password);
     if (!okPwd) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.INVALID_CREDENTIALS,
-        "Invalid credentials"
-      );
+      return fail(res, 401, ERROR_CODES.INVALID_CREDENTIALS, "Invalid credentials");
     }
 
     const uid = `app_${user._id}`;
-    console.log("[login] creating customToken for uid:", uid);
-
     const customToken = await admin.auth().createCustomToken(uid, {
       app_user_id: String(user._id),
       role: user.role,
     });
 
-    console.log("[login] success!");
-    return ok(res, { customToken, role: user.role || null });
+return ok(res, {
+  customToken,
+  role: user.role || null,
+  user: { fullName: user.fullName, email: user.email }
+});
   } catch (e) {
     console.error("❌ /api/auth/login-password error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
+
 
 /**
  * Google login controller
