@@ -21,4 +21,7 @@ router.post("/session", createSession);
 router.get("/me", authGuard, getCurrentUser);
 router.post("/logout", logout);
 
+router.get("/__ping", (_req, res) => res.json({ ok: true }));
+
+
 export default router;

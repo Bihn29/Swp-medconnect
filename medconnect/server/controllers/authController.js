@@ -1,11 +1,9 @@
 import admin from "firebase-admin";
 
-import { verifyPassword, hashPassword } from "../helpers/auth.js";
-import {
-  findUserByIdentifier,
-  findUserByEmail,
-  createUser,
-} from "../helpers/db.mssql.js";
+import { verifyPassword, hashPassword, toE164 } from "../helpers/auth.js";
+import User from "../models/user.model.js";
+import Patient from "../models/patient.model.js";
+import AuthProvider from "../models/auth_providers.model.js";
 import { ok, fail } from "../utils/response.js";
 import {
   COOKIE_NAME,
@@ -22,48 +20,56 @@ export async function loginPassword(req, res) {
   try {
     const { identifier, password } = req.body || {};
     if (!identifier || !password) {
-      return fail(
-        res,
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        "Missing identifier or password"
-      );
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing identifier or password");
     }
 
     console.log("[login] identifier:", identifier);
 
-    const user = await findUserByIdentifier(identifier);
+    // 🔧 LẤY KÈM passwordHash (vì trong schema đang select:false)
+    let user;
+    if (String(identifier || "").includes("@")) {
+      user = await User.findOne({
+        email: String(identifier).toLowerCase().trim(),
+        status: "active",
+      }).select("+passwordHash");               // 👈 THÊM DÒNG NÀY
+    } else {
+      const phone = toE164(identifier);
+      if (phone) {
+        user = await User.findOne({
+          phone,
+          status: "active",
+        }).select("+passwordHash");             // 👈 THÊM DÒNG NÀY
+      }
+    }
+
     if (!user) {
       console.log("[login] user not found");
       return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
     }
-    console.log("[login] user:", user);
 
-    const okPwd = await verifyPassword(user.PasswordHash, password);
+    // 🔧 ĐÚNG THỨ TỰ so sánh: (plain, hash)
+    const okPwd = await verifyPassword(user.passwordHash, password);
     if (!okPwd) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.INVALID_CREDENTIALS,
-        "Invalid credentials"
-      );
+      return fail(res, 401, ERROR_CODES.INVALID_CREDENTIALS, "Invalid credentials");
     }
 
-    const uid = `app_${user.UserID}`;
-    console.log("[login] creating customToken for uid:", uid);
-
+    const uid = `app_${user._id}`;
     const customToken = await admin.auth().createCustomToken(uid, {
-      app_user_id: String(user.UserID),
-      role: user.Role,
+      app_user_id: String(user._id),
+      role: user.role,
     });
 
-    console.log("[login] success!");
-    return ok(res, { customToken, role: user.Role ?? null });
+return ok(res, {
+  customToken,
+  role: user.role || null,
+  user: { fullName: user.fullName, email: user.email }
+});
   } catch (e) {
     console.error("❌ /api/auth/login-password error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
+
 
 /**
  * Google login controller
@@ -81,7 +87,10 @@ export async function googleLogin(req, res) {
       return fail(res, 403, ERROR_CODES.FORBIDDEN, "Email not found in token");
     }
 
-    const dbUser = await findUserByEmail(email);
+    const dbUser = await User.findOne({
+      email: email,
+      status: "active",
+    }).lean();
     if (!dbUser) {
       return fail(res, 403, ERROR_CODES.FORBIDDEN, "User not found in DB");
     }
@@ -98,7 +107,7 @@ export async function googleLogin(req, res) {
       path: "/",
     });
 
-    return ok(res, { role: dbUser.Role ?? null });
+    return ok(res, { role: dbUser.role ?? null });
   } catch (e) {
     console.error("❌ /api/auth/google-login error:", e);
     return fail(res, 401, ERROR_CODES.UNAUTHORIZED, e.message || String(e));
@@ -190,12 +199,22 @@ export async function register(req, res) {
     }
 
     // Check if user already exists
-    const existingUserByEmail = await findUserByEmail(email.toLowerCase());
+    // Check existing email
+    const existingUserByEmail = await User.findOne({
+      email: email.toLowerCase(),
+    }).lean();
     if (existingUserByEmail) {
       return fail(res, 409, ERROR_CODES.CONFLICT, "Email already exists");
     }
 
-    const existingUserByPhone = await findUserByIdentifier(phone);
+    // Normalize phone and check
+    const normalizedPhone = toE164(phone);
+    if (!normalizedPhone) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid phone format");
+    }
+    const existingUserByPhone = await User.findOne({
+      phone: normalizedPhone,
+    }).lean();
     if (existingUserByPhone) {
       return fail(
         res,
@@ -208,36 +227,60 @@ export async function register(req, res) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user in database
-    const newUser = await createUser({
-      fullName: fullName.trim(),
+    // Create user in MongoDB
+    const userDoc = await User.create({
       email: email.toLowerCase().trim(),
-      phone: phone,
       passwordHash: hashedPassword,
-      role: role.toUpperCase(),
+      role: (role || "patient").toLowerCase(),
+      status: "active",
+      fullName: fullName.trim(),
+      phone: normalizedPhone,
     });
 
-    if (!newUser) {
+    if (!userDoc) {
       return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Failed to create user");
     }
 
+    // Create patient document when role is patient
+    if ((role || "patient").toLowerCase() === "patient") {
+      await Patient.create({
+        userId: userDoc._id,
+        fullName: fullName.trim(),
+        phone: normalizedPhone,
+      });
+    }
+
     // Create Firebase custom token
-    const uid = `app_${newUser.UserID}`;
+    const uid = `app_${userDoc._id}`;
     const customToken = await admin.auth().createCustomToken(uid, {
-      app_user_id: String(newUser.UserID),
-      role: newUser.Role,
+      app_user_id: String(userDoc._id),
+      role: userDoc.role,
     });
 
-    console.log("[register] success for user:", newUser.UserID);
+    console.log("[register] success for user:", userDoc._id);
+
+    // Create AuthProvider record for local login
+    try {
+      await AuthProvider.create({
+        userId: userDoc._id,
+        provider: "local",
+        providerUid: String(userDoc._id),
+        email: userDoc.email,
+        phone: userDoc.phone,
+        verified: true,
+      });
+    } catch (e) {
+      console.warn("Failed to create AuthProvider record:", e.message || e);
+    }
     return ok(res, {
       customToken,
-      role: newUser.Role,
+      role: userDoc.role,
       user: {
-        id: newUser.UserID,
-        fullName: newUser.FullName,
-        email: newUser.Email,
-        phone: newUser.Phone,
-        role: newUser.Role,
+        id: userDoc._id,
+        fullName: userDoc.fullName,
+        email: userDoc.email,
+        phone: userDoc.phone,
+        role: userDoc.role,
       },
     });
   } catch (e) {
@@ -247,67 +290,145 @@ export async function register(req, res) {
 }
 
 /**
- * Google register controller
+ * Google register controller (đã sửa)
+ * - find-or-create theo email (tránh E11000 email trùng)
+ * - không set phone khi không có (tránh phone: null)
+ * - chỉ tạo Patient nếu chưa có
+ * - upsert AuthProvider, phát hiện xung đột providerUid
  */
 export async function googleRegister(req, res) {
   try {
     const { idToken, fullName, role = "PATIENT" } = req.body || {};
-    if (!idToken) {
+    if (!idToken)
       return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing idToken");
+
+    // verify idToken
+    let decoded;
+    try {
+      decoded = await admin.auth().verifyIdToken(idToken, true);
+      console.log("[GG-REG] decoded:", {
+        uid: decoded?.uid,
+        email: decoded?.email,
+        name: decoded?.name,
+        phone: decoded?.phone_number,
+      });
+    } catch (err) {
+      console.error("[GG-REG] verifyIdToken FAILED:", err?.message);
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Invalid or expired idToken"
+      );
     }
 
-    const decoded = await admin.auth().verifyIdToken(idToken, true);
     const email = decoded.email?.toLowerCase();
-    if (!email) {
+    if (!email)
       return fail(res, 403, ERROR_CODES.FORBIDDEN, "Email not found in token");
+
+    const normalizedRole = (role || "patient").toLowerCase();
+
+    // 1) find-or-create User theo email
+    let userDoc = await User.findOne({ email });
+    if (!userDoc) {
+      try {
+        userDoc = await User.create({
+          email,
+          passwordHash: null, // Google không cần mật khẩu
+          role: normalizedRole, // "patient" | "doctor" | "admin"
+          status: "active",
+          fullName: fullName || decoded.name || "Google User",
+          // chỉ set phone nếu có, KHÔNG set null
+          ...(decoded.phone_number ? { phone: decoded.phone_number } : {}),
+          authProvider: "google",
+        });
+        console.log("[GG-REG] User.create OK:", String(userDoc._id));
+      } catch (e) {
+        console.error("[GG-REG] User.create FAILED:", {
+          name: e?.name,
+          code: e?.code,
+          keyValue: e?.keyValue,
+          message: e?.message,
+        });
+        return fail(
+          res,
+          500,
+          ERROR_CODES.SERVER_ERROR,
+          e?.message || String(e)
+        );
+      }
+    } else {
+      // đã có user cùng email → có thể cập nhật nhẹ nhàng nếu muốn
+      // (KHÔNG ghi đè phone/null)
+      console.log("[GG-REG] user existed:", String(userDoc._id));
     }
 
-    // Check if user already exists
-    const existingUser = await findUserByEmail(email);
-    if (existingUser) {
-      return fail(res, 409, ERROR_CODES.CONFLICT, "User already exists");
+    // 2) tạo Patient nếu role là patient và chưa có
+    if (normalizedRole === "patient") {
+      const existsPatient = await Patient.findOne({
+        userId: userDoc._id,
+      }).lean();
+      if (!existsPatient) {
+        await Patient.create({
+          userId: userDoc._id,
+          fullName: userDoc.fullName,
+          phone: userDoc.phone || null,
+        });
+        console.log("[GG-REG] Patient.create OK");
+      }
     }
 
-    // Create user in database
-    const newUser = await createUser({
-      fullName: fullName || decoded.name || "Google User",
-      email: email,
-      phone: decoded.phone_number || null,
-      passwordHash: null, // Google users don't have password
-      role: role.toUpperCase(),
-    });
+    // 3) upsert AuthProvider cho Google
+    const ap = await AuthProvider.findOne({
+      provider: "google",
+      providerUid: decoded.uid,
+    }).lean();
 
-    if (!newUser) {
-      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Failed to create user");
+    if (ap && String(ap.userId) !== String(userDoc._id)) {
+      // providerUid này đã liên kết user khác → báo xung đột
+      return fail(
+        res,
+        409,
+        ERROR_CODES.CONFLICT,
+        "Google account is linked to another user"
+      );
     }
 
-    // Create session cookie
-    const sessionCookie = await admin.auth().createSessionCookie(idToken, {
-      expiresIn: SESSION_EXPIRES_IN,
-    });
+    await AuthProvider.updateOne(
+      { provider: "google", providerUid: decoded.uid },
+      {
+        $setOnInsert: {
+          provider: "google",
+          providerUid: decoded.uid,
+          userId: userDoc._id,
+          email: userDoc.email,
+          phone: userDoc.phone || null,
+          verified: true,
+          linkedAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
 
-    res.cookie(COOKIE_NAME, sessionCookie, {
-      maxAge: SESSION_EXPIRES_IN,
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      path: "/",
-    });
-
-    console.log("[google-register] success for user:", newUser.UserID);
+    console.log("[GG-REG] SUCCESS userId:", String(userDoc._id));
     return ok(res, {
-      role: newUser.Role,
+      role: userDoc.role,
       user: {
-        id: newUser.UserID,
-        fullName: newUser.FullName,
-        email: newUser.Email,
-        phone: newUser.Phone,
-        role: newUser.Role,
+        id: userDoc._id,
+        fullName: userDoc.fullName,
+        email: userDoc.email,
+        phone: userDoc.phone,
+        role: userDoc.role,
       },
     });
   } catch (e) {
-    console.error("❌ /api/auth/google-register error:", e);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+    console.error("❌ /api/auth/google-register error:", {
+      name: e?.name,
+      code: e?.code,
+      keyValue: e?.keyValue,
+      message: e?.message,
+    });
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e?.message || String(e));
   }
 }
 

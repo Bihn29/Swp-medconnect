@@ -168,6 +168,9 @@ const Header = () => {
                 <Link to="/dang-nhap" className="btn btn-login">
                   Đăng nhập
                 </Link>
+                <Link to="/dang-ky" style={{ margin: "0px" }} className="btn-primary">
+                  Đăng ký
+                </Link>
               </>
             )}
           </div>
