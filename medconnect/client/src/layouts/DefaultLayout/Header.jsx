@@ -165,11 +165,8 @@ const Header = () => {
               </div>
             ) : (
               <>
-                <Link to="/dang-nhap" className="btn-outline">
+                <Link to="/dang-nhap" className="btn btn-login">
                   Đăng nhập
-                </Link>
-                <Link to="/dang-ky" className="btn-primary">
-                  Đăng ký
                 </Link>
               </>
             )}
