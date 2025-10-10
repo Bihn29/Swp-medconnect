@@ -6,6 +6,8 @@ import authRouter from "./authRoutes.js";
 apiRouter.use("/users", userRouter);
 // Auth routes (register, login, session, etc.)
 apiRouter.use("/auth", authRouter);
+console.log("[router] mounted /api/auth");
+
 //admin
 // apiRouter.use("/doctor", adminRouter);
 // //staff
