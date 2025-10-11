@@ -13,6 +13,10 @@ export function initializeFirebase() {
   }
   
   const privateKey = FB_PRIVATE_KEY.replace(/\\n/g, "\n");
+  console.log("[Firebase Admin] Using project:", FB_PROJECT_ID);
+console.log("[Firebase Admin] Client email:", FB_CLIENT_EMAIL);
+console.log("[Firebase Admin] Private key starts with:", privateKey.slice(0, 30));
+
   
   if (!admin.apps.length) {
     admin.initializeApp({

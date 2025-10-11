@@ -26,13 +26,12 @@ export async function verifyPassword(hash, plain) {
     if (hash.startsWith("$2a$") || hash.startsWith("$2b$") || hash.startsWith("$2y$")) {
       return await bcrypt.compare(plain, hash);
     }
-    if (await argon2.verify(hash, plain)) return true;
-    if (await bcrypt.compare(plain, hash)) return true;
     return false;
   } catch {
     return false;
   }
 }
+
 
 export async function hashPassword(plain) {
   if (!plain) return null;

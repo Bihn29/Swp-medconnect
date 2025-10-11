@@ -18,6 +18,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FB_APP_ID,
   measurementId: import.meta.env.VITE_FB_MEASUREMENT_ID,
 };
+console.log("FB client project:", import.meta.env.VITE_FB_PROJECT_ID);
+console.log("FB apiKey starts:", (import.meta.env.VITE_FB_API_KEY || "").slice(0, 8));
+
+
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);

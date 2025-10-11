@@ -17,6 +17,14 @@ const DoctorTimeSlotSchema = new Schema(
   { timestamps: true, versionKey: false, collection: "doctor_time_slots" }
 );
 
+// 🔴 NEW: validate startAt < endAt
+DoctorTimeSlotSchema.pre("validate", function (next) {
+  if (this.startAt && this.endAt && this.startAt >= this.endAt) {
+    this.invalidate("endAt", "endAt must be after startAt");
+  }
+  next();
+});
+
 DoctorTimeSlotSchema.index(
   { doctorId: 1, startAt: 1, endAt: 1, mode: 1 },
   { unique: true }

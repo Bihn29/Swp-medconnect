@@ -1,18 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Button,
-  Input,
-  Select,
-  Card,
-  Row,
-  Col,
-  Typography,
-  Space,
-  Tag,
-  Steps,
-  Divider,
-} from "antd";
+import { Button, Input, Select, Card, Row, Col, Typography, Steps } from "antd";
 import {
   SearchOutlined,
   HeartOutlined,
@@ -24,33 +12,76 @@ import {
   CreditCardOutlined,
   VideoCameraOutlined,
   HomeOutlined,
+  LeftOutlined,
+  RightOutlined,
 } from "@ant-design/icons";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 import "./Homepage.css";
 
 const { Title, Paragraph } = Typography;
-const { Option } = Select;
 
 const Homepage = () => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchType, setSearchType] = useState("name");
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    navigate("/tim-kiem");
+  // ---- Custom arrow components for react-slick ----
+  const SampleNextArrow = (props) => {
+    const { onClick } = props;
+    return (
+      <div
+        className="slick-arrow slick-next"
+        onClick={onClick}
+        style={{
+          right: "15px",
+          zIndex: 2,
+          color: "#45c3d2",
+          fontSize: "20px",
+          cursor: "pointer",
+        }}
+      >
+        <RightOutlined />
+      </div>
+    );
   };
 
-  const specializations = [
-    "Tim mạch",
-    "Da liễu",
-    "Nhi khoa",
-    "Sản phụ khoa",
-    "Thần kinh",
-    "Tiêu hóa",
-    "Hô hấp",
-    "Xương khớp",
-  ];
+  const SamplePrevArrow = (props) => {
+    const { onClick } = props;
+    return (
+      <div
+        className="slick-arrow slick-prev"
+        onClick={onClick}
+        style={{
+          left: "15px",
+          zIndex: 2,
+          color: "#45c3d2",
+          fontSize: "20px",
+          cursor: "pointer",
+        }}
+      >
+        <LeftOutlined />
+      </div>
+    );
+  };
 
+  // ---- Slider settings ----
+  const sliderSettings = {
+    dots: false,
+    infinite: true,
+    slidesToShow: 3,
+    slidesToScroll: 3,
+    arrows: true,
+    autoplay: true,
+    autoplaySpeed: 4500,
+    nextArrow: <SampleNextArrow />,
+    prevArrow: <SamplePrevArrow />,
+    responsive: [
+      { breakpoint: 992, settings: { slidesToShow: 2, slidesToScroll: 2 } },
+      { breakpoint: 576, settings: { slidesToShow: 1, slidesToScroll: 1 } },
+    ],
+  };
+
+  // ---- Feature data ----
   const features = [
     {
       icon: <HeartOutlined style={{ fontSize: "48px", color: "#45c3d2" }} />,
@@ -81,6 +112,7 @@ const Homepage = () => {
     },
   ];
 
+  // ---- Step guide ----
   const steps = [
     {
       title: "Tìm kiếm bác sĩ",
@@ -102,6 +134,50 @@ const Homepage = () => {
       title: "Tham gia tư vấn",
       description: "Tham gia buổi tư vấn trực tiếp hoặc qua video call",
       icon: <VideoCameraOutlined />,
+    },
+  ];
+
+  // ---- Specialty list ----
+  const specialties = [
+    {
+      id: "orthopedic",
+      title: "Cơ Xương Khớp",
+      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145826-coxuongkhop.png",
+    },
+    {
+      id: "neurology",
+      title: "Thần kinh",
+      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145827-thankinh.png",
+    },
+    {
+      id: "digestive",
+      title: "Tiêu hóa",
+      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145828-tieuhoa.png",
+    },
+    {
+      id: "otolaryngology",
+      title: "Tai Mũi Họng",
+      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145829-taimuihong.png",
+    },
+    {
+      id: "cardiology",
+      title: "Tim mạch",
+      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145830-timmach.png",
+    },
+    {
+      id: "dermatology",
+      title: "Da liễu",
+      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145831-dalie.png",
+    },
+    {
+      id: "pediatrics",
+      title: "Nhi khoa",
+      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145832-nhikhoa.png",
+    },
+    {
+      id: "dentistry",
+      title: "Nha khoa",
+      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145833-nhakhoa.png",
     },
   ];
 
@@ -139,7 +215,6 @@ const Homepage = () => {
                 tư vấn chất lượng ngay tại nhà thông qua video call bảo mật.
               </Paragraph>
 
-              {/* Search Section */}
               <Input
                 placeholder="Tìm bệnh viện"
                 size="large"
@@ -164,89 +239,383 @@ const Homepage = () => {
       {/* Recommendation Section */}
       <section style={{ padding: "80px 0", background: "white" }}>
         <div className="container">
-          <Title level={2} style={{ textAlign: "left", marginBottom: "40px" }}>
+          <Title level={2} style={{ marginBottom: "40px" }}>
             Dành cho bạn
           </Title>
-
-          <Row gutter={[32, 32]} justify="start">
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <Card
-                hoverable
-                style={{
-                  textAlign: "center",
-                  border: "none",
-                  background: "transparent",
-                }}
-                bodyStyle={{ padding: 0 }}
-              >
-                <div
+          <Row gutter={[32, 32]}>
+            <Col xs={24} sm={12} md={8}>
+              <Card hoverable bordered={false} style={{ textAlign: "center" }}>
+                <img
+                  src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152447-bac-si.png"
+                  alt="Bác sĩ"
                   style={{
+                    borderRadius: "50%",
                     width: "220px",
                     height: "220px",
-                    borderRadius: "50%",
-                    backgroundColor: "#ffeb99",
-                    margin: "0 auto 20px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
+                    objectFit: "cover",
+                    marginBottom: "20px",
                   }}
-                >
-                  <img
-                    src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152447-bac-si.png"
-                    alt="Bác sĩ"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                  />
-                </div>
-                <Title level={4} style={{ margin: 0, color: "#004c4c" }}>
-                  Bác sĩ
-                </Title>
+                />
+                <Title level={4}>Bác sĩ</Title>
               </Card>
             </Col>
 
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <Card
-                hoverable
-                style={{
-                  textAlign: "center",
-                  border: "none",
-                  background: "transparent",
-                }}
-                bodyStyle={{ padding: 0 }}
-              >
-                <div
+            <Col xs={24} sm={12} md={8}>
+              <Card hoverable bordered={false} style={{ textAlign: "center" }}>
+                <img
+                  src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152612-chuyen-khoa.png"
+                  alt="Chuyên khoa"
                   style={{
+                    borderRadius: "50%",
                     width: "220px",
                     height: "220px",
-                    borderRadius: "50%",
-                    backgroundColor: "#ffeb99",
-                    margin: "0 auto 20px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
+                    objectFit: "cover",
+                    marginBottom: "20px",
                   }}
-                >
-                  <img
-                    src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152612-chuyen-khoa.png"
-                    alt="Chuyên khoa"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                  />
-                </div>
-                <Title level={4} style={{ margin: 0, color: "#004c4c" }}>
-                  Chuyên khoa
-                </Title>
+                />
+                <Title level={4}>Chuyên khoa</Title>
               </Card>
             </Col>
           </Row>
+        </div>
+      </section>
+
+      {/* Comprehensive Services */}
+      <section style={{ padding: "80px 0", background: "#f9fafb" }}>
+        <div className="container">
+          <Title level={2} style={{ marginBottom: "50px" }}>
+            Dịch vụ toàn diện
+          </Title>
+
+          <Row gutter={[24, 24]}>
+            {[
+              {
+                title: "Khám Chuyên khoa",
+                icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145510-chuyenkhoa.png",
+              },
+              {
+                title: "Khám từ xa",
+                icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145511-khamtuxa.png",
+              },
+              {
+                title: "Khám tổng quát",
+                icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145512-khamtongquat.png",
+              },
+              {
+                title: "Xét nghiệm y học",
+                icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145513-xetnghiemyhoc.png",
+              },
+              {
+                title: "Sức khỏe tinh thần",
+                icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145514-tinhthan.png",
+              },
+              {
+                title: "Khám nha khoa",
+                icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145515-nhakhoa.png",
+              },
+            ].map((service, index) => (
+              <Col xs={24} sm={12} md={12} lg={8} key={index}>
+                <Card
+                  hoverable
+                  style={{
+                    borderRadius: "20px",
+                    border: "1px solid #e5e7eb",
+                    boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
+                  }}
+                  bodyStyle={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    padding: "20px 24px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "56px",
+                      height: "56px",
+                      flexShrink: 0,
+                      background: "#fff9e6",
+                      borderRadius: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <img
+                      src={service.icon}
+                      alt={service.title}
+                      style={{ width: "36px", height: "36px" }}
+                    />
+                  </div>
+                  <Title level={4} style={{ margin: 0 }}>
+                    {service.title}
+                  </Title>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+      </section>
+
+      {/* Specialties Section */}
+      <section style={{ padding: "80px 0", background: "#fff" }}>
+        <div className="container">
+          <Row
+            justify="space-between"
+            align="middle"
+            style={{ marginBottom: "40px" }}
+          >
+            <Title level={2} style={{ margin: 0 }}>
+              Chuyên khoa
+            </Title>
+            <Link
+              to="/chuyen-khoa"
+              style={{
+                background: "#c8f3f3",
+                padding: "8px 20px",
+                borderRadius: "12px",
+                color: "#007f7f",
+                fontWeight: 500,
+                textDecoration: "none",
+              }}
+            >
+              Xem thêm
+            </Link>
+          </Row>
+
+          <Slider {...sliderSettings}>
+            {specialties.map((specialty, index) => (
+              <div key={index} style={{ padding: "0 12px" }}>
+                <Card
+                  hoverable
+                  onClick={() => navigate(`/specialties/${specialty.id}`)}
+                  style={{
+                    borderRadius: "16px",
+                    border: "1px solid #e5e7eb",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    height: "100%",
+                    boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
+                  }}
+                  bodyStyle={{
+                    padding: "24px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <img
+                    src={specialty.icon}
+                    alt={specialty.title}
+                    style={{
+                      width: "120px",
+                      height: "120px",
+                      objectFit: "contain",
+                      marginBottom: "16px",
+                    }}
+                  />
+                  <Title level={4} style={{ margin: 0, color: "#333" }}>
+                    {specialty.title}
+                  </Title>
+                </Card>
+              </div>
+            ))}
+          </Slider>
+        </div>
+      </section>
+
+      {/* Medical Facilities Section */}
+      <section style={{ padding: "80px 0", background: "#fff" }}>
+        <div className="container">
+          <Row
+            justify="space-between"
+            align="middle"
+            style={{ marginBottom: "40px" }}
+          >
+            <Title level={2} style={{ margin: 0 }}>
+              Cơ sở y tế
+            </Title>
+            <Link
+              to="/hospitals"
+              style={{
+                background: "#c8f3f3",
+                padding: "8px 20px",
+                borderRadius: "12px",
+                color: "#007f7f",
+                fontWeight: 500,
+                textDecoration: "none",
+              }}
+            >
+              Xem thêm
+            </Link>
+          </Row>
+
+          <Slider {...sliderSettings}>
+            {[
+              {
+                id: "vietduc",
+                name: "Bệnh viện Hữu nghị Việt Đức",
+                logo: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151122-viet-duc.png",
+              },
+              {
+                id: "choray",
+                name: "Bệnh viện Chợ Rẫy",
+                logo: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151123-cho-ray.png",
+              },
+              {
+                id: "doctorcheck",
+                name: "Doctor Check - Tầm Soát Bệnh Để Sống Thọ Hơn",
+                logo: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151124-doctor-check.png",
+              },
+              {
+                id: "vinmec",
+                name: "Bệnh viện Đa khoa Quốc tế Vinmec",
+                logo: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151125-vinmec.png",
+              },
+              {
+                id: "tamduc",
+                name: "Bệnh viện Tâm Đức",
+                logo: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151126-tam-duc.png",
+              },
+              {
+                id: "hunggvuong",
+                name: "Bệnh viện Hùng Vương",
+                logo: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151127-hung-vuong.png",
+              },
+            ].map((facility, index) => (
+              <div key={index} style={{ padding: "0 12px" }}>
+                <Card
+                  hoverable
+                  onClick={() => navigate(`/hospitals/${facility.id}`)}
+                  style={{
+                    borderRadius: "16px",
+                    border: "1px solid #e5e7eb",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    height: "100%",
+                    boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
+                  }}
+                  bodyStyle={{
+                    padding: "24px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <img
+                    src={facility.logo}
+                    alt={facility.name}
+                    style={{
+                      width: "150px",
+                      height: "150px",
+                      objectFit: "contain",
+                      marginBottom: "16px",
+                    }}
+                  />
+                  <Title
+                    level={4}
+                    style={{
+                      margin: 0,
+                      color: "#333",
+                      fontWeight: 500,
+                      fontSize: "1.05rem",
+                    }}
+                  >
+                    {facility.name}
+                  </Title>
+                </Card>
+              </div>
+            ))}
+          </Slider>
+        </div>
+      </section>
+
+      {/* Promotion Section */}
+      <section style={{ padding: "80px 0", background: "#f9fafb" }}>
+        <div className="container">
+          <Title
+            level={2}
+            style={{
+              textAlign: "left",
+              marginBottom: "40px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            Ưu đãi HOT trong tháng
+            <img
+              src="https://cdn-icons-png.flaticon.com/512/616/616554.png"
+              alt="Hot"
+              style={{ width: "28px", height: "28px" }}
+            />
+          </Title>
+
+          <Slider
+            {...{
+              dots: true,
+              infinite: true,
+              autoplay: true,
+              autoplaySpeed: 4000,
+              slidesToShow: 1,
+              slidesToScroll: 1,
+              arrows: false,
+              pauseOnHover: true,
+            }}
+          >
+            {[
+              {
+                id: 1,
+                image:
+                  "https://cdn.bookingcare.vn/fo/w1920/2024/08/01/144053-uu-dai-medlatec.png",
+                link: "/promotions/medlatec",
+              },
+              {
+                id: 2,
+                image:
+                  "https://cdn.bookingcare.vn/fo/w1920/2024/07/01/145311-uu-dai-da-lieu.png",
+                link: "/promotions/dermatology",
+              },
+              {
+                id: 3,
+                image:
+                  "https://cdn.bookingcare.vn/fo/w1920/2024/06/01/145312-uu-dai-vinmec.png",
+                link: "/promotions/vinmec",
+              },
+              {
+                id: 4,
+                image:
+                  "https://cdn.bookingcare.vn/fo/w1920/2024/05/01/145313-uu-dai-nha-khoa.png",
+                link: "/promotions/dental",
+              },
+              {
+                id: 5,
+                image:
+                  "https://cdn.bookingcare.vn/fo/w1920/2024/04/01/145314-uu-dai-tam-soat.png",
+                link: "/promotions/checkup",
+              },
+            ].map((promo) => (
+              <div key={promo.id} style={{ textAlign: "center" }}>
+                <Link to={promo.link}>
+                  <img
+                    src={promo.image}
+                    alt={`Ưu đãi ${promo.id}`}
+                    style={{
+                      width: "100%",
+                      maxWidth: "1200px",
+                      height: "auto",
+                      borderRadius: "16px",
+                      margin: "0 auto",
+                      boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
+                      cursor: "pointer",
+                    }}
+                  />
+                </Link>
+              </div>
+            ))}
+          </Slider>
         </div>
       </section>
 
@@ -292,87 +661,147 @@ const Homepage = () => {
         </div>
       </section>
 
-      {/* How it works Section */}
-      <section style={{ padding: "80px 0", background: "white" }}>
+      {/* Featured Doctors Section */}
+      <section style={{ padding: "80px 0", background: "#eaf6f6" }}>
         <div className="container">
-          <Title
-            level={2}
-            style={{ textAlign: "center", marginBottom: "60px" }}
+          <Row
+            justify="space-between"
+            align="middle"
+            style={{ marginBottom: "40px" }}
           >
-            Cách thức hoạt động
-          </Title>
-          <Row justify="center">
-            <Col xs={24} lg={20}>
-              <Steps
-                direction="horizontal"
-                current={-1}
-                items={steps}
-                responsive={false}
-                style={{ marginBottom: "40px" }}
-              />
-              <Row gutter={[24, 24]} style={{ marginTop: "40px" }}>
-                {steps.map((step, index) => (
-                  <Col xs={24} sm={12} lg={6} key={index}>
-                    <Card
-                      style={{
-                        textAlign: "center",
-                        background: "#f8f9fa",
-                        border: "none",
-                      }}
-                    >
-                      <Title level={4} style={{ color: "#45c3d2" }}>
-                        {step.title}
-                      </Title>
-                      <Paragraph style={{ color: "#666", margin: 0 }}>
-                        {step.description}
-                      </Paragraph>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-            </Col>
+            <Title level={2} style={{ margin: 0 }}>
+              Bác sĩ nổi bật
+            </Title>
+            <Link
+              to="/doctors"
+              style={{
+                background: "#c8f3f3",
+                padding: "8px 20px",
+                borderRadius: "12px",
+                color: "#007f7f",
+                fontWeight: 500,
+                textDecoration: "none",
+              }}
+            >
+              Xem thêm
+            </Link>
           </Row>
-        </div>
-      </section>
 
-      {/* CTA Section */}
-      <section className="cta-section">
-        <div className="container">
-          <Row justify="center" align="middle" style={{ minHeight: "300px" }}>
-            <Col xs={24} lg={16} style={{ textAlign: "center" }}>
-              <Title level={2} style={{ color: "white", marginBottom: "16px" }}>
-                Bắt đầu chăm sóc sức khỏe của bạn ngay hôm nay!
-              </Title>
-              <Paragraph
-                style={{
-                  color: "white",
-                  fontSize: "1.1rem",
-                  marginBottom: "32px",
-                  opacity: 0.9,
-                }}
-              >
-                Đăng ký tài khoản miễn phí để trải nghiệm dịch vụ tư vấn y tế
-                chất lượng cao.
-              </Paragraph>
-              <Button
-                type="primary"
-                size="large"
-                style={{
-                  background: "white",
-                  borderColor: "white",
-                  color: "#45c3d2",
-                  fontWeight: 600,
-                  height: "50px",
-                  padding: "0 40px",
-                  fontSize: "16px",
-                }}
-              >
-                <Link to="/doctors" style={{ color: "#45c3d2" }}>
-                  Tìm bác sĩ ngay
-                </Link>
-              </Button>
-            </Col>
-          </Row>
+          <Slider
+            {...{
+              dots: false,
+              infinite: true,
+              slidesToShow: 4,
+              slidesToScroll: 4,
+              arrows: true,
+              autoplay: true,
+              autoplaySpeed: 5000,
+              nextArrow: <SampleNextArrow />,
+              prevArrow: <SamplePrevArrow />,
+              responsive: [
+                {
+                  breakpoint: 992,
+                  settings: { slidesToShow: 2, slidesToScroll: 2 },
+                },
+                {
+                  breakpoint: 576,
+                  settings: { slidesToShow: 1, slidesToScroll: 1 },
+                },
+              ],
+            }}
+          >
+            {[
+              {
+                id: "doctor1",
+                name: 'Gói Khám "Bác Sĩ Khuyến Cáo" (DC2)',
+                specialty: "Khám tổng quát, Cơ bản, Nam, Nữ",
+                image:
+                  "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095118-goi-kham-bac-si-khuyen-cao.jpg",
+              },
+              {
+                id: "doctor2",
+                name: "Phó Giáo sư, Tiến sĩ, Bác sĩ Nguyễn Thị Hoài An",
+                specialty: "Tai Mũi Họng, Nhi khoa",
+                image:
+                  "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095154-ps-nguyen-thi-hoai-an.jpg",
+              },
+              {
+                id: "doctor3",
+                name: "Bác sĩ Chuyên khoa II Võ Văn Mẫn",
+                specialty: "Cơ Xương Khớp, Chấn thương chỉnh hình",
+                image:
+                  "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095214-bs-vo-van-man.jpg",
+              },
+              {
+                id: "doctor4",
+                name: "Phó Giáo sư, Tiến sĩ Kiều Đình Hùng",
+                specialty: "Thần kinh, Cột sống, Ngoại thần kinh",
+                image:
+                  "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095247-pgs-kieu-dinh-hung.jpg",
+              },
+              {
+                id: "doctor5",
+                name: "Phó Giáo sư, Tiến sĩ, Bác sĩ Nguyễn Văn A",
+                specialty: "Tim mạch, Nội tổng quát",
+                image:
+                  "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095300-bs-nguyen-van-a.jpg",
+              },
+            ].map((doctor, index) => (
+              <div key={index} style={{ padding: "0 12px" }}>
+                <Card
+                  hoverable
+                  onClick={() => navigate(`/doctors/${doctor.id}`)}
+                  style={{
+                    borderRadius: "16px",
+                    border: "none",
+                    textAlign: "center",
+                    background: "#ffffff",
+                    boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
+                    height: "100%",
+                  }}
+                  bodyStyle={{
+                    padding: "24px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <img
+                    src={doctor.image}
+                    alt={doctor.name}
+                    style={{
+                      width: "200px",
+                      height: "200px",
+                      objectFit: "cover",
+                      borderRadius: "50%",
+                      marginBottom: "16px",
+                    }}
+                  />
+                  <Title
+                    level={4}
+                    style={{
+                      fontSize: "1.1rem",
+                      fontWeight: 600,
+                      color: "#222",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    {doctor.name}
+                  </Title>
+                  <Paragraph
+                    style={{
+                      fontSize: "0.95rem",
+                      color: "#555",
+                      margin: 0,
+                    }}
+                  >
+                    {doctor.specialty}
+                  </Paragraph>
+                </Card>
+              </div>
+            ))}
+          </Slider>
         </div>
       </section>
     </div>

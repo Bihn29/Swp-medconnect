@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { auth, signInWithGoogle } from "../../lib/firebase";
-import { signInWithCustomToken, signOut } from "firebase/auth";
+import { signInWithCustomToken, signOut, updateProfile } from "firebase/auth";
 import "./Login.scss";
 
 export default function Login() {
@@ -13,11 +13,16 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
   const [emailError, setEmailError] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [generalError, setGeneralError] = useState("");
+
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+  const setAuthAllowed = (v) =>
+    v
+      ? sessionStorage.setItem("auth_allowed", "1")
+      : sessionStorage.removeItem("auth_allowed");
 
   const toE164 = (raw, country = "+84") => {
     const num = String(raw || "").replace(/\D/g, "");
@@ -32,21 +37,31 @@ export default function Login() {
 
   const goByRole = (role) => {
     switch ((role || "").toUpperCase()) {
-      case "PATIENT": navigate("/benh-nhan"); break;
-      case "DOCTOR": navigate("/bac-si"); break;
-      case "ADMIN": navigate("/quan-tri"); break;
-      default: navigate("/"); break;
+      case "PATIENT":
+        navigate("/benh-nhan");
+        break;
+      case "DOCTOR":
+        navigate("/bac-si");
+        break;
+      case "ADMIN":
+        navigate("/quan-tri");
+        break;
+      default:
+        navigate("/");
+        break;
     }
   };
 
   async function passwordLogin(identifier, pwd) {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    const r = await fetch(apiUrl + "/api/auth/login-password", {
+    setGeneralError("");
+
+    const r = await fetch(`${apiUrl}/api/auth/login-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ identifier, password: pwd }),
     });
+
     const data = await r.json().catch(() => ({}));
 
     if (!r.ok) {
@@ -58,10 +73,25 @@ export default function Login() {
       throw new Error(data?.error || "Không đăng nhập được");
     }
 
-    const cred = await signInWithCustomToken(auth, data.customToken);
+    const token = data?.customToken ?? data?.data?.customToken;
+    const roleFromLogin = data?.role ?? data?.data?.role;
+    const fullNameFromLogin = data?.user?.fullName ?? data?.data?.user?.fullName;
+
+    if (!token) throw new Error("Thiếu customToken từ server");
+
+    const cred = await signInWithCustomToken(auth, token);
+
+    if (fullNameFromLogin) {
+      try {
+        await updateProfile(cred.user, { displayName: fullNameFromLogin });
+      } catch (err) {
+        console.warn("updateProfile failed:", err);
+      }
+    }
+
     const idToken = await cred.user.getIdToken();
 
-    const r2 = await fetch(apiUrl + "/api/auth/session", {
+    const r2 = await fetch(`${apiUrl}/api/auth/session`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -69,7 +99,29 @@ export default function Login() {
     });
     if (!r2.ok) throw new Error("Không tạo được phiên đăng nhập");
 
-    goByRole(data.role);
+    let roleFromMe;
+    let fullNameFromMe;
+
+    try {
+      const meRes = await fetch(`${apiUrl}/api/auth/me`, { credentials: "include" });
+      const meData = await meRes.json().catch(() => ({}));
+      roleFromMe = meData?.data?.user?.role ?? meData?.user?.role ?? null;
+      fullNameFromMe =
+        meData?.data?.profile?.fullName ?? meData?.profile?.fullName ?? null;
+      const finalName = fullNameFromLogin || fullNameFromMe || "";
+      if (finalName) sessionStorage.setItem("mc_fullname", finalName);
+    } catch (err) {
+      console.warn("Fetch /me failed:", err);
+    }
+
+    const finalRole = roleFromLogin ?? roleFromMe;
+    if (!finalRole) {
+      setGeneralError("Không xác định được vai trò người dùng.");
+      return;
+    }
+
+    setAuthAllowed(true);
+    goByRole(finalRole);
   }
 
   const validateForm = () => {
@@ -105,7 +157,6 @@ export default function Login() {
         return false;
       }
     }
-
     return true;
   };
 
@@ -118,6 +169,7 @@ export default function Login() {
       await passwordLogin(identifier, password);
     } catch (err) {
       console.error("Login error:", err);
+      setGeneralError(err?.message || "Không đăng nhập được");
     } finally {
       setLoading(false);
     }
@@ -125,28 +177,68 @@ export default function Login() {
 
   const onGoogle = async () => {
     setLoading(true);
+    setGeneralError("");
     try {
       const user = await signInWithGoogle();
       const idToken = await user.getIdToken();
 
-      const apiUrl = import.meta.env.VITE_API_URL;
-      const r = await fetch(apiUrl + "/api/auth/google-login", {
+      const r = await fetch(`${apiUrl}/api/auth/google-login`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
       });
-      const data = await r.json().catch(() => ({}));
 
       if (r.status === 403) {
-        await signOut(auth);
-        throw new Error("Lỗi đăng nhập Google");
+        setAuthAllowed(false);
+        try {
+          await signOut(auth);
+        } catch (err) {
+          setGeneralError("Bạn chưa có tài khoản. Vui lòng đăng ký tài khoản.");
+        }
+        return;
       }
-      if (!r.ok) throw new Error("Lỗi đăng nhập Google");
 
-      goByRole(data.role);
+      if (!r.ok) {
+        setAuthAllowed(false);
+        try {
+          await signOut(auth);
+        } catch (err) {
+          throw new Error("Lỗi đăng nhập Google");
+        }
+      }
+
+      const data = await r.json().catch(() => ({}));
+
+      let roleFromMe;
+      let fullNameFromMe;
+
+      try {
+        const meRes = await fetch(`${apiUrl}/api/auth/me`, { credentials: "include" });
+        const meData = await meRes.json().catch(() => ({}));
+        roleFromMe = meData?.data?.user?.role ?? meData?.user?.role ?? null;
+        fullNameFromMe =
+          meData?.data?.profile?.fullName ?? meData?.profile?.fullName ?? null;
+        if (fullNameFromMe) sessionStorage.setItem("mc_fullname", fullNameFromMe);
+      } catch (err) {
+        console.warn("Fetch /me failed:", err);
+      }
+
+      const finalRole = data?.role ?? data?.data?.role ?? roleFromMe;
+      if (!finalRole) {
+        setGeneralError("Không xác định được vai trò người dùng.");
+        return;
+      }
+
+      setAuthAllowed(true);
+      goByRole(finalRole);
     } catch (err) {
-      console.error("Google login error:", err);
+      setAuthAllowed(false);
+      try {
+        await signOut(auth);
+      } catch (err) {
+      setGeneralError(err?.message || "Lỗi đăng nhập Google");
+      }
     } finally {
       setLoading(false);
     }
@@ -156,10 +248,8 @@ export default function Login() {
     <div className="login-wrap">
       <div aria-hidden className="login-bg" />
       <div aria-hidden className="login-overlay" />
-
       <div className="login-card login-center-fixed">
         <h1 className="login-title">Chào mừng đến với MedConnect</h1>
-
         <form onSubmit={onSubmit}>
           {mode === "email" ? (
             <>
@@ -199,10 +289,11 @@ export default function Login() {
               onClick={() => setShowPassword(!showPassword)}
             />
           </div>
+
           {passwordError && <div className="error-text">{passwordError}</div>}
 
           <button type="submit" disabled={loading} className="btn btn-primary">
-            Đăng nhập
+            {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
         </form>
 
@@ -213,7 +304,7 @@ export default function Login() {
         <div className="login-alt">
           <button
             type="button"
-            onClick={() => { setMode(mode === "email" ? "phone" : "email"); }}
+            onClick={() => setMode(mode === "email" ? "phone" : "email")}
             className="btn btn-outline btn-full"
           >
             <i className="bi bi-phone-vibrate" />

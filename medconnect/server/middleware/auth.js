@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { fail } from "../utils/response.js";
+ import { fail } from "../utils/response.js";
 import { COOKIE_NAME } from "../constants/index.js";
 
 /**
