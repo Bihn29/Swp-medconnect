@@ -15,7 +15,7 @@ const VideoCallSchema = new Schema(
     startedAt: Date,
     endedAt: Date,
   },
-  { timestamps: true, collection: "video_calls" }
+  { timestamps: true, collection: "Video_calls" }
 );
 
 export default model("VideoCall", VideoCallSchema);

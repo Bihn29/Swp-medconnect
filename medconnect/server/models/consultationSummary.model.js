@@ -12,7 +12,7 @@ const ConsultationSummarySchema = new Schema(
     summaryText: String,
     createdBy: { type: Schema.Types.ObjectId, ref: "Doctor", required: true },
   },
-  { timestamps: true, collection: "consultation_summaries" }
+  { timestamps: true, collection: "Consultation_summaries" }
 );
 
 export default model("ConsultationSummary", ConsultationSummarySchema);

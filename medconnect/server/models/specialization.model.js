@@ -7,7 +7,7 @@ const SpecializationSchema = new Schema(
     name: { type: String, required: true },
     description: String,
   },
-  { timestamps: true, collection: "specializations" }
+  { timestamps: true, collection: "Specializations" }
 );
 
 export default model("Specialization", SpecializationSchema);

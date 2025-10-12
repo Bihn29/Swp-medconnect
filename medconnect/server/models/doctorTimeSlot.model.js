@@ -14,7 +14,7 @@ const DoctorTimeSlotSchema = new Schema(
       default: "available",
     },
   },
-  { timestamps: true, versionKey: false, collection: "doctor_time_slots" }
+  { timestamps: true, versionKey: false, collection: "Doctor_time_slots" }
 );
 
 // 🔴 NEW: validate startAt < endAt

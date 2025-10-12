@@ -18,7 +18,14 @@ const app = express();
 const allowedOrigins = ["http://localhost:5173"];
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow requests with no origin (mobile apps, Postman, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    
+    // Allow requests from allowed origins
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    
+    // Log rejected origin for debugging
+    console.warn(`⚠️ CORS rejected origin: ${origin}`);
     return callback(new Error("Not allowed by CORS"));
   },
   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
@@ -26,16 +33,17 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 };
 
+// Parse JSON and urlencoded request bodies FIRST
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// CORS must be after body parsers
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
 // app.use(morgan("dev"));
 app.use("/uploads", express.static("uploads"));
 app.use(cookieParser());
-
-// Parse JSON and urlencoded request bodies
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // router
 // Expose APIs under /api to match frontend (frontend uses /api/auth/...)
@@ -45,8 +53,16 @@ app.use("/api", apiRouter);
 app.use((_req, res) => {
   res.status(404).json({ error: "Không tìm thấy trang" });
 });
-app.use((err, _req, res, _next) => {
-  console.error(err.stack);
+app.use((err, req, res, _next) => {
+  console.error("❌ Error handler caught:", err.stack);
+  
+  // Ensure CORS headers are set even on errors
+  const origin = req.headers.origin;
+  if (!origin || allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin || "*");
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
+  
   res.status(err.status || 500).json({
     error: true,
     message: err.message || "Internal Server Error",
@@ -57,10 +73,7 @@ app.use((err, _req, res, _next) => {
 const server = http.createServer(app);
 
 mongoose
-  .connect(process.env.MONGODB_URL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.MONGODB_URL)
   .then(() => {
     console.log("✅ Kết nối đến MongoDB thành công");
   })

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, Input, Select, Card, Row, Col, Typography, Steps } from "antd";
 import {
@@ -23,7 +23,8 @@ import "./Homepage.css";
 const { Title, Paragraph } = Typography;
 
 const Homepage = () => {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+    const [specializations, setSpecializations] = useState([]);
 
   // ---- Custom arrow components for react-slick ----
   const SampleNextArrow = (props) => {
@@ -181,6 +182,23 @@ const Homepage = () => {
     },
   ];
 
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/specializations`);
+        const json = await res.json();
+        if (!mounted) return;
+        if (json.success) setSpecializations(json.data || []);
+        else console.error("API error", json);
+      } catch (err) {
+        console.error("Fetch specializations failed:", err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   return (
     <div className="homepage">
       {/* Hero Section */}
@@ -247,7 +265,7 @@ const Homepage = () => {
               <Link to="/bac-si">
                 <Card
                   hoverable
-                  bordered={false}
+                  variant="plain" // was bordered={false}
                   style={{ textAlign: "center" }}
                 >
                   <img
@@ -270,7 +288,7 @@ const Homepage = () => {
               <Link to="/chuyen-khoa">
                 <Card
                   hoverable
-                  bordered={false}
+                  variant="plain" // was bordered={false}
                   style={{ textAlign: "center" }}
                 >
                   <img
@@ -329,16 +347,19 @@ const Homepage = () => {
               <Col xs={24} sm={12} md={12} lg={8} key={index}>
                 <Card
                   hoverable
+                  variant="outlined" // keep visual border
                   style={{
                     borderRadius: "20px",
-                    border: "1px solid #e5e7eb",
                     boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
                   }}
-                  bodyStyle={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "16px",
-                    padding: "20px 24px",
+                  styles={{
+                    // bodyStyle -> styles.body
+                    body: {
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "16px",
+                      padding: "20px 24px",
+                    },
                   }}
                 >
                   <div
@@ -401,20 +422,22 @@ const Homepage = () => {
                 <Card
                   hoverable
                   onClick={() => navigate(`/specialties/${specialty.id}`)}
+                  variant="outlined"
                   style={{
                     borderRadius: "16px",
-                    border: "1px solid #e5e7eb",
                     textAlign: "center",
                     cursor: "pointer",
                     height: "100%",
                     boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
                   }}
-                  bodyStyle={{
-                    padding: "24px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
+                  styles={{
+                    body: {
+                      padding: "24px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    },
                   }}
                 >
                   <img
@@ -500,20 +523,22 @@ const Homepage = () => {
                 <Card
                   hoverable
                   onClick={() => navigate(`/hospitals/${facility.id}`)}
+                  variant="outlined"
                   style={{
                     borderRadius: "16px",
-                    border: "1px solid #e5e7eb",
                     textAlign: "center",
                     cursor: "pointer",
                     height: "100%",
                     boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
                   }}
-                  bodyStyle={{
-                    padding: "24px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
+                  styles={{
+                    body: {
+                      padding: "24px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    },
                   }}
                 >
                   <img
@@ -646,14 +671,14 @@ const Homepage = () => {
                 <Link to={feature.link} style={{ textDecoration: "none" }}>
                   <Card
                     hoverable
+                    variant="plain" // was border: none
                     style={{
                       textAlign: "center",
                       height: "100%",
                       borderRadius: "12px",
-                      border: "none",
                       boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
                     }}
-                    bodyStyle={{ padding: "40px 20px" }}
+                    styles={{ body: { padding: "40px 20px" } }} // bodyStyle -> styles.body
                   >
                     <div style={{ marginBottom: "20px" }}>{feature.icon}</div>
                     <Title
@@ -764,10 +789,9 @@ const Homepage = () => {
               <div key={index} className="doctor-card">
                 <Card
                   hoverable
-                  onClick={() => navigate(`/doctors/${doctor.id}`)}
+                  variant="plain"
                   style={{
                     borderRadius: "16px",
-                    border: "none",
                     textAlign: "center",
                     background: "#ffffff",
                     boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
@@ -778,13 +802,15 @@ const Homepage = () => {
                     alignItems: "center",
                     transition: "transform 0.3s ease, box-shadow 0.3s ease",
                   }}
-                  bodyStyle={{
-                    padding: "20px",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    height: "100%",
+                  styles={{
+                    body: {
+                      padding: "20px",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      height: "100%",
+                    },
                   }}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.transform = "translateY(-5px)")
@@ -920,9 +946,9 @@ const Homepage = () => {
                 <Card
                   hoverable
                   onClick={() => navigate(`/telemedicine/${service.id}`)}
+                  variant="outlined"
                   style={{
                     borderRadius: "16px",
-                    border: "1px solid #e5e7eb",
                     textAlign: "center",
                     background: "#ffffff",
                     boxShadow: "0 3px 12px rgba(0,0,0,0.06)",
@@ -933,12 +959,14 @@ const Homepage = () => {
                     alignItems: "center",
                     transition: "transform 0.3s ease, box-shadow 0.3s ease",
                   }}
-                  bodyStyle={{
-                    padding: "24px",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "center",
+                  styles={{
+                    body: {
+                      padding: "24px",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    },
                   }}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.transform = "translateY(-5px)")
