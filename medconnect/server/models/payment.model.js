@@ -132,7 +132,7 @@ const PaymentSchema = new Schema(
     refundedAt: Date,
     refundReason: String,
   },
-  { timestamps: true, versionKey: false, collection: "payments" }
+  { timestamps: true, versionKey: false, collection: "Payments" }
 );
 
 <<<<<<< HEAD

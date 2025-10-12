@@ -10,7 +10,7 @@ const NotificationSchema = new Schema(
     status: { type: String, enum: ["unread", "read"], default: "unread" },
     sentAt: Date,
   },
-  { timestamps: true, collection: "notifications" }
+  { timestamps: true, collection: "Notifications" }
 );
 
 <<<<<<< HEAD

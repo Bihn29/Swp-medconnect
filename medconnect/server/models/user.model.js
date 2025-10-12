@@ -23,7 +23,14 @@ const UserSchema = new Schema(
       type: String,
       enum: ["patient", "doctor", "admin"],
       default: "patient",
+
+      
     },
+
+    patient: { type: Schema.Types.ObjectId, ref: "Patient" },
+
+
+
     status: { type: String, enum: ["active", "blocked"], default: "active" },
     fullName: { type: String, trim: true },
     phone: { type: String, unique: true, sparse: true, trim: true },
@@ -41,7 +48,7 @@ const UserSchema = new Schema(
     resetTokenHash: { type: String, select: false },
     resetTokenExpiresAt: { type: Date },
   },
-  { timestamps: true, versionKey: false, collection: "users" }
+  { timestamps: true, versionKey: false, collection: "Users" }
 );
 
 export default model("User", UserSchema);

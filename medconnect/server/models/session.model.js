@@ -11,7 +11,7 @@ const SessionSchema = new Schema(
     expiresAt: { type: Date, required: true },
     revoked: { type: Boolean, default: false },
   },
-  { collection: "sessions" }
+  { collection: "Sessions" }
 );
 
 <<<<<<< HEAD

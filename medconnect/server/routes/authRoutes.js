@@ -12,6 +12,7 @@ import {
   forgotPassword,
   verifyPasswordOtp,
   resetPassword,
+  testEmail,
 } from "../controllers/authController.js";
 
 const router = express.Router();
@@ -30,6 +31,8 @@ router.post("/forgot", forgotPassword);        // requestPasswordOtp(email)
 router.post("/verify-otp", verifyPasswordOtp); // verifyPasswordOtp(email, otp) -> { resetToken }
 router.post("/reset", resetPassword);          // resetPasswordWithToken(token, newPassword)
 
+// === Test endpoints ===
+router.get("/test-email", testEmail);          // Test email configuration
 router.get("/__ping", (_req, res) => res.json({ ok: true }));
 
 export default router;

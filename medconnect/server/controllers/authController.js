@@ -1,9 +1,16 @@
 import admin from "firebase-admin";
 
+/* ======= ADD: Forgot/Verify OTP/Reset Password ======= */
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { sendMail } from "../utils/email.js";
+
 import { verifyPassword, hashPassword, toE164 } from "../helpers/auth.js";
 import User from "../models/user.model.js";
 import Patient from "../models/patient.model.js";
 import AuthProvider from "../models/auth_providers.model.js";
+import PasswordReset from "../models/passwordReset.model.js";
 import { ok, fail } from "../utils/response.js";
 import {
   COOKIE_NAME,
@@ -31,14 +38,14 @@ export async function loginPassword(req, res) {
       user = await User.findOne({
         email: String(identifier).toLowerCase().trim(),
         status: "active",
-      }).select("+passwordHash");               // 👈 THÊM DÒNG NÀY
+      }).select("+passwordHash");
     } else {
       const phone = toE164(identifier);
       if (phone) {
         user = await User.findOne({
           phone,
           status: "active",
-        }).select("+passwordHash");             // 👈 THÊM DÒNG NÀY
+        }).select("+passwordHash");
       }
     }
 
@@ -59,18 +66,16 @@ export async function loginPassword(req, res) {
       role: user.role,
     });
 
-return ok(res, {
-  customToken,
-  role: user.role || null,
-  user: { fullName: user.fullName, email: user.email }
-});
+    return ok(res, {
+      customToken,
+      role: user.role || null,
+      user: { fullName: user.fullName, email: user.email },
+    });
   } catch (e) {
     console.error("❌ /api/auth/login-password error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
-
-
 /**
  * Google login controller
  */
@@ -445,31 +450,21 @@ export function logout(req, res) {
   }
 }
 
-
 // --------------------------------------------------
-
-/* ======= ADD: Forgot/Verify OTP/Reset Password ======= */
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import nodemailer from "nodemailer";
 
 /* Helper gửi mail OTP đơn giản, dùng cấu hình SMTP từ .env */
 async function sendOtpMail(to, otp) {
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: String(process.env.SMTP_SECURE).toLowerCase() === "true",
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
-  const from = process.env.FROM_EMAIL || process.env.SMTP_USER;
-  await transporter.sendMail({
-    from,
+  await sendMail({
     to,
     subject: "Mã OTP đặt lại mật khẩu (hiệu lực 10 phút)",
     text: `Mã OTP của bạn là: ${otp}. Mã sẽ hết hạn sau 10 phút.`,
     html: `<p>Mã OTP của bạn là: <b>${otp}</b></p><p>Mã sẽ hết hạn sau <b>10 phút</b>.</p>`,
   });
+}
+
+/* Helper tạo OTP 6 số ngẫu nhiên từ 100000 đến 999999 */
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 /**
@@ -485,29 +480,46 @@ export async function forgotPassword(req, res) {
     const user = await User.findOne({
       email: String(email).toLowerCase().trim(),
       status: "active",
-    }).select("+passwordHash +resetOtpHash +resetTokenHash");
+    });
 
     if (!user) return ok(res, { ok: true }); // im lặng
 
-    // hạn chế brute-force: tối đa 5 lần khi OTP còn hiệu lực
-    if (
-      user.resetOtpExpiresAt &&
-      user.resetOtpExpiresAt > new Date() &&
-      user.resetOtpAttempts >= 5
-    ) {
+    // Kiểm tra xem có OTP đang hoạt động không
+    const existingReset = await PasswordReset.findOne({
+      userId: user._id,
+      type: "reset",
+      used: false,
+      expiresAt: { $gt: new Date() }
+    });
+
+    // Hạn chế brute-force: tối đa 5 lần thử khi OTP còn hiệu lực
+    if (existingReset && existingReset.attempts >= 5) {
       return ok(res, { ok: true });
     }
 
-    const otp = (Math.floor(100000 + Math.random() * 900000)).toString();
-    user.resetOtpHash = await bcrypt.hash(otp, 10);
-    user.resetOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10'
-    user.resetOtpAttempts = 0;
+    // Tạo OTP mới
+    const otp = generateOTP();
+    const codeHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
 
-    // vô hiệu hoá token cũ (nếu còn)
-    user.resetTokenHash = undefined;
-    user.resetTokenExpiresAt = undefined;
+    // Xóa các OTP cũ của user này
+    await PasswordReset.deleteMany({
+      userId: user._id,
+      type: "reset"
+    });
 
-    await user.save();
+    // Tạo record mới trong Password_Resets
+    await PasswordReset.create({
+      userId: user._id,
+      email: user.email,
+      codeHash: codeHash,
+      otp: otp, // Lưu OTP thực để so sánh
+      type: "reset",
+      expiresAt: expiresAt,
+      used: false,
+      attempts: 0
+    });
+
     await sendOtpMail(user.email, otp);
 
     return ok(res, { ok: true });
@@ -531,26 +543,38 @@ export async function verifyPasswordOtp(req, res) {
     const user = await User.findOne({
       email: String(email).toLowerCase().trim(),
       status: "active",
-    }).select("+resetOtpHash");
+    });
 
-    if (!user || !user.resetOtpHash || !user.resetOtpExpiresAt)
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "OTP không hợp lệ");
+    if (!user) return fail(res, 400, ERROR_CODES.BAD_REQUEST, "OTP không hợp lệ");
 
-    if (user.resetOtpAttempts >= 5)
+    // Tìm OTP record trong Password_Resets
+    const resetRecord = await PasswordReset.findOne({
+      userId: user._id,
+      email: user.email,
+      type: "reset",
+      used: false,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (!resetRecord) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "OTP không hợp lệ hoặc đã hết hạn");
+    }
+
+    // Kiểm tra số lần thử
+    if (resetRecord.attempts >= 5) {
       return fail(
         res,
         429,
         ERROR_CODES.TOO_MANY_REQUESTS,
         "Quá số lần thử. Vui lòng yêu cầu OTP mới."
       );
+    }
 
-    if (user.resetOtpExpiresAt < new Date())
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "OTP đã hết hạn");
-
-    const okOtp = await bcrypt.compare(String(otp), user.resetOtpHash);
-    if (!okOtp) {
-      user.resetOtpAttempts += 1;
-      await user.save();
+    // So sánh OTP (so sánh trực tiếp với OTP đã lưu)
+    if (String(otp) !== resetRecord.otp) {
+      // Tăng số lần thử
+      resetRecord.attempts += 1;
+      await resetRecord.save();
       return fail(res, 400, ERROR_CODES.BAD_REQUEST, "OTP không hợp lệ");
     }
 
@@ -562,15 +586,12 @@ export async function verifyPasswordOtp(req, res) {
     );
     const tokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
 
-    user.resetTokenHash = tokenHash;
-    user.resetTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    // Cập nhật record với resetToken
+    resetRecord.codeHash = tokenHash;
+    resetRecord.expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 phút cho reset token
+    resetRecord.used = false; // Chưa dùng để reset password
+    await resetRecord.save();
 
-    // Xoá OTP sau khi dùng
-    user.resetOtpHash = undefined;
-    user.resetOtpExpiresAt = undefined;
-    user.resetOtpAttempts = 0;
-
-    await user.save();
     return ok(res, { resetToken });
   } catch (e) {
     console.error("verifyPasswordOtp error:", e);
@@ -598,24 +619,35 @@ export async function resetPassword(req, res) {
     }
 
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-    const user = await User.findOne({
-      _id: payload.sub,
-      resetTokenHash: tokenHash,
-      resetTokenExpiresAt: { $gt: new Date() },
-    }).select("+passwordHash +resetTokenHash");
+    
+    // Tìm reset record trong Password_Resets
+    const resetRecord = await PasswordReset.findOne({
+      userId: payload.sub,
+      codeHash: tokenHash,
+      type: "reset",
+      used: false,
+      expiresAt: { $gt: new Date() }
+    });
 
-    if (!user)
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mã xác thực không hợp lệ");
+    if (!resetRecord) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mã xác thực không hợp lệ hoặc đã hết hạn");
+    }
 
-    // đặt mật khẩu mới
+    // Tìm user
+    const user = await User.findById(payload.sub).select("+passwordHash");
+    if (!user) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Người dùng không tồn tại");
+    }
+
+    // Đặt mật khẩu mới
     const hashed = await hashPassword(newPassword);
     user.passwordHash = hashed;
-
-    // vô hiệu hoá token sau khi dùng
-    user.resetTokenHash = undefined;
-    user.resetTokenExpiresAt = undefined;
-
     await user.save();
+
+    // Đánh dấu reset record đã được sử dụng
+    resetRecord.used = true;
+    await resetRecord.save();
+
     return ok(res, { ok: true, message: "Đổi mật khẩu thành công" });
   } catch (e) {
     console.error("resetPassword error:", e);
@@ -623,6 +655,23 @@ export async function resetPassword(req, res) {
   }
 }
 
-/* ======= (giữ nguyên các controller hiện có) ======= */
-
-// ... phần loginPassword / googleLogin / createSession / getCurrentUser / register / googleRegister / logout giữ nguyên ở dưới (không thay đổi)
+/**
+ * GET /api/auth/test-email
+ * Test email configuration
+ */
+export async function testEmail(req, res) {
+  try {
+    const isValid = await testEmailConfig();
+    if (isValid) {
+      return ok(res, { 
+        ok: true, 
+        message: "Email configuration is valid" 
+      });
+    } else {
+      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Email configuration is invalid");
+    }
+  } catch (e) {
+    console.error("testEmail error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
