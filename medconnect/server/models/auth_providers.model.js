@@ -15,7 +15,7 @@ const AuthProviderSchema = new Schema(
     verified: { type: Boolean, default: false },
     linkedAt: { type: Date, default: Date.now },
   },
-  { timestamps: false, versionKey: false, collection: "auth_providers" }
+  { timestamps: false, versionKey: false, collection: "Auth_providers" }
 );
 
 AuthProviderSchema.index({ provider: 1, providerUid: 1 }, { unique: true });

@@ -10,13 +10,7 @@ const NotificationSchema = new Schema(
     status: { type: String, enum: ["unread", "read"], default: "unread" },
     sentAt: Date,
   },
-  { timestamps: true, collection: "notifications" }
+  { timestamps: true, collection: "Notifications" }
 );
 
-<<<<<<< HEAD
-// 🔴 NEW: index userId + status + createdAt
-NotificationSchema.index({ userId: 1, status: 1, createdAt: -1 });
-
-=======
->>>>>>> 9480e022804b868197ee8c9a464643a6467f711b
 export default model("Notification", NotificationSchema);

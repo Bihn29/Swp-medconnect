@@ -31,7 +31,7 @@ const LicenseVerificationSchema = new Schema(
     version: { type: Number, default: 1 },
     documents: [VerificationDocSchema],
   },
-  { timestamps: true, collection: "license_verifications" }
+  { timestamps: true, collection: "License_verifications" }
 );
 
 export default model("LicenseVerification", LicenseVerificationSchema);

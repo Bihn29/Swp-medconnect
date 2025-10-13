@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, Input, Select, Card, Row, Col, Typography, Steps } from "antd";
 import {
@@ -23,7 +23,8 @@ import "./Homepage.css";
 const { Title, Paragraph } = Typography;
 
 const Homepage = () => {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+    const [specializations, setSpecializations] = useState([]);
 
   // ---- Custom arrow components for react-slick ----
   const SampleNextArrow = (props) => {
@@ -88,7 +89,7 @@ const Homepage = () => {
       title: "Tìm bác sĩ uy tín",
       description:
         "Tìm kiếm bác sĩ theo chuyên khoa, tên hoặc địa điểm gần bạn",
-      link: "/doctors",
+      link: "/bac-si  ",
     },
     {
       icon: <HomeOutlined style={{ fontSize: "48px", color: "#45c3d2" }} />,
@@ -181,6 +182,23 @@ const Homepage = () => {
     },
   ];
 
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/specializations`);
+        const json = await res.json();
+        if (!mounted) return;
+        if (json.success) setSpecializations(json.data || []);
+        else console.error("API error", json);
+      } catch (err) {
+        console.error("Fetch specializations failed:", err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   return (
     <div className="homepage">
       {/* Hero Section */}
@@ -244,37 +262,49 @@ const Homepage = () => {
           </Title>
           <Row gutter={[32, 32]}>
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bordered={false} style={{ textAlign: "center" }}>
-                <img
-                  src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152447-bac-si.png"
-                  alt="Bác sĩ"
-                  style={{
-                    borderRadius: "50%",
-                    width: "220px",
-                    height: "220px",
-                    objectFit: "cover",
-                    marginBottom: "20px",
-                  }}
-                />
-                <Title level={4}>Bác sĩ</Title>
-              </Card>
+              <Link to="/bac-si">
+                <Card
+                  hoverable
+                  variant="plain" // was bordered={false}
+                  style={{ textAlign: "center" }}
+                >
+                  <img
+                    src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152447-bac-si.png"
+                    alt="Bác sĩ"
+                    style={{
+                      borderRadius: "50%",
+                      width: "220px",
+                      height: "220px",
+                      objectFit: "cover",
+                      marginBottom: "20px",
+                    }}
+                  />
+                  <Title level={4}>Bác sĩ</Title>
+                </Card>
+              </Link>
             </Col>
 
             <Col xs={24} sm={12} md={8}>
-              <Card hoverable bordered={false} style={{ textAlign: "center" }}>
-                <img
-                  src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152612-chuyen-khoa.png"
-                  alt="Chuyên khoa"
-                  style={{
-                    borderRadius: "50%",
-                    width: "220px",
-                    height: "220px",
-                    objectFit: "cover",
-                    marginBottom: "20px",
-                  }}
-                />
-                <Title level={4}>Chuyên khoa</Title>
-              </Card>
+              <Link to="/chuyen-khoa">
+                <Card
+                  hoverable
+                  variant="plain" // was bordered={false}
+                  style={{ textAlign: "center" }}
+                >
+                  <img
+                    src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152612-chuyen-khoa.png"
+                    alt="Chuyên khoa"
+                    style={{
+                      borderRadius: "50%",
+                      width: "220px",
+                      height: "220px",
+                      objectFit: "cover",
+                      marginBottom: "20px",
+                    }}
+                  />
+                  <Title level={4}>Chuyên khoa</Title>
+                </Card>
+              </Link>
             </Col>
           </Row>
         </div>
@@ -317,16 +347,19 @@ const Homepage = () => {
               <Col xs={24} sm={12} md={12} lg={8} key={index}>
                 <Card
                   hoverable
+                  variant="outlined" // keep visual border
                   style={{
                     borderRadius: "20px",
-                    border: "1px solid #e5e7eb",
                     boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
                   }}
-                  bodyStyle={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "16px",
-                    padding: "20px 24px",
+                  styles={{
+                    // bodyStyle -> styles.body
+                    body: {
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "16px",
+                      padding: "20px 24px",
+                    },
                   }}
                 >
                   <div
@@ -389,20 +422,22 @@ const Homepage = () => {
                 <Card
                   hoverable
                   onClick={() => navigate(`/specialties/${specialty.id}`)}
+                  variant="outlined"
                   style={{
                     borderRadius: "16px",
-                    border: "1px solid #e5e7eb",
                     textAlign: "center",
                     cursor: "pointer",
                     height: "100%",
                     boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
                   }}
-                  bodyStyle={{
-                    padding: "24px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
+                  styles={{
+                    body: {
+                      padding: "24px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    },
                   }}
                 >
                   <img
@@ -437,7 +472,7 @@ const Homepage = () => {
               Cơ sở y tế
             </Title>
             <Link
-              to="/hospitals"
+              to="/co-so-y-te"
               style={{
                 background: "#c8f3f3",
                 padding: "8px 20px",
@@ -488,20 +523,22 @@ const Homepage = () => {
                 <Card
                   hoverable
                   onClick={() => navigate(`/hospitals/${facility.id}`)}
+                  variant="outlined"
                   style={{
                     borderRadius: "16px",
-                    border: "1px solid #e5e7eb",
                     textAlign: "center",
                     cursor: "pointer",
                     height: "100%",
                     boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
                   }}
-                  bodyStyle={{
-                    padding: "24px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
+                  styles={{
+                    body: {
+                      padding: "24px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    },
                   }}
                 >
                   <img
@@ -634,14 +671,14 @@ const Homepage = () => {
                 <Link to={feature.link} style={{ textDecoration: "none" }}>
                   <Card
                     hoverable
+                    variant="plain" // was border: none
                     style={{
                       textAlign: "center",
                       height: "100%",
                       borderRadius: "12px",
-                      border: "none",
                       boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
                     }}
-                    bodyStyle={{ padding: "40px 20px" }}
+                    styles={{ body: { padding: "40px 20px" } }} // bodyStyle -> styles.body
                   >
                     <div style={{ marginBottom: "20px" }}>{feature.icon}</div>
                     <Title
@@ -662,7 +699,7 @@ const Homepage = () => {
       </section>
 
       {/* Featured Doctors Section */}
-      <section style={{ padding: "80px 0", background: "#eaf6f6" }}>
+      <section style={{ padding: "80px 0", background: "#45c3d2" }}>
         <div className="container">
           <Row
             justify="space-between"
@@ -673,7 +710,7 @@ const Homepage = () => {
               Bác sĩ nổi bật
             </Title>
             <Link
-              to="/doctors"
+              to="/bac-si"
               style={{
                 background: "#c8f3f3",
                 padding: "8px 20px",
@@ -692,16 +729,18 @@ const Homepage = () => {
               dots: false,
               infinite: true,
               slidesToShow: 4,
-              slidesToScroll: 4,
+              slidesToScroll: 1,
               arrows: true,
               autoplay: true,
               autoplaySpeed: 5000,
+              centerMode: false,
+              variableWidth: false,
               nextArrow: <SampleNextArrow />,
               prevArrow: <SamplePrevArrow />,
               responsive: [
                 {
                   breakpoint: 992,
-                  settings: { slidesToShow: 2, slidesToScroll: 2 },
+                  settings: { slidesToShow: 2, slidesToScroll: 1 },
                 },
                 {
                   breakpoint: 576,
@@ -747,32 +786,45 @@ const Homepage = () => {
                   "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095300-bs-nguyen-van-a.jpg",
               },
             ].map((doctor, index) => (
-              <div key={index} style={{ padding: "0 12px" }}>
+              <div key={index} className="doctor-card">
                 <Card
                   hoverable
-                  onClick={() => navigate(`/doctors/${doctor.id}`)}
+                  variant="plain"
                   style={{
                     borderRadius: "16px",
-                    border: "none",
                     textAlign: "center",
                     background: "#ffffff",
-                    boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
-                    height: "100%",
-                  }}
-                  bodyStyle={{
-                    padding: "24px",
+                    boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
+                    height: "380px", // ✅ đảm bảo chiều cao bằng nhau
                     display: "flex",
                     flexDirection: "column",
+                    justifyContent: "flex-start",
                     alignItems: "center",
-                    justifyContent: "center",
+                    transition: "transform 0.3s ease, box-shadow 0.3s ease",
                   }}
+                  styles={{
+                    body: {
+                      padding: "20px",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      height: "100%",
+                    },
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.transform = "translateY(-5px)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.transform = "translateY(0)")
+                  }
                 >
                   <img
                     src={doctor.image}
                     alt={doctor.name}
                     style={{
-                      width: "200px",
-                      height: "200px",
+                      width: "160px",
+                      height: "160px",
                       objectFit: "cover",
                       borderRadius: "50%",
                       marginBottom: "16px",
@@ -781,7 +833,7 @@ const Homepage = () => {
                   <Title
                     level={4}
                     style={{
-                      fontSize: "1.1rem",
+                      fontSize: "1.05rem",
                       fontWeight: 600,
                       color: "#222",
                       marginBottom: "8px",
@@ -792,12 +844,158 @@ const Homepage = () => {
                   <Paragraph
                     style={{
                       fontSize: "0.95rem",
-                      color: "#555",
+                      color: "#666",
                       margin: 0,
                     }}
                   >
                     {doctor.specialty}
                   </Paragraph>
+                </Card>
+              </div>
+            ))}
+          </Slider>
+        </div>
+      </section>
+
+      {/* Telemedicine Section */}
+      <section style={{ padding: "80px 0", background: "#fff" }}>
+        <div className="container">
+          <Row
+            justify="space-between"
+            align="middle"
+            style={{ marginBottom: "40px" }}
+          >
+            <Title level={2} style={{ margin: 0 }}>
+              Khám từ xa
+            </Title>
+            <Link
+              to="/kham-tai-nha"
+              style={{
+                background: "#c8f3f3",
+                padding: "8px 20px",
+                borderRadius: "12px",
+                color: "#007f7f",
+                fontWeight: 500,
+                textDecoration: "none",
+              }}
+            >
+              Xem thêm
+            </Link>
+          </Row>
+
+          <Slider
+            {...{
+              dots: false,
+              infinite: true,
+              slidesToShow: 3,
+              slidesToScroll: 1,
+              arrows: true,
+              autoplay: true,
+              autoplaySpeed: 4500,
+              nextArrow: <SampleNextArrow />,
+              prevArrow: <SamplePrevArrow />,
+              responsive: [
+                {
+                  breakpoint: 992,
+                  settings: { slidesToShow: 2, slidesToScroll: 1 },
+                },
+                {
+                  breakpoint: 576,
+                  settings: { slidesToShow: 1, slidesToScroll: 1 },
+                },
+              ],
+            }}
+          >
+            {[
+              {
+                id: "psychology",
+                title: "Tư vấn, trị liệu Tâm lý từ xa",
+                image:
+                  "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/150951-tamly.png",
+              },
+              {
+                id: "mental",
+                title: "Sức khỏe tâm thần từ xa",
+                image:
+                  "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151029-tamthan.png",
+              },
+              {
+                id: "dermatology",
+                title: "Bác sĩ Da liễu từ xa",
+                image:
+                  "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151046-dalieu.png",
+              },
+              {
+                id: "pediatric",
+                title: "Bác sĩ Nhi khoa từ xa",
+                image:
+                  "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151101-nhikhoa.png",
+              },
+              {
+                id: "internal",
+                title: "Khám Nội tổng quát từ xa",
+                image:
+                  "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151115-noitongquat.png",
+              },
+            ].map((service, index) => (
+              <div
+                key={index}
+                className="telemedicine-card"
+                style={{ padding: "0 12px" }}
+              >
+                <Card
+                  hoverable
+                  onClick={() => navigate(`/telemedicine/${service.id}`)}
+                  variant="outlined"
+                  style={{
+                    borderRadius: "16px",
+                    textAlign: "center",
+                    background: "#ffffff",
+                    boxShadow: "0 3px 12px rgba(0,0,0,0.06)",
+                    height: "330px",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "flex-start",
+                    alignItems: "center",
+                    transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                  }}
+                  styles={{
+                    body: {
+                      padding: "24px",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    },
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.transform = "translateY(-5px)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.transform = "translateY(0)")
+                  }
+                >
+                  <img
+                    src={service.image}
+                    alt={service.title}
+                    style={{
+                      width: "200px",
+                      height: "160px",
+                      objectFit: "contain",
+                      marginBottom: "16px",
+                    }}
+                  />
+                  <Title
+                    level={4}
+                    style={{
+                      fontSize: "1.05rem",
+                      fontWeight: 600,
+                      color: "#222",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    {service.title}
+                  </Title>
                 </Card>
               </div>
             ))}

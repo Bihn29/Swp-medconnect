@@ -27,7 +27,7 @@ const AppointmentSchema = new Schema(
     cancelReason: String,
     rescheduledFromId: { type: Schema.Types.ObjectId, ref: "Appointment" },
   },
-  { timestamps: true, versionKey: false, collection: "appointments" }
+  { timestamps: true, versionKey: false, collection: "Appointments" }
 );
 
 // 🔴 NEW: validate start < end

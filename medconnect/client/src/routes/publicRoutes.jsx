@@ -3,8 +3,6 @@ import AuthLayout from "../layouts/AuthLayout/AuthLayout";
 // The homepage component is located at pages/Home/Homepage/Homepage.jsx
 import Home from "../pages/Home/Homepage/Homepage";
 import About from "../pages/About/About";
-import Products from "../pages/Products/Products";
-import ProductDetail from "../pages/Products/ProductDetail";
 import HomeVisit from "../pages/Home/HomeVisit/HomeVisit";
 import HospitalVisit from "../pages/Home/HospitalVisit/HospitalVisit";
 import SearchPage from "../pages/Home/SearchPage/SearchPage";
@@ -22,6 +20,7 @@ import Privacy from "../pages/Privacy/Privacy";
 import Terms from "../pages/Terms/Terms";
 import { Route } from "react-router-dom";
 import GuestMiddleware from "../middlewares/GuestMiddleware";
+import PatientDashboard from "../pages/Patient/PatientDashboard";
 export const publicRoutes = (
   <>
     <Route element={<DefaultLayout />}>
@@ -34,10 +33,6 @@ export const publicRoutes = (
       <Route path="/chuyen-khoa" element={<Specialization />} />
       <Route path="/co-so-y-te" element={<Facility />} />
       <Route path="/goi-kham" element={<Package />} />
-      <Route path="/san-pham">
-        <Route path="" element={<Products />} />
-        <Route path=":id" element={<ProductDetail />} />
-      </Route>
       <Route path="/chinh-sach-bao-mat" element={<Privacy />} />
       <Route path="/dieu-khoan-su-dung" element={<Terms />} />
     </Route>
