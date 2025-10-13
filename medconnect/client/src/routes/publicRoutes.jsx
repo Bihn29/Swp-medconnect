@@ -14,9 +14,12 @@ import Facility from "../pages/Home/Facility/Facility";
 import Package from "../pages/Home/Package/Package";
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
+import DoctorRegister from "../pages/Auth/DoctorRegister";
 import ForgotPassword from "../pages/Auth/ForgotPassword";
 import VerifyOtp from "../pages/Auth/VerifyOtp";
 import ResetPassword from "../pages/Auth/ResetPassword";
+import Privacy from "../pages/Privacy/Privacy";
+import Terms from "../pages/Terms/Terms";
 import { Route } from "react-router-dom";
 import GuestMiddleware from "../middlewares/GuestMiddleware";
 export const publicRoutes = (
@@ -35,11 +38,14 @@ export const publicRoutes = (
         <Route path="" element={<Products />} />
         <Route path=":id" element={<ProductDetail />} />
       </Route>
+      <Route path="/chinh-sach-bao-mat" element={<Privacy />} />
+      <Route path="/dieu-khoan-su-dung" element={<Terms />} />
     </Route>
     <Route element={<AuthLayout />}>
       <Route element={<GuestMiddleware />}>
         <Route path="/dang-nhap" element={<Login />} />
         <Route path="/dang-ky" element={<Register />} />
+        <Route path="/dang-ky-bac-si" element={<DoctorRegister />} />
         <Route path="/quen-mat-khau" element={<ForgotPassword />} />
         <Route path="/xac-minh-otp" element={<VerifyOtp />} />
         <Route path="/dat-lai-mat-khau" element={<ResetPassword />} />
