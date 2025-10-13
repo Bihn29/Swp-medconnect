@@ -54,6 +54,8 @@ const Header = () => {
   const [activeCat, setActiveCat] = useState("all");
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // register dropdown state (was referenced but not defined)
+  const [registerDropdownOpen, setRegisterDropdownOpen] = useState(false);
   // search placeholder state (fix: placeholders / phIndex undefined)
   const placeholders = [
     "Tìm bác sĩ, chuyên khoa, cơ sở...",
@@ -304,13 +306,37 @@ const Header = () => {
                 <Link to="/dang-nhap" className="btn-outline">
                   Đăng nhập
                 </Link>
-                <Link
-                  to="/dang-ky"
-                  style={{ margin: "0px" }}
-                  className="btn-primary"
-                >
-                  Đăng ký
-                </Link>
+                <div className="register-dropdown">
+                  <button
+                    className="btn-primary dropdown-toggle"
+                    onClick={() =>
+                      setRegisterDropdownOpen(!registerDropdownOpen)
+                    }
+                  >
+                    Đăng ký
+                    <i className="bi bi-chevron-down"></i>
+                  </button>
+                  {registerDropdownOpen && (
+                    <div className="dropdown-menu">
+                      <Link
+                        to="/dang-ky"
+                        className="dropdown-item"
+                        onClick={() => setRegisterDropdownOpen(false)}
+                      >
+                        <i className="bi bi-person"></i>
+                        Tài khoản bệnh nhân
+                      </Link>
+                      <Link
+                        to="/dang-ky-bac-si"
+                        className="dropdown-item"
+                        onClick={() => setRegisterDropdownOpen(false)}
+                      >
+                        <i className="bi bi-person-badge"></i>
+                        Tài khoản bác sĩ
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -573,7 +599,15 @@ const Header = () => {
                           to="/dang-ky"
                           onClick={() => setSidebarOpen(false)}
                         >
-                          Đăng ký
+                          Đăng ký người dùng
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to="/dang-ky-bac-si"
+                          onClick={() => setSidebarOpen(false)}
+                        >
+                          Đăng ký bác sĩ
                         </Link>
                       </li>
                     </>

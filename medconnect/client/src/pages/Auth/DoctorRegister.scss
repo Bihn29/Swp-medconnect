@@ -1,4 +1,4 @@
-.register-wrap {
+.doctor-register-wrap {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -8,7 +8,7 @@
   background: linear-gradient(135deg, #f5f3f0 0%, #faf9f7 50%, #f0ede8 100%);
 }
 
-.register-bg {
+.doctor-register-bg {
   position: fixed;
   inset: 0;
   background: url('/Background.png') no-repeat center center fixed,
@@ -17,17 +17,17 @@
   opacity: 0.8;
 }
 
-.register-overlay {
+.doctor-register-overlay {
   position: fixed;
   inset: 0;
   background: radial-gradient(1200px 600px at 20% 10%, rgba(8, 145, 178, 0.08), transparent),
               radial-gradient(1000px 500px at 80% 90%, rgba(45, 55, 72, 0.05), transparent);
 }
 
-.register-card {
+.doctor-register-card {
   width: 100%;
-  max-width: 480px;
-  background: rgba(255, 255, 255, 0.44);
+  max-width: 600px;
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 20px;
@@ -46,50 +46,56 @@
   form {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 12px;
+    gap: 20px;
     width: 100%;
   }
 }
 
-.register-center-fixed { 
+.doctor-register-center-fixed { 
   z-index: 1; 
 }
 
-.register-title { 
+.doctor-register-title { 
   margin: 0 0 32px; 
-  font-size: 26px;
-  font-weight: 600;
-  color: #2d3748;
+  font-size: 28px;
+  font-weight: 700;
+  color: #0891b2;
   text-align: center;
   letter-spacing: -0.02em;
   line-height: 1.3;
+  border-bottom: 3px solid #0891b2;
+  padding-bottom: 12px;
 }
 
-.register-input, 
-.password-group .register-input,
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.doctor-register-input, 
+.password-group .doctor-register-input,
 .btn-primary, 
 .btn-full {
   width: 100%;
-  max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
   box-sizing: border-box;
 }
 
-.register-input {
-  border: 2px solid #f7f8f9;
+.doctor-register-input {
+  border: 2px solid #e5e7eb;
   border-radius: 12px;
   padding: 14px 16px;
   font-size: 15px;
   color: #2d3748;
-  background: #fafafa;
+  background: #ffffff;
   transition: all 0.2s ease;
-  width: 100%;
-  max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
-  box-sizing: border-box;
   
   &::placeholder {
     color: #9ca3af;
@@ -97,28 +103,23 @@
   
   &:hover {
     border-color: #d1d5db;
-    background: #ffffff;
   }
   
   &:focus {
     outline: none;
     border-color: #0891b2;
-    background: #ffffff;
     box-shadow: 0 0 0 4px rgba(8, 145, 178, 0.1);
+  }
+  
+  &:invalid {
+    border-color: #dc2626;
   }
 }
 
-
 .password-group { 
   position: relative; 
-  margin-bottom: 16px;
-  width: 100%;
-  max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
-  box-sizing: border-box;
   
-  .register-input {
+  .doctor-register-input {
     margin-bottom: 0;
   }
 }
@@ -140,19 +141,63 @@
   }
 }
 
+.file-upload-group {
+  position: relative;
+}
+
+.file-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.file-upload-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 15px;
+  color: #6b7280;
+  min-height: 54px;
+  
+  &:hover {
+    border-color: #0891b2;
+    background: #f0f9ff;
+    color: #0891b2;
+  }
+  
+  i {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  
+  span {
+    flex: 1;
+    text-align: left;
+    word-break: break-word;
+  }
+}
 
 .btn { 
   border: 2px solid transparent; 
   border-radius: 12px; 
   padding: 14px 24px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  text-decoration: none;
   
   &:disabled {
     opacity: 0.6;
@@ -169,12 +214,6 @@
   color: #ffffff;
   margin-bottom: 24px;
   box-shadow: 0 4px 12px rgba(8, 145, 178, 0.2);
-  display: block;
-  width: 100%;
-  max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
-  box-sizing: border-box;
   
   &:hover:not(:disabled) {
     background: #0e7490;
@@ -187,60 +226,12 @@
   }
 }
 
-.btn-google { 
-  background: #ffffff;
-  border-color: #e5e7eb;
-  color: #2d3748;
-  
-  &:hover:not(:disabled) {
-    background: #f9fafb;
-    border-color: #d1d5db;
-    box-shadow: 0 2px 8px rgba(45, 55, 72, 0.08);
-  }
-}
-
-.separator { 
-  display: flex; 
-  align-items: center; 
-  gap: 12px; 
-  margin: 24px 0;
-  color: #9ca3af;
-  font-size: 14px;
-  font-weight: 500;
-  width: 100%;
-  max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
-  
-  &:before, &:after { 
-    content: ""; 
-    flex: 1; 
-    height: 1px; 
-    background: #e5e7eb;
-  }
-}
-
-.register-alt { 
-  display: flex; 
-  flex-direction: column; 
-  gap: 12px;
-  margin-bottom: 24px;
-  width: 100%;
-  max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.register-links { 
+.doctor-register-links { 
   display: flex; 
   justify-content: center; 
   margin-top: 24px;
   padding-top: 24px;
   border-top: 1px solid #f3f4f6;
-  width: 100%;
-  max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
   
   a {
     color: #0891b2;
@@ -259,15 +250,11 @@
 .error-text { 
   color: #dc2626;
   font-size: 13px;
-  margin: -10px 0 14px;
+  margin: -6px 0 0 0;
   font-weight: 500;
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 100%;
-  max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
   
   &:before {
     content: "⚠";
@@ -276,12 +263,7 @@
 }
 
 .consent {
-  width: 100%;
-  max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
-  margin-top: 4px;
-  margin-bottom: 8px;
+  margin-top: -4px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -309,24 +291,86 @@
   }
 }
 
+// Success page styles
+.success-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 60px 40px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(45, 55, 72, 0.12);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.success-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
+}
+
+.success-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #059669;
+  margin-bottom: 16px;
+}
+
+.success-message {
+  font-size: 16px;
+  color: #374151;
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
 /* Responsive adjustments */
-@media (max-width: 480px) {
-  .register-card {
+@media (max-width: 768px) {
+  .doctor-register-card {
     padding: 36px 28px;
     max-width: 100%;
   }
   
-  .register-title {
-    font-size: 22px;
+  .doctor-register-title {
+    font-size: 24px;
   }
   
-  .register-input,
-  .password-group,
-  .btn-primary,
-  .btn-full,
-  .register-alt,
-  .register-links,
-  .error-text {
-    max-width: 100%;
+  .success-container {
+    padding: 40px 28px;
+  }
+  
+  .success-title {
+    font-size: 20px;
+  }
+  
+  .success-message {
+    font-size: 14px;
   }
 }
+
+@media (max-width: 480px) {
+  .doctor-register-wrap {
+    padding: 16px;
+  }
+  
+  .doctor-register-card {
+    padding: 28px 20px;
+  }
+  
+  .doctor-register-title {
+    font-size: 20px;
+  }
+  
+  .form-group {
+    gap: 4px;
+  }
+  
+  .doctor-register-input {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  
+  .file-upload-label {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+}
+
