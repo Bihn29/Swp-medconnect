@@ -2,8 +2,14 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
-import { MenuOutlined, SearchOutlined } from "@ant-design/icons";
-import { Input } from "antd";
+import {
+  MenuOutlined,
+  SearchOutlined,
+  BellOutlined,
+  UserOutlined,
+  CalendarOutlined,
+} from "@ant-design/icons";
+import { Avatar, Dropdown, Badge, Button, Space, Input } from "antd";
 import "./DefaultLayout.scss";
 
 const Header = () => {
@@ -48,6 +54,101 @@ const Header = () => {
   const [activeCat, setActiveCat] = useState("all");
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // search placeholder state (fix: placeholders / phIndex undefined)
+  const placeholders = [
+    "Tìm bác sĩ, chuyên khoa, cơ sở...",
+    "Nhập từ khóa tìm kiếm...",
+  ];
+  const [phIndex, setPhIndex] = useState(0);
+  // optional: rotate placeholder every 4s
+  useEffect(() => {
+    const t = setInterval(
+      () => setPhIndex((i) => (i + 1) % placeholders.length),
+      4000
+    );
+    return () => clearInterval(t);
+  }, []);
+
+  // showSearch state (fix: showSearch undefined)
+  const [showSearch, setShowSearch] = useState(false);
+  const toggleSearch = () => setShowSearch((v) => !v);
+
+  // Appointment state for patient header
+  const [appointments, setAppointments] = useState([]); // ensure default array
+  const [loadingAppts, setLoadingAppts] = useState(false);
+
+  // treat both english and vietnamese patient routes
+  const patientPaths = ["/patient", "/benh-nhan"];
+  const isPatientPage = patientPaths.some((p) =>
+    location.pathname.startsWith(p)
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    if (!user || !isPatientPage) return;
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    (async () => {
+      try {
+        setLoadingAppts(true);
+        const res = await fetch(`${apiBase}/api/patients/me/appointments`, {
+          // include headers/token if needed
+        });
+        if (!mounted) return;
+        if (!res.ok) {
+          console.warn(
+            "[Header] appointments fetch failed:",
+            res.status,
+            await res.text()
+          );
+          setAppointments([]);
+          return;
+        }
+        const json = await res.json();
+        // normalize to array
+        const list = Array.isArray(json.data)
+          ? json.data
+          : Array.isArray(json)
+          ? json
+          : [];
+        setAppointments(list);
+      } catch (err) {
+        console.error("Load appointments error:", err);
+        if (mounted) setAppointments([]);
+      } finally {
+        if (mounted) setLoadingAppts(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [user, isPatientPage]);
+
+  // prepare safe values for render
+  const apptList = Array.isArray(appointments) ? appointments.slice(0, 6) : [];
+  const apptCount = Array.isArray(appointments) ? appointments.length : 0;
+
+  // convert to antd menu items (avoid deprecated overlay prop)
+  const apptMenuItems = apptList.map((item) => ({
+    key: item._id || item.id,
+    label: (
+      <div
+        onClick={() => {
+          navigate(`/lich-hen/${item._id || item.id}`);
+        }}
+        style={{ display: "flex", justifyContent: "space-between", gap: 8 }}
+      >
+        <div>
+          <div style={{ fontWeight: 700 }}>
+            {item.title || item.reason || "Lịch hẹn"}
+          </div>
+          <div style={{ fontSize: 12, color: "#666" }}>
+            {item.date || item.dateTime || ""}
+          </div>
+        </div>
+        <div style={{ whiteSpace: "nowrap" }}>{item.status || ""}</div>
+      </div>
+    ),
+  }));
 
   // Set active category based on current path
   useEffect(() => {
@@ -65,31 +166,39 @@ const Header = () => {
     }
   }, [location.pathname, location.search, useSearchCategories]);
 
-  // Hiển thị search ở các trang này (không hiển thị ở trang search)
-  const showSearch = ["/kham-tai-nha", "/kham-tai-vien"].includes(
-    location.pathname
-  );
-
-  // ===== Placeholder tự đổi =====
-  const placeholders = [
-    "Tìm bác sĩ",
-    "Tìm chuyên khoa",
-    "Tìm lý do khám",
-    "Tìm điểm khám",
-  ];
-  const [phIndex, setPhIndex] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setPhIndex((i) => (i + 1) % placeholders.length);
-    }, 2300); // đổi mỗi 2.3s (bạn chỉnh số ms tùy ý)
-    return () => clearInterval(id);
-  }, []); // chạy 1 lần
-
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));
     return () => unsubscribe();
   }, []);
+
+  // Load patient's upcoming appointments when on patient page and logged in
+  useEffect(() => {
+    let mounted = true;
+    if (!user || !isPatientPage) return;
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    (async () => {
+      try {
+        setLoadingAppts(true);
+        // adjust endpoint to match your backend
+        const res = await fetch(`${apiBase}/api/patients/me/appointments`, {
+          headers: {
+            // include token if your backend needs auth: Authorization: `Bearer ${await user.getIdToken()}`
+          },
+        });
+        if (!mounted) return;
+        const json = await res.json();
+        setAppointments(Array.isArray(json.data) ? json.data : json || []);
+      } catch (err) {
+        console.error("Load appointments error:", err);
+        if (mounted) setAppointments([]);
+      } finally {
+        if (mounted) setLoadingAppts(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [user, isPatientPage]);
 
   const handleLogout = async () => {
     try {
@@ -98,6 +207,30 @@ const Header = () => {
     } catch (error) {
       console.error("Logout error:", error);
     }
+  };
+
+  // Handle user menu actions (single definition)
+  const onUserMenuClick = ({ key }) => {
+    // logout
+    if (key === "logout") {
+      handleLogout();
+      return;
+    }
+
+    // profile shortcut
+    if (key === "profile") {
+      navigate("/profile");
+      return;
+    }
+
+    // dashboard shortcut
+    if (key === "dashboard") {
+      navigate("/patient");
+      return;
+    }
+
+    // fallback: navigate to route named by key
+    if (key) navigate(`/${key}`);
   };
 
   return (
@@ -153,27 +286,131 @@ const Header = () => {
 
         {/* Right */}
         <div className="header__right">
+          {/* Booking button - visible luôn */}
+          <Button
+            type="primary"
+            className="btn-booking"
+            icon={<CalendarOutlined />}
+            onClick={() => navigate("/dat-lich")}
+          >
+            Đặt lịch
+          </Button>
+
           <div className="auth-links">
-            {user ? (
-              <div className="user-section">
-                <span className="user-name">
-                  {user?.displayName || user?.email}
-                </span>
-                <button onClick={handleLogout} className="btn-logout">
-                  Đăng xuất
-                </button>
-              </div>
-            ) : (
+            {/* Only show login / register when NOT logged in.
+                When user is logged in, name/logout will be handled by the Avatar dropdown below. */}
+            {!user && (
               <>
                 <Link to="/dang-nhap" className="btn-outline">
                   Đăng nhập
                 </Link>
-                <Link to="/dang-ky" style={{ margin: "0px" }} className="btn-primary">
+                <Link
+                  to="/dang-ky"
+                  style={{ margin: "0px" }}
+                  className="btn-primary"
+                >
                   Đăng ký
                 </Link>
               </>
             )}
           </div>
+
+          {/* Bell notification for appointments */}
+          {user && (
+            <div className="patient-header-controls" style={{ marginLeft: 12 }}>
+              <Dropdown
+                menu={{ items: apptMenuItems }}
+                placement="bottomRight"
+                trigger={["click"]}
+              >
+                <Badge count={apptCount} overflowCount={99}>
+                  <Button
+                    type="text"
+                    shape="circle"
+                    size="large"
+                    style={{
+                      width: 48,
+                      height: 48,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    icon={
+                      <BellOutlined
+                        style={{
+                          fontSize: 24,
+                          color: "var(--primary-color, #12c2e9)",
+                        }}
+                      />
+                    }
+                    aria-label="Thông báo lịch hẹn"
+                  />
+                </Badge>
+              </Dropdown>
+            </div>
+          )}
+
+          {user && (
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: "user",
+                    label: (
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 12,
+                          alignItems: "center",
+                          padding: "8px 0",
+                          minWidth: 220,
+                        }}
+                      >
+                        <Avatar size={48} icon={<UserOutlined />} />
+                        <div>
+                          <div style={{ fontWeight: 700 }}>
+                            {user?.displayName || "Bệnh nhân"}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#666" }}>
+                            {user?.email || ""}
+                          </div>
+                        </div>
+                      </div>
+                    ),
+                    disabled: true,
+                  },
+                  { type: "divider", key: "d1" },
+                  {
+                    key: "profile",
+                    label: (
+                      <div style={{ minWidth: 220 }}>
+                        <div style={{ fontWeight: 700 }}>Hồ sơ</div>
+                        <div style={{ fontSize: 12, color: "#666" }}>
+                          Xem và chỉnh sửa thông tin cá nhân
+                        </div>
+                      </div>
+                    ),
+                  },
+                  { key: "dashboard", label: "Dashboard" },
+                  { type: "divider", key: "d2" },
+                  { key: "logout", label: "Đăng xuất", danger: true },
+                ],
+                onClick: onUserMenuClick,
+              }}
+              placement="bottomRight"
+              trigger={["click"]}
+            >
+              <Avatar
+                size={48}
+                className="patient-avatar"
+                style={{
+                  cursor: "pointer",
+                  backgroundColor: "var(--primary-color, #12c2e9)",
+                }}
+                icon={<UserOutlined />}
+              />
+            </Dropdown>
+          )}
         </div>
       </div>
 

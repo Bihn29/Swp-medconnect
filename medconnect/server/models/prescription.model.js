@@ -25,7 +25,7 @@ const PrescriptionSchema = new Schema(
     createdBy: { type: Schema.Types.ObjectId, ref: "Doctor", required: true },
     items: [PrescriptionItemSchema],
   },
-  { timestamps: true, collection: "prescriptions" }
+  { timestamps: true, collection: "Prescriptions" }
 );
 
 export default model("Prescription", PrescriptionSchema);

@@ -10,7 +10,7 @@ const ClinicSchema = new Schema(
     phone: String,
     geo: { type: { type: String, enum: ["Point"] }, coordinates: [Number] }, // [lng, lat]
   },
-  { timestamps: true, versionKey: false, collection: "clinics" }
+  { timestamps: true, versionKey: false, collection: "Clinics" }
 );
 
 // 🔴 NEW: validate GeoJSON

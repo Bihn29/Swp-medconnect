@@ -20,7 +20,7 @@ const DoctorSchema = new Schema(
     ratingCount: { type: Number, default: 0 },
     ratingAvg: { type: Number, default: 0 },
   },
-  { timestamps: true, versionKey: false, collection: "doctors" }
+  { timestamps: true, versionKey: false, collection: "Doctors" }
 );
 
 DoctorSchema.index({ isVerified: 1, specializationIds: 1 });
