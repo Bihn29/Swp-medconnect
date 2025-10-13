@@ -21,6 +21,8 @@ export default function DoctorRegister() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
 
   const specialties = [
     "Nội khoa",
@@ -122,6 +124,14 @@ export default function DoctorRegister() {
       if (!allowedTypes.includes(formData.licenseImage.type)) {
         newErrors.licenseImage = "Chỉ chấp nhận file ảnh (JPG, PNG, WebP).";
       }
+    }
+
+    // Validate consents
+    if (!acceptedTerms) {
+      newErrors.acceptedTerms = "Bạn cần đồng ý Điều khoản sử dụng.";
+    }
+    if (!acceptedPrivacy) {
+      newErrors.acceptedPrivacy = "Bạn cần đồng ý Chính sách bảo mật.";
     }
 
     setErrors(newErrors);
@@ -378,6 +388,42 @@ export default function DoctorRegister() {
             </div>
             {errors.licenseImage && (
               <div className="error-text">{errors.licenseImage}</div>
+            )}
+          </div>
+
+          <div className="consent">
+            <label className="consent-row">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+              />
+              <span>
+                Tôi đã đọc và đồng ý với {""}
+                <Link to="/dieu-khoan-su-dung" target="_blank" rel="noopener noreferrer">
+                  Điều khoản sử dụng
+                </Link>
+              </span>
+            </label>
+            {errors.acceptedTerms && (
+              <div className="error-text">{errors.acceptedTerms}</div>
+            )}
+
+            <label className="consent-row">
+              <input
+                type="checkbox"
+                checked={acceptedPrivacy}
+                onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+              />
+              <span>
+                Tôi đồng ý với {""}
+                <Link to="/chinh-sach-bao-mat" target="_blank" rel="noopener noreferrer">
+                  Chính sách bảo mật
+                </Link>
+              </span>
+            </label>
+            {errors.acceptedPrivacy && (
+              <div className="error-text">{errors.acceptedPrivacy}</div>
             )}
           </div>
 

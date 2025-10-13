@@ -307,25 +307,27 @@ const Header = () => {
                   Đăng nhập
                 </Link>
                 <div className="register-dropdown">
-                  <button 
+                  <button
                     className="btn-primary dropdown-toggle"
-                    onClick={() => setRegisterDropdownOpen(!registerDropdownOpen)}
+                    onClick={() =>
+                      setRegisterDropdownOpen(!registerDropdownOpen)
+                    }
                   >
                     Đăng ký
                     <i className="bi bi-chevron-down"></i>
                   </button>
                   {registerDropdownOpen && (
                     <div className="dropdown-menu">
-                      <Link 
-                        to="/dang-ky" 
+                      <Link
+                        to="/dang-ky"
                         className="dropdown-item"
                         onClick={() => setRegisterDropdownOpen(false)}
                       >
                         <i className="bi bi-person"></i>
-                        Tài khoản người dùng
+                        Tài khoản bệnh nhân
                       </Link>
-                      <Link 
-                        to="/dang-ky-bac-si" 
+                      <Link
+                        to="/dang-ky-bac-si"
                         className="dropdown-item"
                         onClick={() => setRegisterDropdownOpen(false)}
                       >

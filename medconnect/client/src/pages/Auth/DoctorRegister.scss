@@ -262,6 +262,35 @@
   }
 }
 
+.consent {
+  margin-top: -4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .consent-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    color: #374151;
+
+    input[type="checkbox"] {
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    a {
+      color: #0891b2;
+      text-decoration: none;
+      font-weight: 600;
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
 // Success page styles
 .success-container {
   background: rgba(255, 255, 255, 0.95);

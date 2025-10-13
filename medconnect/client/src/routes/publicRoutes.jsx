@@ -35,6 +35,7 @@ export const publicRoutes = (
       <Route path="/goi-kham" element={<Package />} />
       <Route path="/chinh-sach-bao-mat" element={<Privacy />} />
       <Route path="/dieu-khoan-su-dung" element={<Terms />} />
+      <Route path="/patient" element={<PatientDashboard />} />
     </Route>
     <Route element={<AuthLayout />}>
       <Route element={<GuestMiddleware />}>
