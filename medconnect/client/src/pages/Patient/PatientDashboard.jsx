@@ -56,7 +56,7 @@ export default function PatientDashboard() {
   const Appointments = () => (
     <Card className="card section">
       <h3>
-        <CalendarOutlined /> Lịch sử lịch hẹn
+        <CalendarOutlined /> Lịch hẹn
       </h3>
       {appointments.length === 0 ? (
         <Empty description="Chưa có lịch hẹn" />
@@ -138,7 +138,7 @@ export default function PatientDashboard() {
                 className={activeTab === "appointments" ? "active" : ""}
                 onClick={() => setActiveTab("appointments")}
               >
-                <CalendarOutlined /> Lịch sử lịch hẹn
+                <CalendarOutlined /> Lịch hẹn
               </li>
               <li
                 className={activeTab === "payments" ? "active" : ""}

@@ -315,18 +315,38 @@ const Header = () => {
             )}
           </div>
 
-          {/* Patient header controls: appointments dropdown + quick logout */}
+          {/* Bell notification for appointments */}
           {user && (
             <div className="patient-header-controls" style={{ marginLeft: 12 }}>
-              <Badge count={apptCount} overflowCount={99}>
-                <Button
-                  type="default"
-                  icon={<BellOutlined />}
-                  onClick={() => navigate("/lich-hen")}
-                >
-                  Lịch hẹn
-                </Button>
-              </Badge>
+              <Dropdown
+                menu={{ items: apptMenuItems }}
+                placement="bottomRight"
+                trigger={["click"]}
+              >
+                <Badge count={apptCount} overflowCount={99}>
+                  <Button
+                    type="text"
+                    shape="circle"
+                    size="large"
+                    style={{
+                      width: 48,
+                      height: 48,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    icon={
+                      <BellOutlined
+                        style={{
+                          fontSize: 24,
+                          color: "var(--primary-color, #12c2e9)",
+                        }}
+                      />
+                    }
+                    aria-label="Thông báo lịch hẹn"
+                  />
+                </Badge>
+              </Dropdown>
             </div>
           )}
 
