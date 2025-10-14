@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import PropTypes from "prop-types";
 import {
   Row,
   Col,
@@ -8,9 +9,7 @@ import {
   Space,
   Avatar,
   Button,
-  Tag,
   Rate,
-  Divider,
   Input,
   Select,
   Pagination,
@@ -18,19 +17,17 @@ import {
 import {
   UserOutlined,
   EnvironmentOutlined,
-  PhoneOutlined,
   CalendarOutlined,
   StarOutlined,
-  SearchOutlined,
-  MedicineBoxOutlined,
 } from "@ant-design/icons";
-import "./Doctor.css";
+import "./ListDoctor.css";
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-const Doctor = () => {
+const ListDoctor = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
@@ -100,7 +97,7 @@ const Doctor = () => {
       rating: 4.6,
       reviewCount: 87,
       price: "600.000đ",
-      image: "https://via.placeholder.com/100x100",
+image: "https://via.placeholder.com/100x100",
       description:
         "Chuyên gia thần kinh với chuyên môn sâu về các bệnh lý cột sống và hệ thần kinh trung ương.",
       phone: "0934567890",
@@ -145,6 +142,16 @@ const Doctor = () => {
     },
   ];
 
+  // Initialize filter from query param ?specialty=...
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const qSpecialty = params.get("specialty");
+    if (qSpecialty) {
+      setSelectedSpecialty(qSpecialty);
+      setCurrentPage(1);
+    }
+  }, [location.search]);
+
   // Filter doctors based on search term and specialty
   const filteredDoctors = doctors.filter((doctor) => {
     const matchesSearch =
@@ -178,6 +185,14 @@ const Doctor = () => {
   const handleFilterChange = (value) => {
     setSelectedSpecialty(value);
     setCurrentPage(1);
+    // update URL query param for shareable state
+    const params = new URLSearchParams(location.search);
+if (value === "all") {
+      params.delete("specialty");
+    } else {
+      params.set("specialty", value);
+    }
+    navigate({ pathname: location.pathname, search: params.toString() });
   };
 
   const DoctorCard = ({ doctor }) => (
@@ -266,7 +281,7 @@ const Doctor = () => {
                 fontWeight: "500",
               }}
             >
-              Đặt lịch khám
+Đặt lịch khám
             </Button>
             <Button
               size="large"
@@ -284,6 +299,23 @@ const Doctor = () => {
       </Row>
     </Card>
   );
+
+  DoctorCard.propTypes = {
+    doctor: PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      image: PropTypes.string,
+      name: PropTypes.string.isRequired,
+      specialty: PropTypes.string.isRequired,
+      subSpecialty: PropTypes.string,
+      description: PropTypes.string,
+      rating: PropTypes.number,
+      reviewCount: PropTypes.number,
+      hospital: PropTypes.string,
+      location: PropTypes.string,
+      experience: PropTypes.number,
+      price: PropTypes.number,
+    }).isRequired,
+  };
 
   return (
     <div className="doctor-page">
@@ -356,9 +388,9 @@ const Doctor = () => {
             </div>
           )}
         </div>
-      </div>
+</div>
     </div>
   );
 };
 
-export default Doctor;
+export default ListDoctor;

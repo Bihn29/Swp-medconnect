@@ -1,0 +1,155 @@
+@import '../styles/variables';
+@import '../styles/mixins';
+
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 280px;
+  height: 100vh;
+  background-color: $white;
+  border-right: 1px solid $gray-200;
+  @include flex-column;
+  z-index: 50;
+  transition: transform $transition-base;
+
+  @include tablet {
+    transform: translateX(-100%);
+    
+    &.open {
+      transform: translateX(0);
+    }
+  }
+
+  &__header {
+    padding: $spacing-xl;
+    border-bottom: 1px solid $gray-200;
+
+    h1 {
+      font-size: $font-size-2xl;
+      font-weight: 700;
+      color: $primary-color;
+      margin: 0;
+
+      span {
+        color: $accent-color;
+      }
+    }
+  }
+
+  &__nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: $spacing-lg;
+    @include custom-scrollbar;
+  }
+
+  &__section {
+    margin-bottom: $spacing-xl;
+
+    &-title {
+      font-size: $font-size-xs;
+      font-weight: 600;
+      color: $gray-500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: $spacing-md;
+      padding: 0 $spacing-md;
+    }
+  }
+
+  &__menu-item {
+    @include flex-between;
+    padding: $spacing-md;
+    margin-bottom: $spacing-xs;
+    border-radius: $radius-md;
+    color: $gray-700;
+    cursor: pointer;
+    transition: all $transition-base;
+    text-decoration: none;
+
+    &:hover {
+      background-color: $primary-light;
+      color: $primary-color;
+    }
+
+    &.active {
+      background-color: $primary-color;
+      color: $white;
+
+      .sidebar__menu-icon {
+        color: $white;
+      }
+    }
+
+    &-content {
+      display: flex;
+      align-items: center;
+      gap: $spacing-md;
+    }
+  }
+
+  &__menu-icon {
+    width: 20px;
+    height: 20px;
+    color: $gray-500;
+    transition: color $transition-base;
+  }
+
+  &__menu-text {
+    font-size: $font-size-sm;
+    font-weight: 500;
+  }
+
+  &__badge {
+    @include badge($error, $white);
+  }
+
+  &__footer {
+    padding: $spacing-lg;
+    border-top: 1px solid $gray-200;
+  }
+
+  &__profile {
+    @include flex-between;
+    padding: $spacing-md;
+    border-radius: $radius-md;
+    cursor: pointer;
+    transition: background-color $transition-base;
+
+    &:hover {
+      background-color: $gray-50;
+    }
+
+    &-info {
+      display: flex;
+      align-items: center;
+      gap: $spacing-md;
+    }
+
+    &-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: $radius-full;
+      background-color: $primary-color;
+      color: $white;
+      @include flex-center;
+      font-weight: 600;
+    }
+
+    &-details {
+      h3 {
+        font-size: $font-size-sm;
+        font-weight: 600;
+        color: $gray-900;
+        margin: 0 0 2px 0;
+      }
+
+      p {
+        font-size: $font-size-xs;
+        color: $gray-500;
+        margin: 0;
+      }
+    }
+  }
+}
