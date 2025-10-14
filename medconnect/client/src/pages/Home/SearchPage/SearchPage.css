@@ -1,12 +1,10 @@
 /* Search Page Styles */
-:root {
-  --header-height: 60px; /* chỉnh nếu header của bạn cao hơn/nhỏ hơn */
-}
 
 .search-page {
   min-height: 100vh;
   background: #f8f9fa;
-  padding-top: calc(var(--header-height) + 12px); /* +12 để có khoảng cách */
+  /* Không ghi đè --header-height toàn cục; khoảng trống dưới header đã do layout đảm nhiệm */
+  padding-top: 0;
   box-sizing: border-box;
 }
 
