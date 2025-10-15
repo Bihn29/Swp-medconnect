@@ -1,5 +1,5 @@
-@import '../styles/variables';
-@import '../styles/mixins';
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
 
 .calendar-view {
   &__header {
@@ -149,13 +149,16 @@
     min-height: 120px;
     padding: $spacing-sm;
     border: 1px solid $gray-200;
-    border-radius: $radius-md;
+    border-radius: $radius-lg;
     cursor: pointer;
     transition: all $transition-base;
+    position: relative;
+    overflow: hidden;
 
     &:hover {
       border-color: $primary-color;
-      box-shadow: $shadow-sm;
+      box-shadow: $shadow-md;
+      transform: scale(1.02);
     }
 
     &.other-month {
@@ -165,7 +168,18 @@
 
     &.today {
       border-color: $primary-color;
-      background-color: $primary-light;
+      background: linear-gradient(135deg, $primary-light, lighten($primary-color, 35%));
+      box-shadow: 0 4px 12px rgba($primary-color, 0.15);
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, $primary-color, $accent-color);
+      }
     }
 
     &-number {
@@ -183,22 +197,31 @@
   }
 
   &__event {
-    padding: 2px 6px;
-    border-radius: $radius-sm;
+    padding: 4px 8px;
+    border-radius: $radius-md;
     font-size: $font-size-xs;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: all $transition-base;
+    cursor: pointer;
+
+    &:hover {
+      transform: scale(1.05);
+      box-shadow: $shadow-sm;
+    }
 
     &.online {
-      background-color: $primary-light;
+      background: linear-gradient(135deg, $primary-light, lighten($primary-color, 20%));
       color: $primary-color;
+      border-left: 3px solid $primary-color;
     }
 
     &.in-person {
-      background-color: lighten($accent-color, 35%);
+      background: linear-gradient(135deg, lighten($accent-color, 35%), lighten($accent-color, 20%));
       color: $accent-color;
+      border-left: 3px solid $accent-color;
     }
   }
 

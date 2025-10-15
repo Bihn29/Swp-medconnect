@@ -1,5 +1,5 @@
-@import '../styles/variables';
-@import '../styles/mixins';
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
 
 .sidebar {
   position: fixed;
@@ -62,23 +62,38 @@
     @include flex-between;
     padding: $spacing-md;
     margin-bottom: $spacing-xs;
-    border-radius: $radius-md;
+    border-radius: $radius-lg;
     color: $gray-700;
     cursor: pointer;
     transition: all $transition-base;
     text-decoration: none;
+    position: relative;
 
     &:hover {
       background-color: $primary-light;
       color: $primary-color;
+      transform: translateX(4px);
     }
 
     &.active {
-      background-color: $primary-color;
+      background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
       color: $white;
+      box-shadow: $shadow-md;
 
       .sidebar__menu-icon {
         color: $white;
+      }
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: -$spacing-md;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 24px;
+        background-color: $accent-color;
+        border-radius: 0 $radius-sm $radius-sm 0;
       }
     }
 

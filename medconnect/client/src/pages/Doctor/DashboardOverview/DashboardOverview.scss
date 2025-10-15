@@ -1,5 +1,5 @@
-@import '../styles/variables';
-@import '../styles/mixins';
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
 
 .dashboard-overview {
   &__header {
@@ -29,6 +29,24 @@
   &__stat-card {
     @include card;
     @include flex-between;
+    position: relative;
+    overflow: hidden;
+    transition: all $transition-base;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: $shadow-lg;
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, $primary-color, $accent-color);
+    }
 
     &-content {
       h3 {
@@ -43,33 +61,41 @@
         font-weight: 700;
         color: $gray-900;
         margin: 0;
+        background: linear-gradient(135deg, $gray-900, $primary-color);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
     }
 
     &-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: $radius-lg;
+      width: 56px;
+      height: 56px;
+      border-radius: $radius-xl;
       @include flex-center;
+      position: relative;
 
       &.primary {
-        background-color: $primary-light;
+        background: linear-gradient(135deg, $primary-light, lighten($primary-color, 20%));
         color: $primary-color;
+        box-shadow: 0 4px 12px rgba($primary-color, 0.2);
       }
 
       &.accent {
-        background-color: lighten($accent-color, 35%);
+        background: linear-gradient(135deg, lighten($accent-color, 35%), lighten($accent-color, 20%));
         color: $accent-color;
+        box-shadow: 0 4px 12px rgba($accent-color, 0.2);
       }
 
       &.success {
-        background-color: $success-light;
+        background: linear-gradient(135deg, $success-light, lighten($success, 20%));
         color: $success;
+        box-shadow: 0 4px 12px rgba($success, 0.2);
       }
 
       svg {
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
       }
     }
   }
