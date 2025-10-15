@@ -1,5 +1,5 @@
-@import '../styles/variables';
-@import '../styles/mixins';
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
 
 .appointment-detail {
   &__header {
@@ -167,7 +167,7 @@
       transition: background-color $transition-base;
 
       &:hover {
-        background-color: $primary-hover;
+        background-color: $primary-dark;
       }
     }
   }

@@ -18,6 +18,9 @@ export default function Login() {
   const [phoneError, setPhoneError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [generalError, setGeneralError] = useState("");
+  const [emailValid, setEmailValid] = useState(false);
+  const [phoneValid, setPhoneValid] = useState(false);
+  const [passwordValid, setPasswordValid] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
   const setAuthAllowed = (v) =>
@@ -36,6 +39,54 @@ export default function Login() {
     /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(v || "").trim());
   const isValidVNPhone = (raw) => /^\+84\d{9}$/.test(toE164(raw));
   const isValidPassword = (v) => String(v || "").length >= 8;
+
+  // Real-time validation functions
+  const validateEmailRealTime = (value) => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) {
+      setEmailError("");
+      setEmailValid(false);
+      return;
+    }
+    if (!isValidEmail(trimmedValue)) {
+      setEmailError("Email không đúng định dạng");
+      setEmailValid(false);
+    } else {
+      setEmailError("");
+      setEmailValid(true);
+    }
+  };
+
+  const validatePhoneRealTime = (value) => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) {
+      setPhoneError("");
+      setPhoneValid(false);
+      return;
+    }
+    if (!isValidVNPhone(trimmedValue)) {
+      setPhoneError("Số điện thoại không đúng định dạng (VD: 0xxxxxxxxx)");
+      setPhoneValid(false);
+    } else {
+      setPhoneError("");
+      setPhoneValid(true);
+    }
+  };
+
+  const validatePasswordRealTime = (value) => {
+    if (!value) {
+      setPasswordError("");
+      setPasswordValid(false);
+      return;
+    }
+    if (!isValidPassword(value)) {
+      setPasswordError("Mật khẩu phải tối thiểu 8 ký tự");
+      setPasswordValid(false);
+    } else {
+      setPasswordError("");
+      setPasswordValid(true);
+    }
+  };
 
   const goByRole = (role) => {
     // Check if user was redirected from a specific page
@@ -145,41 +196,55 @@ export default function Login() {
   }
 
   const validateForm = () => {
+    let isValid = true;
+    
+    // Clear previous errors
     setEmailError("");
     setPhoneError("");
     setPasswordError("");
+    setGeneralError("");
 
+    // Validate password
     if (!password.trim()) {
-      setPasswordError("Vui lòng nhập mật khẩu.");
-      return false;
-    }
-    if (!isValidPassword(password)) {
-      setPasswordError("Mật khẩu phải tối thiểu 8 ký tự.");
-      return false;
+      setPasswordError("Vui lòng nhập mật khẩu");
+      setPasswordValid(false);
+      isValid = false;
+    } else if (!isValidPassword(password)) {
+      setPasswordError("Mật khẩu phải tối thiểu 8 ký tự");
+      setPasswordValid(false);
+      isValid = false;
+    } else {
+      setPasswordValid(true);
     }
 
+    // Validate email or phone based on mode
     if (mode === "email") {
       if (!email.trim()) {
-        setEmailError("Vui lòng nhập email.");
-        return false;
-      }
-      if (!isValidEmail(email)) {
-        setEmailError("Email không đúng định dạng.");
-        return false;
+        setEmailError("Vui lòng nhập email");
+        setEmailValid(false);
+        isValid = false;
+      } else if (!isValidEmail(email)) {
+        setEmailError("Email không đúng định dạng");
+        setEmailValid(false);
+        isValid = false;
+      } else {
+        setEmailValid(true);
       }
     } else {
       if (!phone.trim()) {
-        setPhoneError("Vui lòng nhập số điện thoại.");
-        return false;
-      }
-      if (!isValidVNPhone(phone)) {
-        setPhoneError(
-          "Số điện thoại không đúng định dạng (VD: 0xxxxxxxxx hoặc +84xxxxxxxxx)."
-        );
-        return false;
+        setPhoneError("Vui lòng nhập số điện thoại");
+        setPhoneValid(false);
+        isValid = false;
+      } else if (!isValidVNPhone(phone)) {
+        setPhoneError("Số điện thoại không đúng định dạng (VD: 0xxxxxxxxx)");
+        setPhoneValid(false);
+        isValid = false;
+      } else {
+        setPhoneValid(true);
       }
     }
-    return true;
+
+    return isValid;
   };
 
   const onSubmit = async (e) => {
@@ -278,48 +343,78 @@ export default function Login() {
         <form onSubmit={onSubmit}>
           {mode === "email" ? (
             <>
-              <input
-                className="login-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                autoComplete="email"
-              />
+              <div className="input-group">
+                <input
+                  className={`login-input ${emailError ? 'input-error' : emailValid ? 'input-success' : ''}`}
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    validateEmailRealTime(e.target.value);
+                  }}
+                  onBlur={(e) => validateEmailRealTime(e.target.value)}
+                  placeholder="Nhập địa chỉ email"
+                  autoComplete="email"
+                  type="email"
+                />
+                {emailValid && <i className="bi bi-check-circle-fill input-success-icon" />}
+                {emailError && <i className="bi bi-exclamation-circle-fill input-error-icon" />}
+              </div>
               {emailError && <div className="error-text">{emailError}</div>}
             </>
           ) : (
             <>
-              <input
-                className="login-input"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Số điện thoại"
-                autoComplete="tel"
-              />
+              <div className="input-group">
+                <input
+                  className={`login-input ${phoneError ? 'input-error' : phoneValid ? 'input-success' : ''}`}
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    validatePhoneRealTime(e.target.value);
+                  }}
+                  onBlur={(e) => validatePhoneRealTime(e.target.value)}
+                  placeholder="Nhập số điện thoại "
+                  autoComplete="tel"
+                  type="tel"
+                />
+                {phoneValid && <i className="bi bi-check-circle-fill input-success-icon" />}
+                {phoneError && <i className="bi bi-exclamation-circle-fill input-error-icon" />}
+              </div>
               {phoneError && <div className="error-text">{phoneError}</div>}
             </>
           )}
 
           <div className="password-group">
-            <input
-              className="login-input"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mật khẩu"
-              autoComplete="current-password"
-            />
-            <i
-              className={`bi ${
-                showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
-              } password-toggle`}
-              onClick={() => setShowPassword(!showPassword)}
-            />
+            <div className="input-group">
+              <input
+                className={`login-input ${passwordError ? 'input-error' : passwordValid ? 'input-success' : ''}`}
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  validatePasswordRealTime(e.target.value);
+                }}
+                onBlur={(e) => validatePasswordRealTime(e.target.value)}
+                placeholder="Nhập mật khẩu"
+                autoComplete="current-password"
+              />
+              {passwordValid && <i className="bi bi-check-circle-fill input-success-icon" />}
+              {passwordError && <i className="bi bi-exclamation-circle-fill input-error-icon" />}
+              <i
+                className={`bi ${
+                  showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
+                } password-toggle`}
+                onClick={() => setShowPassword(!showPassword)}
+              />
+            </div>
           </div>
 
           {passwordError && <div className="error-text">{passwordError}</div>}
 
-          <button type="submit" disabled={loading} className="btn btn-primary">
+          <button 
+            type="submit" 
+            disabled={loading || !(mode === "email" ? emailValid && passwordValid : phoneValid && passwordValid)} 
+            className="btn btn-primary"
+          >
             {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
         </form>
