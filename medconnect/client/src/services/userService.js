@@ -22,12 +22,13 @@ export async function verifyPasswordOtp(email, otp) {
   return r.json();
 }
 
-export async function resetPasswordWithToken(token, newPassword) {
+export async function resetPasswordWithToken(token, email, newPassword, confirmPassword) {
+  console.log("resetPasswordWithToken called with:", { token: token?.substring(0, 20) + "...", email, newPassword: "***", confirmPassword: "***" });
   const r = await fetch(`${BASE}/api/auth/reset`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ token, newPassword })
+    body: JSON.stringify({ token, email, newPassword, confirmPassword })
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();

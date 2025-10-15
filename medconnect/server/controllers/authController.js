@@ -1,5 +1,4 @@
 import admin from "firebase-admin";
-
 /* ======= ADD: Forgot/Verify OTP/Reset Password ======= */
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -19,7 +18,6 @@ import {
 } from "../constants/index.js";
 
 const isProd = process.env.NODE_ENV === "production";
-
 /**
  * Password login controller
  */
@@ -118,7 +116,6 @@ export async function googleLogin(req, res) {
     return fail(res, 401, ERROR_CODES.UNAUTHORIZED, e.message || String(e));
   }
 }
-
 /**
  * Create session controller
  */
@@ -147,7 +144,6 @@ export async function createSession(req, res) {
     return fail(res, 401, ERROR_CODES.UNAUTHORIZED, e.message || String(e));
   }
 }
-
 /**
  * Get current user controller
  */
@@ -293,7 +289,6 @@ export async function register(req, res) {
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
-
 /**
  * Google register controller (đã sửa)
  * - find-or-create theo email (tránh E11000 email trùng)
@@ -436,7 +431,6 @@ export async function googleRegister(req, res) {
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e?.message || String(e));
   }
 }
-
 /**
  * Logout controller
  */
@@ -450,7 +444,7 @@ export function logout(req, res) {
   }
 }
 
-// --------------------------------------------------
+// -------------------------------------------------- OTP & RESET PASSWORD
 
 /* Helper gửi mail OTP đơn giản, dùng cấu hình SMTP từ .env */
 async function sendOtpMail(to, otp) {
@@ -466,23 +460,31 @@ async function sendOtpMail(to, otp) {
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
-
 /**
  * POST /api/auth/forgot
  * body: { email }
- * Luôn trả 200 để tránh lộ tài khoản.
+ * Kiểm tra email có trong database hay không và trả về thông báo phù hợp
  */
 export async function forgotPassword(req, res) {
   try {
     const { email } = req.body || {};
     if (!email) return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu email");
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+    if (!emailRegex.test(email)) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Email không hợp lệ");
+    }
+
     const user = await User.findOne({
       email: String(email).toLowerCase().trim(),
       status: "active",
     });
 
-    if (!user) return ok(res, { ok: true }); // im lặng
+    // Nếu không tìm thấy user, trả về lỗi để yêu cầu kiểm tra lại email
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Email không tồn tại trong hệ thống. Vui lòng kiểm tra lại email.");
+    }
 
     // Kiểm tra xem có OTP đang hoạt động không
     const existingReset = await PasswordReset.findOne({
@@ -494,7 +496,7 @@ export async function forgotPassword(req, res) {
 
     // Hạn chế brute-force: tối đa 5 lần thử khi OTP còn hiệu lực
     if (existingReset && existingReset.attempts >= 5) {
-      return ok(res, { ok: true });
+      return fail(res, 429, ERROR_CODES.TOO_MANY_REQUESTS, "Bạn đã thử quá nhiều lần. Vui lòng đợi một lúc rồi thử lại.");
     }
 
     // Tạo OTP mới
@@ -522,13 +524,16 @@ export async function forgotPassword(req, res) {
 
     await sendOtpMail(user.email, otp);
 
-    return ok(res, { ok: true });
+    return ok(res, { 
+      ok: true, 
+      message: "Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.",
+      email: user.email // Trả về email để frontend có thể sử dụng
+    });
   } catch (e) {
     console.error("forgotPassword error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
-
 /**
  * POST /api/auth/verify-otp
  * body: { email, otp }
@@ -598,16 +603,33 @@ export async function verifyPasswordOtp(req, res) {
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
-
 /**
  * POST /api/auth/reset
- * body: { token, newPassword }
+ * body: { token, email, newPassword, confirmPassword }
+ * Yêu cầu nhập email tài khoản, mật khẩu mới và xác nhận mật khẩu
  */
 export async function resetPassword(req, res) {
   try {
-    const { token, newPassword } = req.body || {};
-    if (!token || !newPassword)
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu dữ liệu");
+    const { token, email, newPassword, confirmPassword } = req.body || {};
+    if (!token || !email || !newPassword || !confirmPassword) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu dữ liệu bắt buộc");
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+    if (!emailRegex.test(email)) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Email không hợp lệ");
+    }
+
+    // Validate password length
+    if (newPassword.length < 8) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu phải có ít nhất 8 ký tự");
+    }
+
+    // Validate password confirmation
+    if (newPassword !== confirmPassword) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu xác nhận không khớp");
+    }
 
     // verify JWT
     let payload;
@@ -615,10 +637,13 @@ export async function resetPassword(req, res) {
       payload = jwt.verify(token, process.env.JWT_RESET_SECRET);
       if (payload?.purpose !== "reset") throw new Error("bad purpose");
     } catch {
+      console.warn("[resetPassword] JWT verify failed for token (first 120 chars):", String(token).slice(0,120));
       return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mã xác thực không hợp lệ");
     }
 
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    console.debug("[resetPassword] tokenHash:", tokenHash);
+    console.debug("[resetPassword] payload.sub:", payload?.sub);
     
     // Tìm reset record trong Password_Resets
     const resetRecord = await PasswordReset.findOne({
@@ -630,13 +655,25 @@ export async function resetPassword(req, res) {
     });
 
     if (!resetRecord) {
+      console.warn("[resetPassword] No matching PasswordReset found for userId and tokenHash. Listing recent PasswordReset records for this user:");
+      try {
+        const recent = await PasswordReset.find({ userId: payload.sub }).sort({ createdAt: -1 }).limit(10).lean();
+        console.warn(JSON.stringify(recent, null, 2));
+      } catch (listErr) {
+        console.warn("[resetPassword] Failed to list recent PasswordReset records:", listErr?.message || listErr);
+      }
       return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mã xác thực không hợp lệ hoặc đã hết hạn");
     }
 
-    // Tìm user
+    // Tìm user và kiểm tra email có khớp không
     const user = await User.findById(payload.sub).select("+passwordHash");
     if (!user) {
       return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Người dùng không tồn tại");
+    }
+
+    // Kiểm tra email có khớp với email trong reset record không
+    if (user.email.toLowerCase() !== email.toLowerCase()) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Email không khớp với tài khoản đã gửi OTP");
     }
 
     // Đặt mật khẩu mới
@@ -654,7 +691,6 @@ export async function resetPassword(req, res) {
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
-
 /**
  * GET /api/auth/test-email
  * Test email configuration
@@ -675,3 +711,5 @@ export async function testEmail(req, res) {
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
+
+//------------------------------------------------- OTP & RESET PASSWORD

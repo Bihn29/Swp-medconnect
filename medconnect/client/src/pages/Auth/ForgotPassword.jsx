@@ -15,11 +15,20 @@ export default function ForgotPassword() {
     setMessage("");
     try {
       setLoading(true);
-      await requestPasswordOtp(email.trim());
-      setMessage("Nếu email hợp lệ, mã OTP đã được gửi. Vui lòng kiểm tra hộp thư.");
+      const response = await requestPasswordOtp(email.trim());
+      setMessage(response.message || "Nếu email hợp lệ, mã OTP đã được gửi. Vui lòng kiểm tra hộp thư.");
       setTimeout(() => navigate("/xac-minh-otp", { state: { email } }), 800);
     } catch (err) {
-      setError("Không gửi được OTP. Vui lòng thử lại.");
+       let errorMessage = "Không gửi được OTP. Vui lòng thử lại.";
+      try {
+        const errorData = JSON.parse(err.message);
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch {
+        // If parsing fails, use default message
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

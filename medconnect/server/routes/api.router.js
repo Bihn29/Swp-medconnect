@@ -1,10 +1,8 @@
 import express from "express";
 const apiRouter = express.Router();
-import userRouter from "./users/user.route.js";
 import authRouter from "./authRoutes.js";
 
-apiRouter.use("/users", userRouter);
-// Auth routes (register, login, session, etc.)
+// Auth routes (register, login, forgot/reset password, etc.)
 apiRouter.use("/auth", authRouter);
 console.log("[router] mounted /api/auth");
 
