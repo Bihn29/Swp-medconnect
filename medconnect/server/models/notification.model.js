@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Notifications
+ *  Thông báo người dùng
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
@@ -21,11 +26,7 @@ const NotificationSchema = new Schema(
     relatedType: { type: String }, // appointment, payment, etc.
     metadata: { type: Schema.Types.Mixed }, // Additional data
   },
-  { timestamps: true, versionKey: false, collection: "notifications" }
+  { timestamps: true, collection: "Notifications" }
 );
-
-// Indexes for performance
-NotificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
-NotificationSchema.index({ userId: 1, type: 1, createdAt: -1 });
 
 export default model("Notification", NotificationSchema);

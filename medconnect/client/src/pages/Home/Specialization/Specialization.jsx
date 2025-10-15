@@ -17,7 +17,9 @@ import {
   UserOutlined,
   EnvironmentOutlined,
   SearchOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
+import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
 import "./Specialization.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -128,7 +130,7 @@ const Specialization = () => {
   const handleSpecializationClick = (specId) => {
     // Navigate to doctors filtered by specialization
     navigate(
-      `/bac-si?specialty=${encodeURIComponent(
+      `/danh-sach-bac-si?specialty=${encodeURIComponent(
         specializations.find((s) => s.id === specId)?.name
       )}`
     );
@@ -138,7 +140,6 @@ const Specialization = () => {
     <Card
       className="specialization-card"
       hoverable
-      onClick={() => handleSpecializationClick(specialization.id)}
       style={{
         marginBottom: "16px",
         borderRadius: "12px",
@@ -213,6 +214,22 @@ const Specialization = () => {
 
   return (
     <div className="specialization-page">
+      {/* Breadcrumb */}
+      <div className="container">
+        <NavigationBreadcrumb
+          items={[
+            {
+              label: "Trang chủ",
+              path: "/",
+              icon: <HomeOutlined />,
+            },
+            {
+              label: "Chuyên khoa",
+            },
+          ]}
+        />
+      </div>
+
       {/* Search Section */}
       <div className="specialization-search-section">
         <div className="container">

@@ -5,7 +5,7 @@ import PropTypes from "prop-types"
 import { Calendar, Clock, Users, TrendingUp, Video, FileText } from "lucide-react"
 import { useDoctor, useDoctorDashboardStats, useDoctorAppointments } from "../../../hooks/useDoctor.js"
 
-const DashboardOverview = ({ onViewAppointments, onViewSchedule, onViewNotifications, onViewFeedback }) => {
+const DashboardOverview = ({ onViewAppointments }) => {
   const { doctor, loading: doctorLoading } = useDoctor()
   const { stats, loading: statsLoading } = useDoctorDashboardStats()
   const { appointments: upcomingAppointments, loading: appointmentsLoading } = useDoctorAppointments({
@@ -42,9 +42,9 @@ const DashboardOverview = ({ onViewAppointments, onViewSchedule, onViewNotificat
   ]
 
   const quickActions = [
-    { label: "Xem lịch hôm nay", icon: Calendar, action: "schedule", onClick: onViewSchedule },
-    { label: "Quản lý slot", icon: Clock, action: "slots", onClick: onViewSchedule },
-    { label: "Chặn thời gian", icon: Users, action: "block", onClick: onViewSchedule },
+    { label: "Xem lịch hôm nay", icon: Calendar, action: "schedule", onClick: () => {} },
+    { label: "Quản lý slot", icon: Clock, action: "slots", onClick: () => {} },
+    { label: "Chặn thời gian", icon: Users, action: "block", onClick: () => {} },
     { label: "Tạo tóm tắt", icon: FileText, action: "summary", onClick: () => {} },
     { label: "Lịch sử khám", icon: TrendingUp, action: "history", onClick: () => {} },
     { label: "Khám video", icon: Video, action: "video", onClick: () => {} },

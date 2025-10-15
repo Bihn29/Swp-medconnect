@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Reviews
+ *  Đánh giá bác sĩ
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
@@ -14,7 +19,7 @@ const ReviewSchema = new Schema(
     rating: { type: Number, min: 1, max: 5, required: true },
     comment: String,
   },
-  { timestamps: true, collection: "reviews" }
+  { timestamps: true, collection: "Reviews" }
 );
 
 export default model("Review", ReviewSchema);

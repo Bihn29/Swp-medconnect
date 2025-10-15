@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import PropTypes from "prop-types";
+import { useAuth } from "../../../hooks/useAuth";
 import {
   Row,
   Col,
@@ -9,7 +9,9 @@ import {
   Space,
   Avatar,
   Button,
+  Tag,
   Rate,
+  Divider,
   Input,
   Select,
   Pagination,
@@ -17,9 +19,14 @@ import {
 import {
   UserOutlined,
   EnvironmentOutlined,
+  PhoneOutlined,
   CalendarOutlined,
   StarOutlined,
+  SearchOutlined,
+  MedicineBoxOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
+import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
 import "./DoctorList.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -28,6 +35,7 @@ const { Option } = Select;
 const DoctorList = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
@@ -51,6 +59,87 @@ const DoctorList = () => {
         "Bác sĩ chuyên khoa tim mạch với nhiều năm kinh nghiệm trong điều trị các bệnh lý tim mạch phức tạp và can thiệp tim mạch.",
       phone: "0901234567",
       qualifications: ["Tiến sĩ Y khoa", "Chứng chỉ Tim mạch can thiệp"],
+      address: "123 Nguyễn Huệ, Quận 1, TP.HCM",
+      // Time slots for different days
+      timeSlots: {
+        // Monday (Thứ 2)
+        1: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: false },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: false },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Tuesday (Thứ 3)
+        2: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: false },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: false },
+        ],
+        // Wednesday (Thứ 4)
+        3: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+{ time: "09:30 - 10:00", available: false },
+          { time: "14:00 - 14:30", available: false },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Thursday (Thứ 5)
+        4: [
+          { time: "08:00 - 08:30", available: false },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: false },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Friday (Thứ 6)
+        5: [
+          { time: "17:30 - 18:00", available: true },
+          { time: "18:00 - 18:30", available: true },
+          { time: "18:30 - 19:00", available: true },
+          { time: "19:00 - 19:30", available: true },
+          { time: "19:30 - 20:00", available: false },
+          { time: "20:00 - 20:30", available: true },
+          { time: "20:30 - 21:00", available: true },
+          { time: "21:00 - 21:30", available: false },
+        ],
+        // Saturday (Thứ 7)
+        6: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "10:00 - 10:30", available: false },
+          { time: "10:30 - 11:00", available: true },
+          { time: "11:00 - 11:30", available: true },
+          { time: "11:30 - 12:00", available: true },
+        ],
+        // Sunday (Chủ nhật)
+        0: [
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: false },
+          { time: "15:30 - 16:00", available: true },
+          { time: "16:00 - 16:30", available: true },
+          { time: "16:30 - 17:00", available: true },
+          { time: "17:00 - 17:30", available: false },
+          { time: "17:30 - 18:00", available: true },
+        ],
+      },
     },
     {
       id: 2,
@@ -68,6 +157,87 @@ const DoctorList = () => {
         "Chuyên gia da liễu và thẩm mỹ da, có kinh nghiệm điều trị các bệnh lý da và các thủ thuật thẩm mỹ không xâm lấn.",
       phone: "0912345678",
       qualifications: ["Thạc sĩ Y khoa", "Chứng chỉ Da liễu thẩm mỹ"],
+      address: "456 Lê Văn Việt, Quận 9, TP.HCM",
+      // Time slots for different days
+      timeSlots: {
+// Monday (Thứ 2)
+        1: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: false },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: false },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Tuesday (Thứ 3)
+        2: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: false },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: false },
+        ],
+        // Wednesday (Thứ 4)
+        3: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: false },
+          { time: "14:00 - 14:30", available: false },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Thursday (Thứ 5)
+        4: [
+          { time: "08:00 - 08:30", available: false },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: false },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Friday (Thứ 6)
+        5: [
+          { time: "17:30 - 18:00", available: true },
+          { time: "18:00 - 18:30", available: true },
+          { time: "18:30 - 19:00", available: true },
+          { time: "19:00 - 19:30", available: true },
+          { time: "19:30 - 20:00", available: false },
+          { time: "20:00 - 20:30", available: true },
+          { time: "20:30 - 21:00", available: true },
+          { time: "21:00 - 21:30", available: false },
+        ],
+        // Saturday (Thứ 7)
+        6: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "10:00 - 10:30", available: false },
+          { time: "10:30 - 11:00", available: true },
+          { time: "11:00 - 11:30", available: true },
+          { time: "11:30 - 12:00", available: true },
+        ],
+        // Sunday (Chủ nhật)
+0: [
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: false },
+          { time: "15:30 - 16:00", available: true },
+          { time: "16:00 - 16:30", available: true },
+          { time: "16:30 - 17:00", available: true },
+          { time: "17:00 - 17:30", available: false },
+          { time: "17:30 - 18:00", available: true },
+        ],
+      },
     },
     {
       id: 3,
@@ -97,7 +267,7 @@ const DoctorList = () => {
       rating: 4.6,
       reviewCount: 87,
       price: "600.000đ",
-image: "https://via.placeholder.com/100x100",
+      image: "https://via.placeholder.com/100x100",
       description:
         "Chuyên gia thần kinh với chuyên môn sâu về các bệnh lý cột sống và hệ thần kinh trung ương.",
       phone: "0934567890",
@@ -145,12 +315,42 @@ image: "https://via.placeholder.com/100x100",
   // Initialize filter from query param ?specialty=...
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const qSpecialty = params.get("specialty");
+const qSpecialty = params.get("specialty");
     if (qSpecialty) {
       setSelectedSpecialty(qSpecialty);
       setCurrentPage(1);
     }
   }, [location.search]);
+
+  // Get breadcrumb items based on current context
+  const getBreadcrumbItems = () => {
+    const params = new URLSearchParams(location.search);
+    const qSpecialty = params.get("specialty");
+
+    const items = [
+      {
+        label: "Trang chủ",
+        path: "/",
+        icon: <HomeOutlined />,
+      },
+    ];
+
+    // If coming from specialization page, add specialization to breadcrumb
+    if (qSpecialty && qSpecialty !== "all") {
+      items.push({
+        label: qSpecialty,
+        path: "/chuyen-khoa",
+      });
+    }
+
+    // Always add "Bác sĩ" as the last item
+    items.push({
+      label: "Bác sĩ",
+      path: "/danh-sach-bac-si",
+    });
+
+    return items;
+  };
 
   // Filter doctors based on search term and specialty
   const filteredDoctors = doctors.filter((doctor) => {
@@ -171,10 +371,28 @@ image: "https://via.placeholder.com/100x100",
     console.log("Navigate to doctor detail:", doctorId);
   };
 
-  const handleBookAppointment = (e, doctorId) => {
+  const handleBookAppointment = (e, doctor) => {
     e.stopPropagation();
-    // Handle booking appointment
-    console.log("Book appointment with doctor:", doctorId);
+
+    // Check if user is logged in
+    if (!user) {
+      // If not logged in, redirect to login page
+      navigate("/dang-nhap", {
+        state: {
+          from: "/dat-lich-kham",
+          doctor: doctor,
+          message: "Vui lòng đăng nhập để đặt lịch khám",
+        },
+      });
+      return;
+    }
+
+    // If logged in, navigate to appointment booking page with doctor data
+    navigate("/dat-lich-kham", {
+      state: {
+        doctor: doctor,
+      },
+    });
   };
 
   const handleSearch = (value) => {
@@ -187,7 +405,7 @@ image: "https://via.placeholder.com/100x100",
     setCurrentPage(1);
     // update URL query param for shareable state
     const params = new URLSearchParams(location.search);
-if (value === "all") {
+    if (value === "all") {
       params.delete("specialty");
     } else {
       params.set("specialty", value);
@@ -208,7 +426,7 @@ if (value === "all") {
       }}
     >
       <Row gutter={16} align="middle">
-        <Col flex="120px">
+<Col flex="120px">
           <Avatar
             size={100}
             src={doctor.image}
@@ -273,7 +491,7 @@ if (value === "all") {
               type="primary"
               size="large"
               block
-              onClick={(e) => handleBookAppointment(e, doctor.id)}
+              onClick={(e) => handleBookAppointment(e, doctor)}
               style={{
                 backgroundColor: "#45c3d2",
                 borderColor: "#45c3d2",
@@ -281,7 +499,7 @@ if (value === "all") {
                 fontWeight: "500",
               }}
             >
-Đặt lịch khám
+              Đặt lịch khám
             </Button>
             <Button
               size="large"
@@ -300,25 +518,13 @@ if (value === "all") {
     </Card>
   );
 
-  DoctorCard.propTypes = {
-    doctor: PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      image: PropTypes.string,
-      name: PropTypes.string.isRequired,
-      specialty: PropTypes.string.isRequired,
-      subSpecialty: PropTypes.string,
-      description: PropTypes.string,
-      rating: PropTypes.number,
-      reviewCount: PropTypes.number,
-      hospital: PropTypes.string,
-      location: PropTypes.string,
-      experience: PropTypes.number,
-      price: PropTypes.number,
-    }).isRequired,
-  };
-
   return (
     <div className="doctor-page">
+      {/* Breadcrumb */}
+      <div className="container">
+        <NavigationBreadcrumb items={getBreadcrumbItems()} />
+</div>
+
       {/* Search Section */}
       <div className="doctor-search-section">
         <div className="container">
@@ -388,7 +594,7 @@ if (value === "all") {
             </div>
           )}
         </div>
-</div>
+      </div>
     </div>
   );
 };

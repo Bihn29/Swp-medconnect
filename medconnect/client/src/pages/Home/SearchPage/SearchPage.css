@@ -1,7 +1,11 @@
 /* Search Page Styles */
+
 .search-page {
   min-height: 100vh;
   background: #f8f9fa;
+  /* Không ghi đè --header-height toàn cục; khoảng trống dưới header đã do layout đảm nhiệm */
+  padding-top: 0;
+  box-sizing: border-box;
 }
 
 .container {

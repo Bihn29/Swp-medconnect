@@ -7,7 +7,7 @@ const Sidebar = ({ activeView, onNavigate }) => {
   const menuItems = [
     {
       id: "dashboard",
-      label: "Dashboard",
+      label: "Trang cá nhân",
       icon: LayoutDashboard,
       description: "Tổng quan hôm nay",
     },

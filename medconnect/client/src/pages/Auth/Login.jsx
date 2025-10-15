@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { auth, signInWithGoogle } from "../../lib/firebase";
 import { signInWithCustomToken, signOut, updateProfile } from "firebase/auth";
 import "./Login.scss";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [mode, setMode] = useState("email");
   const [email, setEmail] = useState("");
@@ -31,11 +32,26 @@ export default function Login() {
     if (num.startsWith("+")) return num;
     return country + num;
   };
-  const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(v || "").trim());
+  const isValidEmail = (v) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(v || "").trim());
   const isValidVNPhone = (raw) => /^\+84\d{9}$/.test(toE164(raw));
   const isValidPassword = (v) => String(v || "").length >= 8;
 
   const goByRole = (role) => {
+    // Check if user was redirected from a specific page
+    const from = location.state?.from;
+    const doctor = location.state?.doctor;
+
+    if (from === "/dat-lich" || from === "/dat-lich-kham") {
+      // If coming from appointment booking, redirect back with doctor data
+      navigate("/dat-lich-kham", {
+        state: {
+          doctor: doctor,
+        },
+      });
+      return;
+    }
+
     switch ((role || "").toUpperCase()) {
       case "PATIENT":
         navigate("/benh-nhan");
@@ -69,13 +85,15 @@ export default function Login() {
         setGeneralError("Bạn chưa có tài khoản. Vui lòng đăng ký tài khoản.");
         return;
       }
-      if (r.status === 401) throw new Error("Email/SĐT hoặc mật khẩu không đúng");
+      if (r.status === 401)
+        throw new Error("Email/SĐT hoặc mật khẩu không đúng");
       throw new Error(data?.error || "Không đăng nhập được");
     }
 
     const token = data?.customToken ?? data?.data?.customToken;
     const roleFromLogin = data?.role ?? data?.data?.role;
-    const fullNameFromLogin = data?.user?.fullName ?? data?.data?.user?.fullName;
+    const fullNameFromLogin =
+      data?.user?.fullName ?? data?.data?.user?.fullName;
 
     if (!token) throw new Error("Thiếu customToken từ server");
 
@@ -103,7 +121,9 @@ export default function Login() {
     let fullNameFromMe;
 
     try {
-      const meRes = await fetch(`${apiUrl}/api/auth/me`, { credentials: "include" });
+      const meRes = await fetch(`${apiUrl}/api/auth/me`, {
+        credentials: "include",
+      });
       const meData = await meRes.json().catch(() => ({}));
       roleFromMe = meData?.data?.user?.role ?? meData?.user?.role ?? null;
       fullNameFromMe =
@@ -153,7 +173,9 @@ export default function Login() {
         return false;
       }
       if (!isValidVNPhone(phone)) {
-        setPhoneError("Số điện thoại không đúng định dạng (VD: 0xxxxxxxxx hoặc +84xxxxxxxxx).");
+        setPhoneError(
+          "Số điện thoại không đúng định dạng (VD: 0xxxxxxxxx hoặc +84xxxxxxxxx)."
+        );
         return false;
       }
     }
@@ -214,12 +236,15 @@ export default function Login() {
       let fullNameFromMe;
 
       try {
-        const meRes = await fetch(`${apiUrl}/api/auth/me`, { credentials: "include" });
+        const meRes = await fetch(`${apiUrl}/api/auth/me`, {
+          credentials: "include",
+        });
         const meData = await meRes.json().catch(() => ({}));
         roleFromMe = meData?.data?.user?.role ?? meData?.user?.role ?? null;
         fullNameFromMe =
           meData?.data?.profile?.fullName ?? meData?.profile?.fullName ?? null;
-        if (fullNameFromMe) sessionStorage.setItem("mc_fullname", fullNameFromMe);
+        if (fullNameFromMe)
+          sessionStorage.setItem("mc_fullname", fullNameFromMe);
       } catch (err) {
         console.warn("Fetch /me failed:", err);
       }
@@ -237,7 +262,7 @@ export default function Login() {
       try {
         await signOut(auth);
       } catch (err) {
-      setGeneralError(err?.message || "Lỗi đăng nhập Google");
+        setGeneralError(err?.message || "Lỗi đăng nhập Google");
       }
     } finally {
       setLoading(false);
@@ -285,7 +310,9 @@ export default function Login() {
               autoComplete="current-password"
             />
             <i
-              className={`bi ${showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"} password-toggle`}
+              className={`bi ${
+                showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
+              } password-toggle`}
               onClick={() => setShowPassword(!showPassword)}
             />
           </div>
@@ -308,10 +335,17 @@ export default function Login() {
             className="btn btn-outline btn-full"
           >
             <i className="bi bi-phone-vibrate" />
-            {mode === "email" ? "Đăng nhập bằng điện thoại" : "Đăng nhập bằng email"}
+            {mode === "email"
+              ? "Đăng nhập bằng điện thoại"
+              : "Đăng nhập bằng email"}
           </button>
 
-          <button type="button" onClick={onGoogle} disabled={loading} className="btn btn-google btn-full">
+          <button
+            type="button"
+            onClick={onGoogle}
+            disabled={loading}
+            className="btn btn-google btn-full"
+          >
             <i className="bi bi-google" />
             Đăng nhập bằng Google
           </button>

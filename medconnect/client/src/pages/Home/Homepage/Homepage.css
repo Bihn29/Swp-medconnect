@@ -185,3 +185,66 @@ body {
   color: #45c3d2;
   opacity: 1;
 }
+
+/* Bác sĩ nổi bật - cân chỉnh layout */
+.slick-slide > div {
+  display: flex !important;
+  justify-content: center;
+}
+
+.slick-list {
+  margin: 0 -15px !important; /* ✅ giúp các card cách đều nhau */
+}
+
+.slick-track {
+  display: flex !important;
+  align-items: stretch !important; /* ✅ đảm bảo chiều cao bằng nhau */
+}
+
+.ant-card {
+  flex: 1 !important;
+}
+
+.ant-card-body {
+  height: 100% !important;
+}
+
+/* === BÁC SĨ NỔI BẬT - CANH KHOẢNG CÁCH === */
+.slick-list {
+  margin: 0 -12px !important; /* ✅ tạo khoảng trắng giữa các card */
+}
+
+.slick-slide > div {
+  padding: 0 12px !important; /* ✅ tạo padding đều 2 bên cho từng card */
+}
+
+.doctor-card {
+  height: 100%;
+  display: flex !important;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.ant-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Tạo hiệu ứng hover nhẹ nhàng */
+.ant-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(69, 195, 210, 0.25);
+  transition: all 0.3s ease;
+}
+
+/* Bo tròn nhẹ hơn cho thẩm mỹ */
+.ant-card {
+  border-radius: 14px !important;
+}
+
+.telemedicine-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
