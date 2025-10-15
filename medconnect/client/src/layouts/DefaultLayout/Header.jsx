@@ -31,14 +31,14 @@ const Header = () => {
       label: "Chuyên khoa",
       path: "/chuyen-khoa",
     },
-    { key: "doctor", label: "Bác sĩ", path: "/bac-si" },
+    { key: "doctor", label: "Bác sĩ", path: "/danh-sach-bac-si" },
     { key: "facility", label: "Cơ sở y tế", path: "/co-so-y-te" },
     { key: "package", label: "Gói khám", path: "/goi-kham" },
   ];
 
   // Chọn categories dựa trên trang hiện tại
   const isSearchPage = location.pathname === "/tim-kiem";
-  const isDoctorPage = location.pathname === "/bac-si";
+  const isDoctorPage = location.pathname === "/danh-sach-bac-si";
   const isSpecialtyPage = location.pathname === "/chuyen-khoa";
   const isFacilityPage = location.pathname === "/co-so-y-te";
   const isPackagePage = location.pathname === "/goi-kham";
@@ -162,7 +162,7 @@ const Header = () => {
       setActiveCat("specialty");
     } else if (currentPath === "/co-so-y-te") {
       setActiveCat("facility");
-    } else if (currentPath === "/bac-si") {
+    } else if (currentPath === "/danh-sach-bac-si") {
       setActiveCat("doctor");
     } else if (currentPath === "/goi-kham") {
       setActiveCat("package");
@@ -528,7 +528,10 @@ const Header = () => {
                     </Link>
                   </li>
                   <li>
-                    <Link to="/bac-si" onClick={() => setSidebarOpen(false)}>
+                    <Link
+                      to="/danh-sach-bac-si"
+                      onClick={() => setSidebarOpen(false)}
+                    >
                       Danh sách bác sĩ
                     </Link>
                   </li>

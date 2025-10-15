@@ -266,7 +266,9 @@ const Facility = () => {
               onClick={(e) => {
                 e.stopPropagation();
                 navigate(
-                  `/bac-si?facility=${encodeURIComponent(facility.name)}`
+                  `/danh-sach-bac-si?facility=${encodeURIComponent(
+                    facility.name
+                  )}`
                 );
               }}
             >

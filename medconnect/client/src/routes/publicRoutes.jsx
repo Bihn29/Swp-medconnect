@@ -28,7 +28,7 @@ export const publicRoutes = (
       <Route path="/kham-tai-nha" element={<HomeVisit />} />
       <Route path="/kham-tai-vien" element={<HospitalVisit />} />
       <Route path="/tim-kiem" element={<SearchPage />} />
-      <Route path="/bac-si" element={<DoctorList />} />
+      <Route path="/danh-sach-bac-si" element={<DoctorList />} />
       <Route path="/chuyen-khoa" element={<Specialization />} />
       <Route path="/co-so-y-te" element={<Facility />} />
       <Route path="/goi-kham" element={<Package />} />

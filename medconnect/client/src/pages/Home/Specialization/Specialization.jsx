@@ -130,7 +130,7 @@ const Specialization = () => {
   const handleSpecializationClick = (specId) => {
     // Navigate to doctors filtered by specialization
     navigate(
-      `/bac-si?specialty=${encodeURIComponent(
+      `/danh-sach-bac-si?specialty=${encodeURIComponent(
         specializations.find((s) => s.id === specId)?.name
       )}`
     );
