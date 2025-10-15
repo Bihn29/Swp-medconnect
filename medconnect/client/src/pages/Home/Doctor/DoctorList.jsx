@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Row,
   Col,
@@ -24,13 +24,14 @@ import {
   SearchOutlined,
   MedicineBoxOutlined,
 } from "@ant-design/icons";
-import "./Doctor.css";
+import "./DoctorList.css";
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-const Doctor = () => {
+const DoctorList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
@@ -145,6 +146,16 @@ const Doctor = () => {
     },
   ];
 
+  // Initialize filter from query param ?specialty=...
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const qSpecialty = params.get("specialty");
+    if (qSpecialty) {
+      setSelectedSpecialty(qSpecialty);
+      setCurrentPage(1);
+    }
+  }, [location.search]);
+
   // Filter doctors based on search term and specialty
   const filteredDoctors = doctors.filter((doctor) => {
     const matchesSearch =
@@ -178,6 +189,14 @@ const Doctor = () => {
   const handleFilterChange = (value) => {
     setSelectedSpecialty(value);
     setCurrentPage(1);
+    // update URL query param for shareable state
+    const params = new URLSearchParams(location.search);
+    if (value === "all") {
+      params.delete("specialty");
+    } else {
+      params.set("specialty", value);
+    }
+    navigate({ pathname: location.pathname, search: params.toString() });
   };
 
   const DoctorCard = ({ doctor }) => (
@@ -361,4 +380,4 @@ const Doctor = () => {
   );
 };
 
-export default Doctor;
+export default DoctorList;

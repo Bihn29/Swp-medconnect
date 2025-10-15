@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Prescriptions
+ *  Toa thuốc
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 

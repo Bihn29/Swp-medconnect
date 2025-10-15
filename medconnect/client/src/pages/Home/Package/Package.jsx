@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../hooks/useAuth";
 import {
   Row,
   Col,
@@ -20,7 +21,9 @@ import {
   CheckCircleOutlined,
   SearchOutlined,
   GiftOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
+import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
 import "./Package.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -28,6 +31,7 @@ const { Option } = Select;
 
 const Package = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -224,8 +228,23 @@ const Package = () => {
 
   const handleBookPackage = (e, packageId) => {
     e.stopPropagation();
-    // Handle booking package
+
+    // Check if user is logged in
+    if (!user) {
+      // If not logged in, redirect to login page
+      navigate("/dang-nhap", {
+        state: {
+          from: "/dat-lich-kham",
+          packageId: packageId,
+          message: "Vui lòng đăng nhập để đặt lịch khám",
+        },
+      });
+      return;
+    }
+
+    // If logged in, handle booking package
     console.log("Book package:", packageId);
+    // You can add more logic here to navigate to appointment booking
   };
 
   const formatPrice = (price) => {
@@ -371,6 +390,22 @@ const Package = () => {
 
   return (
     <div className="package-page">
+      {/* Breadcrumb */}
+      <div className="container">
+        <NavigationBreadcrumb
+          items={[
+            {
+              label: "Trang chủ",
+              path: "/",
+              icon: <HomeOutlined />,
+            },
+            {
+              label: "Gói khám",
+            },
+          ]}
+        />
+      </div>
+
       {/* Search Section */}
       <div className="package-search-section">
         <div className="container">

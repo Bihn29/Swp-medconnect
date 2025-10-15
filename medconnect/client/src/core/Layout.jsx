@@ -1,12 +1,17 @@
-import { privateRoutes } from "../routes/privateRoutes";
+import { Routes, Route } from "react-router-dom";
 import { publicRoutes } from "../routes/publicRoutes";
-import { Routes } from "react-router-dom";
+import { privateRoutes } from "../routes/privateRoutes";
+import ScrollToTop from "../components/ScrollToTop";
+
 const Layout = () => {
   return (
-    <Routes>
-      {publicRoutes}
-      {privateRoutes}
-    </Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
+        {publicRoutes}
+        {privateRoutes}
+      </Routes>
+    </>
   );
 };
 

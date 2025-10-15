@@ -7,6 +7,8 @@ export default function ResetPassword() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -36,10 +38,6 @@ export default function ResetPassword() {
     setMessage("");
     
     // Kiểm tra các trường bắt buộc
-    if (!token) {
-      setError("Thiếu mã xác thực. Vui lòng quay lại bước trước.");
-      return;
-    }
     if (!email) {
       setError("Vui lòng nhập email của bạn.");
       return;
@@ -71,9 +69,7 @@ export default function ResetPassword() {
       });
       await resetPasswordWithToken(token.trim(), email.trim(), password, confirm);
       setMessage("Đổi mật khẩu thành công. Bạn có thể đăng nhập lại.");
-      
   // No client-side persistent token to cleanup when using navigation state
-      
       setTimeout(() => navigate("/dang-nhap"), 1000);
     } catch (err) {
       // Parse error message from server
@@ -112,28 +108,72 @@ export default function ResetPassword() {
             style={{ backgroundColor: '#f5f5f5', color: '#666' }}
           />
           <div className="field-hint" style={{ fontSize: 12, color: "#4b7780", marginTop: 6, marginBottom: 8 }}>
-            Email đã được xác định từ bước trước.
+            Email của bạn.
           </div>
           {/* token is kept in state (hidden) and will be used on submit */}
-          <input
-            className="login-input"
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="Mật khẩu mới"
-            required
-          />
+          <div style={{ position: 'relative', width: '100%' }}>
+            <input
+              className="login-input"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Mật khẩu mới"
+              required
+              style={{ width: '100%', boxSizing: 'border-box', paddingRight: 56 }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(s => !s)}
+              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              style={{
+                position: 'absolute',
+                right: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                color: '#4b7780',
+                padding: 4,
+              }}
+            >
+              {showPassword ? 'Ẩn' : 'Hiện'}
+            </button>
+          </div>
           <div className="field-hint" style={{ fontSize: 12, color: "#4b7780", marginTop: 6, marginBottom: 8 }}>
             Mật khẩu ít nhất 8 ký tự.
           </div>
-          <input
-            className="login-input"
-            type="password"
-            value={confirm}
-            onChange={e => setConfirm(e.target.value)}
-            placeholder="Xác nhận mật khẩu mới"
-            required
-          />
+          <div style={{ position: 'relative', width: '100%' }}>
+            <input
+              className="login-input"
+              type={showConfirm ? 'text' : 'password'}
+              value={confirm}
+              onChange={e => setConfirm(e.target.value)}
+              placeholder="Xác nhận mật khẩu mới"
+              required
+              style={{ width: '100%', boxSizing: 'border-box', paddingRight: 56 }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm(s => !s)}
+              aria-label={showConfirm ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              title={showConfirm ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              style={{
+                position: 'absolute',
+                right: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                color: '#4b7780',
+                padding: 4,
+              }}
+            >
+              {showConfirm ? 'Ẩn' : 'Hiện'}
+            </button>
+          </div>
           <div className="field-hint" style={{ fontSize: 12, color: "#4b7780", marginTop: 6, marginBottom: 8 }}>
             Nhập lại mật khẩu.
           </div>

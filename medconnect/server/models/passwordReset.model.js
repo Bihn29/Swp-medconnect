@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Password_Resets
+ * OTP/Reset codes
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
@@ -13,13 +18,9 @@ const PasswordResetSchema = new Schema(
     attempts: { type: Number, default: 0 }, // Track failed attempts
     createdAt: { type: Date, default: Date.now },
   },
-  { collection: "PasswordResets" }
+  { collection: "Password_Resets" }
 );
 
 PasswordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-PasswordResetSchema.index(
-  { userId: 1, type: 1, used: 1, expiresAt: 1 },
-  { partialFilterExpression: { used: false }, name: "one_active_code_per_type" }
-);
 
 export default model("PasswordReset", PasswordResetSchema);

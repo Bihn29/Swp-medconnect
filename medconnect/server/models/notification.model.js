@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Notifications
+ *  Thông báo người dùng
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
@@ -13,10 +18,4 @@ const NotificationSchema = new Schema(
   { timestamps: true, collection: "Notifications" }
 );
 
-<<<<<<< HEAD
-// 🔴 NEW: index userId + status + createdAt
-NotificationSchema.index({ userId: 1, status: 1, createdAt: -1 });
-
-=======
->>>>>>> 9480e022804b868197ee8c9a464643a6467f711b
 export default model("Notification", NotificationSchema);
