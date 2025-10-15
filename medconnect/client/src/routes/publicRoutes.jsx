@@ -20,8 +20,6 @@ import Privacy from "../pages/Privacy/Privacy";
 import Terms from "../pages/Terms/Terms";
 import { Route } from "react-router-dom";
 import GuestMiddleware from "../middlewares/GuestMiddleware";
-import PatientDashboard from "../pages/Patient/PatientDashboard";
-import AppointmentBooking from "../pages/Appointment/AppointmentBooking";
 export const publicRoutes = (
   <>
     <Route element={<DefaultLayout />}>
@@ -36,8 +34,6 @@ export const publicRoutes = (
       <Route path="/goi-kham" element={<Package />} />
       <Route path="/chinh-sach-bao-mat" element={<Privacy />} />
       <Route path="/dieu-khoan-su-dung" element={<Terms />} />
-      <Route path="/patient" element={<PatientDashboard />} />
-      <Route path="/dat-lich-kham" element={<AppointmentBooking />} />
     </Route>
     <Route element={<AuthLayout />}>
       <Route element={<GuestMiddleware />}>

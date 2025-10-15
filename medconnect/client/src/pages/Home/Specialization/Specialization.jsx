@@ -140,7 +140,6 @@ const Specialization = () => {
     <Card
       className="specialization-card"
       hoverable
-      onClick={() => handleSpecializationClick(specialization.id)}
       style={{
         marginBottom: "16px",
         borderRadius: "12px",

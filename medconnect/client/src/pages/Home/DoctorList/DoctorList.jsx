@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../../hooks/useAuth";
 import {
   Row,
   Col,
@@ -34,6 +35,7 @@ const { Option } = Select;
 const DoctorList = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
@@ -371,7 +373,21 @@ const DoctorList = () => {
 
   const handleBookAppointment = (e, doctor) => {
     e.stopPropagation();
-    // Navigate to appointment booking page with doctor data
+
+    // Check if user is logged in
+    if (!user) {
+      // If not logged in, redirect to login page
+      navigate("/dang-nhap", {
+        state: {
+          from: "/dat-lich-kham",
+          doctor: doctor,
+          message: "Vui lòng đăng nhập để đặt lịch khám",
+        },
+      });
+      return;
+    }
+
+    // If logged in, navigate to appointment booking page with doctor data
     navigate("/dat-lich-kham", {
       state: {
         doctor: doctor,

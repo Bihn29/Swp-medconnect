@@ -81,11 +81,8 @@ const Header = () => {
   const [appointments, setAppointments] = useState([]); // ensure default array
   const [loadingAppts, setLoadingAppts] = useState(false);
 
-  // treat both english and vietnamese patient routes
-  const patientPaths = ["/patient", "/benh-nhan"];
-  const isPatientPage = patientPaths.some((p) =>
-    location.pathname.startsWith(p)
-  );
+  // Check if current page is patient page
+  const isPatientPage = location.pathname.startsWith("/patient");
 
   useEffect(() => {
     let mounted = true;
@@ -307,7 +304,22 @@ const Header = () => {
             type="primary"
             className="btn-booking"
             icon={<CalendarOutlined />}
-            onClick={() => navigate("/dat-lich")}
+            onClick={() => {
+              // Check if user is logged in
+              if (!user) {
+                // If not logged in, redirect to login page
+                navigate("/dang-nhap", {
+                  state: {
+                    from: "/dat-lich",
+                    message: "Vui lòng đăng nhập để đặt lịch khám",
+                  },
+                });
+                return;
+              }
+
+              // If logged in, navigate to appointment booking page
+              navigate("/dat-lich");
+            }}
           >
             Đặt lịch
           </Button>

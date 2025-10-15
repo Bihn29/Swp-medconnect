@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { auth } from "../../lib/firebase";
 import { Spin } from "antd";
 import { useUserProfile } from "../../hooks/useUserProfile";
-import { DashboardHeader } from "../../components/DashboardHeader";
 import {
   ProfileCard,
   QuickActions,
@@ -44,9 +43,10 @@ export default function PatientDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader userProfile={userProfile} />
-
-      <main className="container mx-auto px-4 py-6 lg:px-8 lg:py-8">
+      <main
+        className="container mx-auto px-4 py-6 lg:px-8 lg:py-8"
+        style={{ marginTop: "3rem", marginBottom: "3rem" }}
+      >
         <div className="space-y-6">
           {/* Top Section - Profile & Quick Actions */}
           <div className="grid gap-6 lg:grid-cols-3">

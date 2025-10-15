@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../hooks/useAuth";
 import {
   Row,
   Col,
@@ -30,6 +31,7 @@ const { Option } = Select;
 
 const Package = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -226,8 +228,23 @@ const Package = () => {
 
   const handleBookPackage = (e, packageId) => {
     e.stopPropagation();
-    // Handle booking package
+
+    // Check if user is logged in
+    if (!user) {
+      // If not logged in, redirect to login page
+      navigate("/dang-nhap", {
+        state: {
+          from: "/dat-lich-kham",
+          packageId: packageId,
+          message: "Vui lòng đăng nhập để đặt lịch khám",
+        },
+      });
+      return;
+    }
+
+    // If logged in, handle booking package
     console.log("Book package:", packageId);
+    // You can add more logic here to navigate to appointment booking
   };
 
   const formatPrice = (price) => {
