@@ -21,9 +21,9 @@ export const privateRoutes = (
       <Route element={<AuthMiddleware />}>
         <Route path="/tai-khoan" element={<Profile />} />
         <Route path="/benh-nhan" element={<PatientDashboard />} />
-        
+
         {/* Doctor Routes */}
-        <Route path="/bac-si/dashboard" element={<DoctorDashboard />} />
+        <Route path="/bac-si" element={<DoctorDashboard />} />
         <Route path="/bac-si/lich-hen" element={<AppointmentList />} />
         <Route path="/bac-si/lich-hen/:id" element={<AppointmentDetail />} />
         <Route path="/bac-si/lich-lam-viec" element={<CalendarView />} />
