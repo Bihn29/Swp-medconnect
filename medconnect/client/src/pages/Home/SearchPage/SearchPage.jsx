@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../hooks/useAuth";
 import {
   Row,
   Col,
@@ -34,6 +35,7 @@ const { Option } = Select;
 const SearchPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Lấy type từ URL params
   const searchParams = new URLSearchParams(location.search);
@@ -226,6 +228,28 @@ const SearchPage = () => {
     }
   };
 
+  const handleBookAppointment = (doctor) => {
+    // Check if user is logged in
+    if (!user) {
+      // If not logged in, redirect to login page
+      navigate("/dang-nhap", {
+        state: {
+          from: "/dat-lich-kham",
+          doctor: doctor,
+          message: "Vui lòng đăng nhập để đặt lịch khám",
+        },
+      });
+      return;
+    }
+
+    // If logged in, navigate to appointment booking page with doctor data
+    navigate("/dat-lich-kham", {
+      state: {
+        doctor: doctor,
+      },
+    });
+  };
+
   // Render item theo type
   const renderSearchItem = (item) => {
     switch (item.type) {
@@ -261,7 +285,12 @@ const SearchPage = () => {
               </Col>
               <Col flex="120px">
                 <Space direction="vertical" size="small">
-                  <Button type="primary" block icon={<CalendarOutlined />}>
+                  <Button
+                    type="primary"
+                    block
+                    icon={<CalendarOutlined />}
+                    onClick={() => handleBookAppointment(item)}
+                  >
                     Đặt lịch
                   </Button>
                   <Button block icon={<PhoneOutlined />}>

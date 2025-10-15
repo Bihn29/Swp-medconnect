@@ -1,21 +1,20 @@
 /* Specialization Page Styles */
 .specialization-page {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: #ffffff;
 }
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
+  border-bottom: none;
 }
 
 /* Search Section */
 .specialization-search-section {
-  background: white;
+  background: #ffffff;
   padding: 30px 0;
-  border-bottom: 1px solid #f0f0f0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .specialization-search-section .ant-input-search {
@@ -29,6 +28,7 @@
 /* Specialization List Section */
 .specialization-list-section {
   padding: 30px 0;
+  background: #ffffff;
 }
 
 .specialization-list {

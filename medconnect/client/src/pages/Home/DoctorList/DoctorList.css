@@ -1,5 +1,5 @@
-/* Facility Page Styles */
-.facility-page {
+/* Doctor Page Styles */
+.doctor-page {
   min-height: 100vh;
   background: #ffffff;
 }
@@ -12,32 +12,20 @@
 }
 
 /* Search Section */
-.facility-search-section {
+.doctor-search-section {
   background: #ffffff;
   padding: 30px 0;
 }
 
-.facility-search-section .ant-input-search {
+.doctor-search-section .ant-input-search {
   border-radius: 8px;
 }
 
-.facility-search-section .ant-select {
+.doctor-search-section .ant-select {
   border-radius: 8px;
 }
 
-/* Facility List Section */
-.facility-list-section {
-  padding: 30px 0;
-  background: #ffffff;
-}
-
-.facility-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Results Header */
+/* Search Filter Section */
 .results-header {
   margin-bottom: 24px;
 }
@@ -47,48 +35,65 @@
   font-weight: 500;
 }
 
-/* Facility Card */
-.facility-card {
+/* Doctor List Section */
+.doctor-list-section {
+  padding: 30px 0;
+  background: #ffffff;
+}
+
+.doctor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Doctor Card */
+.doctor-card {
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
-.facility-card:hover {
+.doctor-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
   border-color: #45c3d2 !important;
 }
 
-.facility-card .ant-card-body {
+.doctor-card .ant-card-body {
   padding: 20px;
 }
 
-.facility-info {
+.doctor-info {
   width: 100%;
 }
 
-.facility-info .ant-typography h4 {
+.doctor-info .ant-typography h4 {
   cursor: pointer;
   transition: color 0.3s ease;
 }
 
-.facility-info .ant-typography h4:hover {
+.doctor-info .ant-typography h4:hover {
   color: #45c3d2 !important;
 }
 
-/* Buttons */
-.facility-card .ant-btn {
+.doctor-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.doctor-actions .ant-btn {
   font-weight: 500;
   transition: all 0.3s ease;
 }
 
-.facility-card .ant-btn-primary:hover {
+.doctor-actions .ant-btn-primary:hover {
   background: #3ba8b8;
   border-color: #3ba8b8;
   transform: translateY(-1px);
 }
 
-.facility-card .ant-btn-default:hover {
+.doctor-actions .ant-btn-default:hover {
   background: rgba(69, 195, 210, 0.1);
   border-color: #3ba8b8;
   color: #3ba8b8;
@@ -101,14 +106,6 @@
 
 .ant-rate-star {
   margin-right: 2px;
-}
-
-/* Tags */
-.facility-info .ant-tag {
-  border-radius: 12px;
-  font-size: 12px;
-  padding: 2px 8px;
-  border: none;
 }
 
 /* Pagination */
@@ -139,34 +136,81 @@
     padding: 0 15px;
   }
 
-  .facility-search-section {
+  .doctor-header {
+    padding: 30px 0;
+    text-align: center;
+  }
+
+  .search-filter-section {
     padding: 20px 0;
   }
 
-  .facility-list-section {
+  .doctor-list-section {
     padding: 20px 0;
   }
 
-  .facility-card .ant-card-body {
+  .doctor-card .ant-card-body {
     padding: 16px;
   }
 
-  .facility-card .ant-row {
+  .doctor-card .ant-row {
     flex-direction: column;
     text-align: center;
     gap: 16px;
   }
 
-  .facility-card .ant-col {
+  .doctor-card .ant-col {
     flex: none;
     width: 100%;
+  }
+
+  .doctor-actions {
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .doctor-actions .ant-btn {
+    flex: 1;
   }
 }
 
 @media (max-width: 576px) {
-  .facility-search-section .ant-row {
+  .doctor-header .ant-typography h2 {
+    font-size: 1.5rem;
+  }
+
+  .search-filter-section .ant-row {
     flex-direction: column;
   }
+
+  .doctor-card .ant-avatar {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+/* Avatar */
+.doctor-card .ant-avatar {
+  border: 2px solid #f0f0f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Specialty Tags */
+.doctor-info .ant-tag {
+  border-radius: 12px;
+  font-size: 12px;
+  padding: 2px 8px;
+  border: none;
+  background: rgba(69, 195, 210, 0.1);
+  color: #45c3d2;
+}
+
+/* Price */
+.doctor-actions .price {
+  font-size: 18px;
+  font-weight: 600;
+  color: #f5222d;
+  margin-bottom: 8px;
 }
 
 /* Loading and Empty States */
@@ -177,4 +221,11 @@
 .loading-container {
   text-align: center;
   padding: 60px 0;
+}
+
+/* Search highlight */
+.highlight {
+  background-color: #fff3cd;
+  padding: 2px 4px;
+  border-radius: 3px;
 }

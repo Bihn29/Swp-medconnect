@@ -19,9 +19,10 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FB_MEASUREMENT_ID,
 };
 console.log("FB client project:", import.meta.env.VITE_FB_PROJECT_ID);
-console.log("FB apiKey starts:", (import.meta.env.VITE_FB_API_KEY || "").slice(0, 8));
-
-
+console.log(
+  "FB apiKey starts:",
+  (import.meta.env.VITE_FB_API_KEY || "").slice(0, 8)
+);
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -40,5 +41,3 @@ export function onAuth(cb) {
 export async function logout() {
   await signOut(auth);
 }
-
-

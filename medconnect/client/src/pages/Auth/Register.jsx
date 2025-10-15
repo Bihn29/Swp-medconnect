@@ -60,7 +60,7 @@ export default function Register() {
   const goByRole = (role) => {
     switch ((role || "").toUpperCase()) {
       case "PATIENT":
-        navigate("/benh-nhan");
+        navigate("/patient");
         break;
       case "DOCTOR":
         navigate("/bac-si");
@@ -346,7 +346,11 @@ export default function Register() {
               />
               <span>
                 Tôi đã đọc và đồng ý với {""}
-                <Link to="/dieu-khoan-su-dung" target="_blank" rel="noopener noreferrer">
+                <Link
+                  to="/dieu-khoan-su-dung"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Điều khoản sử dụng
                 </Link>
               </span>
@@ -363,7 +367,11 @@ export default function Register() {
               />
               <span>
                 Tôi đồng ý với {""}
-                <Link to="/chinh-sach-bao-mat" target="_blank" rel="noopener noreferrer">
+                <Link
+                  to="/chinh-sach-bao-mat"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Chính sách bảo mật
                 </Link>
               </span>
