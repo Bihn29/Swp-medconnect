@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Notifications
+ *  Thông báo người dùng
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 

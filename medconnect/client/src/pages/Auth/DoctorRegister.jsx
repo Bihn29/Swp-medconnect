@@ -220,7 +220,7 @@ export default function DoctorRegister() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="fullName" className="form-label">
-              Họ và tên *
+              Họ và tên <span className="required">*</span>
             </label>
             <input
               className="doctor-register-input"
@@ -238,7 +238,7 @@ export default function DoctorRegister() {
 
           <div className="form-group">
             <label htmlFor="phone" className="form-label">
-              Số điện thoại *
+              Số điện thoại <span className="required">*</span>
             </label>
             <input
               className="doctor-register-input"
@@ -254,7 +254,7 @@ export default function DoctorRegister() {
 
           <div className="form-group">
             <label htmlFor="email" className="form-label">
-              Email
+              Email <span className="required">*</span>
             </label>
             <input
               className="doctor-register-input"
@@ -269,11 +269,11 @@ export default function DoctorRegister() {
             {errors.email && <div className="error-text">{errors.email}</div>}
           </div>
 
-          <div className="form-group">
+          <div className="form-group password-field">
             <label htmlFor="password" className="form-label">
-              Mật khẩu *
+              Mật khẩu <span className="required">*</span>
             </label>
-            <div className="password-group">
+            <div className="input-wrapper">
               <input
                 className="doctor-register-input"
                 id="password"
@@ -296,11 +296,11 @@ export default function DoctorRegister() {
             )}
           </div>
 
-          <div className="form-group">
+          <div className="form-group password-field">
             <label htmlFor="confirmPassword" className="form-label">
-              Xác nhận mật khẩu *
+              Xác nhận mật khẩu <span className="required">*</span>
             </label>
-            <div className="password-group">
+            <div className="input-wrapper">
               <input
                 className="doctor-register-input"
                 id="confirmPassword"
@@ -308,7 +308,7 @@ export default function DoctorRegister() {
                 type={showConfirmPassword ? "text" : "password"}
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
-                placeholder="Xác nhận mật khẩu bên trên"
+                placeholder="Xác nhận mật khẩu"
                 autoComplete="new-password"
               />
               <i
@@ -325,7 +325,7 @@ export default function DoctorRegister() {
 
           <div className="form-group">
             <label htmlFor="specialty" className="form-label">
-              Chuyên khoa *
+              Chuyên khoa <span className="required">*</span>
             </label>
             <select
               className="doctor-register-input"
@@ -348,7 +348,7 @@ export default function DoctorRegister() {
 
           <div className="form-group">
             <label htmlFor="licenseNumber" className="form-label">
-              Số chứng chỉ hành nghề *
+              Số chứng chỉ hành nghề <span className="required">*</span>
             </label>
             <input
               className="doctor-register-input"
@@ -365,7 +365,7 @@ export default function DoctorRegister() {
 
           <div className="form-group">
             <label htmlFor="licenseImage" className="form-label">
-              Ảnh chứng chỉ hành nghề *
+              Ảnh chứng chỉ hành nghề <span className="required">*</span>
             </label>
             <div className="file-upload-group">
               <input

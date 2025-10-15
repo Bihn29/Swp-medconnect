@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Password_Resets
+ * OTP/Reset codes
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
@@ -12,5 +17,7 @@ const PasswordResetSchema = new Schema(
   },
   { collection: "Password_Resets" }
 );
+
+PasswordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export default model("PasswordReset", PasswordResetSchema);

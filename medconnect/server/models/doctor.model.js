@@ -1,14 +1,15 @@
+/* =======================================================
+ * COLLECTION: Doctors
+ *  Hồ sơ bác sĩ
+ * ======================================================= */
+
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
 const DoctorSchema = new Schema(
   {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      unique: true,
-    },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
     fullName: { type: String, required: true, trim: true },
     licenseNo: String,
     yearsExperience: Number,
@@ -25,5 +26,7 @@ const DoctorSchema = new Schema(
 
 DoctorSchema.index({ isVerified: 1, specializationIds: 1 });
 DoctorSchema.index({ fullName: "text", bio: "text" });
+DoctorSchema.index({ isVerified: 1, specializationIds: 1, ratingAvg: -1 });
 
 export default model("Doctor", DoctorSchema);
+

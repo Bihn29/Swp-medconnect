@@ -78,6 +78,11 @@
   font-weight: 600;
   color: #374151;
   margin-bottom: 4px;
+  
+  .required {
+    color: #dc2626;
+    margin-left: 2px;
+  }
 }
 
 .doctor-register-input, 
@@ -96,6 +101,7 @@
   color: #2d3748;
   background: #ffffff;
   transition: all 0.2s ease;
+  min-height: 54px; /* Đảm bảo chiều cao nhất quán */
   
   &::placeholder {
     color: #9ca3af;
@@ -114,19 +120,18 @@
   &:invalid {
     border-color: #dc2626;
   }
-}
-
-.password-group { 
-  position: relative; 
   
-  .doctor-register-input {
-    margin-bottom: 0;
+  /* Thêm padding-right cho các input password để có không gian cho icon */
+  &[type="password"], 
+  &[name="password"], 
+  &[name="confirmPassword"] {
+    padding-right: 50px;
   }
 }
 
 .password-toggle {
   position: absolute;
-  right: 14px;
+  right: 16px;
   top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
@@ -135,10 +140,29 @@
   transition: color 0.2s ease;
   pointer-events: auto;
   padding: 8px;
+  background: transparent;
+  border: none;
+  z-index: 2;
   
   &:hover {
     color: #2d3748;
   }
+}
+
+.form-group {
+  position: relative;
+}
+
+/* Input wrapper cho password fields */
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.input-wrapper .password-toggle {
+  /* Icon sẽ căn giữa theo input field trong wrapper */
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .file-upload-group {
