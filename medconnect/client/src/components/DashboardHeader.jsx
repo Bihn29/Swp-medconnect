@@ -30,7 +30,7 @@ export function DashboardHeader({ userProfile }) {
             >
               MedConnect
             </h1>
-            <p className="text-sm text-muted-foreground">Dashboard bệnh nhân</p>
+            <p className="text-sm text-muted-foreground">Trang cá nhân bệnh nhân</p>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">

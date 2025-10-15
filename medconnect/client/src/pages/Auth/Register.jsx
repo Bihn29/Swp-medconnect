@@ -60,7 +60,7 @@ export default function Register() {
   const goByRole = (role) => {
     switch ((role || "").toUpperCase()) {
       case "PATIENT":
-        navigate("/patient");
+        navigate("/benh-nhan");
         break;
       case "DOCTOR":
         navigate("/bac-si");
@@ -259,83 +259,113 @@ export default function Register() {
       <div aria-hidden className="register-overlay" />
 
       <div className="register-card register-center-fixed">
-        <h1 className="register-title">Đăng ký tài khoản MedConnect</h1>
+        <h1 className="register-title">ĐĂNG KÝ CHO BỆNH NHÂN</h1>
 
         <form onSubmit={handleSubmit}>
-          <input
-            className="register-input"
-            name="fullName"
-            value={formData.fullName}
-            onChange={handleInputChange}
-            placeholder="Họ và tên"
-            autoComplete="name"
-          />
-          {errors.fullName && (
-            <div className="error-text">{errors.fullName}</div>
-          )}
-
-          <input
-            className="register-input"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleInputChange}
-            placeholder="Email"
-            autoComplete="email"
-          />
-          {errors.email && <div className="error-text">{errors.email}</div>}
-
-          <input
-            className="register-input"
-            name="phone"
-            value={formData.phone}
-            onChange={handleInputChange}
-            placeholder="Số điện thoại"
-            autoComplete="tel"
-          />
-          {errors.phone && <div className="error-text">{errors.phone}</div>}
-
-          <div className="password-group">
+          <div className="form-group">
+            <label htmlFor="fullName" className="form-label">
+              Họ và tên <span className="required">*</span>
+            </label>
             <input
               className="register-input"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              value={formData.password}
+              id="fullName"
+              name="fullName"
+              value={formData.fullName}
               onChange={handleInputChange}
-              placeholder="Mật khẩu"
-              autoComplete="new-password"
+              placeholder="Nhập họ và tên"
+              autoComplete="name"
             />
-            <i
-              className={`bi ${
-                showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
-              } password-toggle`}
-              onClick={() => setShowPassword(!showPassword)}
-            />
+            {errors.fullName && (
+              <div className="error-text">{errors.fullName}</div>
+            )}
           </div>
-          {errors.password && (
-            <div className="error-text">{errors.password}</div>
-          )}
 
-          <div className="password-group">
+          <div className="form-group">
+            <label htmlFor="email" className="form-label">
+              Email <span className="required">*</span>
+            </label>
             <input
               className="register-input"
-              name="confirmPassword"
-              type={showConfirmPassword ? "text" : "password"}
-              value={formData.confirmPassword}
+              id="email"
+              name="email"
+              type="email"
+              value={formData.email}
               onChange={handleInputChange}
-              placeholder="Xác nhận mật khẩu"
-              autoComplete="new-password"
+              placeholder="Nhập địa chỉ email"
+              autoComplete="email"
             />
-            <i
-              className={`bi ${
-                showConfirmPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
-              } password-toggle`}
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            />
+            {errors.email && <div className="error-text">{errors.email}</div>}
           </div>
-          {errors.confirmPassword && (
-            <div className="error-text">{errors.confirmPassword}</div>
-          )}
+
+          <div className="form-group">
+            <label htmlFor="phone" className="form-label">
+              Số điện thoại <span className="required">*</span>
+            </label>
+            <input
+              className="register-input"
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleInputChange}
+              placeholder="Nhập số điện thoại"
+              autoComplete="tel"
+            />
+            {errors.phone && <div className="error-text">{errors.phone}</div>}
+          </div>
+
+          <div className="form-group password-field">
+            <label htmlFor="password" className="form-label">
+              Mật khẩu <span className="required">*</span>
+            </label>
+            <div className="input-wrapper">
+              <input
+                className="register-input"
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleInputChange}
+                placeholder="Nhập mật khẩu"
+                autoComplete="new-password"
+              />
+              <i
+                className={`bi ${
+                  showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
+                } password-toggle`}
+                onClick={() => setShowPassword(!showPassword)}
+              />
+            </div>
+            {errors.password && (
+              <div className="error-text">{errors.password}</div>
+            )}
+          </div>
+
+          <div className="form-group password-field">
+            <label htmlFor="confirmPassword" className="form-label">
+              Xác nhận mật khẩu <span className="required">*</span>
+            </label>
+            <div className="input-wrapper">
+              <input
+                className="register-input"
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                placeholder="Xác nhận mật khẩu"
+                autoComplete="new-password"
+              />
+              <i
+                className={`bi ${
+                  showConfirmPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
+                } password-toggle`}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              />
+            </div>
+            {errors.confirmPassword && (
+              <div className="error-text">{errors.confirmPassword}</div>
+            )}
+          </div>
 
           <div className="consent">
             <label className="consent-row">

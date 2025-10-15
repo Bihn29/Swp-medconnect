@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Consultation_summaries
+ * Tóm tắt tư vấn
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 

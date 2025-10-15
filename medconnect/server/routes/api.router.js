@@ -2,6 +2,8 @@ import express from "express";
 const apiRouter = express.Router();
 import userRouter from "./users/user.route.js";
 import authRouter from "./authRoutes.js";
+import doctorRouter from "./doctorRoutes.js";
+import notificationRouter from "./notificationRoutes.js";
 import specializationRouter from "./specializations/specialization.route.js";
 import patientRouter from "./patientRoutes.js";
 
@@ -12,6 +14,14 @@ apiRouter.use("/auth", authRouter);
 apiRouter.use("/patients", patientRouter);
 apiRouter.use("/specializations", specializationRouter); // Mount specialization router at /api/specializations
 console.log("[router] mounted /api/auth");
+
+// Doctor routes
+apiRouter.use("/doctors", doctorRouter);
+console.log("[router] mounted /api/doctors");
+
+// Notification routes
+apiRouter.use("/notifications", notificationRouter);
+console.log("[router] mounted /api/notifications");
 
 //admin
 // apiRouter.use("/doctor", adminRouter);

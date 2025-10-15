@@ -198,7 +198,7 @@
 /* Specialty Tags */
 .doctor-info .ant-tag {
   border-radius: 12px;
-  font-size: 12px;
+font-size: 12px;
   padding: 2px 8px;
   border: none;
   background: rgba(69, 195, 210, 0.1);

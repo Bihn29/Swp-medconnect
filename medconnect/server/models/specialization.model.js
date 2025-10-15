@@ -1,3 +1,9 @@
+/* =======================================================
+ * COLLECTION: Specializations
+ *  Chuyên khoa
+ * ======================================================= */
+
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 

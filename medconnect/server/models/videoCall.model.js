@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Video_calls
+ *  Phòng video online
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 

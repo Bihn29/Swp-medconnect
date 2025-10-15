@@ -1,3 +1,9 @@
+/* =======================================================
+ * COLLECTION: License_verifications
+ *  Duyệt giấy phép
+ * ======================================================= */
+
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
