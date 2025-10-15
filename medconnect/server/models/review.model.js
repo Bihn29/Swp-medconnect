@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Reviews
+ *  Đánh giá bác sĩ
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 

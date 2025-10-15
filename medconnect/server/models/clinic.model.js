@@ -1,3 +1,8 @@
+/* =======================================================
+ * COLLECTION: Clinics
+ *  Phòng khám/địa điểm
+ * ======================================================= */
+
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
@@ -13,14 +18,9 @@ const ClinicSchema = new Schema(
   { timestamps: true, versionKey: false, collection: "Clinics" }
 );
 
-// 🔴 NEW: validate GeoJSON
 ClinicSchema.path("geo").validate(function (v) {
   if (!v) return true;
-  return (
-    v.type === "Point" &&
-    Array.isArray(v.coordinates) &&
-    v.coordinates.length === 2
-  );
+  return v.type === "Point" && Array.isArray(v.coordinates) && v.coordinates.length === 2;
 }, "geo must be GeoJSON Point with [lng, lat]");
 
 ClinicSchema.index({ geo: "2dsphere" });
