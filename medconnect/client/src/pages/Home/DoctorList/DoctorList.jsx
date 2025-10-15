@@ -320,6 +320,36 @@ const DoctorList = () => {
     }
   }, [location.search]);
 
+  // Get breadcrumb items based on current context
+  const getBreadcrumbItems = () => {
+    const params = new URLSearchParams(location.search);
+    const qSpecialty = params.get("specialty");
+
+    const items = [
+      {
+        label: "Trang chủ",
+        path: "/",
+        icon: <HomeOutlined />,
+      },
+    ];
+
+    // If coming from specialization page, add specialization to breadcrumb
+    if (qSpecialty && qSpecialty !== "all") {
+      items.push({
+        label: qSpecialty,
+        path: "/chuyen-khoa",
+      });
+    }
+
+    // Always add "Bác sĩ" as the last item
+    items.push({
+      label: "Bác sĩ",
+      path: "/bac-si",
+    });
+
+    return items;
+  };
+
   // Filter doctors based on search term and specialty
   const filteredDoctors = doctors.filter((doctor) => {
     const matchesSearch =
@@ -476,18 +506,7 @@ const DoctorList = () => {
     <div className="doctor-page">
       {/* Breadcrumb */}
       <div className="container">
-        <NavigationBreadcrumb
-          items={[
-            {
-              label: "Trang chủ",
-              path: "/",
-              icon: <HomeOutlined />,
-            },
-            {
-              label: "Bác sĩ",
-            },
-          ]}
-        />
+        <NavigationBreadcrumb items={getBreadcrumbItems()} />
       </div>
 
       {/* Search Section */}

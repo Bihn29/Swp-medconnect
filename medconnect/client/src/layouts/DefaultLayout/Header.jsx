@@ -31,8 +31,8 @@ const Header = () => {
       label: "Chuyên khoa",
       path: "/chuyen-khoa",
     },
-    { key: "facility", label: "Cơ sở y tế", path: "/co-so-y-te" },
     { key: "doctor", label: "Bác sĩ", path: "/bac-si" },
+    { key: "facility", label: "Cơ sở y tế", path: "/co-so-y-te" },
     { key: "package", label: "Gói khám", path: "/goi-kham" },
   ];
 
