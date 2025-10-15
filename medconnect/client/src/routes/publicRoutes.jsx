@@ -6,7 +6,7 @@ import About from "../pages/About/About";
 import HomeVisit from "../pages/Home/HomeVisit/HomeVisit";
 import HospitalVisit from "../pages/Home/HospitalVisit/HospitalVisit";
 import SearchPage from "../pages/Home/SearchPage/SearchPage";
-import Doctor from "../pages/Home/Doctor/Doctor";
+import DoctorList from "../pages/Home/DoctorList/DoctorList";
 import Specialization from "../pages/Home/Specialization/Specialization";
 import Facility from "../pages/Home/Facility/Facility";
 import Package from "../pages/Home/Package/Package";
@@ -21,6 +21,7 @@ import Terms from "../pages/Terms/Terms";
 import { Route } from "react-router-dom";
 import GuestMiddleware from "../middlewares/GuestMiddleware";
 import PatientDashboard from "../pages/Patient/PatientDashboard";
+import AppointmentBooking from "../pages/Appointment/AppointmentBooking";
 export const publicRoutes = (
   <>
     <Route element={<DefaultLayout />}>
@@ -29,13 +30,14 @@ export const publicRoutes = (
       <Route path="/kham-tai-nha" element={<HomeVisit />} />
       <Route path="/kham-tai-vien" element={<HospitalVisit />} />
       <Route path="/tim-kiem" element={<SearchPage />} />
-      <Route path="/bac-si" element={<Doctor />} />
+      <Route path="/bac-si" element={<DoctorList />} />
       <Route path="/chuyen-khoa" element={<Specialization />} />
       <Route path="/co-so-y-te" element={<Facility />} />
       <Route path="/goi-kham" element={<Package />} />
       <Route path="/chinh-sach-bao-mat" element={<Privacy />} />
       <Route path="/dieu-khoan-su-dung" element={<Terms />} />
       <Route path="/patient" element={<PatientDashboard />} />
+      <Route path="/dat-lich-kham" element={<AppointmentBooking />} />
     </Route>
     <Route element={<AuthLayout />}>
       <Route element={<GuestMiddleware />}>

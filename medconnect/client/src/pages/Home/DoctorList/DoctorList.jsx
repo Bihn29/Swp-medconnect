@@ -24,12 +24,12 @@ import {
   SearchOutlined,
   MedicineBoxOutlined,
 } from "@ant-design/icons";
-import "./Doctor.css";
+import "./DoctorList.css";
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-const Doctor = () => {
+const DoctorList = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -175,10 +175,14 @@ const Doctor = () => {
     console.log("Navigate to doctor detail:", doctorId);
   };
 
-  const handleBookAppointment = (e, doctorId) => {
+  const handleBookAppointment = (e, doctor) => {
     e.stopPropagation();
-    // Handle booking appointment
-    console.log("Book appointment with doctor:", doctorId);
+    // Navigate to appointment booking page with doctor data
+    navigate("/dat-lich-kham", {
+      state: {
+        doctor: doctor,
+      },
+    });
   };
 
   const handleSearch = (value) => {
@@ -277,7 +281,7 @@ const Doctor = () => {
               type="primary"
               size="large"
               block
-              onClick={(e) => handleBookAppointment(e, doctor.id)}
+              onClick={(e) => handleBookAppointment(e, doctor)}
               style={{
                 backgroundColor: "#45c3d2",
                 borderColor: "#45c3d2",
@@ -380,4 +384,4 @@ const Doctor = () => {
   );
 };
 
-export default Doctor;
+export default DoctorList;
