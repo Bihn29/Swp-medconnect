@@ -34,7 +34,7 @@ const UserSchema = new Schema(
       default: "local",
     },
   },
-  { timestamps: true, versionKey: false, collection: "users" }
+  { timestamps: true, versionKey: false, collection: "Users" }
 );
 
 export default model("User", UserSchema);

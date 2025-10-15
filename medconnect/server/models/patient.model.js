@@ -19,7 +19,7 @@ const PatientSchema = new Schema(
     districtCode: Number,
     provinceCode: Number,
   },
-  { timestamps: true, versionKey: false, collection: "patients" }
+  { timestamps: true, versionKey: false, collection: "Patients" }
 );
 
 PatientSchema.index({ provinceCode: 1, districtCode: 1, wardCode: 1 });

@@ -20,12 +20,12 @@ import {
   CalendarOutlined,
   StarOutlined,
 } from "@ant-design/icons";
-import "./ListDoctor.css";
+import "./DoctorList.css";
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-const ListDoctor = () => {
+const DoctorList = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -393,4 +393,4 @@ if (value === "all") {
   );
 };
 
-export default ListDoctor;
+export default DoctorList;
