@@ -42,13 +42,15 @@ const Header = () => {
   const isSpecialtyPage = location.pathname === "/chuyen-khoa";
   const isFacilityPage = location.pathname === "/co-so-y-te";
   const isPackagePage = location.pathname === "/goi-kham";
+  const isAppointmentPage = location.pathname === "/dat-lich-kham";
 
   const useSearchCategories =
     isSearchPage ||
     isDoctorPage ||
     isSpecialtyPage ||
     isFacilityPage ||
-    isPackagePage;
+    isPackagePage ||
+    isAppointmentPage;
   const categories = useSearchCategories ? searchCategories : defaultCategories;
 
   const [activeCat, setActiveCat] = useState("all");
@@ -154,19 +156,31 @@ const Header = () => {
 
   // Set active category based on current path
   useEffect(() => {
-    // Nếu đang sử dụng searchCategories navigation, không highlight mục nào
-    if (useSearchCategories) {
-      setActiveCat("");
-    } else if (location.pathname === "/kham-tai-nha") {
+    const currentPath = location.pathname;
+
+    // Nếu đang ở trang appointment, highlight "Bác sĩ" vì appointment thường đến từ trang bác sĩ
+    if (currentPath === "/dat-lich-kham") {
+      setActiveCat("doctor");
+    } else if (currentPath === "/chuyen-khoa") {
+      setActiveCat("specialty");
+    } else if (currentPath === "/co-so-y-te") {
+      setActiveCat("facility");
+    } else if (currentPath === "/bac-si") {
+      setActiveCat("doctor");
+    } else if (currentPath === "/goi-kham") {
+      setActiveCat("package");
+    } else if (currentPath === "/tim-kiem") {
+      setActiveCat("specialty"); // Default to specialty for search page
+    } else if (currentPath === "/kham-tai-nha") {
       setActiveCat("home");
-    } else if (location.pathname === "/kham-tai-vien") {
+    } else if (currentPath === "/kham-tai-vien") {
       setActiveCat("hospital");
-    } else if (location.pathname === "/gioi-thieu") {
+    } else if (currentPath === "/gioi-thieu") {
       setActiveCat("about");
     } else {
       setActiveCat("all");
     }
-  }, [location.pathname, location.search, useSearchCategories]);
+  }, [location.pathname]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));

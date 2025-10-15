@@ -2,11 +2,13 @@
 .navigation-breadcrumb {
   margin-bottom: 24px;
   padding: 12px 0;
+  border-bottom: none;
 }
 
 .navigation-breadcrumb .ant-breadcrumb-link {
   color: #666;
-  font-size: 14px;
+  font-size: 18px;
+  font-weight: 600;
   text-decoration: none;
   transition: color 0.3s ease;
 }
@@ -18,6 +20,7 @@
 
 .navigation-breadcrumb .ant-breadcrumb-link a {
   color: inherit;
+  font-weight: inherit;
   text-decoration: none;
   transition: color 0.3s ease;
 }
@@ -29,12 +32,22 @@
 
 .navigation-breadcrumb .ant-breadcrumb-separator {
   color: #999;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.navigation-breadcrumb .ant-breadcrumb {
+  border-bottom: none;
+}
+
+.navigation-breadcrumb .ant-breadcrumb-item {
+  border-bottom: none;
 }
 
 /* Last breadcrumb item (current page) should not be clickable */
 .navigation-breadcrumb .ant-breadcrumb-item:last-child .ant-breadcrumb-link {
   color: #262626;
-  font-weight: 500;
+  font-weight: 700;
   cursor: default;
 }
 
@@ -48,6 +61,15 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-weight: 600;
+}
+
+.breadcrumb-separator {
+  margin: 0 4px;
+  color: #999;
+  font-weight: 600;
+  font-size: 18px;
+  display: inline-block;
 }
 
 /* Responsive */
@@ -58,6 +80,15 @@
   }
 
   .navigation-breadcrumb .ant-breadcrumb-link {
-    font-size: 12px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .breadcrumb-separator {
+    font-size: 16px;
+  }
+
+  .navigation-breadcrumb .ant-breadcrumb-separator {
+    font-size: 16px;
   }
 }

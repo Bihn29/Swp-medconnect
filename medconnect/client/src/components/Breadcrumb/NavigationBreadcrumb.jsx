@@ -26,14 +26,34 @@ const NavigationBreadcrumb = ({ items = [] }) => {
     // Clickable items
     return (
       <Breadcrumb.Item key={index}>
-        <a
-          href={item.path}
-          onClick={(e) => handleNavigation(item.path, e)}
-          className="breadcrumb-link"
-        >
-          {item.icon && item.icon}
-          {item.label}
-        </a>
+        {item.icon && (
+          <>
+            <a
+              href={item.path}
+              onClick={(e) => handleNavigation(item.path, e)}
+              className="breadcrumb-link"
+            >
+              {item.icon}
+            </a>
+            <span className="breadcrumb-separator">/</span>
+            <a
+              href={item.path}
+              onClick={(e) => handleNavigation(item.path, e)}
+              className="breadcrumb-link"
+            >
+              {item.label}
+            </a>
+          </>
+        )}
+        {!item.icon && (
+          <a
+            href={item.path}
+            onClick={(e) => handleNavigation(item.path, e)}
+            className="breadcrumb-link"
+          >
+            {item.label}
+          </a>
+        )}
       </Breadcrumb.Item>
     );
   };
