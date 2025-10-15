@@ -1,0 +1,176 @@
+@import '../styles/variables';
+@import '../styles/mixins';
+
+.dashboard-overview {
+  &__header {
+    margin-bottom: $spacing-xl;
+
+    h2 {
+      font-size: $font-size-3xl;
+      font-weight: 700;
+      color: $gray-900;
+      margin: 0 0 $spacing-sm 0;
+    }
+
+    p {
+      font-size: $font-size-base;
+      color: $gray-600;
+      margin: 0;
+    }
+  }
+
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: $spacing-lg;
+    margin-bottom: $spacing-xl;
+  }
+
+  &__stat-card {
+    @include card;
+    @include flex-between;
+
+    &-content {
+      h3 {
+        font-size: $font-size-sm;
+        font-weight: 500;
+        color: $gray-600;
+        margin: 0 0 $spacing-sm 0;
+      }
+
+      p {
+        font-size: $font-size-3xl;
+        font-weight: 700;
+        color: $gray-900;
+        margin: 0;
+      }
+    }
+
+    &-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: $radius-lg;
+      @include flex-center;
+
+      &.primary {
+        background-color: $primary-light;
+        color: $primary-color;
+      }
+
+      &.accent {
+        background-color: lighten($accent-color, 35%);
+        color: $accent-color;
+      }
+
+      &.success {
+        background-color: $success-light;
+        color: $success;
+      }
+
+      svg {
+        width: 24px;
+        height: 24px;
+      }
+    }
+  }
+
+  &__content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: $spacing-xl;
+
+    @include tablet {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__appointments {
+    @include card;
+
+    h3 {
+      font-size: $font-size-xl;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0 0 $spacing-lg 0;
+    }
+  }
+
+  &__appointment-list {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+  }
+
+  &__appointment-item {
+    padding: $spacing-md;
+    border: 1px solid $gray-200;
+    border-radius: $radius-md;
+    transition: all $transition-base;
+
+    &:hover {
+      border-color: $primary-color;
+      box-shadow: $shadow-sm;
+    }
+
+    &-header {
+      @include flex-between;
+      margin-bottom: $spacing-sm;
+    }
+
+    &-name {
+      font-weight: 600;
+      color: $gray-900;
+    }
+
+    &-time {
+      font-size: $font-size-sm;
+      color: $gray-600;
+    }
+
+    &-type {
+      @include badge($primary-light, $primary-color);
+    }
+  }
+
+  &__quick-actions {
+    @include card;
+
+    h3 {
+      font-size: $font-size-xl;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0 0 $spacing-lg 0;
+    }
+  }
+
+  &__action-list {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+  }
+
+  &__action-button {
+    @include button-base;
+    @include flex-between;
+    background-color: $gray-50;
+    color: $gray-900;
+    text-align: left;
+    width: 100%;
+
+    &:hover {
+      background-color: $primary-light;
+      color: $primary-color;
+    }
+
+    span {
+      display: flex;
+      align-items: center;
+      gap: $spacing-md;
+    }
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+}
