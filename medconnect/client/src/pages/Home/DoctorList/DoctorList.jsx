@@ -346,7 +346,7 @@ const DoctorList = () => {
     // Always add "Bác sĩ" as the last item
     items.push({
       label: "Bác sĩ",
-      path: "/bac-si",
+      path: "/danh-sach-bac-si",
     });
 
     return items;

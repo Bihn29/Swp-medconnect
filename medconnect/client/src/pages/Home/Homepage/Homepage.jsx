@@ -23,8 +23,8 @@ import "./Homepage.css";
 const { Title, Paragraph } = Typography;
 
 const Homepage = () => {
-    const navigate = useNavigate();
-    const [specializations, setSpecializations] = useState([]);
+  const navigate = useNavigate();
+  const [specializations, setSpecializations] = useState([]);
 
   // ---- Custom arrow components for react-slick ----
   const SampleNextArrow = (props) => {
@@ -89,7 +89,7 @@ const Homepage = () => {
       title: "Tìm bác sĩ uy tín",
       description:
         "Tìm kiếm bác sĩ theo chuyên khoa, tên hoặc địa điểm gần bạn",
-      link: "/bac-si  ",
+      link: "/danh-sach-bac-si",
     },
     {
       icon: <HomeOutlined style={{ fontSize: "48px", color: "#45c3d2" }} />,
@@ -196,7 +196,9 @@ const Homepage = () => {
         console.error("Fetch specializations failed:", err);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return (
@@ -262,7 +264,7 @@ const Homepage = () => {
           </Title>
           <Row gutter={[32, 32]}>
             <Col xs={24} sm={12} md={8}>
-              <Link to="/bac-si">
+              <Link to="/danh-sach-bac-si">
                 <Card
                   hoverable
                   variant="plain" // was bordered={false}
@@ -710,7 +712,7 @@ const Homepage = () => {
               Bác sĩ nổi bật
             </Title>
             <Link
-              to="/bac-si"
+              to="/danh-sach-bac-si"
               style={{
                 background: "#c8f3f3",
                 padding: "8px 20px",
