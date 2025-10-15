@@ -1,4 +1,3 @@
-// client/src/pages/Doctor/AppointmentList.jsx
 "use client";
 
 import PropTypes from "prop-types";

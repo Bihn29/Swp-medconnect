@@ -1,4 +1,4 @@
-// client/src/pages/Doctor/DashboardOverview.jsx
+
 "use client"
 
 import PropTypes from "prop-types"
@@ -65,7 +65,6 @@ const DashboardOverview = ({ onViewAppointments, onViewSchedule, onViewNotificat
   }
 
   const formatAppointmentType = (appointment) => {
-    // You can customize this based on your appointment data structure
     return appointment.reason || "Khám tổng quát"
   }
 
@@ -206,7 +205,7 @@ const DashboardOverview = ({ onViewAppointments, onViewSchedule, onViewNotificat
 }
 
 DashboardOverview.propTypes = {
-  onViewAppointments: PropTypes.func, // optional; parent dùng để chuyển sang màn danh sách lịch hẹn
+  onViewAppointments: PropTypes.func, 
 }
 
 DashboardOverview.defaultProps = {

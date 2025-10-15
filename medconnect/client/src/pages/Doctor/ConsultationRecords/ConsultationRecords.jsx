@@ -8,7 +8,6 @@ const ConsultationRecords = () => {
   const [showForm, setShowForm] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
 
-  // Get consultation records with summaries and prescriptions
   const { records, loading, error } = useConsultationRecords({
     limit: 50
   })
