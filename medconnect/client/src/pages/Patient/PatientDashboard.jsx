@@ -1,185 +1,80 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../../lib/firebase";
-import { Button, Card, List, Avatar, Empty } from "antd";
+import { Spin } from "antd";
+import { useUserProfile } from "../../hooks/useUserProfile";
 import {
-  FileTextOutlined,
-  CalendarOutlined,
-  CreditCardOutlined,
-  AppstoreOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
+  ProfileCard,
+  QuickActions,
+  UpcomingAppointments,
+  AppointmentHistory,
+  PaymentHistory,
+  NotificationsCenter,
+  DoctorSearchShortcut,
+} from "./components";
 import "./PatientDashboard.scss";
 
 export default function PatientDashboard() {
-  const navigate = useNavigate();
   const [user, setUser] = useState(null);
-
-  // demo data placeholders (you can keep your API calls)
-  const [records, setRecords] = useState([]);
-  const [appointments, setAppointments] = useState([]);
-  const [payments, setPayments] = useState([]);
-
-  // sidebar state
-  const [activeTab, setActiveTab] = useState("all"); // all | records | appointments | payments
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const {
+    userProfile,
+    loading: profileLoading,
+    error: profileError,
+  } = useUserProfile();
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged((u) => setUser(u));
-    return () => unsub();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // Simple render helpers
-  const Records = () => (
-    <Card className="card section">
-      <h3>
-        <FileTextOutlined /> Hồ sơ khám điện tử
-      </h3>
-      {records.length === 0 ? (
-        <Empty description="Chưa có hồ sơ" />
-      ) : (
-        <List
-          dataSource={records}
-          renderItem={(r) => (
-            <List.Item>
-              <List.Item.Meta
-                avatar={<Avatar icon={<FileTextOutlined />} />}
-                title={r.title || "Hồ sơ khám"}
-                description={r.date || r.hospital}
-              />
-            </List.Item>
-          )}
-        />
-      )}
-    </Card>
-  );
-
-  const Appointments = () => (
-    <Card className="card section">
-      <h3>
-        <CalendarOutlined /> Lịch hẹn
-      </h3>
-      {appointments.length === 0 ? (
-        <Empty description="Chưa có lịch hẹn" />
-      ) : (
-        <List
-          dataSource={appointments}
-          renderItem={(a) => (
-            <List.Item>
-              <List.Item.Meta
-                avatar={<Avatar>{(a.doctorName || "D").slice(0, 1)}</Avatar>}
-                title={a.title || a.doctorName}
-                description={a.date}
-              />
-            </List.Item>
-          )}
-        />
-      )}
-    </Card>
-  );
-
-  const Payments = () => (
-    <Card className="card section">
-      <h3>
-        <CreditCardOutlined /> Lịch sử thanh toán
-      </h3>
-      {payments.length === 0 ? (
-        <Empty description="Chưa có giao dịch" />
-      ) : (
-        <List
-          dataSource={payments}
-          renderItem={(p) => (
-            <List.Item>
-              <List.Item.Meta
-                avatar={<Avatar icon={<CreditCardOutlined />} />}
-                title={p.description || "Thanh toán"}
-                description={p.date}
-              />
-            </List.Item>
-          )}
-        />
-      )}
-    </Card>
-  );
+  if (loading || profileLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spin size="large" tip="Đang tải dữ liệu..." />
+      </div>
+    );
+  }
 
   return (
-    <div className="patient-dashboard container">
-      <div className="dashboard-top">
-        <div className="welcome">
-          <h2>Chào, {user?.displayName || user?.email || "Bệnh nhân"} 👋</h2>
-          <p>Quản lý Hồ sơ, Lịch hẹn và Thanh toán của bạn.</p>
-        </div>
-      </div>
-
-      <div className="dashboard-grid">
-        <aside className="dashboard-sidebar">
-          <div className="sidebar-user">
-            <Avatar size={48} icon={<UserOutlined />} />
-            <div className="user-info">
-              <div className="name">{user?.displayName || "Bệnh nhân"}</div>
-              <div className="email">{user?.email || ""}</div>
+    <div className="min-h-screen bg-background">
+      <main
+        className="container mx-auto px-4 py-6 lg:px-8 lg:py-8"
+        style={{ marginTop: "3rem", marginBottom: "3rem" }}
+      >
+        <div className="space-y-6">
+          {/* Top Section - Profile & Quick Actions */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            <ProfileCard userProfile={userProfile} />
+            <div className="lg:col-span-2">
+              <QuickActions />
             </div>
           </div>
 
-          <nav className="sidebar-nav">
-            <ul>
-              <li
-                className={activeTab === "all" ? "active" : ""}
-                onClick={() => setActiveTab("all")}
-              >
-                <AppstoreOutlined /> Tất cả
-              </li>
-              <li
-                className={activeTab === "records" ? "active" : ""}
-                onClick={() => setActiveTab("records")}
-              >
-                <FileTextOutlined /> Hồ sơ khám
-              </li>
-              <li
-                className={activeTab === "appointments" ? "active" : ""}
-                onClick={() => setActiveTab("appointments")}
-              >
-                <CalendarOutlined /> Lịch hẹn
-              </li>
-              <li
-                className={activeTab === "payments" ? "active" : ""}
-                onClick={() => setActiveTab("payments")}
-              >
-                <CreditCardOutlined /> Lịch sử thanh toán
-              </li>
-            </ul>
-          </nav>
+          {/* Doctor Search */}
+          <DoctorSearchShortcut />
 
-          <div className="sidebar-footer">
-            <Button type="link" onClick={() => navigate("/ho-so")}>
-              Xem hồ sơ
-            </Button>
+          {/* Main Content Grid */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* Left Column - Appointments & History */}
+            <div className="lg:col-span-2 space-y-6">
+              <UpcomingAppointments />
+              <AppointmentHistory />
+            </div>
+
+            {/* Right Column - Notifications & Payments */}
+            <div className="space-y-6">
+              <NotificationsCenter />
+              <PaymentHistory />
+            </div>
           </div>
-        </aside>
-
-        <main className="main-col">
-          {activeTab === "all" && (
-            <>
-              <Records />
-              <Appointments />
-              <Payments />
-            </>
-          )}
-          {activeTab === "records" && <Records />}
-          {activeTab === "appointments" && <Appointments />}
-          {activeTab === "payments" && <Payments />}
-        </main>
-
-        <aside className="side-col">
-          <Card className="card tips-card">
-            <h4>Gợi ý</h4>
-            <ul>
-              <li>Kiểm tra hồ sơ trước khi đến khám</li>
-              <li>Hủy lịch trước 24 giờ để không mất phí</li>
-              <li>Liên hệ hotline nếu cần hỗ trợ</li>
-            </ul>
-          </Card>
-        </aside>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

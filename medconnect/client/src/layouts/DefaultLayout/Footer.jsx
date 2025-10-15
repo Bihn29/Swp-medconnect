@@ -4,7 +4,7 @@ import {
   PhoneOutlined,
   EnvironmentOutlined,
 } from "@ant-design/icons";
-
+import "./Footer.scss";
 
 const { Footer } = Layout;
 const { Title, Text, Link } = Typography;
@@ -19,9 +19,7 @@ const AppFooter = () => {
             <Title level={4} className="footer-title">
               MedConnect
             </Title>
-            <Text>
-              Nền tảng kết nối bác sĩ và bệnh nhân hàng đầu Việt Nam.
-            </Text>
+            <Text>Nền tảng kết nối bác sĩ và bệnh nhân hàng đầu Việt Nam.</Text>
             <Space direction="vertical" style={{ marginTop: 12 }}>
               <Text>
                 <EnvironmentOutlined /> Lô B4/D21, Cầu Giấy, Hà Nội
@@ -41,9 +39,15 @@ const AppFooter = () => {
               Liên kết
             </Title>
             <ul className="footer-links">
-              <li><a href="/about">Về chúng tôi</a></li>
-              <li><a href="/doctors">Danh sách bác sĩ</a></li>
-              <li><a href="/specializations">Chuyên khoa</a></li>
+              <li>
+                <a href="/about">Về chúng tôi</a>
+              </li>
+              <li>
+                <a href="/doctors">Danh sách bác sĩ</a>
+              </li>
+              <li>
+                <a href="/specializations">Chuyên khoa</a>
+              </li>
             </ul>
           </Col>
 
@@ -53,9 +57,15 @@ const AppFooter = () => {
               Hỗ trợ
             </Title>
             <ul className="footer-links">
-              <li><a href="/help">Trung tâm trợ giúp</a></li>
-              <li><a href="/contact">Liên hệ</a></li>
-              <li><a href="/privacy">Chính sách bảo mật</a></li>
+              <li>
+                <a href="/help">Trung tâm trợ giúp</a>
+              </li>
+              <li>
+                <a href="/contact">Liên hệ</a>
+              </li>
+              <li>
+                <a href="/privacy">Chính sách bảo mật</a>
+              </li>
             </ul>
           </Col>
 
@@ -75,7 +85,8 @@ const AppFooter = () => {
         {/* Dòng cuối */}
         <div className="footer-bottom">
           <Text>
-            © 2025 MedConnect. Tuân thủ Nghị định 13/2023/NĐ-CP về Bảo vệ Dữ liệu Cá nhân.
+            © 2025 MedConnect. Tuân thủ Nghị định 13/2023/NĐ-CP về Bảo vệ Dữ
+            liệu Cá nhân.
           </Text>
         </div>
       </div>

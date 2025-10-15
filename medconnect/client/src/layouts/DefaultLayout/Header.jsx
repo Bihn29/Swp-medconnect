@@ -10,7 +10,7 @@ import {
   CalendarOutlined,
 } from "@ant-design/icons";
 import { Avatar, Dropdown, Badge, Button, Space, Input } from "antd";
-import "./DefaultLayout.scss";
+import "./Header.scss";
 
 const Header = () => {
   const location = useLocation();
@@ -31,8 +31,8 @@ const Header = () => {
       label: "Chuyên khoa",
       path: "/chuyen-khoa",
     },
-    { key: "facility", label: "Cơ sở y tế", path: "/co-so-y-te" },
     { key: "doctor", label: "Bác sĩ", path: "/bac-si" },
+    { key: "facility", label: "Cơ sở y tế", path: "/co-so-y-te" },
     { key: "package", label: "Gói khám", path: "/goi-kham" },
   ];
 
@@ -42,13 +42,15 @@ const Header = () => {
   const isSpecialtyPage = location.pathname === "/chuyen-khoa";
   const isFacilityPage = location.pathname === "/co-so-y-te";
   const isPackagePage = location.pathname === "/goi-kham";
+  const isAppointmentPage = location.pathname === "/dat-lich-kham";
 
   const useSearchCategories =
     isSearchPage ||
     isDoctorPage ||
     isSpecialtyPage ||
     isFacilityPage ||
-    isPackagePage;
+    isPackagePage ||
+    isAppointmentPage;
   const categories = useSearchCategories ? searchCategories : defaultCategories;
 
   const [activeCat, setActiveCat] = useState("all");
@@ -79,11 +81,8 @@ const Header = () => {
   const [appointments, setAppointments] = useState([]); // ensure default array
   const [loadingAppts, setLoadingAppts] = useState(false);
 
-  // treat both english and vietnamese patient routes
-  const patientPaths = ["/patient", "/benh-nhan"];
-  const isPatientPage = patientPaths.some((p) =>
-    location.pathname.startsWith(p)
-  );
+  // Check if current page is patient page
+  const isPatientPage = location.pathname.startsWith("/patient");
 
   useEffect(() => {
     let mounted = true;
@@ -154,19 +153,31 @@ const Header = () => {
 
   // Set active category based on current path
   useEffect(() => {
-    // Nếu đang sử dụng searchCategories navigation, không highlight mục nào
-    if (useSearchCategories) {
-      setActiveCat("");
-    } else if (location.pathname === "/kham-tai-nha") {
+    const currentPath = location.pathname;
+
+    // Nếu đang ở trang appointment, highlight "Bác sĩ" vì appointment thường đến từ trang bác sĩ
+    if (currentPath === "/dat-lich-kham") {
+      setActiveCat("doctor");
+    } else if (currentPath === "/chuyen-khoa") {
+      setActiveCat("specialty");
+    } else if (currentPath === "/co-so-y-te") {
+      setActiveCat("facility");
+    } else if (currentPath === "/bac-si") {
+      setActiveCat("doctor");
+    } else if (currentPath === "/goi-kham") {
+      setActiveCat("package");
+    } else if (currentPath === "/tim-kiem") {
+      setActiveCat("specialty"); // Default to specialty for search page
+    } else if (currentPath === "/kham-tai-nha") {
       setActiveCat("home");
-    } else if (location.pathname === "/kham-tai-vien") {
+    } else if (currentPath === "/kham-tai-vien") {
       setActiveCat("hospital");
-    } else if (location.pathname === "/gioi-thieu") {
+    } else if (currentPath === "/gioi-thieu") {
       setActiveCat("about");
     } else {
       setActiveCat("all");
     }
-  }, [location.pathname, location.search, useSearchCategories]);
+  }, [location.pathname]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));
@@ -293,7 +304,22 @@ const Header = () => {
             type="primary"
             className="btn-booking"
             icon={<CalendarOutlined />}
-            onClick={() => navigate("/dat-lich")}
+            onClick={() => {
+              // Check if user is logged in
+              if (!user) {
+                // If not logged in, redirect to login page
+                navigate("/dang-nhap", {
+                  state: {
+                    from: "/dat-lich",
+                    message: "Vui lòng đăng nhập để đặt lịch khám",
+                  },
+                });
+                return;
+              }
+
+              // If logged in, navigate to appointment booking page
+              navigate("/dat-lich");
+            }}
           >
             Đặt lịch
           </Button>
