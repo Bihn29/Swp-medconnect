@@ -20,7 +20,9 @@ import {
   StarOutlined,
   SearchOutlined,
   MedicineBoxOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
+import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
 import "./Facility.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -278,6 +280,22 @@ const Facility = () => {
 
   return (
     <div className="facility-page">
+      {/* Breadcrumb */}
+      <div className="container">
+        <NavigationBreadcrumb
+          items={[
+            {
+              label: "Trang chủ",
+              path: "/",
+              icon: <HomeOutlined />,
+            },
+            {
+              label: "Cơ sở y tế",
+            },
+          ]}
+        />
+      </div>
+
       {/* Search Section */}
       <div className="facility-search-section">
         <div className="container">

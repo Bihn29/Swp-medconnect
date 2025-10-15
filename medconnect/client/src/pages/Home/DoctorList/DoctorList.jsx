@@ -23,7 +23,9 @@ import {
   StarOutlined,
   SearchOutlined,
   MedicineBoxOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
+import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
 import "./DoctorList.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -55,6 +57,87 @@ const DoctorList = () => {
         "Bác sĩ chuyên khoa tim mạch với nhiều năm kinh nghiệm trong điều trị các bệnh lý tim mạch phức tạp và can thiệp tim mạch.",
       phone: "0901234567",
       qualifications: ["Tiến sĩ Y khoa", "Chứng chỉ Tim mạch can thiệp"],
+      address: "123 Nguyễn Huệ, Quận 1, TP.HCM",
+      // Time slots for different days
+      timeSlots: {
+        // Monday (Thứ 2)
+        1: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: false },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: false },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Tuesday (Thứ 3)
+        2: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: false },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: false },
+        ],
+        // Wednesday (Thứ 4)
+        3: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: false },
+          { time: "14:00 - 14:30", available: false },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Thursday (Thứ 5)
+        4: [
+          { time: "08:00 - 08:30", available: false },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: false },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Friday (Thứ 6)
+        5: [
+          { time: "17:30 - 18:00", available: true },
+          { time: "18:00 - 18:30", available: true },
+          { time: "18:30 - 19:00", available: true },
+          { time: "19:00 - 19:30", available: true },
+          { time: "19:30 - 20:00", available: false },
+          { time: "20:00 - 20:30", available: true },
+          { time: "20:30 - 21:00", available: true },
+          { time: "21:00 - 21:30", available: false },
+        ],
+        // Saturday (Thứ 7)
+        6: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "10:00 - 10:30", available: false },
+          { time: "10:30 - 11:00", available: true },
+          { time: "11:00 - 11:30", available: true },
+          { time: "11:30 - 12:00", available: true },
+        ],
+        // Sunday (Chủ nhật)
+        0: [
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: false },
+          { time: "15:30 - 16:00", available: true },
+          { time: "16:00 - 16:30", available: true },
+          { time: "16:30 - 17:00", available: true },
+          { time: "17:00 - 17:30", available: false },
+          { time: "17:30 - 18:00", available: true },
+        ],
+      },
     },
     {
       id: 2,
@@ -72,6 +155,87 @@ const DoctorList = () => {
         "Chuyên gia da liễu và thẩm mỹ da, có kinh nghiệm điều trị các bệnh lý da và các thủ thuật thẩm mỹ không xâm lấn.",
       phone: "0912345678",
       qualifications: ["Thạc sĩ Y khoa", "Chứng chỉ Da liễu thẩm mỹ"],
+      address: "456 Lê Văn Việt, Quận 9, TP.HCM",
+      // Time slots for different days
+      timeSlots: {
+        // Monday (Thứ 2)
+        1: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: false },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: false },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Tuesday (Thứ 3)
+        2: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: false },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: false },
+        ],
+        // Wednesday (Thứ 4)
+        3: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: false },
+          { time: "14:00 - 14:30", available: false },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Thursday (Thứ 5)
+        4: [
+          { time: "08:00 - 08:30", available: false },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: false },
+          { time: "15:00 - 15:30", available: true },
+          { time: "15:30 - 16:00", available: true },
+        ],
+        // Friday (Thứ 6)
+        5: [
+          { time: "17:30 - 18:00", available: true },
+          { time: "18:00 - 18:30", available: true },
+          { time: "18:30 - 19:00", available: true },
+          { time: "19:00 - 19:30", available: true },
+          { time: "19:30 - 20:00", available: false },
+          { time: "20:00 - 20:30", available: true },
+          { time: "20:30 - 21:00", available: true },
+          { time: "21:00 - 21:30", available: false },
+        ],
+        // Saturday (Thứ 7)
+        6: [
+          { time: "08:00 - 08:30", available: true },
+          { time: "08:30 - 09:00", available: true },
+          { time: "09:00 - 09:30", available: true },
+          { time: "09:30 - 10:00", available: true },
+          { time: "10:00 - 10:30", available: false },
+          { time: "10:30 - 11:00", available: true },
+          { time: "11:00 - 11:30", available: true },
+          { time: "11:30 - 12:00", available: true },
+        ],
+        // Sunday (Chủ nhật)
+        0: [
+          { time: "14:00 - 14:30", available: true },
+          { time: "14:30 - 15:00", available: true },
+          { time: "15:00 - 15:30", available: false },
+          { time: "15:30 - 16:00", available: true },
+          { time: "16:00 - 16:30", available: true },
+          { time: "16:30 - 17:00", available: true },
+          { time: "17:00 - 17:30", available: false },
+          { time: "17:30 - 18:00", available: true },
+        ],
+      },
     },
     {
       id: 3,
@@ -310,6 +474,22 @@ const DoctorList = () => {
 
   return (
     <div className="doctor-page">
+      {/* Breadcrumb */}
+      <div className="container">
+        <NavigationBreadcrumb
+          items={[
+            {
+              label: "Trang chủ",
+              path: "/",
+              icon: <HomeOutlined />,
+            },
+            {
+              label: "Bác sĩ",
+            },
+          ]}
+        />
+      </div>
+
       {/* Search Section */}
       <div className="doctor-search-section">
         <div className="container">

@@ -17,7 +17,9 @@ import {
   UserOutlined,
   EnvironmentOutlined,
   SearchOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
+import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
 import "./Specialization.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -213,6 +215,22 @@ const Specialization = () => {
 
   return (
     <div className="specialization-page">
+      {/* Breadcrumb */}
+      <div className="container">
+        <NavigationBreadcrumb
+          items={[
+            {
+              label: "Trang chủ",
+              path: "/",
+              icon: <HomeOutlined />,
+            },
+            {
+              label: "Chuyên khoa",
+            },
+          ]}
+        />
+      </div>
+
       {/* Search Section */}
       <div className="specialization-search-section">
         <div className="container">

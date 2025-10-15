@@ -20,7 +20,9 @@ import {
   CheckCircleOutlined,
   SearchOutlined,
   GiftOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
+import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
 import "./Package.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -371,6 +373,22 @@ const Package = () => {
 
   return (
     <div className="package-page">
+      {/* Breadcrumb */}
+      <div className="container">
+        <NavigationBreadcrumb
+          items={[
+            {
+              label: "Trang chủ",
+              path: "/",
+              icon: <HomeOutlined />,
+            },
+            {
+              label: "Gói khám",
+            },
+          ]}
+        />
+      </div>
+
       {/* Search Section */}
       <div className="package-search-section">
         <div className="container">

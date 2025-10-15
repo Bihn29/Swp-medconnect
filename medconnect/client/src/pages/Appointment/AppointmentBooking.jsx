@@ -18,7 +18,6 @@ import {
   Steps,
   message,
   Spin,
-  Breadcrumb,
 } from "antd";
 import {
   UserOutlined,
@@ -34,6 +33,7 @@ import {
   StarOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
+import NavigationBreadcrumb from "../../components/Breadcrumb/NavigationBreadcrumb";
 import "./AppointmentBooking.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -69,12 +69,86 @@ const AppointmentBooking = () => {
       "Bác sĩ có gần 10 năm kinh nghiệm trong lĩnh vực Nam học, Tiết niệu. Bác sĩ có thế mạnh điều trị các bệnh như hẹp bao quy đầu, rối loạn xuất tinh, dị tật cơ quan sinh dục nam,...",
     address:
       "Tầng 2 trung tâm thương mại Mandarin Garden 2, 99 Tân Mai, phường Hoàng Mai, TP Hà Nội",
-    availableSlots: [
-      { time: "18:30 - 19:00", available: true },
-      { time: "19:00 - 19:30", available: true },
-      { time: "19:30 - 20:00", available: false },
-      { time: "20:00 - 20:30", available: true },
-    ],
+    // Time slots for different days
+    timeSlots: {
+      // Monday (Thứ 2)
+      1: [
+        { time: "08:00 - 08:30", available: true },
+        { time: "08:30 - 09:00", available: true },
+        { time: "09:00 - 09:30", available: false },
+        { time: "09:30 - 10:00", available: true },
+        { time: "14:00 - 14:30", available: true },
+        { time: "14:30 - 15:00", available: true },
+        { time: "15:00 - 15:30", available: false },
+        { time: "15:30 - 16:00", available: true },
+      ],
+      // Tuesday (Thứ 3)
+      2: [
+        { time: "08:00 - 08:30", available: true },
+        { time: "08:30 - 09:00", available: false },
+        { time: "09:00 - 09:30", available: true },
+        { time: "09:30 - 10:00", available: true },
+        { time: "14:00 - 14:30", available: true },
+        { time: "14:30 - 15:00", available: true },
+        { time: "15:00 - 15:30", available: true },
+        { time: "15:30 - 16:00", available: false },
+      ],
+      // Wednesday (Thứ 4)
+      3: [
+        { time: "08:00 - 08:30", available: true },
+        { time: "08:30 - 09:00", available: true },
+        { time: "09:00 - 09:30", available: true },
+        { time: "09:30 - 10:00", available: false },
+        { time: "14:00 - 14:30", available: false },
+        { time: "14:30 - 15:00", available: true },
+        { time: "15:00 - 15:30", available: true },
+        { time: "15:30 - 16:00", available: true },
+      ],
+      // Thursday (Thứ 5)
+      4: [
+        { time: "08:00 - 08:30", available: false },
+        { time: "08:30 - 09:00", available: true },
+        { time: "09:00 - 09:30", available: true },
+        { time: "09:30 - 10:00", available: true },
+        { time: "14:00 - 14:30", available: true },
+        { time: "14:30 - 15:00", available: false },
+        { time: "15:00 - 15:30", available: true },
+        { time: "15:30 - 16:00", available: true },
+      ],
+      // Friday (Thứ 6)
+      5: [
+        { time: "17:30 - 18:00", available: true },
+        { time: "18:00 - 18:30", available: true },
+        { time: "18:30 - 19:00", available: true },
+        { time: "19:00 - 19:30", available: true },
+        { time: "19:30 - 20:00", available: false },
+        { time: "20:00 - 20:30", available: true },
+        { time: "20:30 - 21:00", available: true },
+        { time: "21:00 - 21:30", available: false },
+      ],
+      // Saturday (Thứ 7)
+      6: [
+        { time: "08:00 - 08:30", available: true },
+        { time: "08:30 - 09:00", available: true },
+        { time: "09:00 - 09:30", available: true },
+        { time: "09:30 - 10:00", available: true },
+        { time: "10:00 - 10:30", available: false },
+        { time: "10:30 - 11:00", available: true },
+        { time: "11:00 - 11:30", available: true },
+        { time: "11:30 - 12:00", available: true },
+      ],
+      // Sunday (Chủ nhật)
+      0: [
+        { time: "14:00 - 14:30", available: true },
+        { time: "14:30 - 15:00", available: true },
+        { time: "15:00 - 15:30", available: false },
+        { time: "15:30 - 16:00", available: true },
+        { time: "16:00 - 16:30", available: true },
+        { time: "16:30 - 17:00", available: true },
+        { time: "17:00 - 17:30", available: false },
+        { time: "17:30 - 18:00", available: true },
+      ],
+    },
   };
 
   // Generate 7 days of current week
@@ -112,6 +186,20 @@ const AppointmentBooking = () => {
   };
 
   const weekDays = getWeekDays();
+
+  // Get available time slots for selected date
+  const getAvailableTimeSlots = (date) => {
+    if (!selectedDoctor || !date) return [];
+    const dayOfWeek = date.getDay();
+
+    // If doctor has timeSlots, use them
+    if (selectedDoctor.timeSlots) {
+      return selectedDoctor.timeSlots[dayOfWeek] || [];
+    }
+
+    // Fallback to default time slots if doctor doesn't have timeSlots
+    return doctorData.timeSlots[dayOfWeek] || [];
+  };
 
   useEffect(() => {
     // Get doctor data from location state or props
@@ -292,14 +380,26 @@ const AppointmentBooking = () => {
     <div className="appointment-booking-page">
       <div className="container">
         {/* Breadcrumb */}
-        <Breadcrumb className="breadcrumb">
-          <Breadcrumb.Item>
-            <HomeOutlined /> Trang chủ
-          </Breadcrumb.Item>
-          <Breadcrumb.Item>Khám chuyên khoa</Breadcrumb.Item>
-          <Breadcrumb.Item>{selectedDoctor?.specialty}</Breadcrumb.Item>
-          <Breadcrumb.Item>{selectedDoctor?.name}</Breadcrumb.Item>
-        </Breadcrumb>
+        <NavigationBreadcrumb
+          items={[
+            {
+              label: "Trang chủ",
+              path: "/",
+              icon: <HomeOutlined />,
+            },
+            {
+              label: "Khám chuyên khoa",
+              path: "/chuyen-khoa",
+            },
+            {
+              label: selectedDoctor?.specialty || "Chuyên khoa",
+              path: `/chuyen-khoa?specialty=${selectedDoctor?.specialty}`,
+            },
+            {
+              label: selectedDoctor?.name || "Bác sĩ",
+            },
+          ]}
+        />
 
         <Row gutter={24}>
           {/* Left Column - Doctor Info & Booking */}
@@ -367,20 +467,22 @@ const AppointmentBooking = () => {
 
                 {!showPatientForm ? (
                   <div className="time-slots-grid">
-                    {selectedDoctor?.availableSlots?.map((slot, index) => (
-                      <Button
-                        key={index}
-                        type={
-                          selectedTime === slot.time ? "primary" : "default"
-                        }
-                        disabled={!slot.available}
-                        onClick={() => handleTimeSlotSelect(slot.time)}
-                        className="time-slot-button"
-                        size="large"
-                      >
-                        {slot.time}
-                      </Button>
-                    ))}
+                    {getAvailableTimeSlots(selectedDate?.date)?.map(
+                      (slot, index) => (
+                        <Button
+                          key={index}
+                          type={
+                            selectedTime === slot.time ? "primary" : "default"
+                          }
+                          disabled={!slot.available}
+                          onClick={() => handleTimeSlotSelect(slot.time)}
+                          className="time-slot-button"
+                          size="large"
+                        >
+                          {slot.time}
+                        </Button>
+                      )
+                    )}
                   </div>
                 ) : (
                   renderPatientForm()
