@@ -1,18 +1,19 @@
 import React from "react";
-import { Card, CardContent } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
+import { Card, CardContent } from "../../../../components/ui/Card";
+import { Button } from "../../../../components/ui/Button";
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "../../../components/ui/Avatar";
-import { Badge } from "../../../components/ui/Badge";
+} from "../../../../components/ui/Avatar";
+import { Badge } from "../../../../components/ui/Badge";
 import {
   UserOutlined,
   MailOutlined,
   PhoneOutlined,
   EditOutlined,
 } from "@ant-design/icons";
+import "./ProfileCard.scss";
 
 export function ProfileCard({ userProfile }) {
   if (!userProfile) {

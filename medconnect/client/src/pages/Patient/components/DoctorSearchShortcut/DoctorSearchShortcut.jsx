@@ -1,12 +1,13 @@
 import React from "react";
-import { Card, CardContent } from "../../../components/ui/Card";
-import { Input } from "../../../components/ui/Input";
-import { Button } from "../../../components/ui/Button";
+import { Card, CardContent } from "../../../../components/ui/Card";
+import { Input } from "../../../../components/ui/Input";
+import { Button } from "../../../../components/ui/Button";
 import {
   SearchOutlined,
   MedicineBoxOutlined,
   EnvironmentOutlined,
 } from "@ant-design/icons";
+import "./DoctorSearchShortcut.scss";
 
 export function DoctorSearchShortcut() {
   return (
@@ -15,9 +16,15 @@ export function DoctorSearchShortcut() {
         <div className="space-y-6">
           <div className="flex items-center gap-3">
             <MedicineBoxOutlined
-              style={{ fontSize: "24px", color: "hsl(var(--primary))", marginTop: "40px" }}
+              style={{
+                fontSize: "24px",
+                color: "hsl(var(--primary))",
+                marginTop: "40px",
+              }}
             />
-            <h3 className="text-xl font-semibold" style={{marginTop: "40px"}}>Tìm bác sĩ và đặt lịch</h3>
+            <h3 className="text-xl font-semibold" style={{ marginTop: "40px" }}>
+              Tìm bác sĩ và đặt lịch
+            </h3>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">

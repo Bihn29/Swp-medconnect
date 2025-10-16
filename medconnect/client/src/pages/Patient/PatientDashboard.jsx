@@ -3,16 +3,33 @@ import { useNavigate } from "react-router-dom";
 import { auth } from "../../lib/firebase";
 import { Spin } from "antd";
 import { useUserProfile } from "../../hooks/useUserProfile";
-import {
-  ProfileCard,
-  QuickActions,
-  UpcomingAppointments,
-  AppointmentHistory,
-  PaymentHistory,
-  NotificationsCenter,
-  DoctorSearchShortcut,
-} from "./components";
+import { ProfileCard } from "./components/ProfileCard/ProfileCard";
+import { QuickActions } from "./components/QuickActions/QuickActions";
+import { UpcomingAppointments } from "./components/UpcomingAppointments/UpcomingAppointments";
+import { AppointmentHistory } from "./components/AppointmentHistory/AppointmentHistory";
+import { PaymentHistory } from "./components/PaymentHistory/PaymentHistory";
+import { NotificationsCenter } from "./components/NotificationsCenter/NotificationsCenter";
+import { DoctorSearchShortcut } from "./components/DoctorSearchShortcut/DoctorSearchShortcut";
 import "./PatientDashboard.scss";
+
+/**
+ * PatientDashboard Component
+ *
+ * Implements UC16: Patient dashboard with upcoming appointments and past consultation records
+ *
+ * Features:
+ * - Profile management (UC4)
+ * - Quick actions for common tasks (UC8, UC10)
+ * - Doctor search shortcut (UC8, UC18)
+ * - Upcoming appointments (UC12, UC16)
+ * - Appointment history (UC16)
+ * - Payment history (UC11)
+ * - Notifications center (UC12)
+ *
+ * Business Rules Compliance:
+ * - Data privacy: Uses authenticated user context only
+ * - Medical liability: Dashboard is informational only
+ */
 
 export default function PatientDashboard() {
   const [user, setUser] = useState(null);

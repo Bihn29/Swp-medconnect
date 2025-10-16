@@ -265,13 +265,9 @@ const Homepage = () => {
           <Row gutter={[32, 32]}>
             <Col xs={24} sm={12} md={8}>
               <Link to="/danh-sach-bac-si">
-                <Card
-                  hoverable
-                  variant="plain" // was bordered={false}
-                  style={{ textAlign: "center" }}
-                >
+                <Card hoverable variant="plain" style={{ textAlign: "center" }}>
                   <img
-                    src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152447-bac-si.png"
+                    src="https://cdn.bookingcare.vn/fo/w640/2023/11/01/140234-bac-si.png"
                     alt="Bác sĩ"
                     style={{
                       borderRadius: "50%",
@@ -288,13 +284,9 @@ const Homepage = () => {
 
             <Col xs={24} sm={12} md={8}>
               <Link to="/chuyen-khoa">
-                <Card
-                  hoverable
-                  variant="plain" // was bordered={false}
-                  style={{ textAlign: "center" }}
-                >
+                <Card hoverable variant="plain" style={{ textAlign: "center" }}>
                   <img
-                    src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152612-chuyen-khoa.png"
+                    src="https://cdn.bookingcare.vn/fo/w640/2023/11/01/140537-chuyen-khoa.png"
                     alt="Chuyên khoa"
                     style={{
                       borderRadius: "50%",

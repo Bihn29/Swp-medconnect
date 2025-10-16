@@ -4,20 +4,21 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import { Badge } from "../../../components/ui/Badge";
+} from "../../../../components/ui/Card";
+import { Button } from "../../../../components/ui/Button";
+import { Badge } from "../../../../components/ui/Badge";
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "../../../components/ui/Avatar";
+} from "../../../../components/ui/Avatar";
 import {
   CalendarOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
   StarOutlined,
 } from "@ant-design/icons";
+import "./AppointmentHistory.scss";
 
 const history = [
   {

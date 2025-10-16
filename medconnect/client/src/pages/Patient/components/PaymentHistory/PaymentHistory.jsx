@@ -4,14 +4,15 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import { Badge } from "../../../components/ui/Badge";
+} from "../../../../components/ui/Card";
+import { Button } from "../../../../components/ui/Button";
+import { Badge } from "../../../../components/ui/Badge";
 import {
   CreditCardOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
 } from "@ant-design/icons";
+import "./PaymentHistory.scss";
 
 const payments = [
   {
