@@ -27,4 +27,4 @@ const SpecializationSchema = new Schema(
 
 export default model("Specialization", SpecializationSchema);
 
-//Thanh co sua
+//Thanh co sua lai database
