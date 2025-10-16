@@ -546,7 +546,7 @@ const HospitalVisit = () => {
                     }}
                     styles={{
                       body: {
-                        padding: "12px",
+                        padding: "4px",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
