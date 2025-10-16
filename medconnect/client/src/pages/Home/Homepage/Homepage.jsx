@@ -26,7 +26,6 @@ const Homepage = () => {
   const navigate = useNavigate();
   const [specializations, setSpecializations] = useState([]);
 
-  // ---- Custom arrow components for react-slick ----
   const SampleNextArrow = (props) => {
     const { onClick } = props;
     return (
@@ -203,8 +202,11 @@ const Homepage = () => {
 
   return (
     <div className="homepage">
-      {/* Hero Section */}
       <section className="hero-section">
+        <div className="marquee">
+          <p>📢 Đặt lịch khám trực tuyến, hỗ trợ bạn đi khám từ lúc vào viện đến khi kết thúc khám. Gọi ngay 1900 2267!</p>
+        </div>
+        
         <div className="container">
           <Row justify="center" align="middle" style={{ minHeight: "350px" }}>
             <Col xs={24} lg={20} style={{ textAlign: "center" }}>
@@ -256,7 +258,6 @@ const Homepage = () => {
         </div>
       </section>
 
-      {/* Recommendation Section */}
       <section style={{ padding: "80px 0", background: "white" }}>
         <div className="container">
           <Title level={2} style={{ marginBottom: "40px" }}>
@@ -267,7 +268,7 @@ const Homepage = () => {
               <Link to="/danh-sach-bac-si">
                 <Card
                   hoverable
-                  variant="plain" // was bordered={false}
+                  variant="plain" 
                   style={{ textAlign: "center" }}
                 >
                   <img
@@ -290,7 +291,7 @@ const Homepage = () => {
               <Link to="/chuyen-khoa">
                 <Card
                   hoverable
-                  variant="plain" // was bordered={false}
+                  variant="plain" 
                   style={{ textAlign: "center" }}
                 >
                   <img
@@ -312,7 +313,6 @@ const Homepage = () => {
         </div>
       </section>
 
-      {/* Comprehensive Services */}
       <section style={{ padding: "80px 0", background: "#f9fafb" }}>
         <div className="container">
           <Title level={2} style={{ marginBottom: "50px" }}>
@@ -355,7 +355,6 @@ const Homepage = () => {
                     boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
                   }}
                   styles={{
-                    // bodyStyle -> styles.body
                     body: {
                       display: "flex",
                       alignItems: "center",
@@ -392,7 +391,6 @@ const Homepage = () => {
         </div>
       </section>
 
-      {/* Specialties Section */}
       <section style={{ padding: "80px 0", background: "#fff" }}>
         <div className="container">
           <Row
@@ -462,7 +460,6 @@ const Homepage = () => {
         </div>
       </section>
 
-      {/* Medical Facilities Section */}
       <section style={{ padding: "80px 0", background: "#fff" }}>
         <div className="container">
           <Row
