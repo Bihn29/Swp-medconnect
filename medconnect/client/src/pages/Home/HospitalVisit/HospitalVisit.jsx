@@ -279,27 +279,8 @@ const HospitalVisit = () => {
   return (
     <div className="hospital-visit">
       {/* Hero Section */}
-      <section style={{ padding: "15px 0", background: "#f9fafb" }}>
+      <section style={{ padding: "50px 0", background: "#f9fafb" }}>
         <div className="container">
-          <Title
-            level={2}
-            style={{
-              textAlign: "left",
-              marginBottom: "10px",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              fontSize: "1.5rem",
-            }}
-          >
-            Ưu đãi HOT trong tháng
-            <img
-              src="https://cdn-icons-png.flaticon.com/512/616/616554.png"
-              alt="Hot"
-              style={{ width: "18px", height: "18px" }}
-            />
-          </Title>
-
           <Slider
             {...{
               dots: true,
@@ -369,7 +350,7 @@ const HospitalVisit = () => {
       </section>
 
       {/* Recommendation Section */}
-      <section style={{ padding: "80px 0", background: "white" }}>
+      <section style={{ padding: "60px 0 40px 0", background: "#f9fafb" }}>
         <div className="container">
           <Title level={2} style={{ marginBottom: "40px" }}>
             Dành cho bạn
@@ -436,7 +417,7 @@ const HospitalVisit = () => {
       </section>
 
       {/* Comprehensive Services */}
-      <section style={{ padding: "80px 0", background: "#f9fafb" }}>
+      <section style={{ padding: "40px 0 40px 0", background: "#f9fafb" }}>
         <div className="container">
           <Title level={2} style={{ marginBottom: "50px" }}>
             Dịch vụ khám bệnh viện
@@ -515,7 +496,7 @@ const HospitalVisit = () => {
       </section>
 
       {/* Specialties Section */}
-      <section style={{ padding: "80px 0", background: "#fff" }}>
+      <section style={{ padding: "40px 0 40px 0", background: "#f9fafb" }}>
         <div className="container">
           <Row
             justify="space-between"
@@ -534,6 +515,7 @@ const HospitalVisit = () => {
                 color: "#007f7f",
                 fontWeight: 500,
                 textDecoration: "none",
+                fontSize: "20px",
               }}
             >
               Xem thêm
@@ -541,51 +523,63 @@ const HospitalVisit = () => {
           </Row>
 
           <Slider {...sliderSettings}>
-            {specialties.map((specialty, index) => (
-              <div key={index} style={{ padding: "0 12px" }}>
-                <Card
-                  hoverable
-                  onClick={() => navigate(`/specialties/${specialty.id}`)}
-                  variant="outlined"
-                  style={{
-                    borderRadius: "16px",
-                    textAlign: "center",
-                    cursor: "pointer",
-                    height: "100%",
-                    boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
-                  }}
-                  styles={{
-                    body: {
-                      padding: "24px",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    },
-                  }}
-                >
-                  <img
-                    src={specialty.icon}
-                    alt={specialty.title}
+            {specializations.map((spec, index) => {
+              const apiBase =
+                import.meta.env.VITE_API_URL || "http://localhost:3000";
+              const iconUrl = spec.avatar
+                ? `${apiBase}${spec.avatar}`
+                : "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145826-coxuongkhop.png";
+
+              return (
+                <div key={index} style={{ padding: "0 12px" }}>
+                  <Card
+                    hoverable
+                    onClick={() => navigate(`/specialties/${spec._id}`)}
+                    variant="outlined"
                     style={{
-                      width: "120px",
-                      height: "120px",
-                      objectFit: "contain",
-                      marginBottom: "16px",
+                      borderRadius: "16px",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      height: "100%",
+                      boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
+                      overflow: "visible",
                     }}
-                  />
-                  <Title level={4} style={{ margin: 0, color: "#333" }}>
-                    {specialty.title}
-                  </Title>
-                </Card>
-              </div>
-            ))}
+                    styles={{
+                      body: {
+                        padding: "12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "visible",
+                      },
+                    }}
+                  >
+                    <img
+                      src={iconUrl}
+                      alt={spec.name}
+                      style={{
+                        width: "320px",
+                        height: "320px",
+                        objectFit: "contain",
+                        marginBottom: "16px",
+                        transform: "scale(1.1)",
+                        zIndex: 1,
+                      }}
+                    />
+                    <Title level={4} style={{ margin: 0, color: "#333" }}>
+                      {spec.name}
+                    </Title>
+                  </Card>
+                </div>
+              );
+            })}
           </Slider>
         </div>
       </section>
 
       {/* Featured Doctors Section */}
-      <section style={{ padding: "80px 0", background: "#45c3d2" }}>
+      <section style={{ padding: "60px 0", background: "#45c3d2" }}>
         <div className="container">
           <Row
             justify="space-between"
@@ -604,6 +598,7 @@ const HospitalVisit = () => {
                 color: "#007f7f",
                 fontWeight: 500,
                 textDecoration: "none",
+                fontSize: "20px",
               }}
             >
               Xem thêm
@@ -744,7 +739,7 @@ const HospitalVisit = () => {
       </section>
 
       {/* Medical Facilities Section */}
-      <section style={{ padding: "80px 0", background: "#fff" }}>
+      <section style={{ padding: "60px 0 40px 0", background: "#f9fafb" }}>
         <div className="container">
           <Row
             justify="space-between"
@@ -763,6 +758,7 @@ const HospitalVisit = () => {
                 color: "#007f7f",
                 fontWeight: 500,
                 textDecoration: "none",
+                fontSize: "20px",
               }}
             >
               Xem thêm

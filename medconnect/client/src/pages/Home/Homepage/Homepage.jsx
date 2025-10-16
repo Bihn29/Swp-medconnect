@@ -225,7 +225,7 @@ const Homepage = () => {
       </section>
 
       {/* Recommendation Section */}
-      <section style={{ padding: "80px 0", background: "white" }}>
+      <section style={{ padding: "60px 0 40px 0", background: "#f9fafb" }}>
         <div className="container">
           <Title level={2} style={{ marginBottom: "40px" }}>
             Dành cho bạn
@@ -273,7 +273,7 @@ const Homepage = () => {
       </section>
 
       {/* Comprehensive Services */}
-      <section style={{ padding: "80px 0", background: "#f9fafb" }}>
+      <section style={{ padding: "40px 0 40px 0", background: "#f9fafb" }}>
         <div className="container">
           <Title level={2} style={{ marginBottom: "50px" }}>
             Dịch vụ toàn diện
@@ -353,7 +353,7 @@ const Homepage = () => {
       </section>
 
       {/* Specialties Section */}
-      <section style={{ padding: "80px 0", background: "#fff" }}>
+      <section style={{ padding: "40px 0 60px 0", background: "#f9fafb" }}>
         <div className="container">
           <Row
             justify="space-between"
@@ -428,7 +428,7 @@ const Homepage = () => {
       </section>
 
       {/* Medical Facilities Section */}
-      <section style={{ padding: "80px 0", background: "#fff" }}>
+      <section style={{ padding: "60px 0 40px 0", background: "#f9fafb" }}>
         <div className="container">
           <Row
             justify="space-between"
@@ -670,7 +670,7 @@ const Homepage = () => {
       </section>
 
       {/* Featured Doctors Section */}
-      <section style={{ padding: "80px 0", background: "#45c3d2" }}>
+      <section style={{ padding: "60px 0", background: "#45c3d2" }}>
         <div className="container">
           <Row
             justify="space-between"
@@ -830,7 +830,7 @@ const Homepage = () => {
       </section>
 
       {/* Telemedicine Section */}
-      <section style={{ padding: "80px 0", background: "#fff" }}>
+      <section style={{ padding: "60px 0 40px 0", background: "#f9fafb" }}>
         <div className="container">
           <Row
             justify="space-between"
