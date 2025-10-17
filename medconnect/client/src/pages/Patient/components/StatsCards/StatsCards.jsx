@@ -54,7 +54,7 @@ export function StatsCards() {
             style={{
               backgroundColor: "#ffffff",
               border: "1px solid #e5e7eb",
-              borderRadius: "0.5rem",
+              borderRadius: "0.75rem",
               padding: "1.5rem",
               boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
             }}
