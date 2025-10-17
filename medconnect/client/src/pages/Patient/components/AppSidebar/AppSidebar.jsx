@@ -23,6 +23,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -32,6 +33,17 @@ export function AppSidebar() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isDropdownOpen && !event.target.closest(".dropdown-container")) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isDropdownOpen]);
 
   const mainMenuItems = [
     { icon: Home, label: "Trang chủ", href: "/patient-dashboard" },
@@ -44,11 +56,17 @@ export function AppSidebar() {
     { icon: Video, label: "Tư vấn trực tuyến", href: "/consultations" },
     { icon: FileText, label: "Hồ sơ sức khỏe", href: "/medical-records" },
     { icon: CreditCard, label: "Thanh toán", href: "/payments" },
-    { icon: Bell, label: "Thông báo", href: "/notifications", badge: 3 },
+    { icon: Bell, label: "Thông báo", href: "/notifications" },
   ];
 
   const settingsMenuItems = [
     { icon: Settings, label: "Cài đặt", href: "/settings" },
+    { icon: LogOut, label: "Đăng xuất", href: "/logout" },
+  ];
+
+  const userDropdownItems = [
+    { icon: Home, label: "Trang chủ", href: "/" },
+    { icon: Settings, label: "Cài đặt tài khoản", href: "/settings" },
     { icon: LogOut, label: "Đăng xuất", href: "/logout" },
   ];
 
@@ -61,6 +79,16 @@ export function AppSidebar() {
   const handleLogout = () => {
     console.log("Logout");
     // Thêm logic logout ở đây
+  };
+
+  const handleDropdownItemClick = (item) => {
+    if (item.label === "Đăng xuất") {
+      handleLogout();
+    } else {
+      navigate(item.href);
+    }
+    setIsDropdownOpen(false);
+    setIsOpen(false); // Close mobile menu if open
   };
 
   return (
@@ -142,9 +170,37 @@ export function AppSidebar() {
               <div className="user-name">{userInfo.name}</div>
               <div className="user-role">{userInfo.role}</div>
             </div>
-            <Button variant="ghost" size="icon" className="dropdown-btn">
-              <ChevronDown className="dropdown-icon" />
-            </Button>
+            <div className="dropdown-container">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="dropdown-btn"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              >
+                <ChevronDown
+                  className={`dropdown-icon ${isDropdownOpen ? "rotated" : ""}`}
+                />
+              </Button>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="dropdown-menu">
+                  {userDropdownItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.href}
+                        onClick={() => handleDropdownItemClick(item)}
+                        className="dropdown-item"
+                      >
+                        <Icon className="dropdown-item-icon" />
+                        <span className="dropdown-item-text">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Navigation Menu */}

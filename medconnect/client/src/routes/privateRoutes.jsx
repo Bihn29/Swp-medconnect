@@ -31,16 +31,21 @@ import Feedback from "../pages/Doctor/Feedback/Feedback";
  */
 export const privateRoutes = (
   <>
+    {/* ==================== PATIENT DASHBOARD (NO DEFAULT LAYOUT) ==================== */}
+    {/* Patient dashboard with custom layout (no default header/footer) */}
+    <Route element={<AuthMiddleware />}>
+      <Route element={<PatientMiddleware />}>
+        <Route path="/benh-nhan" element={<PatientDashboard />} />
+      </Route>
+    </Route>
+
+    {/* ==================== OTHER ROUTES WITH DEFAULT LAYOUT ==================== */}
     <Route element={<DefaultLayout />}>
       {/* ==================== AUTHENTICATED ROUTES ==================== */}
       <Route element={<AuthMiddleware />}>
         {/* ==================== SHARED ROUTES ==================== */}
         {/* Routes accessible by all authenticated users */}
         <Route path="/tai-khoan" element={<Profile />} />
-
-        {/* ==================== PATIENT ROUTES ==================== */}
-        {/* Routes specifically for patients */}
-        <Route path="/benh-nhan" element={<PatientDashboard />} />
 
         {/* ==================== DOCTOR ROUTES ==================== */}
         {/* Main doctor dashboard */}
