@@ -32,6 +32,10 @@ export function useUserProfile() {
           );
           const patientResponse = await getCurrentPatientProfile();
           console.log("Patient profile response:", patientResponse);
+          console.log(
+            "Patient profile data structure:",
+            JSON.stringify(patientResponse, null, 2)
+          );
           profileData = patientResponse?.data || patientResponse;
 
           // Log the structure for debugging
@@ -42,6 +46,18 @@ export function useUserProfile() {
               userData: profileData.user,
               patientData: profileData.profile,
             });
+
+            // Debug blood type and allergy notes specifically
+            console.log("=== BLOOD TYPE & ALLERGY DEBUG ===");
+            console.log("profileData.profile:", profileData.profile);
+            console.log(
+              "bloodType from profile:",
+              profileData.profile?.bloodType
+            );
+            console.log(
+              "allergyNotes from profile:",
+              profileData.profile?.allergyNotes
+            );
           }
         } catch (patientError) {
           console.warn(
@@ -95,9 +111,18 @@ export function useUserProfile() {
           districtCode: profileData?.profile?.districtCode,
           provinceCode: profileData?.profile?.provinceCode,
           relationshipToOwner: profileData?.profile?.relationshipToOwner,
+          // Blood type and allergy notes
+          bloodType: profileData?.profile?.bloodType,
+          allergyNotes: profileData?.profile?.allergyNotes,
           // Add any other fields from patient profile
           ...profileData?.profile,
         };
+
+        console.log("=== USER PROFILE LOADED ===");
+        console.log("Raw profile data:", profileData);
+        console.log("Combined profile:", combinedProfile);
+        console.log("Blood type:", combinedProfile.bloodType);
+        console.log("Allergy notes:", combinedProfile.allergyNotes);
 
         setUserProfile(combinedProfile);
       } catch (err) {
@@ -188,9 +213,18 @@ export function useUserProfile() {
           districtCode: profileData?.profile?.districtCode,
           provinceCode: profileData?.profile?.provinceCode,
           relationshipToOwner: profileData?.profile?.relationshipToOwner,
+          // Blood type and allergy notes
+          bloodType: profileData?.profile?.bloodType,
+          allergyNotes: profileData?.profile?.allergyNotes,
           // Add any other fields from patient profile
           ...profileData?.profile,
         };
+
+        console.log("=== USER PROFILE LOADED ===");
+        console.log("Raw profile data:", profileData);
+        console.log("Combined profile:", combinedProfile);
+        console.log("Blood type:", combinedProfile.bloodType);
+        console.log("Allergy notes:", combinedProfile.allergyNotes);
 
         setUserProfile(combinedProfile);
         setError(null);
