@@ -235,6 +235,24 @@
   }
 }
 
+.btn-doctor {
+  background: #0891b2;
+  border-color: #0891b2;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.2);
+  
+  &:hover:not(:disabled) {
+    background: #0e7490;
+    border-color: #0e7490;
+    box-shadow: 0 6px 16px rgba(8, 145, 178, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
 .separator { 
   display: flex; 
   align-items: center; 
@@ -271,7 +289,9 @@
 
 .register-links { 
   display: flex; 
-  justify-content: center; 
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
   margin-top: 24px;
   padding-top: 24px;
   border-top: 1px solid #f3f4f6;
@@ -283,6 +303,7 @@
     font-size: 14px;
     font-weight: 500;
     transition: color 0.2s ease;
+    text-align: center;
     
     &:hover {
       color: #0e7490;

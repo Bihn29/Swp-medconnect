@@ -430,12 +430,22 @@ export default function Register() {
             <i className="bi bi-google" />
             Đăng ký bằng Google
           </button>
+          
+          <button
+            type="button"
+            onClick={() => navigate('/dang-ky-bac-si')}
+            className="btn btn-doctor btn-full"
+          >
+            <i className="bi bi-person-badge" />
+            Đăng ký cho bác sĩ
+          </button>
         </div>
 
         {errors.general && <div className="error-text">{errors.general}</div>}
 
         <div className="register-links">
           <Link to="/dang-nhap">Đã có tài khoản? Đăng nhập</Link>
+          <Link to="/" className="home-link"> Quay về trang chủ</Link>
         </div>
       </div>
     </div>

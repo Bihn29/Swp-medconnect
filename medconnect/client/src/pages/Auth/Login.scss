@@ -249,7 +249,8 @@
 
 .login-links {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 16px;
   margin-top: 24px;
   padding-top: 24px;
   border-top: 1px solid #f3f4f6;
@@ -258,12 +259,32 @@
   margin-left: auto;
   margin-right: auto;
 
-  a {
+  .login-links-top {
+    display: flex;
+    justify-content: space-between;
+    
+    a {
+      color: #0891b2;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: #0e7490;
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .home-link {
     color: #0891b2;
     text-decoration: none;
     font-size: 14px;
     font-weight: 500;
     transition: color 0.2s ease;
+    text-align: center;
+    display: block;
 
     &:hover {
       color: #0e7490;
@@ -372,8 +393,10 @@
   }
 
   .login-links {
-    flex-direction: column;
-    gap: 12px;
-    text-align: center;
+    .login-links-top {
+      flex-direction: column;
+      gap: 12px;
+      text-align: center;
+    }
   }
 }
