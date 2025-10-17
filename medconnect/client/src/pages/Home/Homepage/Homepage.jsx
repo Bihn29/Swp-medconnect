@@ -202,7 +202,15 @@ const Homepage = () => {
 
   return (
     <div className="homepage">
-      <section className="hero-section">
+      <section 
+        className="hero-section"
+        style={{
+          background: `linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.4)), url('/Banner.jpg')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
         <div className="marquee">
           <p>📢 Đặt lịch khám trực tuyến, hỗ trợ bạn đi khám từ lúc vào viện đến khi kết thúc khám. Gọi ngay 1900 2267!</p>
         </div>

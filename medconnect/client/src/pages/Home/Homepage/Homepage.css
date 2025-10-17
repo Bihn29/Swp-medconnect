@@ -29,7 +29,6 @@ body {
 
 /* Hero Section */
 .hero-section {
-  background: linear-gradient(135deg, #45c3d2 0%, #45c3d2 100%);
   color: white;
   padding: 0;
   min-height: 500px;
@@ -41,7 +40,7 @@ body {
 
 /* Marquee Component */
 .marquee {
-  background-color: #ffcc00;   /* nền vàng */
+  background-color: #f6ce2c;   /* nền vàng */
   overflow: hidden;
   white-space: nowrap;
   box-sizing: border-box;
@@ -57,11 +56,11 @@ body {
 
 .marquee p {
   display: inline-block;
-  padding-left: 100%;   /* tạo khoảng trống để chữ chạy từ ngoài */
+  padding-left: 100%;   
   animation: marquee 15s linear infinite;
   font-size: 13px;
   font-weight: 500;
-  color: #000;          /* màu chữ */
+  color: #000;        
   margin: 0;
   line-height: 1.2;
 }
@@ -77,17 +76,15 @@ body {
   display: flex;
   align-items: center;
   padding: 60px 0 60px 0;
-  margin-top: 30px; /* Space for marquee */
+  margin-top: 30px; 
 }
 
-/* CTA Section */
 .cta-section {
   background: linear-gradient(135deg, #45c3d2 0%, #667eea 100%);
   color: white;
   padding: 80px 0;
 }
 
-/* Custom Ant Design overrides */
 .ant-card {
   transition: all 0.3s ease;
 }
@@ -110,7 +107,7 @@ body {
   font-weight: 600 !important;
 }
 
-/* Responsive */
+
 @media (max-width: 768px) {
   .hero-section {
     min-height: 400px;
