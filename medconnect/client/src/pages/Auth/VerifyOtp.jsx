@@ -20,11 +20,25 @@ export default function VerifyOtp() {
     setError("");
     try {
       setLoading(true);
-      const res = await verifyPasswordOtp(email.trim(), otp.trim());
-      const token = res?.resetToken;
-      navigate("/dat-lai-mat-khau", { state: { token } });
+  const res = await verifyPasswordOtp(email.trim(), otp.trim());
+  // Phản hồi từ server sử dụng cấu trúc đóng gói { success, data, meta, message }
+  // resetToken được trả về trong data.resetToken
+  const token = res?.data?.resetToken || res?.resetToken;
+  console.log("VerifyOtp - Navigating with:", { token, email });
+  // Truyền token qua navigation state (không lưu token vào localStorage để an toàn)
+      navigate("/dat-lai-mat-khau", { state: { token, email } });
     } catch (err) {
-      setError("Mã OTP không hợp lệ.");
+      // Phân tích thông điệp lỗi trả về từ server
+      let errorMessage = "Mã OTP không hợp lệ.";
+      try {
+        const errorData = JSON.parse(err.message);
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch {
+        // Nếu parse thất bại thì dùng thông báo mặc định
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -40,11 +54,14 @@ export default function VerifyOtp() {
           <input
             className="login-input"
             value={email}
-            onChange={e => setEmail(e.target.value)}
             placeholder="Email"
             autoComplete="email"
-            required
+            disabled
+            style={{ backgroundColor: '#f5f5f5', color: '#666' }}
           />
+          <div className="field-hint" style={{ fontSize: 12, color: "#4b7780", marginTop: 6, marginBottom: 8 }}>
+            Email đã được xác định từ bước trước.
+          </div>
           <input
             className="login-input"
             value={otp}
@@ -62,5 +79,3 @@ export default function VerifyOtp() {
     </div>
   );
 }
-
-
