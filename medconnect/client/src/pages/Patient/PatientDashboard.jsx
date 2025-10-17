@@ -10,6 +10,7 @@ import { StatsCards } from "./components/StatsCards/StatsCards";
 import { UpcomingAppointments } from "./components/UpcomingAppointments/UpcomingAppointments";
 import { AppointmentCalendar } from "./components/AppointmentCalendar/AppointmentCalendar";
 import { QuickActions } from "./components/QuickActions/QuickActions";
+import { Settings } from "./components/Settings/Settings";
 import "./PatientDashboard.scss";
 
 /**

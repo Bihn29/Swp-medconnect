@@ -12,6 +12,7 @@ import Profile from "../pages/Auth/Profile";
 
 // Patient Components
 import PatientDashboard from "../pages/Patient/PatientDashboard";
+import PatientSettings from "../pages/Patient/PatientSettings";
 import AppointmentBooking from "../pages/Appointment/AppointmentBooking";
 
 // Doctor Components
@@ -36,6 +37,7 @@ export const privateRoutes = (
     <Route element={<AuthMiddleware />}>
       <Route element={<PatientMiddleware />}>
         <Route path="/benh-nhan" element={<PatientDashboard />} />
+        <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
       </Route>
     </Route>
 

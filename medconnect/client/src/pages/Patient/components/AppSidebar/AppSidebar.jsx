@@ -46,7 +46,7 @@ export function AppSidebar() {
   }, [isDropdownOpen]);
 
   const mainMenuItems = [
-    { icon: Home, label: "Trang chủ", href: "/patient-dashboard" },
+    { icon: Home, label: "Trang chủ", href: "/benh-nhan" },
     { icon: Search, label: "Tìm bác sĩ", href: "/search-doctors" },
     {
       icon: CalendarCheck,
@@ -60,13 +60,13 @@ export function AppSidebar() {
   ];
 
   const settingsMenuItems = [
-    { icon: Settings, label: "Cài đặt", href: "/settings" },
+    { icon: Settings, label: "Cài đặt", href: "/benh-nhan/cai-dat" },
     { icon: LogOut, label: "Đăng xuất", href: "/logout" },
   ];
 
   const userDropdownItems = [
-    { icon: Home, label: "Trang chủ", href: "/" },
-    { icon: Settings, label: "Cài đặt tài khoản", href: "/settings" },
+    { icon: Home, label: "Trang chủ", href: "/benh-nhan" },
+    { icon: Settings, label: "Cài đặt tài khoản", href: "/benh-nhan/cai-dat" },
     { icon: LogOut, label: "Đăng xuất", href: "/logout" },
   ];
 
@@ -85,7 +85,8 @@ export function AppSidebar() {
     if (item.label === "Đăng xuất") {
       handleLogout();
     } else {
-      navigate(item.href);
+      console.log("Dropdown navigating to:", item.href);
+      navigate(item.href, { replace: false });
     }
     setIsDropdownOpen(false);
     setIsOpen(false); // Close mobile menu if open
@@ -215,7 +216,8 @@ export function AppSidebar() {
                     <li key={item.href} className="menu-item">
                       <button
                         onClick={() => {
-                          navigate(item.href);
+                          console.log("Navigating to:", item.href);
+                          navigate(item.href, { replace: false });
                           setIsOpen(false);
                         }}
                         className={`menu-button ${isActive ? "active" : ""}`}
@@ -247,7 +249,8 @@ export function AppSidebar() {
                             if (item.label === "Đăng xuất") {
                               handleLogout();
                             } else {
-                              navigate(item.href);
+                              console.log("Navigating to:", item.href);
+                              navigate(item.href, { replace: false });
                             }
                             setIsOpen(false);
                           }}
