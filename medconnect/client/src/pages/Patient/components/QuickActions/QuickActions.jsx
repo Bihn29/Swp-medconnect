@@ -1,107 +1,70 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { Calendar, FileText, MessageSquare, Settings } from "lucide-react";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "../../../../components/ui/Card";
-import {
-  CalendarOutlined,
-  FileTextOutlined,
-  WechatOutlined,
-  CreditCardOutlined,
-  SearchOutlined,
-  StarOutlined,
-} from "@ant-design/icons";
+import { Button } from "../../../../components/ui/Button";
 import "./QuickActions.scss";
 
-/**
- * QuickActions Component
- *
- * Implements multiple Use Cases:
- * - UC8: Search for doctors by name, specialization, or location
- * - UC10: Book available time slots for consultation
- * - UC15: Rating and review system access
- * - UC11: Payment management
- *
- * Provides quick access to common patient tasks
- */
+const actions = [
+  {
+    title: "Đặt lịch mới",
+    description: "Tạo lịch hẹn khám bệnh",
+    icon: Calendar,
+    variant: "default",
+  },
+  {
+    title: "Hồ sơ bệnh án",
+    description: "Xem lịch sử khám bệnh",
+    icon: FileText,
+    variant: "outline",
+  },
+  {
+    title: "Nhắn tin",
+    description: "Liên hệ với bác sĩ",
+    icon: MessageSquare,
+    variant: "outline",
+  },
+  {
+    title: "Cài đặt",
+    description: "Quản lý tài khoản",
+    icon: Settings,
+    variant: "outline",
+  },
+];
+
 export function QuickActions() {
-  const navigate = useNavigate();
-
-  const actions = [
-    {
-      id: 1,
-      icon: <SearchOutlined />,
-      title: "Tìm bác sĩ",
-      description: "Tìm theo chuyên khoa, tên, vị trí",
-      iconClass: "primary",
-      onClick: () => navigate("/tim-kiem-bac-si"), // UC8: Search doctors
-    },
-    {
-      id: 2,
-      icon: <CalendarOutlined />,
-      title: "Đặt lịch mới",
-      description: "Đặt lịch khám trực tiếp hoặc online",
-      iconClass: "secondary",
-      onClick: () => navigate("/danh-sach-bac-si"), // UC10: Book appointment
-    },
-    {
-      id: 3,
-      icon: <FileTextOutlined />,
-      title: "Hồ sơ y tế",
-      description: "Xem kết quả khám và đơn thuốc",
-      iconClass: "accent",
-      onClick: () => navigate("/ho-so-y-te"), // UC14: Consultation records
-    },
-    {
-      id: 4,
-      icon: <StarOutlined />,
-      title: "Đánh giá",
-      description: "Đánh giá bác sĩ sau khám",
-      iconClass: "info",
-      onClick: () => navigate("/danh-gia-bac-si"), // UC15: Rating system
-    },
-    {
-      id: 5,
-      icon: <WechatOutlined />,
-      title: "Video call",
-      description: "Tham gia khám online",
-      iconClass: "accent",
-      onClick: () => navigate("/video-call"), // UC13: Video consultation
-    },
-    {
-      id: 6,
-      icon: <CreditCardOutlined />,
-      title: "Thanh toán",
-      description: "Xem lịch sử thanh toán",
-      iconClass: "info",
-      onClick: () => navigate("/thanh-toan"), // UC11: Payment history
-    },
-  ];
-
   return (
-    <Card className="medical-card fade-in">
+    <Card>
       <CardHeader>
-        <CardTitle>Thao tác nhanh</CardTitle>
+        <CardTitle className="text-balance">Thao tác nhanh</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="quick-actions-grid quick-actions-grid-6">
-          {actions.map((action) => (
-            <div
-              key={action.id}
-              className="quick-action-card"
-              onClick={action.onClick}
+      <CardContent className="space-y-3">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Button
+              key={action.title}
+              variant={action.variant}
+              className="h-auto w-full justify-start gap-3 p-4"
             >
-              <div className={`quick-action-icon ${action.iconClass}`}>
-                <div style={{ fontSize: "20px" }}>{action.icon}</div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Icon className="h-5 w-5 text-primary" />
               </div>
-              <h4 className="quick-action-title">{action.title}</h4>
-              <p className="quick-action-description">{action.description}</p>
-            </div>
-          ))}
-        </div>
+              <div className="flex flex-col items-start gap-0.5">
+                <span className="font-semibold text-balance">
+                  {action.title}
+                </span>
+                <span className="text-xs text-muted-foreground text-pretty">
+                  {action.description}
+                </span>
+              </div>
+            </Button>
+          );
+        })}
       </CardContent>
     </Card>
   );

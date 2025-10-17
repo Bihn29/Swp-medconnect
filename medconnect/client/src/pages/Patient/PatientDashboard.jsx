@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { auth } from "../../lib/firebase";
 import { Spin } from "antd";
 import { useUserProfile } from "../../hooks/useUserProfile";
-import { ProfileCard } from "./components/ProfileCard/ProfileCard";
-import { QuickActions } from "./components/QuickActions/QuickActions";
+import { AppSidebar } from "./components/AppSidebar/AppSidebar";
+import { PatientHeader } from "./components/PatientHeader/PatientHeader";
+import { WelcomeSection } from "./components/WelcomeSection/WelcomeSection";
+import { StatsCards } from "./components/StatsCards/StatsCards";
 import { UpcomingAppointments } from "./components/UpcomingAppointments/UpcomingAppointments";
-import { AppointmentHistory } from "./components/AppointmentHistory/AppointmentHistory";
-import { PaymentHistory } from "./components/PaymentHistory/PaymentHistory";
-import { NotificationsCenter } from "./components/NotificationsCenter/NotificationsCenter";
-import { DoctorSearchShortcut } from "./components/DoctorSearchShortcut/DoctorSearchShortcut";
+import { AppointmentCalendar } from "./components/AppointmentCalendar/AppointmentCalendar";
+import { QuickActions } from "./components/QuickActions/QuickActions";
 import "./PatientDashboard.scss";
 
 /**
@@ -59,39 +59,31 @@ export default function PatientDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <main
-        className="container mx-auto px-4 py-6 lg:px-8 lg:py-8"
-        style={{ marginTop: "3rem", marginBottom: "3rem" }}
-      >
-        <div className="space-y-6">
-          {/* Top Section - Profile & Quick Actions */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            <ProfileCard userProfile={userProfile} />
-            <div className="lg:col-span-2">
-              <QuickActions />
-            </div>
-          </div>
-
-          {/* Doctor Search */}
-          <DoctorSearchShortcut />
-
-          {/* Main Content Grid */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* Left Column - Appointments & History */}
-            <div className="lg:col-span-2 space-y-6">
-              <UpcomingAppointments />
-              <AppointmentHistory />
-            </div>
-
-            {/* Right Column - Notifications & Payments */}
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      <AppSidebar />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <PatientHeader />
+        <main style={{ flex: 1, overflow: "auto" }} className="main-content">
+          <div className="container mx-auto px-4 py-6 lg:px-8 lg:py-8">
             <div className="space-y-6">
-              <NotificationsCenter />
-              <PaymentHistory />
+              <WelcomeSection />
+
+              <StatsCards />
+
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2 space-y-6">
+                  <AppointmentCalendar />
+                  <UpcomingAppointments />
+                </div>
+
+                <div className="space-y-6">
+                  <QuickActions />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

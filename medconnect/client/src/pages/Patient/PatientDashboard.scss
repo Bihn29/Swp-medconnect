@@ -4,12 +4,17 @@
 @import "./styles/variables";
 @import "./styles/base";
 @import "./styles/common";
-@import "./components/ProfileCard/ProfileCard";
-@import "./components/QuickActions/QuickActions";
+@import "./components/AppSidebar/AppSidebar";
+@import "./components/PatientHeader/PatientHeader";
+@import "./components/WelcomeSection/WelcomeSection";
+@import "./components/StatsCards/StatsCards";
+@import "./components/AppointmentCalendar/AppointmentCalendar";
 @import "./components/UpcomingAppointments/UpcomingAppointments";
-@import "./components/AppointmentHistory/AppointmentHistory";
-@import "./components/NotificationsCenter/NotificationsCenter";
-@import "./components/PaymentHistory/PaymentHistory";
-@import "./components/DoctorSearchShortcut/DoctorSearchShortcut";
+@import "./components/QuickActions/QuickActions";
 
 /* All styles are now imported from separate component files */
+
+/* Main content responsive */
+.main-content {
+  /* No margin needed - flex layout handles spacing */
+}
