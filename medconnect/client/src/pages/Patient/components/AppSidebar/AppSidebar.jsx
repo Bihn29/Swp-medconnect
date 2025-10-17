@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../../../components/ui/Button";
 import { Badge } from "../../../../components/ui/Badge";
+import { useUserProfile } from "../../../../hooks/useUserProfile";
 import {
   CalendarCheck,
   Search,
@@ -24,6 +25,7 @@ export function AppSidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const { userProfile, loading: profileLoading } = useUserProfile();
 
   useEffect(() => {
     const handleResize = () => {
@@ -65,28 +67,49 @@ export function AppSidebar() {
   ];
 
   const userDropdownItems = [
-    { icon: Home, label: "Trang chủ", href: "/benh-nhan" },
+    { icon: Home, label: "Trang chủ", href: "/" },
     { icon: Settings, label: "Cài đặt tài khoản", href: "/benh-nhan/cai-dat" },
     { icon: LogOut, label: "Đăng xuất", href: "/logout" },
   ];
 
+  // Get user info from profile or use fallback
   const userInfo = {
-    name: "Nguyễn Văn A",
-    email: "nguyenvana@email.com",
-    role: "Bệnh nhân",
+    name: userProfile?.fullName || userProfile?.displayName || "Người dùng",
+    email: userProfile?.email || "email@example.com",
+    role: userProfile?.role === "patient" ? "Bệnh nhân" : "Người dùng",
+    avatar:
+      userProfile?.photoURL ||
+      userProfile?.avatar ||
+      "/patient-consultation.png",
   };
 
-  const handleLogout = () => {
-    console.log("Logout");
-    // Thêm logic logout ở đây
+  const handleLogout = async () => {
+    try {
+      // Import auth from firebase
+      const { auth } = await import("../../../../lib/firebase");
+
+      // Sign out from Firebase
+      await auth.signOut();
+
+      // Navigate to login page
+      navigate("/login", { replace: true });
+    } catch (error) {
+      // Still navigate to login even if there's an error
+      navigate("/login", { replace: true });
+    }
   };
 
   const handleDropdownItemClick = (item) => {
     if (item.label === "Đăng xuất") {
       handleLogout();
     } else {
-      console.log("Dropdown navigating to:", item.href);
-      navigate(item.href, { replace: false });
+      // Try both navigation methods
+      try {
+        navigate(item.href, { replace: false });
+      } catch (error) {
+        // Fallback to window.location
+        window.location.href = item.href;
+      }
     }
     setIsDropdownOpen(false);
     setIsOpen(false); // Close mobile menu if open
@@ -162,7 +185,7 @@ export function AppSidebar() {
           <div className="user-profile-section">
             <div className="user-avatar">
               <img
-                src="/patient-consultation.png"
+                src={userInfo.avatar}
                 alt="User Avatar"
                 className="avatar-image"
               />
@@ -191,7 +214,11 @@ export function AppSidebar() {
                     return (
                       <button
                         key={item.href}
-                        onClick={() => handleDropdownItemClick(item)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDropdownItemClick(item);
+                        }}
                         className="dropdown-item"
                       >
                         <Icon className="dropdown-item-icon" />
@@ -215,8 +242,9 @@ export function AppSidebar() {
                   return (
                     <li key={item.href} className="menu-item">
                       <button
-                        onClick={() => {
-                          console.log("Navigating to:", item.href);
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           navigate(item.href, { replace: false });
                           setIsOpen(false);
                         }}
@@ -245,12 +273,19 @@ export function AppSidebar() {
                     return (
                       <li key={item.href} className="menu-item">
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             if (item.label === "Đăng xuất") {
                               handleLogout();
                             } else {
-                              console.log("Navigating to:", item.href);
-                              navigate(item.href, { replace: false });
+                              // Try both navigation methods
+                              try {
+                                navigate(item.href, { replace: false });
+                              } catch (error) {
+                                // Fallback to window.location
+                                window.location.href = item.href;
+                              }
                             }
                             setIsOpen(false);
                           }}

@@ -1,19 +1,69 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { User, Bell, Lock, CreditCard, Upload, Calendar } from "lucide-react";
+import { useUserProfile } from "../../../../hooks/useUserProfile";
+import { updateCurrentPatientProfile } from "../../../../lib/api";
 import "./Settings.scss";
 
 export function Settings() {
+  const {
+    userProfile,
+    refreshProfile,
+    loading: profileLoading,
+  } = useUserProfile();
   const [activeTab, setActiveTab] = useState("profile");
   const [formData, setFormData] = useState({
-    fullName: "Nguyễn Văn A",
-    phone: "0912345678",
-    gender: "Nam",
-    email: "nguyenvana@email.com",
-    birthDate: "01/01/1990",
-    bloodType: "O+",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
+    fullName: "",
+    phone: "",
+    gender: "",
+    email: "",
+    birthDate: "",
+    bloodType: "",
+    address: "",
     allergies: "",
   });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Update form data when user profile loads
+  useEffect(() => {
+    if (userProfile) {
+      // Format date for date input (YYYY-MM-DD)
+      const formatDateForInput = (dateString) => {
+        if (!dateString) return "";
+        try {
+          const date = new Date(dateString);
+          if (isNaN(date.getTime())) return "";
+          return date.toISOString().split("T")[0]; // YYYY-MM-DD format
+        } catch (error) {
+          return "";
+        }
+      };
+
+      const newFormData = {
+        fullName: userProfile.fullName || userProfile.displayName || "",
+        phone: userProfile.phone || "",
+        gender: userProfile.gender || "",
+        email: userProfile.email || "",
+        birthDate: formatDateForInput(userProfile.dob),
+        bloodType: userProfile.bloodType || "",
+        address: userProfile.address || "",
+        allergies: userProfile.allergies || "",
+      };
+
+      setFormData(newFormData);
+    } else if (!profileLoading) {
+      // If no user profile and not loading, set empty form to allow editing
+      setFormData({
+        fullName: "",
+        phone: "",
+        gender: "",
+        email: "",
+        birthDate: "",
+        bloodType: "",
+        address: "",
+        allergies: "",
+      });
+    }
+  }, [userProfile, profileLoading]);
 
   const tabs = [
     { id: "profile", label: "Hồ sơ", icon: User },
@@ -29,9 +79,45 @@ export function Settings() {
     }));
   };
 
-  const handleSave = () => {
-    console.log("Saving changes:", formData);
-    // Thêm logic lưu dữ liệu ở đây
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+
+      // Format date for API (convert YYYY-MM-DD to ISO string)
+      const formatDateForAPI = (dateString) => {
+        if (!dateString) return null;
+        try {
+          const date = new Date(dateString);
+          if (isNaN(date.getTime())) return null;
+          return date.toISOString();
+        } catch (error) {
+          return null;
+        }
+      };
+
+      // Prepare data for API
+      const updateData = {
+        fullName: formData.fullName,
+        phone: formData.phone,
+        gender: formData.gender,
+        dob: formatDateForAPI(formData.birthDate),
+        address: formData.address,
+        // Add other fields as needed
+      };
+
+      // Call API to update patient profile
+      const response = await updateCurrentPatientProfile(updateData);
+
+      // Refresh the profile data
+      await refreshProfile();
+
+      // Show success message
+      alert("Cập nhật thông tin thành công!");
+    } catch (error) {
+      alert("Có lỗi xảy ra khi cập nhật thông tin. Vui lòng thử lại.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -81,7 +167,11 @@ export function Settings() {
             <div className="profile-picture-section">
               <div className="avatar-container">
                 <img
-                  src="/patient-consultation.png"
+                  src={
+                    userProfile?.photoURL ||
+                    userProfile?.avatar ||
+                    "/patient-consultation.png"
+                  }
                   alt="Profile"
                   className="profile-avatar"
                 />
@@ -107,6 +197,7 @@ export function Settings() {
                     onChange={(e) =>
                       handleInputChange("fullName", e.target.value)
                     }
+                    placeholder="Nhập họ và tên"
                   />
                 </div>
 
@@ -117,6 +208,7 @@ export function Settings() {
                     className="form-input"
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
+                    placeholder="Nhập số điện thoại"
                   />
                 </div>
 
@@ -160,7 +252,7 @@ export function Settings() {
                   <label className="form-label">Ngày sinh</label>
                   <div className="date-input-container">
                     <input
-                      type="text"
+                      type="date"
                       className="form-input"
                       style={{ paddingRight: "2.5rem" }}
                       value={formData.birthDate}
@@ -203,8 +295,12 @@ export function Settings() {
               <button className="cancel-button" onClick={handleCancel}>
                 Hủy
               </button>
-              <button className="save-button" onClick={handleSave}>
-                Lưu thay đổi
+              <button
+                className="save-button"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
               </button>
             </div>
           </div>

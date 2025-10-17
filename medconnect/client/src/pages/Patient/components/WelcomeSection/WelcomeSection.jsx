@@ -1,10 +1,13 @@
 import React from "react";
 import { Card, CardContent } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
+import { useUserProfile } from "../../../../hooks/useUserProfile";
 import { Calendar, Video, Search } from "lucide-react";
 import "./WelcomeSection.scss";
 
 export function WelcomeSection() {
+  const { userProfile } = useUserProfile();
+
   const currentHour = new Date().getHours();
   const greeting =
     currentHour < 12
@@ -12,6 +15,9 @@ export function WelcomeSection() {
       : currentHour < 18
       ? "Chào buổi chiều"
       : "Chào buổi tối";
+
+  const userName =
+    userProfile?.fullName || userProfile?.displayName || "Người dùng";
 
   return (
     <div
@@ -51,7 +57,7 @@ export function WelcomeSection() {
               lineHeight: 1.2,
             }}
           >
-            {greeting}, Nguyễn Văn A
+            {greeting}, {userName}
           </h2>
           <p
             style={{

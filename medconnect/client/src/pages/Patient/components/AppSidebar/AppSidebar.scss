@@ -184,6 +184,8 @@
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 0.875rem;
+  pointer-events: auto;
+  z-index: 20;
 }
 
 .dropdown-item:hover {
@@ -317,6 +319,8 @@
   position: relative;
   border-radius: 0.5rem;
   margin: 0.125rem 0.5rem;
+  pointer-events: auto;
+  z-index: 10;
 
   &::before {
     content: "";

@@ -8,7 +8,7 @@ import { PatientHeader } from "./components/PatientHeader/PatientHeader";
 import { Settings } from "./components/Settings/Settings";
 import "./PatientDashboard.scss";
 
-export default function PatientSettings() {
+const PatientSettings = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -49,4 +49,6 @@ export default function PatientSettings() {
       </div>
     </div>
   );
-}
+};
+
+export default PatientSettings;

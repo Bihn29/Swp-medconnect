@@ -12,7 +12,7 @@ import Profile from "../pages/Auth/Profile";
 
 // Patient Components
 import PatientDashboard from "../pages/Patient/PatientDashboard";
-import PatientSettings from "../pages/Patient/PatientSettings";
+import PatientSettings from "../pages/Patient/PatientSettings.jsx";
 import AppointmentBooking from "../pages/Appointment/AppointmentBooking";
 
 // Doctor Components
