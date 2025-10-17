@@ -118,8 +118,18 @@ const HospitalVisit = () => {
 
   return (
     <div className="hospital-visit">
-      {/* Hero Section */}
-      <section className="hero-section">
+      <section 
+        className="hero-section"
+          style={{
+            background: `linear-gradient(rgba(18, 18, 18, 0.45), rgba(20, 19, 19, 0.45)), url('/Banner3.jpg')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          }}
+      >
+        <div className="marquee">
+          <p>📢 Đặt lịch khám trực tuyến, hỗ trợ bạn đi khám từ lúc vào viện đến khi kết thúc khám. Gọi ngay 1900 2267!</p>
+        </div>
         <div className="container">
           <Row justify="center" align="middle" style={{ minHeight: "400px" }}>
             <Col xs={24} lg={16} style={{ textAlign: "center" }}>

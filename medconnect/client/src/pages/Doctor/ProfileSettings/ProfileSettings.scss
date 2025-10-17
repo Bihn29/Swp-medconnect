@@ -1,0 +1,198 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.profile-settings {
+  &__header {
+    margin-bottom: $spacing-xl;
+
+    h2 {
+      font-size: $font-size-2xl;
+      font-weight: 700;
+      color: $gray-900;
+      margin: 0 0 $spacing-sm 0;
+    }
+
+    p {
+      font-size: $font-size-base;
+      color: $gray-600;
+      margin: 0;
+    }
+  }
+
+  &__content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: $spacing-xl;
+
+    @include tablet {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+  }
+
+  &__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+  }
+
+  &__card {
+    @include card;
+
+    h3 {
+      font-size: $font-size-lg;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0 0 $spacing-lg 0;
+      padding-bottom: $spacing-md;
+      border-bottom: 1px solid $gray-200;
+    }
+  }
+
+  &__avatar-section {
+    @include flex-center;
+    flex-direction: column;
+    gap: $spacing-lg;
+    padding: $spacing-xl 0;
+  }
+
+  &__avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: $radius-full;
+    background-color: $primary-color;
+    color: $white;
+    @include flex-center;
+    font-size: $font-size-4xl;
+    font-weight: 700;
+  }
+
+  &__avatar-actions {
+    display: flex;
+    gap: $spacing-md;
+
+    button {
+      @include button-base;
+
+      &.primary {
+        @include button-primary;
+      }
+
+      &.secondary {
+        @include button-secondary;
+      }
+    }
+  }
+
+  &__form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: $spacing-lg;
+
+    @include mobile {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__form-group {
+    label {
+      display: block;
+      font-size: $font-size-sm;
+      font-weight: 500;
+      color: $gray-700;
+      margin-bottom: $spacing-sm;
+    }
+
+    input,
+    textarea,
+    select {
+      @include input-base;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    &.full-width {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__form-actions {
+    display: flex;
+    gap: $spacing-md;
+    justify-content: flex-end;
+    padding-top: $spacing-lg;
+    border-top: 1px solid $gray-200;
+
+    button {
+      @include button-base;
+
+      &.primary {
+        @include button-primary;
+      }
+
+      &.secondary {
+        @include button-secondary;
+      }
+    }
+  }
+
+  &__stats {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: $spacing-md;
+  }
+
+  &__stat-item {
+    @include flex-between;
+    padding: $spacing-md;
+    background-color: $gray-50;
+    border-radius: $radius-md;
+
+    span {
+      font-size: $font-size-sm;
+      color: $gray-600;
+    }
+
+    strong {
+      font-size: $font-size-lg;
+      color: $gray-900;
+    }
+  }
+
+  &__preferences {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+  }
+
+  &__preference-item {
+    @include flex-between;
+    padding: $spacing-md 0;
+    border-bottom: 1px solid $gray-200;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    label {
+      font-size: $font-size-sm;
+      color: $gray-700;
+      cursor: pointer;
+    }
+
+    input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: $primary-color;
+    }
+  }
+}

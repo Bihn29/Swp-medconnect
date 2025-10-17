@@ -234,7 +234,7 @@ const AppointmentBooking = () => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       message.success("Đặt lịch khám thành công!");
-      navigate("/patient", {
+      navigate("/benh-nhan", {
         state: {
           message: "Đặt lịch khám thành công!",
           appointment: {

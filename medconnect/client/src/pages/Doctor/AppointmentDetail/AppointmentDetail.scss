@@ -1,0 +1,199 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.appointment-detail {
+  &__header {
+    @include flex-between;
+    margin-bottom: $spacing-xl;
+
+    h2 {
+      font-size: $font-size-2xl;
+      font-weight: 700;
+      color: $gray-900;
+      margin: 0;
+    }
+
+    button {
+      padding: $spacing-sm $spacing-lg;
+      border: 1px solid $gray-300;
+      background-color: $white;
+      color: $gray-700;
+      border-radius: $radius-md;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all $transition-base;
+
+      &:hover {
+        border-color: $primary-color;
+        color: $primary-color;
+      }
+    }
+  }
+
+  &__content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: $spacing-xl;
+
+    @include tablet {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+  }
+
+  &__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+  }
+
+  &__card {
+    @include card;
+
+    h3 {
+      font-size: $font-size-lg;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0 0 $spacing-lg 0;
+      padding-bottom: $spacing-md;
+      border-bottom: 1px solid $gray-200;
+    }
+  }
+
+  &__info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: $spacing-lg;
+
+    @include mobile {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__info-item {
+    label {
+      display: block;
+      font-size: $font-size-sm;
+      font-weight: 500;
+      color: $gray-600;
+      margin-bottom: $spacing-xs;
+    }
+
+    p {
+      font-size: $font-size-base;
+      color: $gray-900;
+      margin: 0;
+    }
+  }
+
+  &__history-item {
+    padding: $spacing-md;
+    background-color: $gray-50;
+    border-radius: $radius-md;
+    margin-bottom: $spacing-md;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    &-header {
+      @include flex-between;
+      margin-bottom: $spacing-sm;
+
+      strong {
+        color: $gray-900;
+      }
+
+      span {
+        font-size: $font-size-sm;
+        color: $gray-500;
+      }
+    }
+
+    p {
+      font-size: $font-size-sm;
+      color: $gray-700;
+      margin: 0;
+    }
+  }
+
+  &__attachments {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+  }
+
+  &__attachment {
+    @include flex-between;
+    padding: $spacing-md;
+    background-color: $gray-50;
+    border-radius: $radius-md;
+    transition: background-color $transition-base;
+
+    &:hover {
+      background-color: $gray-100;
+    }
+
+    &-info {
+      display: flex;
+      align-items: center;
+      gap: $spacing-md;
+
+      svg {
+        width: 24px;
+        height: 24px;
+        color: $primary-color;
+      }
+
+      span {
+        font-size: $font-size-sm;
+        color: $gray-900;
+      }
+    }
+
+    button {
+      padding: $spacing-xs $spacing-md;
+      border: none;
+      background-color: $primary-color;
+      color: $white;
+      border-radius: $radius-sm;
+      font-size: $font-size-xs;
+      cursor: pointer;
+      transition: background-color $transition-base;
+
+      &:hover {
+        background-color: $primary-dark;
+      }
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: $spacing-md;
+
+    button {
+      flex: 1;
+      @include button-base;
+      font-size: $font-size-base;
+
+      &.accept {
+        @include button-primary;
+      }
+
+      &.reject {
+        background-color: $white;
+        color: $error;
+        border: 2px solid $error;
+
+        &:hover {
+          background-color: $error-light;
+        }
+      }
+    }
+  }
+}

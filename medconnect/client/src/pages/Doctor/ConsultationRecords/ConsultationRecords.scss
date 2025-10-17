@@ -1,0 +1,169 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.consultation-records {
+  &__header {
+    @include flex-between;
+    margin-bottom: $spacing-xl;
+
+    h2 {
+      font-size: $font-size-2xl;
+      font-weight: 700;
+      color: $gray-900;
+      margin: 0;
+    }
+
+    button {
+      @include button-primary;
+    }
+  }
+
+  &__search {
+    @include card;
+    margin-bottom: $spacing-xl;
+
+    input {
+      @include input-base;
+    }
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+  }
+
+  &__record {
+    @include card;
+
+    &-header {
+      @include flex-between;
+      margin-bottom: $spacing-lg;
+      padding-bottom: $spacing-md;
+      border-bottom: 1px solid $gray-200;
+
+      &-left {
+        h3 {
+          font-size: $font-size-lg;
+          font-weight: 600;
+          color: $gray-900;
+          margin: 0 0 $spacing-xs 0;
+        }
+
+        p {
+          font-size: $font-size-sm;
+          color: $gray-600;
+          margin: 0;
+        }
+      }
+
+      button {
+        padding: $spacing-sm $spacing-lg;
+        border: 1px solid $primary-color;
+        background-color: $white;
+        color: $primary-color;
+        border-radius: $radius-md;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:hover {
+          background-color: $primary-light;
+        }
+      }
+    }
+
+    &-content {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: $spacing-lg;
+
+      @include mobile {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    &-section {
+      h4 {
+        font-size: $font-size-sm;
+        font-weight: 600;
+        color: $gray-700;
+        margin: 0 0 $spacing-sm 0;
+      }
+
+      p {
+        font-size: $font-size-sm;
+        color: $gray-600;
+        margin: 0;
+        line-height: 1.6;
+      }
+    }
+  }
+
+  &__form {
+    @include card;
+
+    h3 {
+      font-size: $font-size-xl;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0 0 $spacing-xl 0;
+    }
+
+    &-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: $spacing-lg;
+      margin-bottom: $spacing-lg;
+
+      @include mobile {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    &-group {
+      label {
+        display: block;
+        font-size: $font-size-sm;
+        font-weight: 500;
+        color: $gray-700;
+        margin-bottom: $spacing-sm;
+      }
+
+      input,
+      textarea,
+      select {
+        @include input-base;
+      }
+
+      textarea {
+        min-height: 100px;
+        resize: vertical;
+      }
+
+      &.full-width {
+        grid-column: 1 / -1;
+      }
+    }
+
+    &-actions {
+      display: flex;
+      gap: $spacing-md;
+      justify-content: flex-end;
+      padding-top: $spacing-lg;
+      border-top: 1px solid $gray-200;
+
+      button {
+        @include button-base;
+
+        &.primary {
+          @include button-primary;
+        }
+
+        &.secondary {
+          @include button-secondary;
+        }
+      }
+    }
+  }
+}

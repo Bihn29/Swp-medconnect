@@ -1,0 +1,445 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.feedback {
+  max-width: 1200px;
+
+  &__header {
+    margin-bottom: $spacing-xl;
+
+    h1 {
+      font-size: $font-size-4xl;
+      font-weight: 700;
+      color: $gray-900;
+      margin: 0 0 $spacing-sm 0;
+    }
+
+    p {
+      font-size: $font-size-base;
+      color: $gray-600;
+      margin: 0;
+    }
+  }
+
+  &__overview {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $spacing-xl;
+    margin-bottom: $spacing-xl;
+
+    @include tablet {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__rating-card {
+    @include card;
+
+    h2 {
+      font-size: $font-size-xl;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0 0 $spacing-lg 0;
+    }
+
+    &-content {
+      text-align: center;
+
+      &-score {
+        font-size: $font-size-4xl;
+        font-weight: 700;
+        color: $gray-900;
+        margin-bottom: $spacing-sm;
+      }
+
+      &-stars {
+        display: flex;
+        justify-content: center;
+        gap: 4px;
+        margin-bottom: $spacing-sm;
+      }
+
+      &-count {
+        font-size: $font-size-sm;
+        color: $gray-600;
+      }
+    }
+  }
+
+  &__distribution {
+    @include card;
+
+    h2 {
+      font-size: $font-size-xl;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0 0 $spacing-lg 0;
+    }
+
+    &-list {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-md;
+    }
+
+    &-item {
+      display: flex;
+      align-items: center;
+      gap: $spacing-md;
+
+      &-label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        width: 48px;
+
+        span {
+          font-size: $font-size-sm;
+          font-weight: 500;
+          color: $gray-700;
+        }
+
+        svg {
+          color: $accent-color;
+          fill: currentColor;
+        }
+      }
+
+      &-bar {
+        flex: 1;
+        height: 8px;
+        background-color: $gray-200;
+        border-radius: $radius-full;
+        overflow: hidden;
+
+        &-fill {
+          height: 100%;
+          background-color: $accent-color;
+          border-radius: $radius-full;
+          transition: width $transition-base;
+        }
+      }
+
+      &-count {
+        font-size: $font-size-sm;
+        color: $gray-600;
+        width: 32px;
+        text-align: right;
+      }
+    }
+  }
+
+  &__trends {
+    @include card;
+
+    h2 {
+      font-size: $font-size-xl;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0 0 $spacing-lg 0;
+    }
+
+    &-list {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-md;
+    }
+
+    &-item {
+      @include flex-between;
+
+      span {
+        font-size: $font-size-sm;
+        color: $gray-600;
+      }
+
+      &-value {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+
+        svg {
+          &.positive {
+            color: $success;
+          }
+
+          &.negative {
+            color: $error;
+          }
+        }
+
+        strong {
+          font-size: $font-size-sm;
+          font-weight: 500;
+
+          &.positive {
+            color: $success;
+          }
+
+          &.negative {
+            color: $error;
+          }
+        }
+      }
+    }
+  }
+
+  &__filters {
+    @include card;
+    margin-bottom: $spacing-xl;
+
+    &-content {
+      @include flex-between;
+
+      @include mobile {
+        flex-direction: column;
+        gap: $spacing-md;
+      }
+    }
+
+    &-rating {
+      display: flex;
+      align-items: center;
+      gap: $spacing-md;
+
+      &-label {
+        font-size: $font-size-sm;
+        font-weight: 500;
+        color: $gray-700;
+      }
+
+      &-buttons {
+        display: flex;
+        gap: $spacing-sm;
+
+        button {
+          @include button-base;
+          padding: $spacing-xs $spacing-md;
+          border-radius: $radius-lg;
+          font-size: $font-size-sm;
+          font-weight: 500;
+          transition: all $transition-base;
+
+          &.active {
+            background-color: $primary-color;
+            color: $white;
+          }
+
+          &:not(.active) {
+            color: $gray-600;
+
+            &:hover {
+              background-color: $gray-100;
+            }
+          }
+        }
+      }
+    }
+
+    &-sort {
+      display: flex;
+      align-items: center;
+      gap: $spacing-md;
+
+      &-label {
+        font-size: $font-size-sm;
+        font-weight: 500;
+        color: $gray-700;
+      }
+
+      select {
+        @include input-base;
+        padding: $spacing-xs $spacing-md;
+        font-size: $font-size-sm;
+      }
+    }
+  }
+
+  &__reviews {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+  }
+
+  &__review {
+    @include card;
+
+    &-content {
+      display: flex;
+      align-items: start;
+      gap: $spacing-md;
+    }
+
+    &-avatar {
+      width: 48px;
+      height: 48px;
+      background-color: $primary-light;
+      border-radius: $radius-full;
+      @include flex-center;
+      flex-shrink: 0;
+
+      svg {
+        color: $primary-color;
+      }
+    }
+
+    &-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    &-header {
+      @include flex-between;
+      margin-bottom: $spacing-md;
+
+      &-info {
+        h3 {
+          font-size: $font-size-lg;
+          font-weight: 600;
+          color: $gray-900;
+          margin: 0 0 4px 0;
+        }
+
+        &-meta {
+          display: flex;
+          align-items: center;
+          gap: $spacing-sm;
+          font-size: $font-size-sm;
+          color: $gray-600;
+
+          svg {
+            width: 14px;
+            height: 14px;
+          }
+
+          span {
+            &.online {
+              color: $primary-color;
+            }
+
+            &.offline {
+              color: $success;
+            }
+          }
+        }
+      }
+
+      &-rating {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+
+        svg {
+          &.trend-up {
+            color: $success;
+          }
+
+          &.trend-down {
+            color: $error;
+          }
+
+          &.trend-neutral {
+            color: $accent-color;
+          }
+        }
+
+        &-stars {
+          display: flex;
+          gap: 2px;
+        }
+      }
+    }
+
+    &-comment {
+      font-size: $font-size-base;
+      color: $gray-700;
+      line-height: 1.6;
+      margin-bottom: $spacing-md;
+    }
+
+    &-response {
+      background-color: $gray-50;
+      border-left: 4px solid $primary-color;
+      border-radius: $radius-lg;
+      padding: $spacing-md;
+
+      &-header {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        margin-bottom: $spacing-sm;
+
+        svg {
+          color: $primary-color;
+          width: 16px;
+          height: 16px;
+        }
+
+        span {
+          font-size: $font-size-sm;
+          font-weight: 500;
+          color: $gray-900;
+        }
+      }
+
+      p {
+        font-size: $font-size-sm;
+        color: $gray-700;
+        margin: 0;
+      }
+    }
+
+    &-action {
+      button {
+        font-size: $font-size-sm;
+        font-weight: 500;
+        color: $primary-color;
+        background: none;
+        border: none;
+        cursor: pointer;
+        transition: color $transition-base;
+
+        &:hover {
+          color: darken($primary-color, 10%);
+        }
+      }
+    }
+  }
+
+  &__empty,
+  &__loading,
+  &__error {
+    @include card;
+    text-align: center;
+    padding: $spacing-4xl;
+
+    svg {
+      margin: 0 auto $spacing-lg;
+      color: $gray-400;
+    }
+
+    h3 {
+      font-size: $font-size-lg;
+      font-weight: 500;
+      color: $gray-900;
+      margin: 0 0 $spacing-sm 0;
+    }
+
+    p {
+      font-size: $font-size-base;
+      color: $gray-600;
+      margin: 0;
+    }
+  }
+
+  &__error {
+    p {
+      color: $error;
+      margin-bottom: $spacing-lg;
+    }
+
+    button {
+      @include button-primary;
+    }
+  }
+}

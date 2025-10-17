@@ -82,7 +82,7 @@ const Header = () => {
   const [loadingAppts, setLoadingAppts] = useState(false);
 
   // Check if current page is patient page
-  const isPatientPage = location.pathname.startsWith("/patient");
+  const isPatientPage = location.pathname.startsWith("/benh-nhan");
 
   useEffect(() => {
     let mounted = true;
@@ -238,7 +238,7 @@ const Header = () => {
 
     // dashboard shortcut
     if (key === "dashboard") {
-      navigate("/patient");
+      navigate("/benh-nhan");
       return;
     }
 
@@ -443,7 +443,7 @@ const Header = () => {
                       </div>
                     ),
                   },
-                  { key: "dashboard", label: "Dashboard" },
+                  { key: "dashboard", label: "Trang cá nhân" },
                   { type: "divider", key: "d2" },
                   { key: "logout", label: "Đăng xuất", danger: true },
                 ],
@@ -647,7 +647,9 @@ const Header = () => {
           </div>
         </>
       )}
+      
     </header>
+    
   );
 };
 

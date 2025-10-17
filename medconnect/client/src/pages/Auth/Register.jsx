@@ -60,7 +60,7 @@ export default function Register() {
   const goByRole = (role) => {
     switch ((role || "").toUpperCase()) {
       case "PATIENT":
-        navigate("/patient");
+        navigate("/benh-nhan");
         break;
       case "DOCTOR":
         navigate("/bac-si");

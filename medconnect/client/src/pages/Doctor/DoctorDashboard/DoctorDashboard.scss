@@ -1,0 +1,27 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.doctor-dashboard {
+  display: flex;
+  min-height: 100vh;
+  background-color: $gray-50;
+  font-family: $font-family-base;
+
+  &__main {
+    flex: 1;
+    margin-left: 280px;
+    transition: margin-left $transition-base;
+
+    @include tablet {
+      margin-left: 0;
+    }
+  }
+
+  &__content {
+    padding: $spacing-xl;
+
+    @include mobile {
+      padding: $spacing-md;
+    }
+  }
+}

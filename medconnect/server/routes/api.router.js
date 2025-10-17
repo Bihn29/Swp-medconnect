@@ -1,6 +1,8 @@
 import express from "express";
 const apiRouter = express.Router();
 import authRouter from "./authRoutes.js";
+import doctorRouter from "./doctorRoutes.js";
+import notificationRouter from "./notificationRoutes.js";
 import specializationRouter from "./specializations/specialization.route.js";
 import patientRouter from "./patientRoutes.js";
 import usersRouter from "./users/user.route.js";
@@ -13,6 +15,14 @@ apiRouter.use("/specializations", specializationRouter); // Mount specialization
 // Users routes
 apiRouter.use("/users", usersRouter);
 console.log("[router] mounted /api/auth");
+
+// Doctor routes
+apiRouter.use("/doctors", doctorRouter);
+console.log("[router] mounted /api/doctors");
+
+// Notification routes
+apiRouter.use("/notifications", notificationRouter);
+console.log("[router] mounted /api/notifications");
 
 //admin
 // apiRouter.use("/doctor", adminRouter);

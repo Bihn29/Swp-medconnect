@@ -1,0 +1,253 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.calendar-view {
+  &__header {
+    @include card;
+    margin-bottom: $spacing-xl;
+
+    &-top {
+      @include flex-between;
+      margin-bottom: $spacing-lg;
+
+      h2 {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $gray-900;
+        margin: 0;
+      }
+    }
+
+    &-controls {
+      display: flex;
+      gap: $spacing-md;
+    }
+
+    &-filters {
+      display: flex;
+      gap: $spacing-sm;
+      flex-wrap: wrap;
+    }
+  }
+
+  &__view-toggle {
+    display: flex;
+    background-color: $gray-100;
+    border-radius: $radius-md;
+    padding: $spacing-xs;
+
+    button {
+      padding: $spacing-sm $spacing-lg;
+      border: none;
+      background: transparent;
+      color: $gray-600;
+      font-weight: 500;
+      border-radius: $radius-sm;
+      cursor: pointer;
+      transition: all $transition-base;
+
+      &.active {
+        background-color: $white;
+        color: $primary-color;
+        box-shadow: $shadow-sm;
+      }
+
+      &:hover:not(.active) {
+        color: $gray-900;
+      }
+    }
+  }
+
+  &__filter-button {
+    padding: $spacing-sm $spacing-md;
+    border: 1px solid $gray-300;
+    background-color: $white;
+    color: $gray-700;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
+    cursor: pointer;
+    transition: all $transition-base;
+
+    &.active {
+      background-color: $primary-color;
+      color: $white;
+      border-color: $primary-color;
+    }
+
+    &:hover:not(.active) {
+      border-color: $primary-color;
+      color: $primary-color;
+    }
+  }
+
+  &__calendar {
+    @include card;
+  }
+
+  &__month-header {
+    @include flex-between;
+    margin-bottom: $spacing-lg;
+    padding-bottom: $spacing-lg;
+    border-bottom: 1px solid $gray-200;
+
+    h3 {
+      font-size: $font-size-xl;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0;
+    }
+
+    &-nav {
+      display: flex;
+      gap: $spacing-sm;
+
+      button {
+        width: 36px;
+        height: 36px;
+        border: 1px solid $gray-300;
+        background-color: $white;
+        border-radius: $radius-md;
+        @include flex-center;
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:hover {
+          border-color: $primary-color;
+          color: $primary-color;
+        }
+
+        svg {
+          width: 20px;
+          height: 20px;
+        }
+      }
+    }
+  }
+
+  &__weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: $spacing-sm;
+    margin-bottom: $spacing-md;
+
+    span {
+      text-align: center;
+      font-size: $font-size-sm;
+      font-weight: 600;
+      color: $gray-600;
+      padding: $spacing-sm;
+    }
+  }
+
+  &__days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: $spacing-sm;
+  }
+
+  &__day {
+    min-height: 120px;
+    padding: $spacing-sm;
+    border: 1px solid $gray-200;
+    border-radius: $radius-lg;
+    cursor: pointer;
+    transition: all $transition-base;
+    position: relative;
+    overflow: hidden;
+
+    &:hover {
+      border-color: $primary-color;
+      box-shadow: $shadow-md;
+      transform: scale(1.02);
+    }
+
+    &.other-month {
+      background-color: $gray-50;
+      opacity: 0.5;
+    }
+
+    &.today {
+      border-color: $primary-color;
+      background: linear-gradient(135deg, $primary-light, lighten($primary-color, 35%));
+      box-shadow: 0 4px 12px rgba($primary-color, 0.15);
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, $primary-color, $accent-color);
+      }
+    }
+
+    &-number {
+      font-size: $font-size-sm;
+      font-weight: 600;
+      color: $gray-900;
+      margin-bottom: $spacing-sm;
+    }
+
+    &-events {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+  }
+
+  &__event {
+    padding: 4px 8px;
+    border-radius: $radius-md;
+    font-size: $font-size-xs;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all $transition-base;
+    cursor: pointer;
+
+    &:hover {
+      transform: scale(1.05);
+      box-shadow: $shadow-sm;
+    }
+
+    &.online {
+      background: linear-gradient(135deg, $primary-light, lighten($primary-color, 20%));
+      color: $primary-color;
+      border-left: 3px solid $primary-color;
+    }
+
+    &.in-person {
+      background: linear-gradient(135deg, lighten($accent-color, 35%), lighten($accent-color, 20%));
+      color: $accent-color;
+      border-left: 3px solid $accent-color;
+    }
+  }
+
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $spacing-lg;
+    margin-top: $spacing-xl;
+
+    &-card {
+      @include card;
+      text-align: center;
+
+      h4 {
+        font-size: $font-size-sm;
+        font-weight: 500;
+        color: $gray-600;
+        margin: 0 0 $spacing-sm 0;
+      }
+
+      p {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $gray-900;
+        margin: 0;
+      }
+    }
+  }
+}

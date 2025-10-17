@@ -89,7 +89,7 @@ const DoctorList = () => {
           { time: "08:00 - 08:30", available: true },
           { time: "08:30 - 09:00", available: true },
           { time: "09:00 - 09:30", available: true },
-          { time: "09:30 - 10:00", available: false },
+{ time: "09:30 - 10:00", available: false },
           { time: "14:00 - 14:30", available: false },
           { time: "14:30 - 15:00", available: true },
           { time: "15:00 - 15:30", available: true },
@@ -160,7 +160,7 @@ const DoctorList = () => {
       address: "456 Lê Văn Việt, Quận 9, TP.HCM",
       // Time slots for different days
       timeSlots: {
-        // Monday (Thứ 2)
+// Monday (Thứ 2)
         1: [
           { time: "08:00 - 08:30", available: true },
           { time: "08:30 - 09:00", available: true },
@@ -227,7 +227,7 @@ const DoctorList = () => {
           { time: "11:30 - 12:00", available: true },
         ],
         // Sunday (Chủ nhật)
-        0: [
+0: [
           { time: "14:00 - 14:30", available: true },
           { time: "14:30 - 15:00", available: true },
           { time: "15:00 - 15:30", available: false },
@@ -315,7 +315,7 @@ const DoctorList = () => {
   // Initialize filter from query param ?specialty=...
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const qSpecialty = params.get("specialty");
+const qSpecialty = params.get("specialty");
     if (qSpecialty) {
       setSelectedSpecialty(qSpecialty);
       setCurrentPage(1);
@@ -426,7 +426,7 @@ const DoctorList = () => {
       }}
     >
       <Row gutter={16} align="middle">
-        <Col flex="120px">
+<Col flex="120px">
           <Avatar
             size={100}
             src={doctor.image}
@@ -523,7 +523,7 @@ const DoctorList = () => {
       {/* Breadcrumb */}
       <div className="container">
         <NavigationBreadcrumb items={getBreadcrumbItems()} />
-      </div>
+</div>
 
       {/* Search Section */}
       <div className="doctor-search-section">
