@@ -436,6 +436,7 @@ export default function DoctorRegister() {
 
         <div className="doctor-register-links">
           <Link to="/dang-nhap">Đã có tài khoản? Đăng nhập</Link>
+          <Link to="/" className="home-link"> Quay về trang chủ</Link>
         </div>
       </div>
     </div>

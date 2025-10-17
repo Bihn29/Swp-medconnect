@@ -449,8 +449,11 @@ export default function Login() {
         {generalError && <div className="error-text">{generalError}</div>}
 
         <div className="login-links">
-          <Link to="/quen-mat-khau">Quên mật khẩu</Link>
-          <Link to="/dang-ky">Đăng ký tài khoản mới</Link>
+          <div className="login-links-top">
+            <Link to="/quen-mat-khau">Quên mật khẩu</Link>
+            <Link to="/dang-ky">Đăng ký tài khoản mới</Link>
+          </div>
+          <Link to="/" className="home-link"> Quay về trang chủ</Link>
         </div>
       </div>
     </div>
