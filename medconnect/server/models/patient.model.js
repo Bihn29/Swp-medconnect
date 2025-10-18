@@ -3,7 +3,6 @@
  * Hồ sơ bệnh nhân (hỗ trợ người thân)
  * ======================================================= */
 
-
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
@@ -19,6 +18,7 @@ const PatientSchema = new Schema(
     wardCode: Number,
     districtCode: Number,
     provinceCode: Number,
+
     relationshipToOwner: {
       type: String,
       enum: [
@@ -32,11 +32,29 @@ const PatientSchema = new Schema(
       ],
       default: "self",
     },
+
+    // 🩸 Thêm nhóm máu
+    bloodType: {
+      type: String,
+      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"],
+      default: "Unknown",
+    },
+
+    // ⚠️ Thêm ghi chú dị ứng
+    allergyNotes: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 500, // giới hạn độ dài để tránh nhập quá nhiều
+    },
   },
   { timestamps: true, versionKey: false, collection: "Patients" }
 );
 
+// 🗂️ Index giúp tìm kiếm nhanh theo user hoặc vị trí địa lý
 PatientSchema.index({ userId: 1, fullName: 1 });
 PatientSchema.index({ provinceCode: 1, districtCode: 1, wardCode: 1 });
 
 export default model("Patient", PatientSchema);
+
+// Thanh moi sua

@@ -20,10 +20,10 @@ const corsOptions = {
   origin(origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, curl, server-to-server)
     if (!origin) return callback(null, true);
-    
+
     // Allow requests from allowed origins
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    
+
     // Log rejected origin for debugging
     console.warn(`⚠️ CORS rejected origin: ${origin}`);
     return callback(new Error("Not allowed by CORS"));
@@ -42,7 +42,7 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
 // app.use(morgan("dev"));
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static("../client/public/uploads"));
 app.use(cookieParser());
 
 // router
@@ -55,14 +55,14 @@ app.use((_req, res) => {
 });
 app.use((err, req, res, _next) => {
   console.error("❌ Error handler caught:", err.stack);
-  
+
   // Ensure CORS headers are set even on errors
   const origin = req.headers.origin;
   if (!origin || allowedOrigins.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin || "*");
     res.header("Access-Control-Allow-Credentials", "true");
   }
-  
+
   res.status(err.status || 500).json({
     error: true,
     message: err.message || "Internal Server Error",

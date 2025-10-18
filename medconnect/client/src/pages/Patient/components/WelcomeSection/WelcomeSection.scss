@@ -1,0 +1,77 @@
+/* Welcome Section Styles */
+.welcome-section {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-color: rgba(var(--primary), 0.2);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--primary), 0.05) 0%,
+    var(--background) 50%,
+    var(--background) 100%
+  );
+  border-radius: var(--radius);
+}
+
+.welcome-content {
+  padding: 1.5rem 2rem;
+}
+
+@media (min-width: 1024px) {
+  .welcome-content {
+    padding: 2rem;
+  }
+}
+
+.welcome-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .welcome-main {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.welcome-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.welcome-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+@media (min-width: 1024px) {
+  .welcome-title {
+    font-size: 1.875rem;
+  }
+}
+
+.welcome-description {
+  color: var(--muted-foreground);
+  text-wrap: pretty;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.welcome-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.welcome-button-outline {
+  background: transparent;
+}
