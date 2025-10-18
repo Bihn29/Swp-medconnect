@@ -138,48 +138,16 @@ const Homepage = () => {
   ];
 
   // ---- Specialty list ----
-  const specialties = [
-    {
-      id: "orthopedic",
-      title: "Cơ Xương Khớp",
-      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145826-coxuongkhop.png",
-    },
-    {
-      id: "neurology",
-      title: "Thần kinh",
-      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145827-thankinh.png",
-    },
-    {
-      id: "digestive",
-      title: "Tiêu hóa",
-      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145828-tieuhoa.png",
-    },
-    {
-      id: "otolaryngology",
-      title: "Tai Mũi Họng",
-      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145829-taimuihong.png",
-    },
-    {
-      id: "cardiology",
-      title: "Tim mạch",
-      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145830-timmach.png",
-    },
-    {
-      id: "dermatology",
-      title: "Da liễu",
-      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145831-dalie.png",
-    },
-    {
-      id: "pediatrics",
-      title: "Nhi khoa",
-      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145832-nhikhoa.png",
-    },
-    {
-      id: "dentistry",
-      title: "Nha khoa",
-      icon: "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145833-nhakhoa.png",
-    },
-  ];
+  // Use data from API instead of static data
+  const specialties = specializations.map((spec) => ({
+    id: spec.code || spec._id,
+    title: spec.name,
+    icon: spec.avatar
+      ? `${import.meta.env.VITE_API_URL || "http://localhost:3000"}${
+          spec.avatar
+        }`
+      : "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145826-coxuongkhop.png", // fallback icon
+  }));
 
   useEffect(() => {
     const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -257,7 +225,7 @@ const Homepage = () => {
                   maxWidth: "1500px",
                   height: "55px",
                   margin: "0 auto",
-                  fontSize: "16px",
+                  fontSize: "20px",
                   boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
                 }}
               />
@@ -266,6 +234,8 @@ const Homepage = () => {
         </div>
       </section>
 
+      {/* Recommendation Section */}
+      {/* <section style={{ padding: "60px 0 40px 0", background: "#f9fafb" }}> */}
       <section style={{ padding: "80px 0", background: "white" }}>
         <div className="container">
           <Title level={2} style={{ marginBottom: "40px" }}>
@@ -274,13 +244,14 @@ const Homepage = () => {
           <Row gutter={[32, 32]}>
             <Col xs={24} sm={12} md={8}>
               <Link to="/danh-sach-bac-si">
+                {/* <Card hoverable variant="plain" style={{ textAlign: "center" }}> */}
                 <Card
                   hoverable
                   variant="plain" 
                   style={{ textAlign: "center" }}
                 >
                   <img
-                    src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152447-bac-si.png"
+                    src="https://cdn.bookingcare.vn/fo/w640/2023/11/01/140234-bac-si.png"
                     alt="Bác sĩ"
                     style={{
                       borderRadius: "50%",
@@ -297,13 +268,14 @@ const Homepage = () => {
 
             <Col xs={24} sm={12} md={8}>
               <Link to="/chuyen-khoa">
+                {/* <Card hoverable variant="plain" style={{ textAlign: "center" }}> */}
                 <Card
                   hoverable
                   variant="plain" 
                   style={{ textAlign: "center" }}
                 >
                   <img
-                    src="https://cdn.bookingcare.vn/fo/w1920/2023/12/28/152612-chuyen-khoa.png"
+                    src="https://cdn.bookingcare.vn/fo/w640/2023/11/01/140537-chuyen-khoa.png"
                     alt="Chuyên khoa"
                     style={{
                       borderRadius: "50%",
@@ -321,6 +293,8 @@ const Homepage = () => {
         </div>
       </section>
 
+      {/* Comprehensive Services */}
+      {/* <section style={{ padding: "40px 0 40px 0", background: "#f9fafb" }}> */}
       <section style={{ padding: "80px 0", background: "#f9fafb" }}>
         <div className="container">
           <Title level={2} style={{ marginBottom: "50px" }}>
@@ -399,6 +373,8 @@ const Homepage = () => {
         </div>
       </section>
 
+      {/* Specialties Section */}
+      {/* <section style={{ padding: "40px 0 60px 0", background: "#f9fafb" }}> */}
       <section style={{ padding: "80px 0", background: "#fff" }}>
         <div className="container">
           <Row
@@ -418,6 +394,7 @@ const Homepage = () => {
                 color: "#007f7f",
                 fontWeight: 500,
                 textDecoration: "none",
+                fontSize: "20px",
               }}
             >
               Xem thêm
@@ -437,14 +414,16 @@ const Homepage = () => {
                     cursor: "pointer",
                     height: "100%",
                     boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
+                    overflow: "visible",
                   }}
                   styles={{
                     body: {
-                      padding: "24px",
+                      padding: "4px",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
+                      overflow: "visible",
                     },
                   }}
                 >
@@ -452,10 +431,12 @@ const Homepage = () => {
                     src={specialty.icon}
                     alt={specialty.title}
                     style={{
-                      width: "120px",
-                      height: "120px",
+                      width: "320px",
+                      height: "320px",
                       objectFit: "contain",
                       marginBottom: "16px",
+                      transform: "scale(1.1)",
+                      zIndex: 1,
                     }}
                   />
                   <Title level={4} style={{ margin: 0, color: "#333" }}>
@@ -468,6 +449,8 @@ const Homepage = () => {
         </div>
       </section>
 
+      {/* Medical Facilities Section */}
+      {/* <section style={{ padding: "60px 0 40px 0", background: "#f9fafb" }}> */}
       <section style={{ padding: "80px 0", background: "#fff" }}>
         <div className="container">
           <Row
@@ -487,6 +470,7 @@ const Homepage = () => {
                 color: "#007f7f",
                 fontWeight: 500,
                 textDecoration: "none",
+                fontSize: "20px",
               }}
             >
               Xem thêm
@@ -577,23 +561,24 @@ const Homepage = () => {
       </section>
 
       {/* Promotion Section */}
-      <section style={{ padding: "80px 0", background: "#f9fafb" }}>
+      <section style={{ padding: "15px 0", background: "#f9fafb" }}>
         <div className="container">
           <Title
             level={2}
             style={{
               textAlign: "left",
-              marginBottom: "40px",
+              marginBottom: "10px",
               display: "flex",
               alignItems: "center",
-              gap: "10px",
+              gap: "8px",
+              fontSize: "1.5rem",
             }}
           >
             Ưu đãi HOT trong tháng
             <img
               src="https://cdn-icons-png.flaticon.com/512/616/616554.png"
               alt="Hot"
-              style={{ width: "28px", height: "28px" }}
+              style={{ width: "18px", height: "18px" }}
             />
           </Title>
 
@@ -602,7 +587,7 @@ const Homepage = () => {
               dots: true,
               infinite: true,
               autoplay: true,
-              autoplaySpeed: 4000,
+              autoplaySpeed: 3000,
               slidesToShow: 1,
               slidesToScroll: 1,
               arrows: false,
@@ -650,6 +635,8 @@ const Homepage = () => {
                       width: "100%",
                       maxWidth: "1200px",
                       height: "auto",
+                      maxHeight: "400px",
+                      objectFit: "cover",
                       borderRadius: "16px",
                       margin: "0 auto",
                       boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
@@ -706,7 +693,7 @@ const Homepage = () => {
       </section>
 
       {/* Featured Doctors Section */}
-      <section style={{ padding: "80px 0", background: "#45c3d2" }}>
+      <section style={{ padding: "60px 0", background: "#45c3d2" }}>
         <div className="container">
           <Row
             justify="space-between"
@@ -725,6 +712,7 @@ const Homepage = () => {
                 color: "#007f7f",
                 fontWeight: 500,
                 textDecoration: "none",
+                fontSize: "20px",
               }}
             >
               Xem thêm
@@ -865,7 +853,7 @@ const Homepage = () => {
       </section>
 
       {/* Telemedicine Section */}
-      <section style={{ padding: "80px 0", background: "#fff" }}>
+      <section style={{ padding: "60px 0 40px 0", background: "#f9fafb" }}>
         <div className="container">
           <Row
             justify="space-between"
@@ -884,6 +872,7 @@ const Homepage = () => {
                 color: "#007f7f",
                 fontWeight: 500,
                 textDecoration: "none",
+                fontSize: "20px",
               }}
             >
               Xem thêm

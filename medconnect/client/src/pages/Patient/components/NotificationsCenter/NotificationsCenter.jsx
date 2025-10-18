@@ -4,15 +4,16 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import { Badge } from "../../../components/ui/Badge";
+} from "../../../../components/ui/Card";
+import { Button } from "../../../../components/ui/Button";
+import { Badge } from "../../../../components/ui/Badge";
 import {
   BellOutlined,
   CreditCardOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
 } from "@ant-design/icons";
+import "./NotificationsCenter.scss";
 
 const notifications = [
   {

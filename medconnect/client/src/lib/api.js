@@ -47,6 +47,30 @@ export async function getCurrentPatientProfile() {
   }
 }
 
+export async function updateCurrentPatientProfile(profileData) {
+  try {
+    console.log(`Updating patient profile at: ${BASE}/api/patients/me/profile`);
+    const r = await fetch(`${BASE}/api/patients/me/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(profileData),
+    });
+    console.log(`Response status: ${r.status}`);
+    if (!r.ok) {
+      const errorText = await r.text();
+      console.error(`API Error: ${r.status} - ${errorText}`);
+      throw new Error(`API Error: ${r.status} - ${errorText}`);
+    }
+    const data = await r.json();
+    console.log("Patient profile update response:", data);
+    return data;
+  } catch (error) {
+    console.error("Error in updateCurrentPatientProfile:", error);
+    throw error;
+  }
+}
+
 export async function logout() {
   const r = await fetch(`${BASE}/api/auth/logout`, {
     method: "POST",
@@ -144,7 +168,7 @@ export async function getDoctorSchedule(doctorId) {
 // Current doctor functions (authenticated)
 export async function getCurrentDoctorProfile() {
   const r = await fetch(`${BASE}/api/doctors/me/profile`, {
-    credentials: "include"
+    credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -155,7 +179,7 @@ export async function updateDoctorProfile(profileData) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify(profileData)
+    body: JSON.stringify(profileData),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -168,9 +192,9 @@ export async function getDoctorAppointments(params = {}) {
       searchParams.append(key, value);
     }
   });
-  
+
   const r = await fetch(`${BASE}/api/doctors/me/appointments?${searchParams}`, {
-    credentials: "include"
+    credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -178,19 +202,26 @@ export async function getDoctorAppointments(params = {}) {
 
 export async function getDoctorDashboardStats() {
   const r = await fetch(`${BASE}/api/doctors/me/dashboard/stats`, {
-    credentials: "include"
+    credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
 
-export async function updateAppointmentStatus(appointmentId, status, cancelReason = null) {
-  const r = await fetch(`${BASE}/api/doctors/me/appointments/${appointmentId}/status`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ status, cancelReason })
-  });
+export async function updateAppointmentStatus(
+  appointmentId,
+  status,
+  cancelReason = null
+) {
+  const r = await fetch(
+    `${BASE}/api/doctors/me/appointments/${appointmentId}/status`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ status, cancelReason }),
+    }
+  );
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -203,10 +234,13 @@ export async function getConsultationRecords(params = {}) {
       searchParams.append(key, value);
     }
   });
-  
-  const r = await fetch(`${BASE}/api/doctors/me/consultation-records?${searchParams}`, {
-    credentials: "include"
-  });
+
+  const r = await fetch(
+    `${BASE}/api/doctors/me/consultation-records?${searchParams}`,
+    {
+      credentials: "include",
+    }
+  );
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -216,7 +250,7 @@ export async function createConsultationSummary(summaryData) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify(summaryData)
+    body: JSON.stringify(summaryData),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -227,7 +261,7 @@ export async function createPrescription(prescriptionData) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify(prescriptionData)
+    body: JSON.stringify(prescriptionData),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -308,9 +342,9 @@ export async function getNotifications(params = {}) {
       searchParams.append(key, value);
     }
   });
-  
+
   const r = await fetch(`${BASE}/api/notifications?${searchParams}`, {
-    credentials: "include"
+    credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -319,7 +353,7 @@ export async function getNotifications(params = {}) {
 export async function markNotificationAsRead(notificationId) {
   const r = await fetch(`${BASE}/api/notifications/${notificationId}/read`, {
     method: "PUT",
-    credentials: "include"
+    credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -328,7 +362,7 @@ export async function markNotificationAsRead(notificationId) {
 export async function markAllNotificationsAsRead() {
   const r = await fetch(`${BASE}/api/notifications/read-all`, {
     method: "PUT",
-    credentials: "include"
+    credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -342,9 +376,9 @@ export async function getDoctorTimeSlots(params = {}) {
       searchParams.append(key, value);
     }
   });
-  
+
   const r = await fetch(`${BASE}/api/doctors/me/time-slots?${searchParams}`, {
-    credentials: "include"
+    credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -355,7 +389,7 @@ export async function createTimeSlot(slotData) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify(slotData)
+    body: JSON.stringify(slotData),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -366,7 +400,7 @@ export async function updateTimeSlot(slotId, slotData) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify(slotData)
+    body: JSON.stringify(slotData),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -375,7 +409,7 @@ export async function updateTimeSlot(slotId, slotData) {
 export async function deleteTimeSlot(slotId) {
   const r = await fetch(`${BASE}/api/doctors/me/time-slots/${slotId}`, {
     method: "DELETE",
-    credentials: "include"
+    credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -386,7 +420,7 @@ export async function blockTimeSlot(blockData) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify(blockData)
+    body: JSON.stringify(blockData),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -400,9 +434,9 @@ export async function getDoctorReviews(params = {}) {
       searchParams.append(key, value);
     }
   });
-  
+
   const r = await fetch(`${BASE}/api/doctors/me/reviews?${searchParams}`, {
-    credentials: "include"
+    credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -413,7 +447,7 @@ export async function respondToReview(reviewId, response) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ response })
+    body: JSON.stringify({ response }),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -435,16 +469,17 @@ export async function submitReview(reviewData) {
 export async function getAllDoctors(params = {}) {
   try {
     const queryParams = new URLSearchParams();
-    
+
     if (params.search) queryParams.append("search", params.search);
-    if (params.specialization) queryParams.append("specialization", params.specialization);
+    if (params.specialization)
+      queryParams.append("specialization", params.specialization);
     if (params.location) queryParams.append("location", params.location);
     if (params.sortBy) queryParams.append("sortBy", params.sortBy);
     if (params.page) queryParams.append("page", params.page);
     if (params.limit) queryParams.append("limit", params.limit);
 
     const response = await fetch(`${BASE}/api/doctors?${queryParams}`, {
-      credentials: "include"
+      credentials: "include",
     });
 
     if (!response.ok) {

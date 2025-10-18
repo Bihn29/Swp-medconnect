@@ -58,6 +58,9 @@ export async function getCurrentPatientProfile(req, res) {
             wardCode: patient.wardCode,
             districtCode: patient.districtCode,
             provinceCode: patient.provinceCode,
+            bloodType: patient.bloodType,
+            allergyNotes: patient.allergyNotes,
+            relationshipToOwner: patient.relationshipToOwner,
             createdAt: patient.createdAt,
             updatedAt: patient.updatedAt,
             isComplete: !!(
@@ -117,6 +120,8 @@ export async function updatePatientProfile(req, res) {
       wardCode: updateData.wardCode,
       districtCode: updateData.districtCode,
       provinceCode: updateData.provinceCode,
+      bloodType: updateData.bloodType,
+      allergyNotes: updateData.allergyNotes,
     };
 
     const patient = await Patient.findOneAndUpdate(
