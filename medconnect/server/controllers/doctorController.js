@@ -282,14 +282,19 @@ export async function getAllDoctors(req, res) {
       search, 
       page = 1, 
       limit = 10,
-      verified = true 
+      verified 
     } = req.query;
     
     const skip = (page - 1) * limit;
-    const filter = { isVerified: verified === 'true' };
+    const filter = {};
+    
+    // Only filter by verified if explicitly requested
+    if (verified !== undefined) {
+      filter.isVerified = verified === 'true';
+    }
     
     if (specialization) {
-      filter.specializationIds = specialization;
+      filter.specializationIds = { $in: [specialization] };
     }
     
     if (search) {
@@ -298,6 +303,8 @@ export async function getAllDoctors(req, res) {
         { bio: { $regex: search, $options: 'i' } }
       ];
     }
+
+    console.log("Doctor filter:", filter); // Debug log
 
     const doctors = await Doctor.find(filter)
       .populate('userId', 'fullName email phone')
@@ -309,6 +316,8 @@ export async function getAllDoctors(req, res) {
       .lean();
 
     const total = await Doctor.countDocuments(filter);
+
+    console.log(`Found ${doctors.length} doctors out of ${total} total`); // Debug log
 
     return ok(res, {
       doctors,
@@ -322,6 +331,60 @@ export async function getAllDoctors(req, res) {
   } catch (e) {
     console.error("❌ getAllDoctors error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Get available time slots for a specific doctor (public endpoint)
+ */
+export async function getDoctorAvailableTimeSlots(req, res) {
+  try {
+    const { doctorId } = req.params;
+    const { date } = req.query; // Format: YYYY-MM-DD
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    if (!date) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Date is required");
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Parse date and create date range for the day
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
+    
+    const endDate = new Date(date);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Get available time slots for the doctor on the specified date
+    const timeSlots = await DoctorTimeSlot.find({
+      doctorId: doctorId,
+      startAt: { $gte: startDate, $lte: endDate },
+      status: "available"
+    })
+      .sort({ startAt: 1 })
+      .lean();
+
+    // Format time slots for frontend
+    const formattedSlots = timeSlots.map(slot => ({
+      _id: slot._id,
+      startTime: slot.startAt.toTimeString().slice(0, 5), // HH:MM format
+      endTime: slot.endAt.toTimeString().slice(0, 5),
+      timeRange: `${slot.startAt.toTimeString().slice(0, 5)} - ${slot.endAt.toTimeString().slice(0, 5)}`,
+      available: slot.status === "available"
+    }));
+
+    return ok(res, { timeSlots: formattedSlots });
+  } catch (error) {
+    console.error("Error fetching doctor time slots:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }
 
@@ -800,6 +863,68 @@ export async function respondToReview(req, res) {
     return ok(res, { review });
   } catch (e) {
     console.error("❌ respondToReview error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Create test time slots for a doctor (for development/testing)
+ */
+export async function createTestTimeSlots(req, res) {
+  try {
+    const { doctorId } = req.params;
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const createdSlots = [];
+
+    // Create time slots for next 7 days
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const currentDate = new Date(today);
+      currentDate.setDate(today.getDate() + dayOffset);
+
+      // Create slots from 9:00 AM to 5:00 PM, 30 minutes each
+      for (let hour = 9; hour < 17; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          const startAt = new Date(currentDate);
+          startAt.setHours(hour, minute, 0, 0);
+
+          const endAt = new Date(currentDate);
+          endAt.setHours(hour, minute + 30, 0, 0);
+
+          // Skip if slot already exists
+          const existingSlot = await DoctorTimeSlot.findOne({
+            doctorId: doctorId,
+            startAt,
+            endAt
+          });
+
+          if (!existingSlot) {
+            const slot = await DoctorTimeSlot.create({
+              doctorId: doctorId,
+              startAt,
+              endAt,
+              status: "available"
+            });
+            createdSlots.push(slot);
+          }
+        }
+      }
+    }
+
+    return ok(res, { 
+      message: `Created ${createdSlots.length} time slots for doctor ${doctor.fullName}`,
+      slots: createdSlots 
+    });
+  } catch (e) {
+    console.error("❌ createTestTimeSlots error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }

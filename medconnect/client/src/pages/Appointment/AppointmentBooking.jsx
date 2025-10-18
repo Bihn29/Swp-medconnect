@@ -230,10 +230,11 @@ const AppointmentBooking = () => {
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      // Simulate API call
+      // TODO: Comment out payment validation for now
+      // Simulate API call - in real implementation, this would call the booking API
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      message.success("Đặt lịch khám thành công!");
+      message.success("Đặt lịch khám thành công! Đang chờ bác sĩ xác nhận.");
       navigate("/benh-nhan", {
         state: {
           message: "Đặt lịch khám thành công!",
@@ -242,6 +243,7 @@ const AppointmentBooking = () => {
             date: selectedDate,
             time: selectedTime,
             patientInfo: values,
+            status: "pending_doctor", // Waiting for doctor approval
           },
         },
       });
@@ -490,7 +492,9 @@ const AppointmentBooking = () => {
 
                 {!showPatientForm && (
                   <div className="booking-instruction">
-                    <Text type="secondary">Chọn và đặt (Phí đặt lịch 0đ)</Text>
+                    <Text type="secondary">Chọn và đặt lịch (Miễn phí đặt lịch)</Text>
+                    {/* TODO: Comment out payment info for now */}
+                    {/* <Text type="secondary">Phí đặt lịch: 0đ</Text> */}
                   </div>
                 )}
               </Card>

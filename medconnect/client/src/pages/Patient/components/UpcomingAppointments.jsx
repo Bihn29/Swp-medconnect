@@ -4,25 +4,26 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "../../../../components/ui/Card";
-import { Button } from "../../../../components/ui/Button";
-import { Badge } from "../../../../components/ui/Badge";
+} from "../../../components/ui/Card";
+import { Button } from "../../../components/ui/Button";
+import { Badge } from "../../../components/ui/Badge";
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "../../../../components/ui/Avatar";
+} from "../../../components/ui/Avatar";
 import {
   CalendarOutlined,
   ClockCircleOutlined,
-  FileTextOutlined,
-  StarOutlined,
+  EnvironmentOutlined,
+  VideoCameraOutlined,
+  MoreOutlined,
   LoadingOutlined,
 } from "@ant-design/icons";
 import { usePatientAppointments } from "../../../hooks/usePatientAppointments";
 
-export function AppointmentHistory() {
-  const { pastAppointments, loading, error, refreshAppointments } = usePatientAppointments();
+export function UpcomingAppointments() {
+  const { upcomingAppointments, loading, error, refreshAppointments } = usePatientAppointments();
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -33,20 +34,48 @@ export function AppointmentHistory() {
     });
   };
 
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (startTime, endTime) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    return `${start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
   };
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'done':
+      case 'pending_doctor':
         return (
           <Badge
             variant="secondary"
+            className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+          >
+            Chờ bác sĩ xác nhận
+          </Badge>
+        );
+      case 'accepted':
+        return (
+          <Badge
+            variant="default"
+            className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+          >
+            Đã chấp nhận
+          </Badge>
+        );
+      case 'confirmed':
+        return (
+          <Badge
+            variant="default"
             className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
           >
-            Hoàn thành
+            Đã xác nhận
+          </Badge>
+        );
+      case 'in_progress':
+        return (
+          <Badge
+            variant="default"
+            className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+          >
+            Đang diễn ra
           </Badge>
         );
       case 'cancelled':
@@ -57,15 +86,6 @@ export function AppointmentHistory() {
             className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
           >
             Đã hủy
-          </Badge>
-        );
-      case 'no_show':
-        return (
-          <Badge
-            variant="secondary"
-            className="bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
-          >
-            Không đến khám
           </Badge>
         );
       case 'rejected':
@@ -86,12 +106,23 @@ export function AppointmentHistory() {
     }
   };
 
+  const canJoinVideoCall = (appointment) => {
+    const now = new Date();
+    const startTime = new Date(appointment.scheduledStart);
+    const endTime = new Date(appointment.scheduledEnd);
+    
+    return appointment.mode === 'online' && 
+           appointment.status === 'confirmed' && 
+           now >= startTime && 
+           now <= endTime;
+  };
+
   if (loading) {
     return (
       <Card className="medical-card fade-in">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <CardTitle className="text-xl font-semibold">
-            Lịch sử khám bệnh
+            Lịch hẹn sắp tới
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8">
@@ -107,7 +138,7 @@ export function AppointmentHistory() {
       <Card className="medical-card fade-in">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <CardTitle className="text-xl font-semibold">
-            Lịch sử khám bệnh
+            Lịch hẹn sắp tới
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-8">
@@ -124,20 +155,23 @@ export function AppointmentHistory() {
     <Card className="medical-card fade-in">
       <CardHeader className="flex flex-row items-center justify-between pb-4">
         <CardTitle className="text-xl font-semibold">
-          Lịch sử khám bệnh
+          Lịch hẹn sắp tới
         </CardTitle>
         <Button variant="ghost" size="sm" className="text-primary">
           Xem tất cả
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        {pastAppointments.length === 0 ? (
+        {upcomingAppointments.length === 0 ? (
           <div className="text-center py-8">
-            <FileTextOutlined style={{ fontSize: '48px', color: '#ccc' }} />
-            <p className="text-muted-foreground mt-4">Chưa có lịch sử khám bệnh</p>
+            <CalendarOutlined style={{ fontSize: '48px', color: '#ccc' }} />
+            <p className="text-muted-foreground mt-4">Chưa có lịch hẹn sắp tới</p>
+            <Button className="mt-4" onClick={() => window.location.href = '/appointment'}>
+              Đặt lịch ngay
+            </Button>
           </div>
         ) : (
-          pastAppointments.map((appointment) => (
+          upcomingAppointments.map((appointment) => (
             <div
               key={appointment._id}
               className="flex items-start gap-4 rounded-lg border bg-card p-4 hover:bg-muted/50 transition-colors"
@@ -162,6 +196,9 @@ export function AppointmentHistory() {
                       {appointment.doctorId?.specializationIds?.[0]?.name || "Chuyên khoa"}
                     </p>
                   </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreOutlined style={{ fontSize: "16px" }} />
+                  </Button>
                 </div>
 
                 <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
@@ -171,44 +208,61 @@ export function AppointmentHistory() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <ClockCircleOutlined style={{ fontSize: "16px" }} />
-                    <span>{formatTime(appointment.scheduledStart)}</span>
+                    <span>{formatTime(appointment.scheduledStart, appointment.scheduledEnd)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {appointment.mode === "online" ? (
+                      <VideoCameraOutlined style={{ fontSize: "16px" }} />
+                    ) : (
+                      <EnvironmentOutlined style={{ fontSize: "16px" }} />
+                    )}
+                    <span>
+                      {appointment.mode === "online" 
+                        ? "Video call" 
+                        : appointment.clinicId?.name || "Phòng khám"}
+                    </span>
                   </div>
                 </div>
 
-                {appointment.diagnosis && (
-                  <p className="text-sm">
-                    <span className="font-medium">Chẩn đoán:</span>{" "}
-                    {appointment.diagnosis}
-                  </p>
-                )}
-
                 <div className="flex items-center gap-2">
                   {getStatusBadge(appointment.status)}
-                  {appointment.paymentStatus === "paid" && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    >
-                      Đã thanh toán
-                    </Badge>
-                  )}
+                  <Badge variant="outline">
+                    {appointment.mode === "online" ? "Trực tuyến" : "Trực tiếp"}
+                  </Badge>
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-2">
-                  {appointment.consultationSummary && (
-                    <Button size="sm" variant="outline">
-                      <FileTextOutlined
+                  {canJoinVideoCall(appointment) && (
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                      <VideoCameraOutlined
                         style={{ fontSize: "16px", marginRight: "6px" }}
                       />
-                      Xem tóm tắt
+                      Tham gia ngay
                     </Button>
                   )}
-                  {appointment.prescription && (
-                    <Button size="sm" variant="outline">
-                      <FileTextOutlined
+                  {appointment.status === 'pending_doctor' && (
+                    <Button size="sm" variant="outline" disabled>
+                      <CalendarOutlined
                         style={{ fontSize: "16px", marginRight: "6px" }}
                       />
-                      Đơn thuốc
+                      Dời lịch
+                    </Button>
+                  )}
+                  {(appointment.status === 'accepted' || appointment.status === 'confirmed') && (
+                    <Button size="sm" variant="outline">
+                      <CalendarOutlined
+                        style={{ fontSize: "16px", marginRight: "6px" }}
+                      />
+                      Dời lịch
+                    </Button>
+                  )}
+                  {!['cancelled', 'auto_cancelled', 'rejected', 'done'].includes(appointment.status) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:text-destructive bg-transparent"
+                    >
+                      Hủy lịch
                     </Button>
                   )}
                   <Button size="sm" variant="outline">
