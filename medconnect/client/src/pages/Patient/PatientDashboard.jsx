@@ -8,6 +8,9 @@ import {
   QuickActions,
   UpcomingAppointments,
   AppointmentHistory,
+  PendingAppointments,
+  AppointmentStatusAlert,
+  AppointmentStats,
   PaymentHistory,
   NotificationsCenter,
   DoctorSearchShortcut,
@@ -48,6 +51,9 @@ export default function PatientDashboard() {
         style={{ marginTop: "3rem", marginBottom: "3rem" }}
       >
         <div className="space-y-6">
+          {/* Appointment Status Alert */}
+          <AppointmentStatusAlert />
+
           {/* Top Section - Profile & Quick Actions */}
           <div className="grid gap-6 lg:grid-cols-3">
             <ProfileCard userProfile={userProfile} />
@@ -59,16 +65,19 @@ export default function PatientDashboard() {
           {/* Doctor Search */}
           <DoctorSearchShortcut />
 
+
           {/* Main Content Grid */}
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Left Column - Appointments & History */}
             <div className="lg:col-span-2 space-y-6">
+              <PendingAppointments />
               <UpcomingAppointments />
               <AppointmentHistory />
             </div>
 
             {/* Right Column - Notifications & Payments */}
             <div className="space-y-6">
+              <AppointmentStats />
               <NotificationsCenter />
               <PaymentHistory />
             </div>

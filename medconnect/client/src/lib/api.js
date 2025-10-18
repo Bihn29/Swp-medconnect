@@ -1,5 +1,6 @@
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
+
 // Auth functions
 export async function getCurrentUser() {
   try {
@@ -466,3 +467,113 @@ export async function getAllDoctors(params = {}) {
 //   if (!r.ok) throw new Error(await r.text());
 //   return r.json();
 // }
+
+// Create api object with all functions for easier import
+const apiObject = {
+  // Auth functions
+  getCurrentUser,
+  logout,
+  
+  // Patient functions
+  getCurrentPatientProfile,
+  getPatientProfile,
+  getPatientAppointments,
+  getPatientMedicalRecords,
+  getPatientPrescriptions,
+  getPatientPayments,
+  getPatientNotifications,
+  
+  // Doctor functions
+  getDoctors,
+  searchDoctors,
+  getDoctorDetails,
+  getDoctorSchedule,
+  getCurrentDoctorProfile,
+  updateDoctorProfile,
+  getDoctorAppointments,
+  getDoctorDashboardStats,
+  updateAppointmentStatus,
+  
+  // Consultation and prescription functions
+  getConsultationRecords,
+  createConsultationSummary,
+  createPrescription,
+  
+  // Appointment functions
+  bookAppointment,
+  rescheduleAppointment,
+  cancelAppointment,
+  
+  // Payment functions
+  makePayment,
+  
+  // Video consultation functions
+  createVideoSession,
+  getVideoSession,
+  
+  // Notification functions
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  
+  // Time slot management functions
+  getDoctorTimeSlots,
+  createTimeSlot,
+  updateTimeSlot,
+  deleteTimeSlot,
+  blockTimeSlot,
+  
+  // Review functions
+  getDoctorReviews,
+  respondToReview,
+  submitReview,
+  
+  // Public doctor functions
+  getAllDoctors,
+  
+  // HTTP methods for direct API calls
+  get: async (url, options = {}) => {
+    const response = await fetch(`${BASE}${url}`, {
+      credentials: "include",
+      ...options,
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  },
+  
+  post: async (url, data, options = {}) => {
+    const response = await fetch(`${BASE}${url}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+      ...options,
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  },
+  
+  put: async (url, data, options = {}) => {
+    const response = await fetch(`${BASE}${url}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+      ...options,
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  },
+  
+  delete: async (url, options = {}) => {
+    const response = await fetch(`${BASE}${url}`, {
+      method: "DELETE",
+      credentials: "include",
+      ...options,
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  },
+};
+
+export const api = apiObject;

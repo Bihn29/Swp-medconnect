@@ -1,5 +1,5 @@
 import express from "express";
-import { authGuard } from "../middleware/auth.js";
+import { authGuard } from "../../middleware/auth.js";
 import {
   getDoctorProfile,
   getCurrentDoctorProfile,
@@ -17,14 +17,18 @@ import {
   deleteTimeSlot,
   blockTimeSlot,
   getDoctorReviews,
-  respondToReview
-} from "../controllers/doctorController.js";
+  respondToReview,
+  getDoctorAvailableTimeSlots,
+  createTestTimeSlots
+} from "../../controllers/doctorController.js";
 
 const router = express.Router();
 
 // Public routes
 router.get("/", getAllDoctors); // Get all doctors for search/listing
 router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
+router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
+router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
 
 // Protected routes (require authentication)
 router.use(authGuard);
