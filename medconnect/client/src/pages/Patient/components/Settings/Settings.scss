@@ -237,49 +237,18 @@
 }
 
 /* Date Input */
-.date-input-container {
-  position: relative;
-  display: inline-block;
-  width: 100%;
-}
-
-.date-input-container .form-input {
-  padding-right: 2.5rem !important;
-  width: 100%;
-  cursor: pointer;
-}
-
-.date-input-container .form-input[type="date"] {
+.form-input[type="date"] {
   color-scheme: light;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-}
-
-.date-input-container
-  .form-input[type="date"]::-webkit-calendar-picker-indicator {
-  background: transparent;
-  bottom: 0;
-  color: transparent;
   cursor: pointer;
-  height: auto;
-  left: 0;
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: auto;
 }
 
-.calendar-icon {
-  position: absolute;
-  right: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 1rem;
-  height: 1rem;
-  color: #6b7280;
-  pointer-events: none;
-  z-index: 1;
+.form-input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.form-input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 /* Allergies Section */

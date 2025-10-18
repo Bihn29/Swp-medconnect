@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { User, Bell, Lock, CreditCard, Upload, Calendar } from "lucide-react";
+import { User, Bell, Lock, CreditCard, Upload } from "lucide-react";
 import { useUserProfile } from "../../../../hooks/useUserProfile";
 import { updateCurrentPatientProfile } from "../../../../lib/api";
 import "./Settings.scss";
@@ -26,19 +26,19 @@ export function Settings() {
   // Update form data when user profile loads
   useEffect(() => {
     if (userProfile) {
-      // Format date for display (DD/MM/YYYY)
+      // Format date for display (YYYY-MM-DD for date input)
       const formatDateForDisplay = (dateString) => {
         if (!dateString) return "";
         try {
           const date = new Date(dateString);
           if (isNaN(date.getTime())) return "";
 
-          // Format as DD/MM/YYYY
-          const day = String(date.getDate()).padStart(2, "0");
-          const month = String(date.getMonth() + 1).padStart(2, "0");
+          // Format as YYYY-MM-DD for date input
           const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
 
-          return `${day}/${month}/${year}`;
+          return `${year}-${month}-${day}`;
         } catch (error) {
           return "";
         }
@@ -84,42 +84,10 @@ export function Settings() {
   ];
 
   const handleInputChange = (field, value) => {
-    // Special handling for date input
-    if (field === "birthDate") {
-      // Remove non-numeric characters except '/'
-      let formattedValue = value.replace(/[^\d/]/g, "");
-
-      // Auto-format DD/MM/YYYY as user types
-      if (formattedValue.length >= 2 && !formattedValue.includes("/")) {
-        formattedValue =
-          formattedValue.slice(0, 2) + "/" + formattedValue.slice(2);
-      }
-      if (
-        formattedValue.length >= 5 &&
-        formattedValue.split("/").length === 2
-      ) {
-        const parts = formattedValue.split("/");
-        if (parts[1].length >= 2) {
-          formattedValue =
-            parts[0] + "/" + parts[1].slice(0, 2) + "/" + parts[1].slice(2);
-        }
-      }
-
-      // Limit to DD/MM/YYYY format
-      if (formattedValue.length > 10) {
-        formattedValue = formattedValue.slice(0, 10);
-      }
-
-      setFormData((prev) => ({
-        ...prev,
-        [field]: formattedValue,
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
   const handleSave = async () => {
@@ -128,25 +96,11 @@ export function Settings() {
       console.log("=== SAVING PROFILE ===");
       console.log("Form data:", formData);
 
-      // Format date for API (convert DD/MM/YYYY to ISO string)
+      // Format date for API (convert YYYY-MM-DD to ISO string)
       const formatDateForAPI = (dateString) => {
         if (!dateString) return null;
         try {
-          // Handle DD/MM/YYYY format
-          if (dateString.includes("/")) {
-            const parts = dateString.split("/");
-            if (parts.length === 3) {
-              const day = parts[0];
-              const month = parts[1];
-              const year = parts[2];
-              // Create date in MM/DD/YYYY format for JavaScript Date constructor
-              const date = new Date(`${month}/${day}/${year}`);
-              if (isNaN(date.getTime())) return null;
-              return date.toISOString();
-            }
-          }
-
-          // Fallback: try direct date parsing
+          // Handle YYYY-MM-DD format from date input
           const date = new Date(dateString);
           if (isNaN(date.getTime())) return null;
           return date.toISOString();
@@ -316,19 +270,14 @@ export function Settings() {
 
                 <div className="form-group">
                   <label className="form-label">Ngày sinh</label>
-                  <div className="date-input-container">
-                    <input
-                      type="text"
-                      className="form-input"
-                      style={{ paddingRight: "2.5rem" }}
-                      value={formData.birthDate}
-                      onChange={(e) =>
-                        handleInputChange("birthDate", e.target.value)
-                      }
-                      placeholder="dd/mm/yyyy"
-                    />
-                    <Calendar className="calendar-icon" />
-                  </div>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={formData.birthDate}
+                    onChange={(e) =>
+                      handleInputChange("birthDate", e.target.value)
+                    }
+                  />
                 </div>
 
                 <div className="form-group">
