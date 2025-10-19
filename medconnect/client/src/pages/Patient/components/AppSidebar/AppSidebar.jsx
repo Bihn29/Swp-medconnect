@@ -16,7 +16,6 @@ import {
   CreditCard,
   Bell,
   Plus,
-  ChevronDown,
 } from "lucide-react";
 import "./AppSidebar.scss";
 
@@ -24,7 +23,6 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { userProfile, loading: profileLoading } = useUserProfile();
 
   useEffect(() => {
@@ -36,16 +34,6 @@ export function AppSidebar() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isDropdownOpen && !event.target.closest(".dropdown-container")) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isDropdownOpen]);
 
   const mainMenuItems = [
     { icon: Home, label: "Trang chủ", href: "/benh-nhan" },
@@ -66,11 +54,6 @@ export function AppSidebar() {
     { icon: LogOut, label: "Đăng xuất", href: "/logout" },
   ];
 
-  const userDropdownItems = [
-    { icon: Home, label: "Trang chủ", href: "/" },
-    { icon: Settings, label: "Cài đặt tài khoản", href: "/benh-nhan/cai-dat" },
-    { icon: LogOut, label: "Đăng xuất", href: "/logout" },
-  ];
 
   // Get user info from profile or use fallback
   const userInfo = {
@@ -99,19 +82,15 @@ export function AppSidebar() {
     }
   };
 
-  const handleDropdownItemClick = (item) => {
-    if (item.label === "Đăng xuất") {
-      handleLogout();
-    } else {
-      // Try both navigation methods
-      try {
-        navigate(item.href, { replace: false });
-      } catch (error) {
-        // Fallback to window.location
-        window.location.href = item.href;
-      }
-    }
-    setIsDropdownOpen(false);
+  const handleUserProfileClick = () => {
+    // Navigate to homepage when clicking on user profile
+    navigate("/benh-nhan/cai-dat", { replace: false });
+    setIsOpen(false); // Close mobile menu if open
+  };
+
+  const handleLogoClick = () => {
+    // Navigate to homepage when clicking on logo
+    navigate("/", { replace: false });
     setIsOpen(false); // Close mobile menu if open
   };
 
@@ -169,7 +148,11 @@ export function AppSidebar() {
       >
         <div className="sidebar-content">
           {/* Logo Section */}
-          <div className="logo-section">
+          <div 
+            className="logo-section"
+            onClick={handleLogoClick}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="logo-container">
               <div className="logo-icon">
                 <Plus className="logo-plus" />
@@ -182,7 +165,11 @@ export function AppSidebar() {
           </div>
 
           {/* User Profile Section */}
-          <div className="user-profile-section">
+          <div 
+            className="user-profile-section"
+            onClick={handleUserProfileClick}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="user-avatar">
               <img
                 src={userInfo.avatar}
@@ -193,41 +180,6 @@ export function AppSidebar() {
             <div className="user-info">
               <div className="user-name">{userInfo.name}</div>
               <div className="user-role">{userInfo.role}</div>
-            </div>
-            <div className="dropdown-container">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="dropdown-btn"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              >
-                <ChevronDown
-                  className={`dropdown-icon ${isDropdownOpen ? "rotated" : ""}`}
-                />
-              </Button>
-
-              {/* Dropdown Menu */}
-              {isDropdownOpen && (
-                <div className="dropdown-menu">
-                  {userDropdownItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.href}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleDropdownItemClick(item);
-                        }}
-                        className="dropdown-item"
-                      >
-                        <Icon className="dropdown-item-icon" />
-                        <span className="dropdown-item-text">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           </div>
 

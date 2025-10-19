@@ -15,6 +15,9 @@ import {
   Input,
   Select,
   Pagination,
+  Spin,
+  message,
+  Empty,
 } from "antd";
 import {
   UserOutlined,
@@ -27,6 +30,7 @@ import {
   HomeOutlined,
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
+import { api } from "../../../lib/api";
 import "./DoctorList.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -37,280 +41,19 @@ const DoctorList = () => {
   const location = useLocation();
   const { user } = useAuth();
 
+  const [loading, setLoading] = useState(true);
+  const [doctors, setDoctors] = useState([]);
+  const [specializations, setSpecializations] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalDoctors, setTotalDoctors] = useState(0);
 
-  // Mock data for doctors
-  const doctors = [
-    {
-      id: 1,
-      name: "BS. Nguyễn Văn An",
-      specialty: "Tim mạch",
-      subSpecialty: "Tim mạch can thiệp",
-      hospital: "Bệnh viện Chợ Rẫy",
-      location: "TP.HCM",
-      experience: "15 năm",
-      rating: 4.8,
-      reviewCount: 125,
-      price: "500.000đ",
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Bác sĩ chuyên khoa tim mạch với nhiều năm kinh nghiệm trong điều trị các bệnh lý tim mạch phức tạp và can thiệp tim mạch.",
-      phone: "0901234567",
-      qualifications: ["Tiến sĩ Y khoa", "Chứng chỉ Tim mạch can thiệp"],
-      address: "123 Nguyễn Huệ, Quận 1, TP.HCM",
-      // Time slots for different days
-      timeSlots: {
-        // Monday (Thứ 2)
-        1: [
-          { time: "08:00 - 08:30", available: true },
-          { time: "08:30 - 09:00", available: true },
-          { time: "09:00 - 09:30", available: false },
-          { time: "09:30 - 10:00", available: true },
-          { time: "14:00 - 14:30", available: true },
-          { time: "14:30 - 15:00", available: true },
-          { time: "15:00 - 15:30", available: false },
-          { time: "15:30 - 16:00", available: true },
-        ],
-        // Tuesday (Thứ 3)
-        2: [
-          { time: "08:00 - 08:30", available: true },
-          { time: "08:30 - 09:00", available: false },
-          { time: "09:00 - 09:30", available: true },
-          { time: "09:30 - 10:00", available: true },
-          { time: "14:00 - 14:30", available: true },
-          { time: "14:30 - 15:00", available: true },
-          { time: "15:00 - 15:30", available: true },
-          { time: "15:30 - 16:00", available: false },
-        ],
-        // Wednesday (Thứ 4)
-        3: [
-          { time: "08:00 - 08:30", available: true },
-          { time: "08:30 - 09:00", available: true },
-          { time: "09:00 - 09:30", available: true },
-          { time: "09:30 - 10:00", available: false },
-          { time: "14:00 - 14:30", available: false },
-          { time: "14:30 - 15:00", available: true },
-          { time: "15:00 - 15:30", available: true },
-          { time: "15:30 - 16:00", available: true },
-        ],
-        // Thursday (Thứ 5)
-        4: [
-          { time: "08:00 - 08:30", available: false },
-          { time: "08:30 - 09:00", available: true },
-          { time: "09:00 - 09:30", available: true },
-          { time: "09:30 - 10:00", available: true },
-          { time: "14:00 - 14:30", available: true },
-          { time: "14:30 - 15:00", available: false },
-          { time: "15:00 - 15:30", available: true },
-          { time: "15:30 - 16:00", available: true },
-        ],
-        // Friday (Thứ 6)
-        5: [
-          { time: "17:30 - 18:00", available: true },
-          { time: "18:00 - 18:30", available: true },
-          { time: "18:30 - 19:00", available: true },
-          { time: "19:00 - 19:30", available: true },
-          { time: "19:30 - 20:00", available: false },
-          { time: "20:00 - 20:30", available: true },
-          { time: "20:30 - 21:00", available: true },
-          { time: "21:00 - 21:30", available: false },
-        ],
-        // Saturday (Thứ 7)
-        6: [
-          { time: "08:00 - 08:30", available: true },
-          { time: "08:30 - 09:00", available: true },
-          { time: "09:00 - 09:30", available: true },
-          { time: "09:30 - 10:00", available: true },
-          { time: "10:00 - 10:30", available: false },
-          { time: "10:30 - 11:00", available: true },
-          { time: "11:00 - 11:30", available: true },
-          { time: "11:30 - 12:00", available: true },
-        ],
-        // Sunday (Chủ nhật)
-        0: [
-          { time: "14:00 - 14:30", available: true },
-          { time: "14:30 - 15:00", available: true },
-          { time: "15:00 - 15:30", available: false },
-          { time: "15:30 - 16:00", available: true },
-          { time: "16:00 - 16:30", available: true },
-          { time: "16:30 - 17:00", available: true },
-          { time: "17:00 - 17:30", available: false },
-          { time: "17:30 - 18:00", available: true },
-        ],
-      },
-    },
-    {
-      id: 2,
-      name: "BS. Trần Thị Bình",
-      specialty: "Da liễu",
-      subSpecialty: "Da liễu thẩm mỹ",
-      hospital: "Bệnh viện Da liễu TP.HCM",
-      location: "TP.HCM",
-      experience: "12 năm",
-      rating: 4.7,
-      reviewCount: 98,
-      price: "300.000đ",
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Chuyên gia da liễu và thẩm mỹ da, có kinh nghiệm điều trị các bệnh lý da và các thủ thuật thẩm mỹ không xâm lấn.",
-      phone: "0912345678",
-      qualifications: ["Thạc sĩ Y khoa", "Chứng chỉ Da liễu thẩm mỹ"],
-      address: "456 Lê Văn Việt, Quận 9, TP.HCM",
-      // Time slots for different days
-      timeSlots: {
-        // Monday (Thứ 2)
-        1: [
-          { time: "08:00 - 08:30", available: true },
-          { time: "08:30 - 09:00", available: true },
-          { time: "09:00 - 09:30", available: false },
-          { time: "09:30 - 10:00", available: true },
-          { time: "14:00 - 14:30", available: true },
-          { time: "14:30 - 15:00", available: true },
-          { time: "15:00 - 15:30", available: false },
-          { time: "15:30 - 16:00", available: true },
-        ],
-        // Tuesday (Thứ 3)
-        2: [
-          { time: "08:00 - 08:30", available: true },
-          { time: "08:30 - 09:00", available: false },
-          { time: "09:00 - 09:30", available: true },
-          { time: "09:30 - 10:00", available: true },
-          { time: "14:00 - 14:30", available: true },
-          { time: "14:30 - 15:00", available: true },
-          { time: "15:00 - 15:30", available: true },
-          { time: "15:30 - 16:00", available: false },
-        ],
-        // Wednesday (Thứ 4)
-        3: [
-          { time: "08:00 - 08:30", available: true },
-          { time: "08:30 - 09:00", available: true },
-          { time: "09:00 - 09:30", available: true },
-          { time: "09:30 - 10:00", available: false },
-          { time: "14:00 - 14:30", available: false },
-          { time: "14:30 - 15:00", available: true },
-          { time: "15:00 - 15:30", available: true },
-          { time: "15:30 - 16:00", available: true },
-        ],
-        // Thursday (Thứ 5)
-        4: [
-          { time: "08:00 - 08:30", available: false },
-          { time: "08:30 - 09:00", available: true },
-          { time: "09:00 - 09:30", available: true },
-          { time: "09:30 - 10:00", available: true },
-          { time: "14:00 - 14:30", available: true },
-          { time: "14:30 - 15:00", available: false },
-          { time: "15:00 - 15:30", available: true },
-          { time: "15:30 - 16:00", available: true },
-        ],
-        // Friday (Thứ 6)
-        5: [
-          { time: "17:30 - 18:00", available: true },
-          { time: "18:00 - 18:30", available: true },
-          { time: "18:30 - 19:00", available: true },
-          { time: "19:00 - 19:30", available: true },
-          { time: "19:30 - 20:00", available: false },
-          { time: "20:00 - 20:30", available: true },
-          { time: "20:30 - 21:00", available: true },
-          { time: "21:00 - 21:30", available: false },
-        ],
-        // Saturday (Thứ 7)
-        6: [
-          { time: "08:00 - 08:30", available: true },
-          { time: "08:30 - 09:00", available: true },
-          { time: "09:00 - 09:30", available: true },
-          { time: "09:30 - 10:00", available: true },
-          { time: "10:00 - 10:30", available: false },
-          { time: "10:30 - 11:00", available: true },
-          { time: "11:00 - 11:30", available: true },
-          { time: "11:30 - 12:00", available: true },
-        ],
-        // Sunday (Chủ nhật)
-        0: [
-          { time: "14:00 - 14:30", available: true },
-          { time: "14:30 - 15:00", available: true },
-          { time: "15:00 - 15:30", available: false },
-          { time: "15:30 - 16:00", available: true },
-          { time: "16:00 - 16:30", available: true },
-          { time: "16:30 - 17:00", available: true },
-          { time: "17:00 - 17:30", available: false },
-          { time: "17:30 - 18:00", available: true },
-        ],
-      },
-    },
-    {
-      id: 3,
-      name: "BS. Lê Minh Cường",
-      specialty: "Nhi khoa",
-      subSpecialty: "Nhi tim mạch",
-      hospital: "Bệnh viện Nhi Đồng 1",
-      location: "TP.HCM",
-      experience: "18 năm",
-      rating: 4.9,
-      reviewCount: 156,
-      price: "400.000đ",
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Bác sĩ nhi khoa chuyên sâu về tim mạch trẻ em, có nhiều kinh nghiệm trong chẩn đoán và điều trị các bệnh tim bẩm sinh.",
-      phone: "0923456789",
-      qualifications: ["Tiến sĩ Y khoa", "Chuyên khoa II Nhi"],
-    },
-    {
-      id: 4,
-      name: "BS. Phạm Thị Dung",
-      specialty: "Thần kinh",
-      subSpecialty: "Thần kinh cột sống",
-      hospital: "Bệnh viện Thống Nhất",
-      location: "TP.HCM",
-      experience: "20 năm",
-      rating: 4.6,
-      reviewCount: 87,
-      price: "600.000đ",
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Chuyên gia thần kinh với chuyên môn sâu về các bệnh lý cột sống và hệ thần kinh trung ương.",
-      phone: "0934567890",
-      qualifications: ["Tiến sĩ Y khoa", "Chuyên khoa II Thần kinh"],
-    },
-    {
-      id: 5,
-      name: "BS. Hoàng Văn Em",
-      specialty: "Chấn thương chỉnh hình",
-      subSpecialty: "Phẫu thuật cột sống",
-      hospital: "Bệnh viện Việt Đức",
-      location: "Hà Nội",
-      experience: "22 năm",
-      rating: 4.8,
-      reviewCount: 134,
-      price: "800.000đ",
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Phẫu thuật viên chỉnh hình chuyên về cột sống, có nhiều kinh nghiệm trong các ca phẫu thuật phức tạp.",
-      phone: "0945678901",
-      qualifications: [
-        "Tiến sĩ Y khoa",
-        "Chuyên khoa II Chấn thương chỉnh hình",
-      ],
-    },
-    {
-      id: 6,
-      name: "BS. Ngô Thị Phượng",
-      specialty: "Tim mạch",
-      subSpecialty: "Siêu âm tim",
-      hospital: "Bệnh viện Tim Hà Nội",
-      location: "Hà Nội",
-      experience: "14 năm",
-      rating: 4.7,
-      reviewCount: 112,
-      price: "450.000đ",
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Bác sĩ chuyên khoa tim mạch, giỏi về chẩn đoán hình ảnh tim mạch và siêu âm tim.",
-      phone: "0956789012",
-      qualifications: ["Thạc sĩ Y khoa", "Chứng chỉ Siêu âm tim"],
-    },
-  ];
+  // Fetch doctors and specializations from API
+  useEffect(() => {
+    fetchDoctors();
+    fetchSpecializations();
+  }, []);
 
   // Initialize filter from query param ?specialty=...
   useEffect(() => {
@@ -321,6 +64,60 @@ const DoctorList = () => {
       setCurrentPage(1);
     }
   }, [location.search]);
+
+  // Fetch doctors when page or filter changes
+  useEffect(() => {
+    if (doctors.length > 0 || currentPage > 1) {
+      fetchDoctors();
+    }
+  }, [currentPage, selectedSpecialty, searchTerm]);
+
+  const fetchDoctors = async () => {
+    try {
+      setLoading(true);
+
+      const params = new URLSearchParams();
+      params.append("page", currentPage);
+      params.append("limit", 10);
+
+      if (searchTerm) {
+        params.append("search", searchTerm);
+      }
+
+      if (selectedSpecialty && selectedSpecialty !== "all") {
+        // Find specialization ID by name
+        const spec = specializations.find((s) => s.name === selectedSpecialty);
+        if (spec) {
+          params.append("specialization", spec._id);
+        }
+      }
+
+      const response = await api.get(`/api/doctors?${params.toString()}`);
+
+      if (response.success) {
+        setDoctors(response.data.doctors);
+        setTotalDoctors(response.data.pagination.total);
+      } else {
+        message.error("Không thể tải danh sách bác sĩ");
+      }
+    } catch (error) {
+      console.error("Error fetching doctors:", error);
+      message.error("Có lỗi xảy ra khi tải danh sách bác sĩ");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSpecializations = async () => {
+    try {
+      const response = await api.get("/api/specializations");
+      if (response.success) {
+        setSpecializations(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching specializations:", error);
+    }
+  };
 
   // Get breadcrumb items based on current context
   const getBreadcrumbItems = () => {
@@ -352,19 +149,16 @@ const DoctorList = () => {
     return items;
   };
 
-  // Filter doctors based on search term and specialty
-  const filteredDoctors = doctors.filter((doctor) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.subSpecialty.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesSpecialty =
-      selectedSpecialty === "all" || doctor.specialty === selectedSpecialty;
-
-    return matchesSearch && matchesSpecialty;
-  });
+  // Helper function to get specialization names
+  const getSpecializationNames = (specializationIds) => {
+    if (!specializationIds || specializationIds.length === 0)
+      return "Chưa xác định";
+    return specializationIds
+      .map((spec) => {
+        return typeof spec === "object" ? spec.name : spec;
+      })
+      .join(", ");
+  };
 
   const handleDoctorClick = (doctorId) => {
     // Navigate to doctor detail page
@@ -413,11 +207,15 @@ const DoctorList = () => {
     navigate({ pathname: location.pathname, search: params.toString() });
   };
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   const DoctorCard = ({ doctor }) => (
     <Card
       className="doctor-card"
       hoverable
-      onClick={() => handleDoctorClick(doctor.id)}
+      onClick={() => handleDoctorClick(doctor._id)}
       style={{
         marginBottom: "16px",
         borderRadius: "12px",
@@ -429,7 +227,7 @@ const DoctorList = () => {
         <Col flex="120px">
           <Avatar
             size={100}
-            src={doctor.image}
+            src={doctor.avatarUrl || "/default-avatar.png"}
             icon={<UserOutlined />}
             style={{ borderRadius: "8px" }}
           />
@@ -437,40 +235,38 @@ const DoctorList = () => {
         <Col flex="auto">
           <div className="doctor-info">
             <Title level={4} style={{ margin: "0 0 8px 0", color: "#1890ff" }}>
-              {doctor.name}
+              {doctor.fullName}
             </Title>
             <Text
               strong
               style={{ color: "#666", display: "block", marginBottom: "4px" }}
             >
-              {doctor.specialty} - {doctor.subSpecialty}
+              {getSpecializationNames(doctor.specializationIds)}
             </Text>
-            <Paragraph
-              ellipsis={{ rows: 2 }}
-              style={{ color: "#666", margin: "8px 0" }}
-            >
-              {doctor.description}
-            </Paragraph>
+            {doctor.bio && (
+              <Paragraph
+                ellipsis={{ rows: 2 }}
+                style={{ color: "#666", margin: "8px 0" }}
+              >
+                {doctor.bio}
+              </Paragraph>
+            )}
             <Space direction="vertical" size="small" style={{ width: "100%" }}>
               <Space>
                 <StarOutlined style={{ color: "#fadb14" }} />
                 <Rate
                   disabled
-                  defaultValue={doctor.rating}
+                  defaultValue={doctor.ratingAvg || 0}
                   style={{ fontSize: "14px" }}
                 />
-                <Text>({doctor.reviewCount} đánh giá)</Text>
+                <Text>({doctor.ratingCount || 0} đánh giá)</Text>
               </Space>
-              <Space>
-                <EnvironmentOutlined style={{ color: "#45c3d2" }} />
-                <Text>
-                  {doctor.hospital} - {doctor.location}
-                </Text>
-              </Space>
-              <Space>
-                <CalendarOutlined style={{ color: "#45c3d2" }} />
-                <Text>Kinh nghiệm: {doctor.experience}</Text>
-              </Space>
+              {doctor.yearsExperience && (
+                <Space>
+                  <CalendarOutlined style={{ color: "#45c3d2" }} />
+                  <Text>Kinh nghiệm: {doctor.yearsExperience} năm</Text>
+                </Space>
+              )}
             </Space>
           </div>
         </Col>
@@ -485,7 +281,7 @@ const DoctorList = () => {
                 marginBottom: "8px",
               }}
             >
-              {doctor.price}
+              350.000đ
             </div>
             <Button
               type="primary"
@@ -506,7 +302,7 @@ const DoctorList = () => {
               block
               onClick={(e) => {
                 e.stopPropagation();
-                handleDoctorClick(doctor.id);
+                handleDoctorClick(doctor._id);
               }}
               style={{ fontWeight: "500" }}
             >
@@ -549,13 +345,11 @@ const DoctorList = () => {
                 placeholder="Chuyên khoa"
               >
                 <Option value="all">Tất cả chuyên khoa</Option>
-                <Option value="Tim mạch">Tim mạch</Option>
-                <Option value="Da liễu">Da liễu</Option>
-                <Option value="Nhi khoa">Nhi khoa</Option>
-                <Option value="Thần kinh">Thần kinh</Option>
-                <Option value="Chấn thương chỉnh hình">
-                  Chấn thương chỉnh hình
-                </Option>
+                {specializations.map((spec) => (
+                  <Option key={spec._id} value={spec.name}>
+                    {spec.name}
+                  </Option>
+                ))}
               </Select>
             </Col>
           </Row>
@@ -566,32 +360,46 @@ const DoctorList = () => {
       <div className="doctor-list-section">
         <div className="container">
           <div className="results-header">
-            <Title level={3}>Kết quả tìm kiếm ({filteredDoctors.length})</Title>
+            <Title level={3}>Kết quả tìm kiếm ({totalDoctors})</Title>
           </div>
 
-          <div className="doctor-list">
-            {filteredDoctors
-              .slice((currentPage - 1) * 5, currentPage * 5)
-              .map((doctor) => (
-                <DoctorCard key={doctor.id} doctor={doctor} />
-              ))}
-          </div>
-
-          {/* Pagination */}
-          {filteredDoctors.length > 5 && (
-            <div style={{ textAlign: "center", marginTop: "32px" }}>
-              <Pagination
-                current={currentPage}
-                total={filteredDoctors.length}
-                pageSize={5}
-                onChange={setCurrentPage}
-                showSizeChanger={false}
-                showQuickJumper
-                showTotal={(total, range) =>
-                  `${range[0]}-${range[1]} của ${total} bác sĩ`
-                }
-              />
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "50px 0" }}>
+              <Spin size="large" />
+              <Text style={{ marginLeft: 16 }}>
+                Đang tải danh sách bác sĩ...
+              </Text>
             </div>
+          ) : doctors.length === 0 ? (
+            <Empty
+              description="Không tìm thấy bác sĩ nào"
+              style={{ margin: "50px 0" }}
+            />
+          ) : (
+            <>
+              <div className="doctor-list">
+                {doctors.map((doctor) => (
+                  <DoctorCard key={doctor._id} doctor={doctor} />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalDoctors > 10 && (
+                <div style={{ textAlign: "center", marginTop: "32px" }}>
+                  <Pagination
+                    current={currentPage}
+                    total={totalDoctors}
+                    pageSize={10}
+                    onChange={handlePageChange}
+                    showSizeChanger={false}
+                    showQuickJumper
+                    showTotal={(total, range) =>
+                      `${range[0]}-${range[1]} của ${total} bác sĩ`
+                    }
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
