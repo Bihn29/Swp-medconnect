@@ -48,6 +48,7 @@ const DoctorList = () => {
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalDoctors, setTotalDoctors] = useState(0);
+  const [urlProcessed, setUrlProcessed] = useState(false);
 
   // Fetch doctors from API
   const fetchDoctors = async () => {
@@ -67,6 +68,9 @@ const DoctorList = () => {
       // Add specialization filter if not "all"
       if (selectedSpecialty !== "all") {
         params.append("specialization", selectedSpecialty);
+        console.log("Fetching doctors with specialization:", selectedSpecialty);
+      } else {
+        console.log("Fetching all doctors (no specialization filter)");
       }
 
       const response = await api.get(`/api/doctors?${params.toString()}`);
@@ -104,9 +108,29 @@ const DoctorList = () => {
     fetchSpecializations();
   }, []);
 
+  // Handle URL parameter on component mount
   useEffect(() => {
-    fetchDoctors();
-  }, [currentPage, searchTerm, selectedSpecialty]);
+    const params = new URLSearchParams(location.search);
+    const qSpecialty = params.get("specialty");
+    console.log("URL specialty parameter:", qSpecialty);
+    if (qSpecialty) {
+      // If qSpecialty looks like an ObjectId (24 hex characters), use it directly
+      if (qSpecialty.match(/^[0-9a-fA-F]{24}$/)) {
+        console.log("Setting selectedSpecialty to ObjectId:", qSpecialty);
+        setSelectedSpecialty(qSpecialty);
+        setCurrentPage(1);
+      }
+    }
+    // Always set urlProcessed to true after processing URL (or if no URL param)
+    setUrlProcessed(true);
+  }, []); // Only run on mount
+
+  useEffect(() => {
+    // Only fetch doctors after URL has been processed
+    if (urlProcessed) {
+      fetchDoctors();
+    }
+  }, [currentPage, searchTerm, selectedSpecialty, urlProcessed]);
 
   // Helper function to get specialization names
   const getSpecializationNames = (specializationIds) => {
@@ -118,15 +142,21 @@ const DoctorList = () => {
       .join(", ");
   };
 
-  // Initialize filter from query param ?specialty=...
+  // Handle specialization name to ID conversion (for backward compatibility)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const qSpecialty = params.get("specialty");
-    if (qSpecialty) {
-      setSelectedSpecialty(qSpecialty);
-      setCurrentPage(1);
+    if (qSpecialty && !qSpecialty.match(/^[0-9a-fA-F]{24}$/)) {
+      // Only handle name conversion if specializations are loaded
+      if (specializations.length > 0) {
+        const spec = specializations.find((s) => s.name === qSpecialty);
+        if (spec) {
+          setSelectedSpecialty(spec._id);
+          setCurrentPage(1);
+        }
+      }
     }
-  }, [location.search]);
+  }, [specializations, location.search]);
 
   // Get breadcrumb items based on current context
   const getBreadcrumbItems = () => {
@@ -143,8 +173,18 @@ const DoctorList = () => {
 
     // If coming from specialization page, add specialization to breadcrumb
     if (qSpecialty && qSpecialty !== "all") {
+      let specName = qSpecialty;
+
+      // If it's an ObjectId, find the specialization name
+      if (qSpecialty.match(/^[0-9a-fA-F]{24}$/)) {
+        const spec = specializations.find((s) => s._id === qSpecialty);
+        if (spec) {
+          specName = spec.name;
+        }
+      }
+
       items.push({
-        label: qSpecialty,
+        label: specName,
         path: "/chuyen-khoa",
       });
     }
@@ -204,6 +244,7 @@ const DoctorList = () => {
     if (value === "all") {
       params.delete("specialty");
     } else {
+      // Send specialization ID to URL
       params.set("specialty", value);
     }
     navigate({ pathname: location.pathname, search: params.toString() });

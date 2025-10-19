@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Row,
@@ -11,6 +11,9 @@ import {
   Select,
   Pagination,
   Tag,
+  Spin,
+  message,
+  Empty,
 } from "antd";
 import {
   MedicineBoxOutlined,
@@ -20,6 +23,7 @@ import {
   HomeOutlined,
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
+import { api } from "../../../lib/api";
 import "./Specialization.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -31,91 +35,55 @@ const Specialization = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [specializations, setSpecializations] = useState([]);
+  const [totalSpecializations, setTotalSpecializations] = useState(0);
 
-  // Mock data for specializations
-  const specializations = [
-    {
-      id: 1,
-      name: "Tim mạch",
-      description: "Chuyên khoa điều trị các bệnh lý về tim và mạch máu",
-      doctorCount: 45,
-      facilityCount: 12,
-      image: "https://via.placeholder.com/80x80",
-      category: "internal",
-      popularServices: ["Khám tim", "Siêu âm tim", "Điện tâm đồ"],
-    },
-    {
-      id: 2,
-      name: "Da liễu",
-      description: "Chuyên khoa điều trị các bệnh về da và thẩm mỹ",
-      doctorCount: 32,
-      facilityCount: 8,
-      image: "https://via.placeholder.com/80x80",
-      category: "external",
-      popularServices: ["Khám da", "Điều trị mụn", "Laser thẩm mỹ"],
-    },
-    {
-      id: 3,
-      name: "Nhi khoa",
-      description: "Chuyên khoa chăm sóc sức khỏe trẻ em từ 0-16 tuổi",
-      doctorCount: 38,
-      facilityCount: 10,
-      image: "https://via.placeholder.com/80x80",
-      category: "pediatric",
-      popularServices: ["Khám nhi", "Tiêm chủng", "Dinh dưỡng"],
-    },
-    {
-      id: 4,
-      name: "Thần kinh",
-      description: "Chuyên khoa điều trị các bệnh lý hệ thần kinh",
-      doctorCount: 28,
-      facilityCount: 7,
-      image: "https://via.placeholder.com/80x80",
-      category: "internal",
-      popularServices: ["Khám thần kinh", "MRI não", "Điều trị đau đầu"],
-    },
-    {
-      id: 5,
-      name: "Chấn thương chỉnh hình",
-      description: "Chuyên khoa điều trị chấn thương và phục hồi chức năng",
-      doctorCount: 35,
-      facilityCount: 9,
-      image: "https://via.placeholder.com/80x80",
-      category: "surgical",
-      popularServices: [
-        "Phẫu thuật xương",
-        "Vật lý trị liệu",
-        "Phục hồi chức năng",
-      ],
-    },
-    {
-      id: 6,
-      name: "Mắt",
-      description: "Chuyên khoa điều trị các bệnh lý về mắt và thị lực",
-      doctorCount: 25,
-      facilityCount: 6,
-      image: "https://via.placeholder.com/80x80",
-      category: "external",
-      popularServices: [
-        "Khám mắt",
-        "Phẫu thuật cận thị",
-        "Điều trị đục thủy tinh thể",
-      ],
-    },
-  ];
+  // Fetch specializations from API
+  const fetchSpecializations = async () => {
+    try {
+      setLoading(true);
 
-  // Filter specializations
-  const filteredSpecializations = specializations.filter((spec) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      spec.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      spec.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const params = {
+        page: currentPage,
+        limit: 6,
+      };
 
-    const matchesCategory =
-      selectedCategory === "all" || spec.category === selectedCategory;
+      // Add search term if exists
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
 
-    return matchesSearch && matchesCategory;
-  });
+      // Add category filter if not "all"
+      if (selectedCategory !== "all") {
+        params.category = selectedCategory;
+      }
+
+      const response = await api.getAllSpecializations(params);
+
+      if (response.success) {
+        setSpecializations(response.data.specializations || response.data);
+        setTotalSpecializations(
+          response.data.pagination?.total || response.data.length
+        );
+      } else {
+        message.error("Không thể tải danh sách chuyên khoa");
+      }
+    } catch (error) {
+      console.error("Error fetching specializations:", error);
+      message.error("Có lỗi xảy ra khi tải danh sách chuyên khoa");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch specializations when component mounts or dependencies change
+  useEffect(() => {
+    fetchSpecializations();
+  }, [currentPage, searchTerm, selectedCategory]);
+
+  // Specializations are already filtered by API, so we use them directly
+  const filteredSpecializations = specializations;
 
   const handleSearch = (value) => {
     setSearchTerm(value);
@@ -129,11 +97,7 @@ const Specialization = () => {
 
   const handleSpecializationClick = (specId) => {
     // Navigate to doctors filtered by specialization
-    navigate(
-      `/danh-sach-bac-si?specialty=${encodeURIComponent(
-        specializations.find((s) => s.id === specId)?.name
-      )}`
-    );
+    navigate(`/danh-sach-bac-si?specialty=${encodeURIComponent(specId)}`);
   };
 
   const SpecializationCard = ({ specialization }) => (
@@ -176,16 +140,16 @@ const Specialization = () => {
             <Space direction="vertical" size="small" style={{ width: "100%" }}>
               <Space>
                 <UserOutlined style={{ color: "#45c3d2" }} />
-                <Text>{specialization.doctorCount} bác sĩ</Text>
+                <Text>{specialization.doctorCount || "Nhiều"} bác sĩ</Text>
                 <EnvironmentOutlined style={{ color: "#45c3d2" }} />
-                <Text>{specialization.facilityCount} cơ sở</Text>
+                <Text>{specialization.facilityCount || "Nhiều"} cơ sở</Text>
               </Space>
               <Space wrap>
-                {specialization.popularServices.map((service, index) => (
+                {specialization.popularServices?.map((service, index) => (
                   <Tag key={index} color="blue-inverse">
                     {service}
                   </Tag>
-                ))}
+                )) || <Tag color="blue-inverse">{specialization.name}</Tag>}
               </Space>
             </Space>
           </div>
@@ -202,7 +166,7 @@ const Specialization = () => {
             }}
             onClick={(e) => {
               e.stopPropagation();
-              handleSpecializationClick(specialization.id);
+              handleSpecializationClick(specialization._id);
             }}
           >
             Xem bác sĩ
@@ -274,22 +238,34 @@ const Specialization = () => {
           </div>
 
           <div className="specialization-list">
-            {filteredSpecializations
-              .slice((currentPage - 1) * 6, currentPage * 6)
-              .map((specialization) => (
+            {loading ? (
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <Spin size="large" />
+                <Text style={{ marginLeft: 16 }}>
+                  Đang tải danh sách chuyên khoa...
+                </Text>
+              </div>
+            ) : filteredSpecializations.length === 0 ? (
+              <Empty
+                description="Không tìm thấy chuyên khoa nào"
+                style={{ margin: "50px 0" }}
+              />
+            ) : (
+              filteredSpecializations.map((specialization) => (
                 <SpecializationCard
-                  key={specialization.id}
+                  key={specialization._id}
                   specialization={specialization}
                 />
-              ))}
+              ))
+            )}
           </div>
 
           {/* Pagination */}
-          {filteredSpecializations.length > 6 && (
+          {!loading && totalSpecializations > 6 && (
             <div style={{ textAlign: "center", marginTop: "32px" }}>
               <Pagination
                 current={currentPage}
-                total={filteredSpecializations.length}
+                total={totalSpecializations}
                 pageSize={6}
                 onChange={setCurrentPage}
                 showSizeChanger={false}

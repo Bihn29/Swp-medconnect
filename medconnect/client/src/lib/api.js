@@ -1,6 +1,5 @@
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-
 // Auth functions
 export async function getCurrentUser() {
   try {
@@ -493,6 +492,31 @@ export async function getAllDoctors(params = {}) {
   }
 }
 
+// Specialization functions
+export async function getAllSpecializations(params = {}) {
+  try {
+    const queryParams = new URLSearchParams();
+
+    if (params.search) queryParams.append("search", params.search);
+    if (params.category) queryParams.append("category", params.category);
+    if (params.page) queryParams.append("page", params.page);
+    if (params.limit) queryParams.append("limit", params.limit);
+
+    const response = await fetch(`${BASE}/api/specializations?${queryParams}`, {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to fetch specializations:", error);
+    throw error;
+  }
+}
+
 // Notification functions
 // export async function markNotificationAsRead(notificationId) {
 //   const r = await fetch(`${BASE}/api/notifications/${notificationId}/read`, {
@@ -508,7 +532,7 @@ const apiObject = {
   // Auth functions
   getCurrentUser,
   logout,
-  
+
   // Patient functions
   getCurrentPatientProfile,
   getPatientProfile,
@@ -517,7 +541,7 @@ const apiObject = {
   getPatientPrescriptions,
   getPatientPayments,
   getPatientNotifications,
-  
+
   // Doctor functions
   getDoctors,
   searchDoctors,
@@ -528,44 +552,47 @@ const apiObject = {
   getDoctorAppointments,
   getDoctorDashboardStats,
   updateAppointmentStatus,
-  
+
   // Consultation and prescription functions
   getConsultationRecords,
   createConsultationSummary,
   createPrescription,
-  
+
   // Appointment functions
   bookAppointment,
   rescheduleAppointment,
   cancelAppointment,
-  
+
   // Payment functions
   makePayment,
-  
+
   // Video consultation functions
   createVideoSession,
   getVideoSession,
-  
+
   // Notification functions
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
-  
+
   // Time slot management functions
   getDoctorTimeSlots,
   createTimeSlot,
   updateTimeSlot,
   deleteTimeSlot,
   blockTimeSlot,
-  
+
   // Review functions
   getDoctorReviews,
   respondToReview,
   submitReview,
-  
+
   // Public doctor functions
   getAllDoctors,
-  
+
+  // Specialization functions
+  getAllSpecializations,
+
   // HTTP methods for direct API calls
   get: async (url, options = {}) => {
     const response = await fetch(`${BASE}${url}`, {
@@ -575,7 +602,7 @@ const apiObject = {
     if (!response.ok) throw new Error(await response.text());
     return response.json();
   },
-  
+
   post: async (url, data, options = {}) => {
     const response = await fetch(`${BASE}${url}`, {
       method: "POST",
@@ -587,7 +614,7 @@ const apiObject = {
     if (!response.ok) throw new Error(await response.text());
     return response.json();
   },
-  
+
   put: async (url, data, options = {}) => {
     const response = await fetch(`${BASE}${url}`, {
       method: "PUT",
@@ -599,7 +626,7 @@ const apiObject = {
     if (!response.ok) throw new Error(await response.text());
     return response.json();
   },
-  
+
   delete: async (url, options = {}) => {
     const response = await fetch(`${BASE}${url}`, {
       method: "DELETE",
