@@ -49,47 +49,24 @@ const DoctorList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalDoctors, setTotalDoctors] = useState(0);
 
-  // Fetch doctors and specializations from API
-  useEffect(() => {
-    fetchDoctors();
-    fetchSpecializations();
-  }, []);
-
-  // Initialize filter from query param ?specialty=...
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const qSpecialty = params.get("specialty");
-    if (qSpecialty) {
-      setSelectedSpecialty(qSpecialty);
-      setCurrentPage(1);
-    }
-  }, [location.search]);
-
-  // Fetch doctors when page or filter changes
-  useEffect(() => {
-    if (doctors.length > 0 || currentPage > 1) {
-      fetchDoctors();
-    }
-  }, [currentPage, selectedSpecialty, searchTerm]);
-
+  // Fetch doctors from API
   const fetchDoctors = async () => {
     try {
       setLoading(true);
-
       const params = new URLSearchParams();
-      params.append("page", currentPage);
-      params.append("limit", 10);
 
+      // Add pagination
+      params.append("page", currentPage);
+      params.append("limit", 5);
+
+      // Add search term if exists
       if (searchTerm) {
         params.append("search", searchTerm);
       }
 
-      if (selectedSpecialty && selectedSpecialty !== "all") {
-        // Find specialization ID by name
-        const spec = specializations.find((s) => s.name === selectedSpecialty);
-        if (spec) {
-          params.append("specialization", spec._id);
-        }
+      // Add specialization filter if not "all"
+      if (selectedSpecialty !== "all") {
+        params.append("specialization", selectedSpecialty);
       }
 
       const response = await api.get(`/api/doctors?${params.toString()}`);
@@ -99,15 +76,18 @@ const DoctorList = () => {
         setTotalDoctors(response.data.pagination.total);
       } else {
         message.error("Không thể tải danh sách bác sĩ");
+        setDoctors([]);
       }
     } catch (error) {
       console.error("Error fetching doctors:", error);
       message.error("Có lỗi xảy ra khi tải danh sách bác sĩ");
+      setDoctors([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Fetch specializations for filter dropdown
   const fetchSpecializations = async () => {
     try {
       const response = await api.get("/api/specializations");
@@ -118,6 +98,35 @@ const DoctorList = () => {
       console.error("Error fetching specializations:", error);
     }
   };
+
+  // Initialize data
+  useEffect(() => {
+    fetchSpecializations();
+  }, []);
+
+  useEffect(() => {
+    fetchDoctors();
+  }, [currentPage, searchTerm, selectedSpecialty]);
+
+  // Helper function to get specialization names
+  const getSpecializationNames = (specializationIds) => {
+    if (!specializationIds || specializationIds.length === 0) return [];
+    return specializationIds
+      .map((spec) => {
+        return typeof spec === "object" ? spec.name : spec;
+      })
+      .join(", ");
+  };
+
+  // Initialize filter from query param ?specialty=...
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const qSpecialty = params.get("specialty");
+    if (qSpecialty) {
+      setSelectedSpecialty(qSpecialty);
+      setCurrentPage(1);
+    }
+  }, [location.search]);
 
   // Get breadcrumb items based on current context
   const getBreadcrumbItems = () => {
@@ -149,20 +158,13 @@ const DoctorList = () => {
     return items;
   };
 
-  // Helper function to get specialization names
-  const getSpecializationNames = (specializationIds) => {
-    if (!specializationIds || specializationIds.length === 0)
-      return "Chưa xác định";
-    return specializationIds
-      .map((spec) => {
-        return typeof spec === "object" ? spec.name : spec;
-      })
-      .join(", ");
-  };
+  // Doctors are already filtered by API, so we use them directly
+  const filteredDoctors = doctors;
 
   const handleDoctorClick = (doctorId) => {
     // Navigate to doctor detail page
     console.log("Navigate to doctor detail:", doctorId);
+    // TODO: Implement doctor detail page navigation
   };
 
   const handleBookAppointment = (e, doctor) => {
@@ -207,10 +209,6 @@ const DoctorList = () => {
     navigate({ pathname: location.pathname, search: params.toString() });
   };
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
   const DoctorCard = ({ doctor }) => (
     <Card
       className="doctor-card"
@@ -241,16 +239,15 @@ const DoctorList = () => {
               strong
               style={{ color: "#666", display: "block", marginBottom: "4px" }}
             >
-              {getSpecializationNames(doctor.specializationIds)}
+              {getSpecializationNames(doctor.specializationIds) ||
+                "Chuyên khoa"}
             </Text>
-            {doctor.bio && (
-              <Paragraph
-                ellipsis={{ rows: 2 }}
-                style={{ color: "#666", margin: "8px 0" }}
-              >
-                {doctor.bio}
-              </Paragraph>
-            )}
+            <Paragraph
+              ellipsis={{ rows: 2 }}
+              style={{ color: "#666", margin: "8px 0" }}
+            >
+              {doctor.bio || "Bác sĩ chuyên khoa với nhiều năm kinh nghiệm."}
+            </Paragraph>
             <Space direction="vertical" size="small" style={{ width: "100%" }}>
               <Space>
                 <StarOutlined style={{ color: "#fadb14" }} />
@@ -261,12 +258,17 @@ const DoctorList = () => {
                 />
                 <Text>({doctor.ratingCount || 0} đánh giá)</Text>
               </Space>
-              {doctor.yearsExperience && (
-                <Space>
-                  <CalendarOutlined style={{ color: "#45c3d2" }} />
-                  <Text>Kinh nghiệm: {doctor.yearsExperience} năm</Text>
-                </Space>
-              )}
+              <Space>
+                <EnvironmentOutlined style={{ color: "#45c3d2" }} />
+                <Text>
+                  {doctor.clinicDefaultId?.name || "Phòng khám"} -{" "}
+                  {doctor.clinicDefaultId?.address || "Địa chỉ"}
+                </Text>
+              </Space>
+              <Space>
+                <CalendarOutlined style={{ color: "#45c3d2" }} />
+                <Text>Kinh nghiệm: {doctor.yearsExperience || 0} năm</Text>
+              </Space>
             </Space>
           </div>
         </Col>
@@ -346,7 +348,7 @@ const DoctorList = () => {
               >
                 <Option value="all">Tất cả chuyên khoa</Option>
                 {specializations.map((spec) => (
-                  <Option key={spec._id} value={spec.name}>
+                  <Option key={spec._id} value={spec._id}>
                     {spec.name}
                   </Option>
                 ))}
@@ -360,46 +362,44 @@ const DoctorList = () => {
       <div className="doctor-list-section">
         <div className="container">
           <div className="results-header">
-            <Title level={3}>Kết quả tìm kiếm ({totalDoctors})</Title>
+            <Title level={3}>Kết quả tìm kiếm ({filteredDoctors.length})</Title>
           </div>
 
-          {loading ? (
-            <div style={{ textAlign: "center", padding: "50px 0" }}>
-              <Spin size="large" />
-              <Text style={{ marginLeft: 16 }}>
-                Đang tải danh sách bác sĩ...
-              </Text>
-            </div>
-          ) : doctors.length === 0 ? (
-            <Empty
-              description="Không tìm thấy bác sĩ nào"
-              style={{ margin: "50px 0" }}
-            />
-          ) : (
-            <>
-              <div className="doctor-list">
-                {doctors.map((doctor) => (
-                  <DoctorCard key={doctor._id} doctor={doctor} />
-                ))}
+          <div className="doctor-list">
+            {loading ? (
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <Spin size="large" />
+                <Text style={{ marginLeft: 16 }}>
+                  Đang tải danh sách bác sĩ...
+                </Text>
               </div>
+            ) : filteredDoctors.length === 0 ? (
+              <Empty
+                description="Không tìm thấy bác sĩ nào"
+                style={{ margin: "50px 0" }}
+              />
+            ) : (
+              filteredDoctors.map((doctor) => (
+                <DoctorCard key={doctor._id} doctor={doctor} />
+              ))
+            )}
+          </div>
 
-              {/* Pagination */}
-              {totalDoctors > 10 && (
-                <div style={{ textAlign: "center", marginTop: "32px" }}>
-                  <Pagination
-                    current={currentPage}
-                    total={totalDoctors}
-                    pageSize={10}
-                    onChange={handlePageChange}
-                    showSizeChanger={false}
-                    showQuickJumper
-                    showTotal={(total, range) =>
-                      `${range[0]}-${range[1]} của ${total} bác sĩ`
-                    }
-                  />
-                </div>
-              )}
-            </>
+          {/* Pagination */}
+          {!loading && totalDoctors > 5 && (
+            <div style={{ textAlign: "center", marginTop: "32px" }}>
+              <Pagination
+                current={currentPage}
+                total={totalDoctors}
+                pageSize={5}
+                onChange={setCurrentPage}
+                showSizeChanger={false}
+                showQuickJumper
+                showTotal={(total, range) =>
+                  `${range[0]}-${range[1]} của ${total} bác sĩ`
+                }
+              />
+            </div>
           )}
         </div>
       </div>
