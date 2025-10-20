@@ -32,6 +32,7 @@ import {
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../components/Breadcrumb/NavigationBreadcrumb";
 import { api } from "../../lib/api";
+import "./TimeSlotSelection.css";
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -72,8 +73,10 @@ const TimeSlotSelection = () => {
       const dateStr = selectedDate.format("YYYY-MM-DD");
       console.log("Doctor object:", doctor);
       console.log("Doctor ID:", doctor?._id);
-      const response = await api.get(`/api/doctors/${doctor._id}/time-slots?date=${dateStr}`);
-      
+      const response = await api.get(
+        `/api/doctors/${doctor._id}/time-slots?date=${dateStr}`
+      );
+
       if (response.success) {
         setTimeSlots(response.data.timeSlots);
       } else {
@@ -102,7 +105,7 @@ const TimeSlotSelection = () => {
 
   const handleBackToDoctors = () => {
     navigate("/dat-lich/chon-bac-si", {
-      state: { specialization }
+      state: { specialization },
     });
   };
 
@@ -116,8 +119,16 @@ const TimeSlotSelection = () => {
         slotId: selectedTimeSlot._id,
         mode: selectedMode,
         reason: values.reason || "",
-        scheduledStart: selectedDate.clone().hour(parseInt(selectedTimeSlot.startTime.split(':')[0])).minute(parseInt(selectedTimeSlot.startTime.split(':')[1])).toISOString(),
-        scheduledEnd: selectedDate.clone().hour(parseInt(selectedTimeSlot.endTime.split(':')[0])).minute(parseInt(selectedTimeSlot.endTime.split(':')[1])).toISOString(),
+        scheduledStart: selectedDate
+          .clone()
+          .hour(parseInt(selectedTimeSlot.startTime.split(":")[0]))
+          .minute(parseInt(selectedTimeSlot.startTime.split(":")[1]))
+          .toISOString(),
+        scheduledEnd: selectedDate
+          .clone()
+          .hour(parseInt(selectedTimeSlot.endTime.split(":")[0]))
+          .minute(parseInt(selectedTimeSlot.endTime.split(":")[1]))
+          .toISOString(),
       };
 
       // TODO: Comment out payment-related fields for now
@@ -125,15 +136,18 @@ const TimeSlotSelection = () => {
       //   appointmentData.clinicId = values.clinicId;
       // }
 
-      const response = await api.post("/api/patients/appointments", appointmentData);
+      const response = await api.post(
+        "/api/patients/appointments",
+        appointmentData
+      );
 
       if (response.success) {
         message.success("Đặt lịch khám thành công! Đang chờ bác sĩ xác nhận.");
         navigate("/benh-nhan", {
           state: {
             message: "Đặt lịch khám thành công!",
-            appointment: response.data.appointment
-          }
+            appointment: response.data.appointment,
+          },
         });
       } else {
         message.error(response.message || "Có lỗi xảy ra khi đặt lịch");
@@ -155,17 +169,19 @@ const TimeSlotSelection = () => {
 
   const getSpecializationNames = (specializationIds) => {
     if (!specializationIds || specializationIds.length === 0) return [];
-    return specializationIds.map(spec => spec.name).join(", ");
+    return specializationIds.map((spec) => spec.name).join(", ");
   };
 
   if (!doctor || !specialization) {
     return (
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "center", 
-        alignItems: "center", 
-        minHeight: "400px" 
-      }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "400px",
+        }}
+      >
         <Spin size="large" />
         <Text style={{ marginLeft: 16 }}>Đang tải thông tin...</Text>
       </div>
@@ -223,9 +239,7 @@ const TimeSlotSelection = () => {
                       </Tag>
                     </div>
                     {doctor.bio && (
-                      <Paragraph className="doctor-bio">
-                        {doctor.bio}
-                      </Paragraph>
+                      <Paragraph className="doctor-bio">{doctor.bio}</Paragraph>
                     )}
                     <div className="doctor-rating">
                       <Rate disabled value={doctor.ratingAvg || 0} />
@@ -265,22 +279,30 @@ const TimeSlotSelection = () => {
                   <Title level={4}>
                     <ClockCircleOutlined /> Chọn giờ khám
                   </Title>
-                  
+
                   {timeSlotsLoading ? (
                     <div style={{ textAlign: "center", padding: "40px 0" }}>
                       <Spin />
-                      <Text style={{ marginLeft: 16 }}>Đang tải khung giờ...</Text>
+                      <Text style={{ marginLeft: 16 }}>
+                        Đang tải khung giờ...
+                      </Text>
                     </div>
                   ) : timeSlots.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "40px 0" }}>
-                      <Text type="secondary">Không có khung giờ khám vào ngày này</Text>
+                      <Text type="secondary">
+                        Không có khung giờ khám vào ngày này
+                      </Text>
                     </div>
                   ) : (
                     <div className="time-slots-grid">
                       {timeSlots.map((slot) => (
                         <Button
                           key={slot._id}
-                          type={selectedTimeSlot?._id === slot._id ? "primary" : "default"}
+                          type={
+                            selectedTimeSlot?._id === slot._id
+                              ? "primary"
+                              : "default"
+                          }
                           disabled={!slot.available}
                           onClick={() => handleTimeSlotSelect(slot)}
                           className="time-slot-button"
@@ -299,7 +321,10 @@ const TimeSlotSelection = () => {
                 <Card className="booking-form-card">
                   <div className="form-header">
                     <Title level={4}>Thông tin đặt lịch</Title>
-                    <Button type="link" onClick={() => setShowBookingForm(false)}>
+                    <Button
+                      type="link"
+                      onClick={() => setShowBookingForm(false)}
+                    >
                       ← Chọn lại thời gian
                     </Button>
                   </div>
@@ -315,10 +340,15 @@ const TimeSlotSelection = () => {
                       name="mode"
                       label="Hình thức khám"
                       initialValue="online"
-                      rules={[{ required: true, message: "Vui lòng chọn hình thức khám!" }]}
+                      rules={[
+                        {
+                          required: true,
+                          message: "Vui lòng chọn hình thức khám!",
+                        },
+                      ]}
                     >
-                      <Radio.Group 
-                        value={selectedMode} 
+                      <Radio.Group
+                        value={selectedMode}
                         onChange={(e) => setSelectedMode(e.target.value)}
                       >
                         <Radio value="online">Khám online</Radio>
@@ -341,13 +371,10 @@ const TimeSlotSelection = () => {
                     )} */}
 
                     {/* Reason */}
-                    <Form.Item
-                      name="reason"
-                      label="Lý do khám"
-                    >
-                      <TextArea 
-                        rows={3} 
-                        placeholder="Mô tả triệu chứng hoặc lý do khám (không bắt buộc)" 
+                    <Form.Item name="reason" label="Lý do khám">
+                      <TextArea
+                        rows={3}
+                        placeholder="Mô tả triệu chứng hoặc lý do khám (không bắt buộc)"
                       />
                     </Form.Item>
 
@@ -362,7 +389,10 @@ const TimeSlotSelection = () => {
                     </div> */}
 
                     <div className="form-actions">
-                      <Button size="large" onClick={() => setShowBookingForm(false)}>
+                      <Button
+                        size="large"
+                        onClick={() => setShowBookingForm(false)}
+                      >
                         Quay lại
                       </Button>
                       <Button
@@ -387,35 +417,41 @@ const TimeSlotSelection = () => {
               {/* Booking Summary */}
               <Card className="booking-summary-card">
                 <Title level={4}>Tóm tắt đặt lịch</Title>
-                
+
                 <div className="summary-item">
                   <Text strong>Bác sĩ:</Text>
                   <Text>{doctor.fullName}</Text>
                 </div>
-                
+
                 <div className="summary-item">
                   <Text strong>Chuyên khoa:</Text>
-                  <Text>{getSpecializationNames(doctor.specializationIds)}</Text>
+                  <Text>
+                    {getSpecializationNames(doctor.specializationIds)}
+                  </Text>
                 </div>
-                
+
                 {selectedDate && (
                   <div className="summary-item">
                     <Text strong>Ngày khám:</Text>
                     <Text>{selectedDate.format("DD/MM/YYYY")}</Text>
                   </div>
                 )}
-                
+
                 {selectedTimeSlot && (
                   <div className="summary-item">
                     <Text strong>Giờ khám:</Text>
                     <Text>{selectedTimeSlot.timeRange}</Text>
                   </div>
                 )}
-                
+
                 {selectedMode && (
                   <div className="summary-item">
                     <Text strong>Hình thức:</Text>
-                    <Text>{selectedMode === "online" ? "Khám online" : "Khám tại phòng khám"}</Text>
+                    <Text>
+                      {selectedMode === "online"
+                        ? "Khám online"
+                        : "Khám tại phòng khám"}
+                    </Text>
                   </div>
                 )}
 
@@ -442,7 +478,9 @@ const TimeSlotSelection = () => {
               <Card className="help-card">
                 <Title level={4}>Lưu ý</Title>
                 <ul>
-                  <li>Lịch hẹn sẽ được đặt với trạng thái "Chờ bác sĩ xác nhận"</li>
+                  <li>
+                    Lịch hẹn sẽ được đặt với trạng thái "Chờ bác sĩ xác nhận"
+                  </li>
                   <li>Bác sĩ sẽ xác nhận lịch hẹn trong vòng 12 giờ</li>
                   <li>Bạn sẽ nhận được thông báo khi bác sĩ xác nhận</li>
                   <li>Có thể hủy lịch hẹn trước khi bác sĩ xác nhận</li>
@@ -452,127 +490,6 @@ const TimeSlotSelection = () => {
           </Col>
         </Row>
       </div>
-
-      <style jsx>{`
-        .time-slot-selection-page {
-          padding: 24px 0;
-          min-height: 100vh;
-          background-color: #f5f5f5;
-        }
-
-        .container {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 0 24px;
-        }
-
-        .booking-section {
-          margin-bottom: 24px;
-        }
-
-        .doctor-profile-card {
-          margin-bottom: 24px;
-        }
-
-        .doctor-profile-content {
-          display: flex;
-          gap: 20px;
-          align-items: flex-start;
-        }
-
-        .doctor-avatar {
-          flex-shrink: 0;
-        }
-
-        .avatar-image {
-          width: 120px;
-          height: 120px;
-          border-radius: 50%;
-          object-fit: cover;
-        }
-
-        .doctor-info {
-          flex: 1;
-        }
-
-        .doctor-specializations {
-          margin: 8px 0;
-        }
-
-        .doctor-bio {
-          margin: 12px 0 !important;
-          color: #8c8c8c;
-        }
-
-        .doctor-rating {
-          margin: 12px 0;
-        }
-
-        .share-btn {
-          margin-top: 12px;
-        }
-
-        .date-selection-card,
-        .time-slots-card,
-        .booking-form-card {
-          margin-bottom: 24px;
-        }
-
-        .time-slots-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-          gap: 12px;
-          margin-top: 16px;
-        }
-
-        .time-slot-button {
-          height: 50px;
-        }
-
-        .form-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 24px;
-        }
-
-        .form-actions {
-          display: flex;
-          gap: 12px;
-          justify-content: flex-end;
-          margin-top: 24px;
-        }
-
-        .booking-summary-section {
-          position: sticky;
-          top: 24px;
-        }
-
-        .booking-summary-card,
-        .help-card {
-          margin-bottom: 24px;
-        }
-
-        .summary-item {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-
-        .payment-info {
-          margin-top: 16px;
-        }
-
-        .help-card ul {
-          margin: 0;
-          padding-left: 20px;
-        }
-
-        .help-card li {
-          margin-bottom: 8px;
-          color: #595959;
-        }
-      `}</style>
     </div>
   );
 };
