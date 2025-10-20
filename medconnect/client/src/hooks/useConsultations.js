@@ -67,33 +67,48 @@ export function useConsultations() {
       }
 
       if (historyResponse.success) {
-        // Filter only online appointments
+        console.log("History API Response:", historyResponse.data);
+
+        // Filter only online appointments with status "done" (đã hoàn thành)
         const onlineHistory = historyResponse.data.appointments.filter(
-          (appointment) => appointment.mode === "online"
+          (appointment) =>
+            appointment.mode === "online" && appointment.status === "done"
         );
 
-        const historyData = onlineHistory.map((appointment) => ({
-          id: appointment._id,
-          doctor: {
-            id: appointment.doctorId._id,
-            name: `BS. ${appointment.doctorId.fullName}`,
-            avatar: appointment.doctorId.avatarUrl || null,
-            specialty:
-              appointment.doctorId.specializationIds?.[0]?.name ||
-              "Chưa xác định",
-          },
-          status: "Đã hoàn thành",
-          statusType: "completed",
-          date: formatDate(appointment.scheduledStart),
-          time: formatTime(
-            appointment.scheduledStart,
-            appointment.scheduledEnd
-          ),
-          scheduledStart: appointment.scheduledStart,
-          scheduledEnd: appointment.scheduledEnd,
-          mode: appointment.mode,
-          appointmentId: appointment._id,
-        }));
+        console.log("Online Completed Appointments (done):", onlineHistory);
+
+        const historyData = onlineHistory.map((appointment) => {
+          console.log(`Appointment ${appointment._id}:`, {
+            doctor: appointment.doctorId.fullName,
+            actualStatus: appointment.status,
+            scheduledStart: appointment.scheduledStart,
+          });
+
+          return {
+            id: appointment._id,
+            doctor: {
+              id: appointment.doctorId._id,
+              name: `BS. ${appointment.doctorId.fullName}`,
+              avatar: appointment.doctorId.avatarUrl || null,
+              specialty:
+                appointment.doctorId.specializationIds?.[0]?.name ||
+                "Chưa xác định",
+            },
+            status: getStatusText(appointment.status),
+            statusType: getStatusType(appointment.status),
+            date: formatDate(appointment.scheduledStart),
+            time: formatTime(
+              appointment.scheduledStart,
+              appointment.scheduledEnd
+            ),
+            scheduledStart: appointment.scheduledStart,
+            scheduledEnd: appointment.scheduledEnd,
+            mode: appointment.mode,
+            appointmentId: appointment._id,
+          };
+        });
+
+        console.log("Mapped History Data:", historyData);
         setConsultationHistory(historyData);
       }
     } catch (err) {
