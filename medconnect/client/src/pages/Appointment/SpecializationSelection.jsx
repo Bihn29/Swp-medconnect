@@ -15,6 +15,7 @@ import {
   SearchOutlined,
   MedicineBoxOutlined,
   ArrowRightOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../components/Breadcrumb/NavigationBreadcrumb";
 import { api } from "../../lib/api";
@@ -104,6 +105,7 @@ const SpecializationSelection = () => {
             {
               label: "Trang chủ",
               path: "/",
+              icon: <HomeOutlined />,
             },
             {
               label: "Đặt lịch khám",
@@ -223,7 +225,7 @@ const SpecializationSelection = () => {
 
       <style jsx>{`
         .specialization-selection-page {
-          padding: 24px 0;
+          padding: 12px 0;
           min-height: 100vh;
           background-color: #f5f5f5;
         }
@@ -237,6 +239,7 @@ const SpecializationSelection = () => {
         .page-header {
           text-align: center;
           margin-bottom: 32px;
+          margin-top: 8px;
         }
 
         .search-section {

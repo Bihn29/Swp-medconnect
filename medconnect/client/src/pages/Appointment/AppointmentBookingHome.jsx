@@ -1,19 +1,13 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Row,
-  Col,
-  Card,
-  Typography,
-  Button,
-  Space,
-} from "antd";
+import { Row, Col, Card, Typography, Button, Space } from "antd";
 import {
   CalendarOutlined,
   MedicineBoxOutlined,
   UserOutlined,
   ClockCircleOutlined,
   ArrowRightOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../components/Breadcrumb/NavigationBreadcrumb";
 
@@ -62,6 +56,7 @@ const AppointmentBookingHome = () => {
             {
               label: "Trang chủ",
               path: "/",
+              icon: <HomeOutlined />,
             },
             {
               label: "Đặt lịch khám",
@@ -73,7 +68,8 @@ const AppointmentBookingHome = () => {
         <div className="page-header">
           <Title level={1}>Đặt lịch khám</Title>
           <Paragraph className="header-description">
-            Đặt lịch khám với các bác sĩ chuyên khoa uy tín một cách dễ dàng và nhanh chóng
+            Đặt lịch khám với các bác sĩ chuyên khoa uy tín một cách dễ dàng và
+            nhanh chóng
           </Paragraph>
         </div>
 
@@ -113,12 +109,8 @@ const AppointmentBookingHome = () => {
               <Col xs={24} sm={12} lg={6} key={step.step}>
                 <Card className="step-card" hoverable>
                   <div className="step-content">
-                    <div className="step-icon">
-                      {step.icon}
-                    </div>
-                    <div className="step-number">
-                      Bước {step.step}
-                    </div>
+                    <div className="step-icon">{step.icon}</div>
+                    <div className="step-number">Bước {step.step}</div>
                     <Title level={4} className="step-title">
                       {step.title}
                     </Title>
@@ -145,7 +137,8 @@ const AppointmentBookingHome = () => {
                 </div>
                 <Title level={4}>Bác sĩ uy tín</Title>
                 <Paragraph>
-                  Đội ngũ bác sĩ chuyên khoa có kinh nghiệm và được xác minh chất lượng
+                  Đội ngũ bác sĩ chuyên khoa có kinh nghiệm và được xác minh
+                  chất lượng
                 </Paragraph>
               </Card>
             </Col>
