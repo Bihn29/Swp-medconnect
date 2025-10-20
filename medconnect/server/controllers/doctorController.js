@@ -326,10 +326,8 @@ export async function getAllDoctors(req, res) {
     }
 
     if (search) {
-      filter.$or = [
-        { fullName: { $regex: search, $options: "i" } },
-        { bio: { $regex: search, $options: "i" } },
-      ];
+      // Only search by doctor name, not bio
+      filter.fullName = { $regex: search, $options: "i" };
     }
 
     console.log("Doctor filter:", JSON.stringify(filter, null, 2)); // Debug log

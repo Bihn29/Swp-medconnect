@@ -18,12 +18,6 @@ import VerifyOtp from "../pages/Auth/VerifyOtp";
 import ResetPassword from "../pages/Auth/ResetPassword";
 import Privacy from "../pages/Privacy/Privacy";
 import Terms from "../pages/Terms/Terms";
-// Appointment booking components
-import AppointmentBookingHome from "../pages/Appointment/AppointmentBookingHome";
-import SpecializationSelection from "../pages/Appointment/SpecializationSelection";
-import DoctorSelection from "../pages/Appointment/DoctorSelection";
-import TimeSlotSelection from "../pages/Appointment/TimeSlotSelection";
-import AppointmentBooking from "../pages/Appointment/AppointmentBooking";
 import { Route } from "react-router-dom";
 import GuestMiddleware from "../middlewares/GuestMiddleware";
 export const publicRoutes = (
@@ -40,15 +34,6 @@ export const publicRoutes = (
       <Route path="/goi-kham" element={<Package />} />
       <Route path="/chinh-sach-bao-mat" element={<Privacy />} />
       <Route path="/dieu-khoan-su-dung" element={<Terms />} />
-      {/* Appointment booking routes */}
-      <Route path="/dat-lich" element={<AppointmentBookingHome />} />
-      <Route
-        path="/dat-lich/chon-chuyen-khoa"
-        element={<SpecializationSelection />}
-      />
-      <Route path="/dat-lich/chon-bac-si" element={<DoctorSelection />} />
-      <Route path="/dat-lich/chon-thoi-gian" element={<TimeSlotSelection />} />
-      <Route path="/dat-lich/:doctorId" element={<AppointmentBooking />} />
     </Route>
     <Route element={<AuthLayout />}>
       <Route element={<GuestMiddleware />}>

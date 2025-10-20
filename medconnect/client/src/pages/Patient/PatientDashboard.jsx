@@ -49,37 +49,21 @@ export default function PatientDashboard() {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setUser(user);
       setLoading(false);
-
-      // Log user info for debugging
-      if (user) {
-        console.log("Firebase User:", {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-        });
-      }
     });
 
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (userProfile) {
-      console.log("User Profile loaded:", {
-        uid: userProfile.uid,
-        email: userProfile.email,
-        fullName: userProfile.fullName,
-        role: userProfile.role,
-        profileComplete: userProfile.profileComplete,
-      });
-    }
-  }, [userProfile]);
-
   if (loading || profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Spin size="large" tip="Đang tải dữ liệu người dùng..." />
+        <Spin size="large">
+          <div style={{ padding: "50px" }}>
+            <div style={{ textAlign: "center", marginTop: "20px" }}>
+              Đang tải dữ liệu người dùng...
+            </div>
+          </div>
+        </Spin>
       </div>
     );
   }
@@ -88,11 +72,6 @@ export default function PatientDashboard() {
   if (!user) {
     navigate("/login");
     return null;
-  }
-
-  // Show error if profile failed to load
-  if (profileError) {
-    console.error("Profile loading error:", profileError);
   }
 
   // Render different content based on current route
