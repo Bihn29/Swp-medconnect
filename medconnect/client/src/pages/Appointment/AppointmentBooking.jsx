@@ -34,7 +34,7 @@ import {
   ThunderboltOutlined,
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../components/Breadcrumb/NavigationBreadcrumb";
-import "./AppointmentBooking.css";
+import "./AppointmentBookingNew.css";
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -492,7 +492,9 @@ const AppointmentBooking = () => {
 
                 {!showPatientForm && (
                   <div className="booking-instruction">
-                    <Text type="secondary">Chọn và đặt lịch (Miễn phí đặt lịch)</Text>
+                    <Text type="secondary">
+                      Chọn và đặt lịch (Miễn phí đặt lịch)
+                    </Text>
                     {/* TODO: Comment out payment info for now */}
                     {/* <Text type="secondary">Phí đặt lịch: 0đ</Text> */}
                   </div>

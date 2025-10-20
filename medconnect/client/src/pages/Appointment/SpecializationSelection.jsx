@@ -19,6 +19,7 @@ import {
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../components/Breadcrumb/NavigationBreadcrumb";
 import { api } from "../../lib/api";
+import "./SpecializationSelection.css";
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -183,19 +184,9 @@ const SpecializationSelection = () => {
                           <MedicineBoxOutlined />
                         )}
                       </div>
-                      <div className="specialization-info">
-                        <Title level={4} className="specialization-name">
-                          {specialization.name}
-                        </Title>
-                        {specialization.description && (
-                          <Paragraph
-                            className="specialization-description"
-                            ellipsis={{ rows: 2 }}
-                          >
-                            {specialization.description}
-                          </Paragraph>
-                        )}
-                      </div>
+                      <Title level={4} className="specialization-name">
+                        {specialization.name}
+                      </Title>
                     </div>
                   </Card>
                 </Col>

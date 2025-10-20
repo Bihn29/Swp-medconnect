@@ -26,6 +26,7 @@ import {
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../components/Breadcrumb/NavigationBreadcrumb";
 import { api } from "../../lib/api";
+import "./DoctorSelection.css";
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
