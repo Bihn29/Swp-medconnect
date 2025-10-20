@@ -6,7 +6,7 @@ import notificationRouter from "./notificationRoutes.js";
 import specializationRouter from "./specializations/specialization.route.js";
 import patientRouter from "./patientRoutes.js";
 import usersRouter from "./users/user.route.js";
-import testRouter from "./testRoutes.js";
+
 
 // Auth routes (register, login, forgot/reset password, etc.)
 apiRouter.use("/auth", authRouter);
@@ -26,8 +26,8 @@ apiRouter.use("/notifications", notificationRouter);
 console.log("[router] mounted /api/notifications");
 
 // Test routes (for development)
-apiRouter.use("/test", testRouter);
-console.log("[router] mounted /api/test");
+
+
 
 //admin
 // apiRouter.use("/doctor", adminRouter);

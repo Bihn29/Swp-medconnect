@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Clock, MapPin, User } from "lucide-react";
 import {
   Card,
@@ -8,44 +8,96 @@ import {
 } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { Badge } from "../../../../components/ui/Badge";
+import { api } from "../../../../lib/api";
+import { message, Spin } from "antd";
 import "./UpcomingAppointments.scss";
-
-const appointments = [
-  {
-    id: 1,
-    doctor: "BS. Trần Thị B",
-    specialty: "Tim mạch",
-    date: "16/10/2025",
-    time: "09:00",
-    location: "Phòng khám 201",
-    status: "confirmed",
-  },
-  {
-    id: 2,
-    doctor: "BS. Lê Văn C",
-    specialty: "Nội khoa",
-    date: "20/10/2025",
-    time: "14:30",
-    location: "Phòng khám 105",
-    status: "pending",
-  },
-  {
-    id: 3,
-    doctor: "BS. Phạm Thị D",
-    specialty: "Da liễu",
-    date: "25/10/2025",
-    time: "10:15",
-    location: "Phòng khám 308",
-    status: "confirmed",
-  },
-];
 
 const statusConfig = {
   confirmed: { label: "Đã xác nhận", variant: "default" },
-  pending: { label: "Chờ xác nhận", variant: "secondary" },
+  accepted: { label: "Đã chấp nhận", variant: "default" },
+  pending_doctor: { label: "Chờ xác nhận", variant: "secondary" },
+  in_progress: { label: "Đang khám", variant: "default" },
+  done: { label: "Hoàn thành", variant: "default" },
+  cancelled: { label: "Đã hủy", variant: "secondary" },
+  rejected: { label: "Bị từ chối", variant: "secondary" },
 };
 
 export function UpcomingAppointments() {
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/api/patients/me/appointments?limit=5");
+
+      if (response.success) {
+        // Transform API data to match component format
+        const transformedAppointments = response.data.appointments.map(
+          (appointment) => ({
+            id: appointment._id,
+            doctor: `BS. ${appointment.doctorId.fullName}`,
+            specialty:
+              appointment.doctorId.specializationIds?.[0]?.name ||
+              "Chưa xác định",
+            date: new Date(appointment.scheduledStart).toLocaleDateString(
+              "vi-VN"
+            ),
+            time: new Date(appointment.scheduledStart).toLocaleTimeString(
+              "vi-VN",
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            ),
+            location:
+              appointment.mode === "online"
+                ? "Khám online"
+                : appointment.clinicId?.name || "Phòng khám",
+            status: appointment.status,
+            mode: appointment.mode,
+            reason: appointment.reason,
+            scheduledStart: appointment.scheduledStart,
+            scheduledEnd: appointment.scheduledEnd,
+          })
+        );
+
+        setAppointments(transformedAppointments);
+      } else {
+        message.error("Không thể tải danh sách lịch hẹn");
+      }
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+      message.error("Có lỗi xảy ra khi tải lịch hẹn");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          backgroundColor: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "1rem",
+          padding: "1.5rem",
+          boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "200px",
+        }}
+      >
+        <Spin size="large" tip="Đang tải lịch hẹn..." />
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -112,239 +164,260 @@ export function UpcomingAppointments() {
 
       {/* Appointments List */}
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        {appointments.map((appointment) => (
+        {appointments.length === 0 ? (
           <div
-            key={appointment.id}
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "1rem",
-              border: "1px solid #e5e7eb",
-              borderRadius: "0.75rem",
-              backgroundColor: "#ffffff",
+              textAlign: "center",
+              padding: "2rem",
+              color: "#6b7280",
             }}
           >
-            {/* Left side - Appointment info */}
+            <p style={{ margin: 0, fontSize: "1rem" }}>
+              Bạn chưa có lịch hẹn nào. Hãy đặt lịch khám để bắt đầu!
+            </p>
+          </div>
+        ) : (
+          appointments.map((appointment) => (
             <div
-              style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+              key={appointment.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "1rem",
+                border: "1px solid #e5e7eb",
+                borderRadius: "0.75rem",
+                backgroundColor: "#ffffff",
+              }}
             >
-              {/* Doctor avatar */}
+              {/* Left side - Appointment info */}
               <div
                 style={{
-                  width: "2.5rem",
-                  height: "2.5rem",
-                  borderRadius: "50%",
-                  backgroundColor: "#f3f4f6",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
+                  gap: "0.75rem",
                 }}
               >
-                <User
+                {/* Doctor avatar */}
+                <div
                   style={{
-                    width: "1.25rem",
-                    height: "1.25rem",
-                    color: "#6b7280",
+                    width: "2.5rem",
+                    height: "2.5rem",
+                    borderRadius: "50%",
+                    backgroundColor: "#f3f4f6",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
-                />
+                >
+                  <User
+                    style={{
+                      width: "1.25rem",
+                      height: "1.25rem",
+                      color: "#6b7280",
+                    }}
+                  />
+                </div>
+
+                {/* Doctor details */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.25rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "1rem",
+                        fontWeight: "600",
+                        color: "#1e293b",
+                      }}
+                    >
+                      {appointment.doctor}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "0.875rem",
+                        fontWeight: "500",
+                        color:
+                          appointment.status === "confirmed" ||
+                          appointment.status === "accepted"
+                            ? "#ffffff"
+                            : "#1e293b",
+                        backgroundColor:
+                          appointment.status === "confirmed" ||
+                          appointment.status === "accepted"
+                            ? "#3b82f6"
+                            : "#f3f4f6",
+                        padding: "0.125rem 0.5rem",
+                        borderRadius: "9999px",
+                      }}
+                    >
+                      {statusConfig[appointment.status]?.label ||
+                        appointment.status}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "0.875rem",
+                      color: "#1e293b",
+                    }}
+                  >
+                    {appointment.specialty}
+                  </span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "1rem",
+                      marginTop: "0.25rem",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.25rem",
+                      }}
+                    >
+                      <Clock
+                        style={{
+                          width: "0.875rem",
+                          height: "0.875rem",
+                          color: "#6b7280",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "0.875rem",
+                          color: "#1e293b",
+                        }}
+                      >
+                        {appointment.date} - {appointment.time}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.25rem",
+                      }}
+                    >
+                      <MapPin
+                        style={{
+                          width: "0.875rem",
+                          height: "0.875rem",
+                          color: "#6b7280",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "0.875rem",
+                          color: "#1e293b",
+                        }}
+                      >
+                        {appointment.location}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Doctor details */}
+              {/* Right side - Action buttons */}
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: "0.25rem",
+                  gap: "0.5rem",
                 }}
               >
-                <div
+                <button
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
+                    padding: "0.5rem 1rem",
+                    backgroundColor: "#3b82f6",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "0.375rem",
+                    fontSize: "0.75rem",
+                    fontWeight: "500",
+                    cursor: "pointer",
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    position: "relative",
+                    overflow: "hidden",
+                    boxShadow: "0 2px 4px rgba(59, 130, 246, 0.2)",
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.backgroundColor = "#2563eb";
+                    e.target.style.transform = "translateY(-1px) scale(1.02)";
+                    e.target.style.boxShadow =
+                      "0 4px 12px rgba(59, 130, 246, 0.3)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.backgroundColor = "#3b82f6";
+                    e.target.style.transform = "translateY(0) scale(1)";
+                    e.target.style.boxShadow =
+                      "0 2px 4px rgba(59, 130, 246, 0.2)";
+                  }}
+                  onMouseDown={(e) => {
+                    e.target.style.transform = "translateY(0) scale(0.98)";
+                  }}
+                  onMouseUp={(e) => {
+                    e.target.style.transform = "translateY(-1px) scale(1.02)";
                   }}
                 >
-                  <span
-                    style={{
-                      fontSize: "1rem",
-                      fontWeight: "600",
-                      color: "#1e293b",
-                    }}
-                  >
-                    {appointment.doctor}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "0.875rem",
-                      fontWeight: "500",
-                      color:
-                        appointment.status === "confirmed"
-                          ? "#ffffff"
-                          : "#1e293b",
-                      backgroundColor:
-                        appointment.status === "confirmed"
-                          ? "#3b82f6"
-                          : "#f3f4f6",
-                      padding: "0.125rem 0.5rem",
-                      borderRadius: "9999px",
-                    }}
-                  >
-                    {statusConfig[appointment.status].label}
-                  </span>
-                </div>
-                <span
+                  Chi tiết
+                </button>
+                <button
                   style={{
-                    fontSize: "0.875rem",
-                    color: "#1e293b",
+                    padding: "0.5rem 1rem",
+                    backgroundColor: "#ffffff",
+                    color: "#374151",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    fontSize: "0.75rem",
+                    fontWeight: "500",
+                    cursor: "pointer",
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    position: "relative",
+                    overflow: "hidden",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.backgroundColor = "#fef2f2";
+                    e.target.style.transform = "translateY(-1px) scale(1.02)";
+                    e.target.style.boxShadow =
+                      "0 4px 12px rgba(239, 68, 68, 0.2)";
+                    e.target.style.borderColor = "#ef4444";
+                    e.target.style.color = "#ef4444";
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.backgroundColor = "#ffffff";
+                    e.target.style.transform = "translateY(0) scale(1)";
+                    e.target.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)";
+                    e.target.style.borderColor = "#d1d5db";
+                    e.target.style.color = "#374151";
+                  }}
+                  onMouseDown={(e) => {
+                    e.target.style.transform = "translateY(0) scale(0.98)";
+                  }}
+                  onMouseUp={(e) => {
+                    e.target.style.transform = "translateY(-1px) scale(1.02)";
                   }}
                 >
-                  {appointment.specialty}
-                </span>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "1rem",
-                    marginTop: "0.25rem",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.25rem",
-                    }}
-                  >
-                    <Clock
-                      style={{
-                        width: "0.875rem",
-                        height: "0.875rem",
-                        color: "#6b7280",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: "0.875rem",
-                        color: "#1e293b",
-                      }}
-                    >
-                      {appointment.date} - {appointment.time}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.25rem",
-                    }}
-                  >
-                    <MapPin
-                      style={{
-                        width: "0.875rem",
-                        height: "0.875rem",
-                        color: "#6b7280",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: "0.875rem",
-                        color: "#1e293b",
-                      }}
-                    >
-                      {appointment.location}
-                    </span>
-                  </div>
-                </div>
+                  Hủy
+                </button>
               </div>
             </div>
-
-            {/* Right side - Action buttons */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-              }}
-            >
-              <button
-                style={{
-                  padding: "0.5rem 1rem",
-                  backgroundColor: "#3b82f6",
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: "0.375rem",
-                  fontSize: "0.75rem",
-                  fontWeight: "500",
-                  cursor: "pointer",
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  position: "relative",
-                  overflow: "hidden",
-                  boxShadow: "0 2px 4px rgba(59, 130, 246, 0.2)",
-                }}
-                onMouseOver={(e) => {
-                  e.target.style.backgroundColor = "#2563eb";
-                  e.target.style.transform = "translateY(-1px) scale(1.02)";
-                  e.target.style.boxShadow =
-                    "0 4px 12px rgba(59, 130, 246, 0.3)";
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.backgroundColor = "#3b82f6";
-                  e.target.style.transform = "translateY(0) scale(1)";
-                  e.target.style.boxShadow =
-                    "0 2px 4px rgba(59, 130, 246, 0.2)";
-                }}
-                onMouseDown={(e) => {
-                  e.target.style.transform = "translateY(0) scale(0.98)";
-                }}
-                onMouseUp={(e) => {
-                  e.target.style.transform = "translateY(-1px) scale(1.02)";
-                }}
-              >
-                Chi tiết
-              </button>
-              <button
-                style={{
-                  padding: "0.5rem 1rem",
-                  backgroundColor: "#ffffff",
-                  color: "#374151",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "0.375rem",
-                  fontSize: "0.75rem",
-                  fontWeight: "500",
-                  cursor: "pointer",
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  position: "relative",
-                  overflow: "hidden",
-                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                }}
-                onMouseOver={(e) => {
-                  e.target.style.backgroundColor = "#fef2f2";
-                  e.target.style.transform = "translateY(-1px) scale(1.02)";
-                  e.target.style.boxShadow =
-                    "0 4px 12px rgba(239, 68, 68, 0.2)";
-                  e.target.style.borderColor = "#ef4444";
-                  e.target.style.color = "#ef4444";
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.backgroundColor = "#ffffff";
-                  e.target.style.transform = "translateY(0) scale(1)";
-                  e.target.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)";
-                  e.target.style.borderColor = "#d1d5db";
-                  e.target.style.color = "#374151";
-                }}
-                onMouseDown={(e) => {
-                  e.target.style.transform = "translateY(0) scale(0.98)";
-                }}
-                onMouseUp={(e) => {
-                  e.target.style.transform = "translateY(-1px) scale(1.02)";
-                }}
-              >
-                Hủy
-              </button>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

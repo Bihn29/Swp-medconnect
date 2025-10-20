@@ -17,7 +17,7 @@ const NavigationBreadcrumb = ({ items = [] }) => {
       // Last item (current page) should not be clickable
       return (
         <Breadcrumb.Item key={index}>
-          {item.icon && item.icon}
+          {item.icon && <span style={{ marginRight: "4px" }}>{item.icon}</span>}
           {item.label}
         </Breadcrumb.Item>
       );
@@ -26,34 +26,14 @@ const NavigationBreadcrumb = ({ items = [] }) => {
     // Clickable items
     return (
       <Breadcrumb.Item key={index}>
-        {item.icon && (
-          <>
-            <a
-              href={item.path}
-              onClick={(e) => handleNavigation(item.path, e)}
-              className="breadcrumb-link"
-            >
-              {item.icon}
-            </a>
-            <span className="breadcrumb-separator">/</span>
-            <a
-              href={item.path}
-              onClick={(e) => handleNavigation(item.path, e)}
-              className="breadcrumb-link"
-            >
-              {item.label}
-            </a>
-          </>
-        )}
-        {!item.icon && (
-          <a
-            href={item.path}
-            onClick={(e) => handleNavigation(item.path, e)}
-            className="breadcrumb-link"
-          >
-            {item.label}
-          </a>
-        )}
+        <a
+          href={item.path}
+          onClick={(e) => handleNavigation(item.path, e)}
+          className="breadcrumb-link"
+        >
+          {item.icon && <span style={{ marginRight: "4px" }}>{item.icon}</span>}
+          {item.label}
+        </a>
       </Breadcrumb.Item>
     );
   };

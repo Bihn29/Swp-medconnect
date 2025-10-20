@@ -15,9 +15,11 @@ import {
   SearchOutlined,
   MedicineBoxOutlined,
   ArrowRightOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../components/Breadcrumb/NavigationBreadcrumb";
 import { api } from "../../lib/api";
+import "./SpecializationSelection.css";
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -38,9 +40,11 @@ const SpecializationSelection = () => {
     if (searchTerm.trim() === "") {
       setFilteredSpecializations(specializations);
     } else {
-      const filtered = specializations.filter((spec) =>
-        spec.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (spec.description && spec.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      const filtered = specializations.filter(
+        (spec) =>
+          spec.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (spec.description &&
+            spec.description.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredSpecializations(filtered);
     }
@@ -50,7 +54,7 @@ const SpecializationSelection = () => {
     try {
       setLoading(true);
       const response = await api.get("/api/specializations");
-      
+
       if (response.success) {
         setSpecializations(response.data);
         setFilteredSpecializations(response.data);
@@ -67,7 +71,7 @@ const SpecializationSelection = () => {
 
   const handleSpecializationSelect = (specialization) => {
     navigate("/dat-lich/chon-bac-si", {
-      state: { specialization }
+      state: { specialization },
     });
   };
 
@@ -77,14 +81,18 @@ const SpecializationSelection = () => {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "center", 
-        alignItems: "center", 
-        minHeight: "400px" 
-      }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "400px",
+        }}
+      >
         <Spin size="large" />
-        <Text style={{ marginLeft: 16 }}>Đang tải danh sách chuyên khoa...</Text>
+        <Text style={{ marginLeft: 16 }}>
+          Đang tải danh sách chuyên khoa...
+        </Text>
       </div>
     );
   }
@@ -98,6 +106,7 @@ const SpecializationSelection = () => {
             {
               label: "Trang chủ",
               path: "/",
+              icon: <HomeOutlined />,
             },
             {
               label: "Đặt lịch khám",
@@ -155,26 +164,29 @@ const SpecializationSelection = () => {
                         }}
                       >
                         Chọn
-                      </Button>
+                      </Button>,
                     ]}
                   >
                     <div className="specialization-content">
                       <div className="specialization-icon">
-                        <MedicineBoxOutlined />
-                      </div>
-                      <div className="specialization-info">
-                        <Title level={4} className="specialization-name">
-                          {specialization.name}
-                        </Title>
-                        {specialization.description && (
-                          <Paragraph
-                            className="specialization-description"
-                            ellipsis={{ rows: 2 }}
-                          >
-                            {specialization.description}
-                          </Paragraph>
+                        {specialization.avatar ? (
+                          <img
+                            src={specialization.avatar}
+                            alt={specialization.name}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "contain",
+                              borderRadius: "8px",
+                            }}
+                          />
+                        ) : (
+                          <MedicineBoxOutlined />
                         )}
                       </div>
+                      <Title level={4} className="specialization-name">
+                        {specialization.name}
+                      </Title>
                     </div>
                   </Card>
                 </Col>
@@ -189,8 +201,13 @@ const SpecializationSelection = () => {
             <Title level={4}>Hướng dẫn</Title>
             <ul>
               <li>Chọn chuyên khoa phù hợp với triệu chứng của bạn</li>
-              <li>Sau khi chọn chuyên khoa, bạn sẽ thấy danh sách các bác sĩ chuyên khoa đó</li>
-              <li>Bạn có thể xem thông tin chi tiết và đánh giá của từng bác sĩ</li>
+              <li>
+                Sau khi chọn chuyên khoa, bạn sẽ thấy danh sách các bác sĩ
+                chuyên khoa đó
+              </li>
+              <li>
+                Bạn có thể xem thông tin chi tiết và đánh giá của từng bác sĩ
+              </li>
               <li>Sau đó chọn bác sĩ và thời gian khám phù hợp</li>
             </ul>
           </Card>
@@ -199,7 +216,7 @@ const SpecializationSelection = () => {
 
       <style jsx>{`
         .specialization-selection-page {
-          padding: 24px 0;
+          padding: 12px 0;
           min-height: 100vh;
           background-color: #f5f5f5;
         }
@@ -213,6 +230,7 @@ const SpecializationSelection = () => {
         .page-header {
           text-align: center;
           margin-bottom: 32px;
+          margin-top: 8px;
         }
 
         .search-section {
@@ -240,9 +258,16 @@ const SpecializationSelection = () => {
         }
 
         .specialization-icon {
-          font-size: 48px;
+          width: 200px;
+          height: 200px;
+          margin: 0 auto 24px auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 96px;
           color: #1890ff;
-          margin-bottom: 16px;
+          border-radius: 24px;
+          overflow: hidden;
         }
 
         .specialization-name {
