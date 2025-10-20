@@ -12,6 +12,7 @@ import { AppointmentCalendar } from "./components/AppointmentCalendar/Appointmen
 import { QuickActions } from "./components/QuickActions/QuickActions";
 import { Settings } from "./components/Settings/Settings";
 import { DoctorSearch } from "./components/DoctorSearch/DoctorSearch";
+import { MyAppointments } from "./components/MyAppointments/MyAppointments";
 import "./PatientDashboard.scss";
 
 /**
@@ -81,6 +82,8 @@ export default function PatientDashboard() {
     switch (path) {
       case "/search-doctors":
         return <DoctorSearch />;
+      case "/my-appointments":
+        return <MyAppointments />;
       case "/benh-nhan/cai-dat":
         return <Settings />;
       default:
