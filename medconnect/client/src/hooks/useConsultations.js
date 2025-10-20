@@ -31,10 +31,14 @@ export function useConsultations() {
       if (upcomingResponse.success) {
         console.log("Upcoming API Response:", upcomingResponse.data);
 
-        // Filter chỉ lấy appointments đã được accept (đã lên lịch)
+        // Filter chỉ lấy appointments đã được xác nhận (đã lên lịch)
         const onlineUpcoming = upcomingResponse.data.appointments.filter(
           (appointment) =>
-            appointment.mode === "online" && appointment.status === "accept"
+            appointment.mode === "online" &&
+            (appointment.status === "accept" ||
+              appointment.status === "accecpt" ||
+              appointment.status === "confirmed" ||
+              appointment.status === "accepted")
         );
 
         console.log("Online Accepted Appointments:", onlineUpcoming);

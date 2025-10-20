@@ -24,6 +24,7 @@ const STATUS = {
 export function MyAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("upcoming");
 
   useEffect(() => {
     const load = async () => {
@@ -44,6 +45,17 @@ export function MyAppointments() {
     load();
   }, []);
 
+  // Phân chia appointments
+  const upcomingAppointments = appointments.filter(
+    (appointment) => appointment.status !== "done"
+  );
+  const completedAppointments = appointments.filter(
+    (appointment) => appointment.status === "done"
+  );
+
+  const currentAppointments =
+    activeTab === "upcoming" ? upcomingAppointments : completedAppointments;
+
   if (loading) {
     return (
       <div style={{ padding: 24 }}>
@@ -53,28 +65,94 @@ export function MyAppointments() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>
-        Lịch hẹn của tôi
-      </h1>
-      <p style={{ color: "#475569", marginTop: 8 }}>
-        Quản lý và theo dõi các lịch hẹn khám bệnh
-      </p>
+    <div
+      style={{
+        padding: 24,
+        minHeight: "100vh",
+        overflow: "hidden", // Ngăn scrollbar xuất hiện/biến mất
+      }}
+    >
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          backgroundColor: "#ffffff",
+          zIndex: 10,
+          paddingBottom: 16,
+        }}
+      >
+        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>
+          Lịch hẹn của tôi
+        </h1>
+        <p style={{ color: "#475569", marginTop: 8 }}>
+          Quản lý và theo dõi các lịch hẹn khám bệnh
+        </p>
 
-      <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-        <Button variant="secondary">Sắp tới ({appointments.length})</Button>
-        <Button variant="ghost">Đã khám (0)</Button>
+        <div
+          style={{
+            marginTop: 12,
+            display: "flex",
+            backgroundColor: "#f1f5f9",
+            borderRadius: "12px",
+            padding: "4px",
+            width: "fit-content",
+          }}
+        >
+          <button
+            onClick={() => setActiveTab("upcoming")}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "8px",
+              border:
+                activeTab === "upcoming"
+                  ? "2px solid #3b82f6"
+                  : "2px solid transparent",
+              backgroundColor:
+                activeTab === "upcoming" ? "#ffffff" : "transparent",
+              color: "#1e293b",
+              fontSize: "14px",
+              fontWeight: "500",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              outline: "none",
+            }}
+          >
+            Sắp tới ({upcomingAppointments.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("completed")}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "8px",
+              border:
+                activeTab === "completed"
+                  ? "2px solid #3b82f6"
+                  : "2px solid transparent",
+              backgroundColor:
+                activeTab === "completed" ? "#ffffff" : "transparent",
+              color: "#1e293b",
+              fontSize: "14px",
+              fontWeight: "500",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              outline: "none",
+            }}
+          >
+            Đã khám ({completedAppointments.length})
+          </button>
+        </div>
       </div>
 
       <div
         style={{
-          marginTop: 16,
           display: "flex",
           flexDirection: "column",
           gap: 16,
+          overflow: "auto", // Cho phép scroll content
+          maxHeight: "calc(100vh - 200px)", // Giới hạn chiều cao
         }}
       >
-        {appointments.map((a) => {
+        {currentAppointments.map((a) => {
           const status = STATUS[a.status] || STATUS.confirmed;
           const doctorName = `BS. ${a.doctorId?.fullName || ""}`;
           const specialty = a.doctorId?.specializationIds?.[0]?.name || "";
@@ -169,24 +247,35 @@ export function MyAppointments() {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {a.mode === "online" ? (
-                  <Button>
-                    <Video size={16} style={{ marginRight: 6 }} /> Tham gia
+                {a.status === "done" ? (
+                  // Appointments đã hoàn thành chỉ có nút nhắn tin
+                  <Button variant="secondary">
+                    <MessageCircle size={16} style={{ marginRight: 6 }} /> Nhắn
+                    tin
                   </Button>
-                ) : null}
-                <Button variant="secondary">
-                  <Phone size={16} style={{ marginRight: 6 }} /> Gọi
-                </Button>
-                <Button variant="secondary">
-                  <MessageCircle size={16} style={{ marginRight: 6 }} /> Nhắn
-                  tin
-                </Button>
-                <Button
-                  variant="ghost"
-                  style={{ color: "#dc2626", borderColor: "#fecaca" }}
-                >
-                  <X size={16} style={{ marginRight: 6 }} /> Hủy
-                </Button>
+                ) : (
+                  // Appointments chưa hoàn thành có đầy đủ nút
+                  <>
+                    {a.mode === "online" ? (
+                      <Button>
+                        <Video size={16} style={{ marginRight: 6 }} /> Tham gia
+                      </Button>
+                    ) : null}
+                    <Button variant="secondary">
+                      <Phone size={16} style={{ marginRight: 6 }} /> Gọi
+                    </Button>
+                    <Button variant="secondary">
+                      <MessageCircle size={16} style={{ marginRight: 6 }} />{" "}
+                      Nhắn tin
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                    >
+                      <X size={16} style={{ marginRight: 6 }} /> Hủy
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           );

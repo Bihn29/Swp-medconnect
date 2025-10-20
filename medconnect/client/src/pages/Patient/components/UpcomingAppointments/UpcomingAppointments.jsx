@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Clock, MapPin, User } from "lucide-react";
 import {
   Card,
@@ -15,6 +16,8 @@ import "./UpcomingAppointments.scss";
 const statusConfig = {
   confirmed: { label: "Đã xác nhận", variant: "default" },
   accepted: { label: "Đã chấp nhận", variant: "default" },
+  accept: { label: "Đã xác nhận", variant: "default" }, // Thêm mapping cho status "accept"
+  accecpt: { label: "Đã xác nhận", variant: "default" }, // Thêm mapping cho status "accecpt" (lỗi chính tả)
   pending_doctor: { label: "Chờ xác nhận", variant: "secondary" },
   in_progress: { label: "Đang khám", variant: "default" },
   done: { label: "Hoàn thành", variant: "default" },
@@ -25,6 +28,7 @@ const statusConfig = {
 export function UpcomingAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchAppointments();
@@ -36,8 +40,13 @@ export function UpcomingAppointments() {
       const response = await api.get("/api/patients/me/appointments?limit=5");
 
       if (response.success) {
+        // Filter only upcoming appointments (not completed)
+        const upcomingAppointments = response.data.appointments.filter(
+          (appointment) => appointment.status !== "done"
+        );
+
         // Transform API data to match component format
-        const transformedAppointments = response.data.appointments.map(
+        const transformedAppointments = upcomingAppointments.map(
           (appointment) => ({
             id: appointment._id,
             doctor: `BS. ${appointment.doctorId.fullName}`,
@@ -141,6 +150,7 @@ export function UpcomingAppointments() {
             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             position: "relative",
           }}
+          onClick={() => navigate("/my-appointments")}
           onMouseOver={(e) => {
             e.target.style.backgroundColor = "#f1f5f9";
             e.target.style.transform = "translateY(-1px)";
@@ -249,12 +259,16 @@ export function UpcomingAppointments() {
                         fontWeight: "500",
                         color:
                           appointment.status === "confirmed" ||
-                          appointment.status === "accepted"
+                          appointment.status === "accepted" ||
+                          appointment.status === "accept" ||
+                          appointment.status === "accecpt"
                             ? "#ffffff"
                             : "#1e293b",
                         backgroundColor:
                           appointment.status === "confirmed" ||
-                          appointment.status === "accepted"
+                          appointment.status === "accepted" ||
+                          appointment.status === "accept" ||
+                          appointment.status === "accecpt"
                             ? "#3b82f6"
                             : "#f3f4f6",
                         padding: "0.125rem 0.5rem",
