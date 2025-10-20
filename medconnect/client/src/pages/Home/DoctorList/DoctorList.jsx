@@ -44,6 +44,7 @@ const DoctorList = () => {
   const [loading, setLoading] = useState(true);
   const [doctors, setDoctors] = useState([]);
   const [specializations, setSpecializations] = useState([]);
+  const [currentSpecialization, setCurrentSpecialization] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -103,6 +104,20 @@ const DoctorList = () => {
     }
   };
 
+  // Fetch current specialization details
+  const fetchCurrentSpecialization = async (specializationId) => {
+    try {
+      const response = await api.get(
+        `/api/specializations/${specializationId}`
+      );
+      if (response.success) {
+        setCurrentSpecialization(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching specialization details:", error);
+    }
+  };
+
   // Initialize data
   useEffect(() => {
     fetchSpecializations();
@@ -131,6 +146,15 @@ const DoctorList = () => {
       fetchDoctors();
     }
   }, [currentPage, searchTerm, selectedSpecialty, urlProcessed]);
+
+  // Fetch specialization details when selectedSpecialty changes
+  useEffect(() => {
+    if (selectedSpecialty && selectedSpecialty !== "all") {
+      fetchCurrentSpecialization(selectedSpecialty);
+    } else {
+      setCurrentSpecialization(null);
+    }
+  }, [selectedSpecialty]);
 
   // Helper function to get specialization names
   const getSpecializationNames = (specializationIds) => {
@@ -399,11 +423,101 @@ const DoctorList = () => {
         </div>
       </div>
 
+      {/* Specialization Info Section */}
+      {currentSpecialization && (
+        <div
+          className="specialization-info-section"
+          style={{
+            background: "#f8f9fa",
+            padding: "40px 0",
+            borderBottom: "1px solid #e8e8e8",
+          }}
+        >
+          <div className="container">
+            <Row gutter={[24, 24]} align="middle">
+              <Col xs={24} md={6}>
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      width: "120px",
+                      height: "120px",
+                      borderRadius: "16px",
+                      background:
+                        "linear-gradient(135deg, #45c3d2 0%, #3ba8b8 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "48px",
+                      color: "white",
+                      margin: "0 auto",
+                    }}
+                  >
+                    {currentSpecialization.avatar ? (
+                      <img
+                        src={currentSpecialization.avatar}
+                        alt={currentSpecialization.name}
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: "100%",
+                          objectFit: "contain",
+                          borderRadius: "12px",
+                        }}
+                      />
+                    ) : (
+                      <MedicineBoxOutlined />
+                    )}
+                  </div>
+                </div>
+              </Col>
+              <Col xs={24} md={18}>
+                <div>
+                  <Title
+                    level={2}
+                    style={{ margin: "0 0 16px 0", color: "#262626" }}
+                  >
+                    {currentSpecialization.name}
+                  </Title>
+                  <Paragraph
+                    style={{
+                      fontSize: "16px",
+                      color: "#666",
+                      margin: "0 0 16px 0",
+                      lineHeight: "1.6",
+                    }}
+                  >
+                    {currentSpecialization.description ||
+                      "Chuyên khoa y tế chuyên nghiệp với đội ngũ bác sĩ giàu kinh nghiệm."}
+                  </Paragraph>
+                  <Space>
+                    <Tag
+                      color="blue"
+                      style={{ fontSize: "14px", padding: "4px 12px" }}
+                    >
+                      <UserOutlined /> {filteredDoctors.length} bác sĩ
+                    </Tag>
+                    <Tag
+                      color="green"
+                      style={{ fontSize: "14px", padding: "4px 12px" }}
+                    >
+                      <MedicineBoxOutlined /> Chuyên khoa
+                    </Tag>
+                  </Space>
+                </div>
+              </Col>
+            </Row>
+          </div>
+        </div>
+      )}
+
       {/* Doctor List */}
       <div className="doctor-list-section">
         <div className="container">
           <div className="results-header">
-            <Title level={3}>Kết quả tìm kiếm ({filteredDoctors.length})</Title>
+            <Title level={3}>
+              {currentSpecialization
+                ? `Bác sĩ ${currentSpecialization.name} (${filteredDoctors.length})`
+                : `Kết quả tìm kiếm (${filteredDoctors.length})`}
+            </Title>
           </div>
 
           <div className="doctor-list">

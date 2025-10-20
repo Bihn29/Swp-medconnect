@@ -42,7 +42,10 @@ export const publicRoutes = (
       <Route path="/dieu-khoan-su-dung" element={<Terms />} />
       {/* Appointment booking routes */}
       <Route path="/dat-lich" element={<AppointmentBookingHome />} />
-      <Route path="/dat-lich/chon-chuyen-khoa" element={<SpecializationSelection />} />
+      <Route
+        path="/dat-lich/chon-chuyen-khoa"
+        element={<SpecializationSelection />}
+      />
       <Route path="/dat-lich/chon-bac-si" element={<DoctorSelection />} />
       <Route path="/dat-lich/chon-thoi-gian" element={<TimeSlotSelection />} />
       <Route path="/dat-lich/:doctorId" element={<AppointmentBooking />} />

@@ -9,7 +9,6 @@ import {
   Button,
   Input,
   Select,
-  Pagination,
   Tag,
   Spin,
   message,
@@ -104,75 +103,67 @@ const Specialization = () => {
     <Card
       className="specialization-card"
       hoverable
+      onClick={() => handleSpecializationClick(specialization._id)}
       style={{
-        marginBottom: "16px",
         borderRadius: "12px",
         border: "1px solid #f0f0f0",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
+        cursor: "pointer",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+      bodyStyle={{
+        padding: "20px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
+        height: "100%",
       }}
     >
-      <Row gutter={16} align="middle">
-        <Col flex="100px">
-          <div
+      <div
+        style={{
+          width: "160px",
+          height: "160px",
+          borderRadius: "16px",
+          background: "linear-gradient(135deg, #45c3d2 0%, #3ba8b8 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "64px",
+          color: "white",
+          marginBottom: "24px",
+          overflow: "hidden",
+        }}
+      >
+        {specialization.avatar ? (
+          <img
+            src={specialization.avatar}
+            alt={specialization.name}
             style={{
-              width: "80px",
-              height: "80px",
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
               borderRadius: "12px",
-              background: "linear-gradient(135deg, #45c3d2 0%, #3ba8b8 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "32px",
-              color: "white",
             }}
-          >
-            <MedicineBoxOutlined />
-          </div>
-        </Col>
-        <Col flex="auto">
-          <div className="specialization-info">
-            <Title level={4} style={{ margin: "0 0 8px 0", color: "#1890ff" }}>
-              {specialization.name}
-            </Title>
-            <Paragraph style={{ color: "#666", margin: "8px 0" }}>
-              {specialization.description}
-            </Paragraph>
-            <Space direction="vertical" size="small" style={{ width: "100%" }}>
-              <Space>
-                <UserOutlined style={{ color: "#45c3d2" }} />
-                <Text>{specialization.doctorCount || "Nhiều"} bác sĩ</Text>
-                <EnvironmentOutlined style={{ color: "#45c3d2" }} />
-                <Text>{specialization.facilityCount || "Nhiều"} cơ sở</Text>
-              </Space>
-              <Space wrap>
-                {specialization.popularServices?.map((service, index) => (
-                  <Tag key={index} color="blue-inverse">
-                    {service}
-                  </Tag>
-                )) || <Tag color="blue-inverse">{specialization.name}</Tag>}
-              </Space>
-            </Space>
-          </div>
-        </Col>
-        <Col flex="120px">
-          <Button
-            type="primary"
-            size="large"
-            block
-            style={{
-              backgroundColor: "#45c3d2",
-              borderColor: "#45c3d2",
-              fontWeight: "500",
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleSpecializationClick(specialization._id);
-            }}
-          >
-            Xem bác sĩ
-          </Button>
-        </Col>
-      </Row>
+          />
+        ) : (
+          <MedicineBoxOutlined />
+        )}
+      </div>
+
+      <Title level={4} style={{ margin: "0 0 16px 0", color: "#262626" }}>
+        {specialization.name}
+      </Title>
+
+      {specialization.doctorCount > 0 && (
+        <div style={{ marginTop: "auto" }}>
+          <Tag color="blue" style={{ borderRadius: "12px" }}>
+            <UserOutlined /> {specialization.doctorCount} bác sĩ
+          </Tag>
+        </div>
+      )}
     </Card>
   );
 
@@ -237,7 +228,7 @@ const Specialization = () => {
             </Title>
           </div>
 
-          <div className="specialization-list">
+          <div className="specialization-grid">
             {loading ? (
               <div style={{ textAlign: "center", padding: "40px 0" }}>
                 <Spin size="large" />
@@ -251,31 +242,15 @@ const Specialization = () => {
                 style={{ margin: "50px 0" }}
               />
             ) : (
-              filteredSpecializations.map((specialization) => (
-                <SpecializationCard
-                  key={specialization._id}
-                  specialization={specialization}
-                />
-              ))
+              <Row gutter={[16, 16]}>
+                {filteredSpecializations.map((specialization) => (
+                  <Col xs={24} sm={12} md={8} lg={6} key={specialization._id}>
+                    <SpecializationCard specialization={specialization} />
+                  </Col>
+                ))}
+              </Row>
             )}
           </div>
-
-          {/* Pagination */}
-          {!loading && totalSpecializations > 6 && (
-            <div style={{ textAlign: "center", marginTop: "32px" }}>
-              <Pagination
-                current={currentPage}
-                total={totalSpecializations}
-                pageSize={6}
-                onChange={setCurrentPage}
-                showSizeChanger={false}
-                showQuickJumper
-                showTotal={(total, range) =>
-                  `${range[0]}-${range[1]} của ${total} chuyên khoa`
-                }
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>
