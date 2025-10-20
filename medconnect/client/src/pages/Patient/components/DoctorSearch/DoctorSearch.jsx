@@ -73,7 +73,20 @@ export function DoctorSearch() {
   };
 
   const handleBookAppointment = (doctorId) => {
-    navigate(`/dat-lich/chon-bac-si?doctorId=${doctorId}`);
+    // Find the doctor object from filteredDoctors
+    const selectedDoctor = filteredDoctors.find((doc) => doc._id === doctorId);
+
+    if (selectedDoctor) {
+      // Navigate to time slot selection with doctor and specialization info
+      navigate("/dat-lich/chon-thoi-gian", {
+        state: {
+          doctor: selectedDoctor,
+          specialization: selectedDoctor.specializationIds?.[0] || null,
+        },
+      });
+    } else {
+      message.error("Không tìm thấy thông tin bác sĩ");
+    }
   };
 
   const handleOnlineConsultation = (doctorId) => {
