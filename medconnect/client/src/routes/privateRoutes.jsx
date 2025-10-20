@@ -38,6 +38,7 @@ export const privateRoutes = (
       <Route element={<PatientMiddleware />}>
         <Route path="/benh-nhan" element={<PatientDashboard />} />
         <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
+        <Route path="/search-doctors" element={<PatientDashboard />} />
       </Route>
     </Route>
 

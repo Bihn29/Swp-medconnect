@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { auth } from "../../lib/firebase";
 import { Spin } from "antd";
 import { useUserProfile } from "../../hooks/useUserProfile";
@@ -11,6 +11,7 @@ import { UpcomingAppointments } from "./components/UpcomingAppointments/Upcoming
 import { AppointmentCalendar } from "./components/AppointmentCalendar/AppointmentCalendar";
 import { QuickActions } from "./components/QuickActions/QuickActions";
 import { Settings } from "./components/Settings/Settings";
+import { DoctorSearch } from "./components/DoctorSearch/DoctorSearch";
 import "./PatientDashboard.scss";
 
 /**
@@ -36,6 +37,7 @@ export default function PatientDashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     userProfile,
     loading: profileLoading,
@@ -93,30 +95,44 @@ export default function PatientDashboard() {
     console.error("Profile loading error:", profileError);
   }
 
-  return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      <AppSidebar />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <PatientHeader />
-        <main style={{ flex: 1, overflow: "auto" }} className="main-content">
+  // Render different content based on current route
+  const renderContent = () => {
+    const path = location.pathname;
+
+    switch (path) {
+      case "/search-doctors":
+        return <DoctorSearch />;
+      case "/benh-nhan/cai-dat":
+        return <Settings />;
+      default:
+        // Default dashboard home
+        return (
           <div className="container mx-auto px-4 py-6 lg:px-8 lg:py-8">
             <div className="space-y-6">
               <WelcomeSection />
-
               <StatsCards />
-
               <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2 space-y-6">
                   <AppointmentCalendar />
                   <UpcomingAppointments />
                 </div>
-
                 <div className="space-y-6">
                   <QuickActions />
                 </div>
               </div>
             </div>
           </div>
+        );
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      <AppSidebar />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <PatientHeader />
+        <main style={{ flex: 1, overflow: "auto" }} className="main-content">
+          {renderContent()}
         </main>
       </div>
     </div>
