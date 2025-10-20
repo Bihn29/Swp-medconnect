@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Badge } from "../../../../components/ui/Badge";
 import { Button } from "../../../../components/ui/Button";
-import { api } from "../../../../lib/api";
-import { Spin, message } from "antd";
+import { api, cancelAppointment } from "../../../../lib/api";
+import { Spin, message, Modal } from "antd";
 import {
   Calendar,
   Clock,
@@ -44,6 +44,54 @@ export function MyAppointments() {
     };
     load();
   }, []);
+
+  const handleCancelAppointment = async (appointmentId) => {
+    Modal.confirm({
+      title: "Xác nhận hủy lịch hẹn",
+      content: "Bạn có chắc chắn muốn hủy lịch hẹn này?",
+      okText: "Hủy lịch hẹn",
+      cancelText: "Không",
+      okType: "danger",
+      onOk: async () => {
+        try {
+          console.log("Attempting to cancel appointment:", appointmentId);
+
+          // Gọi API endpoint mới
+          const response = await api.put(
+            `/api/patients/me/appointments/${appointmentId}/cancel`,
+            { cancelReason: "Patient cancelled" }
+          );
+
+          console.log("Cancel response:", response);
+
+          if (response && response.success) {
+            message.success("Đã hủy lịch hẹn thành công");
+
+            // Cập nhật lại danh sách appointments
+            const updatedAppointments = appointments.map((appointment) =>
+              appointment._id === appointmentId
+                ? { ...appointment, status: "cancelled" }
+                : appointment
+            );
+            setAppointments(updatedAppointments);
+
+            console.log("Appointment cancelled successfully:", appointmentId);
+          } else {
+            console.error("Cancel failed:", response);
+            message.error(response?.message || "Không thể hủy lịch hẹn");
+          }
+        } catch (error) {
+          console.error("Error cancelling appointment:", error);
+          console.error("Error details:", {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+          });
+          message.error(`Có lỗi xảy ra khi hủy lịch hẹn: ${error.message}`);
+        }
+      },
+    });
+  };
 
   // Phân chia appointments
   const upcomingAppointments = appointments.filter(
@@ -271,6 +319,7 @@ export function MyAppointments() {
                     <Button
                       variant="ghost"
                       style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                      onClick={() => handleCancelAppointment(a._id)}
                     >
                       <X size={16} style={{ marginRight: 6 }} /> Hủy
                     </Button>
