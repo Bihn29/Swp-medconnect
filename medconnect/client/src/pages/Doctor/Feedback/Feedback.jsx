@@ -1,44 +1,38 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Star, MessageSquare } from "lucide-react"
+import { api } from "../../../lib/api"
+import { Spin, message } from "antd"
 
 const Feedback = () => {
   const [filter, setFilter] = useState("all")
   const [showResponseForm, setShowResponseForm] = useState(null)
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const reviews = [
-    {
-      id: 1,
-      patientName: "Nguyễn Văn A",
-      rating: 5,
-      comment: "Bác sĩ rất tận tâm và chu đáo. Giải thích rõ ràng về tình trạng bệnh và phương pháp điều trị.",
-      appointmentDate: new Date(2025, 9, 10),
-      appointmentType: "Khám tổng quát",
-      mode: "online",
-      response: null,
-    },
-    {
-      id: 2,
-      patientName: "Trần Thị B",
-      rating: 4,
-      comment: "Khám bệnh kỹ lưỡng, tuy nhiên thời gian chờ hơi lâu.",
-      appointmentDate: new Date(2025, 9, 8),
-      appointmentType: "Tái khám",
-      mode: "offline",
-      response: "Cảm ơn bạn đã đánh giá. Tôi sẽ cố gắng cải thiện thời gian chờ đợi.",
-    },
-    {
-      id: 3,
-      patientName: "Lê Văn C",
-      rating: 5,
-      comment: "Rất hài lòng với dịch vụ. Bác sĩ nhiệt tình và chuyên nghiệp.",
-      appointmentDate: new Date(2025, 9, 5),
-      appointmentType: "Khám chuyên khoa",
-      mode: "online",
-      response: null,
-    },
-  ]
+  useEffect(() => {
+    fetchReviews()
+  }, [])
+
+  const fetchReviews = async () => {
+    try {
+      setLoading(true)
+      const response = await api.get("/api/doctors/me/reviews")
+      
+      if (response.success) {
+        setReviews(response.data.reviews || [])
+      } else {
+        message.error("Không thể tải đánh giá")
+      }
+    } catch (error) {
+      console.error("Error fetching reviews:", error)
+      message.error("Có lỗi xảy ra khi tải đánh giá")
+      setReviews([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const renderStars = (rating) => {
     return (
@@ -57,7 +51,18 @@ const Feedback = () => {
     return true
   })
 
-  const averageRating = (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
+  const averageRating = reviews.length > 0 ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1) : "0.0"
+
+  if (loading) {
+    return (
+      <div className="max-w-[1200px]">
+        <h1 className="text-4xl font-bold text-gray-900 mb-8">Đánh giá & Phản hồi</h1>
+        <div className="flex justify-center items-center min-h-[400px]">
+          <Spin size="large" tip="Đang tải đánh giá..." />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-[1200px]">
@@ -115,10 +120,10 @@ const Feedback = () => {
           <div key={review.id} className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{review.patientName}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{review.patientId?.fullName || "Bệnh nhân"}</h3>
                 <div className="flex items-center gap-4 mb-2">
                   {renderStars(review.rating)}
-                  <span className="text-sm text-gray-600">{review.appointmentDate.toLocaleDateString("vi-VN")}</span>
+                  <span className="text-sm text-gray-600">{new Date(review.createdAt).toLocaleDateString("vi-VN")}</span>
                 </div>
                 <div className="flex gap-2">
                   <span
@@ -129,7 +134,7 @@ const Feedback = () => {
                     {review.mode === "online" ? "Trực tuyến" : "Tại viện"}
                   </span>
                   <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                    {review.appointmentType}
+                    {review.appointmentId?.reason || "Khám bệnh"}
                   </span>
                 </div>
               </div>

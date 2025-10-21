@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Card,
@@ -7,12 +7,43 @@ import {
   CardTitle,
 } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
+import { api } from "../../../../lib/api";
+import { Spin } from "antd";
 import "./AppointmentCalendar.scss";
 
 const daysOfWeek = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 
 export function AppointmentCalendar() {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 9, 16));
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [currentDate]);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      
+      // Get start and end of current month
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const startOfMonth = new Date(year, month, 1);
+      const endOfMonth = new Date(year, month + 1, 0);
+      
+      const response = await api.get(`/api/patients/me/appointments?startDate=${startOfMonth.toISOString()}&endDate=${endOfMonth.toISOString()}`);
+      
+      if (response.success) {
+        setAppointments(response.data.appointments || []);
+      }
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -32,7 +63,21 @@ export function AppointmentCalendar() {
     return days;
   };
 
-  const appointmentDays = [5, 12, 16, 20, 25];
+  const getAppointmentDays = () => {
+    const today = new Date();
+    const appointmentDays = appointments.map(appointment => {
+      const appointmentDate = new Date(appointment.scheduledStart);
+      return {
+        day: appointmentDate.getDate(),
+        status: appointment.status,
+        mode: appointment.mode,
+        id: appointment._id
+      };
+    });
+    return appointmentDays;
+  };
+
+  const appointmentDays = getAppointmentDays();
   const days = getDaysInMonth(currentDate);
 
   const previousMonth = () => {
@@ -51,6 +96,25 @@ export function AppointmentCalendar() {
     month: "long",
     year: "numeric",
   });
+
+  const today = new Date();
+  const isCurrentMonth = currentDate.getMonth() === today.getMonth() && 
+                        currentDate.getFullYear() === today.getFullYear();
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-balance">Lịch hẹn</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center items-center min-h-[300px]">
+            <Spin size="large" tip="Đang tải lịch hẹn..." />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -81,8 +145,10 @@ export function AppointmentCalendar() {
             </div>
           ))}
           {days.map((day, index) => {
-            const hasAppointment = day && appointmentDays.includes(day);
-            const isToday = day === 16;
+            const appointmentForDay = appointmentDays.find(apt => apt.day === day);
+            const hasAppointment = day && appointmentForDay;
+            const isToday = day && isCurrentMonth && day === today.getDate();
+            
             return (
               <button
                 key={index}
@@ -96,6 +162,7 @@ export function AppointmentCalendar() {
                     ? "bg-accent/20 font-medium text-accent hover:bg-accent/30"
                     : "hover:bg-muted"
                 }`}
+                title={hasAppointment ? `Lịch hẹn: ${appointmentForDay.status}` : ""}
               >
                 {day}
               </button>

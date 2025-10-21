@@ -8,6 +8,7 @@ import {
   getDoctorTimeSlots,
   bookAppointment,
   getPatientAppointments,
+  getAppointmentDetails,
 } from "../controllers/patientController.js";
 
 const router = express.Router();
@@ -32,5 +33,8 @@ router.post("/appointments", authGuard, bookAppointment);
 
 // Get patient's appointments
 router.get("/me/appointments", authGuard, getPatientAppointments);
+
+// Get appointment details by ID
+router.get("/me/appointments/:appointmentId", authGuard, getAppointmentDetails);
 
 export default router;

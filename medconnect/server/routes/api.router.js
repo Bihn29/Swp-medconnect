@@ -6,6 +6,7 @@ import notificationRouter from "./notificationRoutes.js";
 import specializationRouter from "./specializations/specialization.route.js";
 import patientRouter from "./patientRoutes.js";
 import usersRouter from "./users/user.route.js";
+import videoCallRouter from "./videoCallRoutes.js";
 
 
 // Auth routes (register, login, forgot/reset password, etc.)
@@ -24,6 +25,10 @@ console.log("[router] mounted /api/doctors");
 // Notification routes
 apiRouter.use("/notifications", notificationRouter);
 console.log("[router] mounted /api/notifications");
+
+// Video Call routes
+apiRouter.use("/video-calls", videoCallRouter);
+console.log("[router] mounted /api/video-calls");
 
 // Test routes (for development)
 

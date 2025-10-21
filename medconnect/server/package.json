@@ -23,6 +23,7 @@
     "morgan": "^1.10.1",
     "mssql": "^10.0.1",
     "nodemailer": "^7.0.9",
+    "socket.io": "^4.8.1",
     "vnpay": "^2.4.4"
   },
   "devDependencies": {
