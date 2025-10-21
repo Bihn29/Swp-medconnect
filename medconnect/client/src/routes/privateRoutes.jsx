@@ -6,6 +6,7 @@ import DefaultLayout from "../layouts/DefaultLayout/DefaultLayout";
 // Middlewares
 import AuthMiddleware from "../middlewares/AuthMiddleware";
 import PatientMiddleware from "../middlewares/PatientMiddleware";
+import DoctorMiddleware from "../middlewares/DoctorMiddleware";
 
 // Shared Components
 import Profile from "../pages/Auth/Profile";
@@ -47,15 +48,10 @@ export const privateRoutes = (
       </Route>
     </Route>
 
-    {/* ==================== OTHER ROUTES WITH DEFAULT LAYOUT ==================== */}
-    <Route element={<DefaultLayout />}>
-      {/* ==================== AUTHENTICATED ROUTES ==================== */}
-      <Route element={<AuthMiddleware />}>
-        {/* ==================== SHARED ROUTES ==================== */}
-        {/* Routes accessible by all authenticated users */}
-        <Route path="/tai-khoan" element={<Profile />} />
-
-        {/* ==================== DOCTOR ROUTES ==================== */}
+    {/* ==================== DOCTOR ROUTES (NO DEFAULT LAYOUT) ==================== */}
+    {/* Doctor routes with custom layout (no default header/footer) */}
+    <Route element={<AuthMiddleware />}>
+      <Route element={<DoctorMiddleware />}>
         {/* Main doctor dashboard */}
         <Route path="/bac-si" element={<DoctorDashboard />} />
 
@@ -81,6 +77,16 @@ export const privateRoutes = (
         {/* Doctor notifications and feedback routes */}
         <Route path="/bac-si/thong-bao" element={<Notifications />} />
         <Route path="/bac-si/danh-gia" element={<Feedback />} />
+      </Route>
+    </Route>
+
+    {/* ==================== OTHER ROUTES WITH DEFAULT LAYOUT ==================== */}
+    <Route element={<DefaultLayout />}>
+      {/* ==================== AUTHENTICATED ROUTES ==================== */}
+      <Route element={<AuthMiddleware />}>
+        {/* ==================== SHARED ROUTES ==================== */}
+        {/* Routes accessible by all authenticated users */}
+        <Route path="/tai-khoan" element={<Profile />} />
       </Route>
 
       {/* ==================== PATIENT-SPECIFIC ROUTES ==================== */}

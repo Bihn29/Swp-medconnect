@@ -1,215 +1,91 @@
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/Card"
+import { Badge } from "../../../components/ui/Badge"
+import { getDoctorAppointmentsWithFallback } from "../../../lib/api"
+import "./DashboardOverview.scss"
 
-"use client"
+export default function DashboardOverview() {
+  const [todaySchedule, setTodaySchedule] = useState([])
+  const [loading, setLoading] = useState(true)
 
-import PropTypes from "prop-types"
-import { Calendar, Clock, Users, TrendingUp, Video, FileText } from "lucide-react"
-import { useDoctor, useDoctorDashboardStats, useDoctorAppointments } from "../../../hooks/useDoctor.js"
+  useEffect(() => {
+    const fetchTodaySchedule = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0]
+        console.log("🔍 Fetching today's schedule for:", today);
+        const response = await getDoctorAppointmentsWithFallback({ date: today });
+        console.log("🔍 Today's schedule response:", response);
+        
+        if (response.success && response.data?.appointments) {
+          setTodaySchedule(response.data.appointments);
+          console.log("✅ Today's appointments loaded:", response.data.appointments.length);
+        } else {
+          console.log("⚠️ No appointments found for today");
+          setTodaySchedule([]);
+        }
+      } catch (error) {
+        console.error('Error fetching today schedule:', error);
+        setTodaySchedule([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-const DashboardOverview = ({ onViewAppointments }) => {
-  const { doctor, loading: doctorLoading } = useDoctor()
-  const { stats, loading: statsLoading } = useDoctorDashboardStats()
-  const { appointments: upcomingAppointments, loading: appointmentsLoading } = useDoctorAppointments({
-    status: "confirmed",
-    date: new Date().toISOString().split("T")[0],
-    limit: 3,
-  })
-
-  const statsData = [
-    {
-      label: "Ca khám hôm nay",
-      value: stats?.todayAppointments || "0",
-      icon: Calendar,
-      color: "teal",
-    },
-    {
-      label: "Slot trống",
-      value: stats?.availableSlots || "0",
-      icon: Clock,
-      color: "yellow",
-    },
-    {
-      label: "Chờ xác nhận",
-      value: stats?.pendingAppointments || "0",
-      icon: Users,
-      color: "orange",
-    },
-    {
-      label: "Hoàn thành",
-      value: stats?.completedAppointments || "0",
-      icon: TrendingUp,
-      color: "green",
-    },
-  ]
-
-  const quickActions = [
-    { label: "Xem lịch hôm nay", icon: Calendar, action: "schedule", onClick: () => {} },
-    { label: "Quản lý slot", icon: Clock, action: "slots", onClick: () => {} },
-    { label: "Chặn thời gian", icon: Users, action: "block", onClick: () => {} },
-    { label: "Tạo tóm tắt", icon: FileText, action: "summary", onClick: () => {} },
-    { label: "Lịch sử khám", icon: TrendingUp, action: "history", onClick: () => {} },
-    { label: "Khám video", icon: Video, action: "video", onClick: () => {} },
-  ]
-
-  const colorClasses = {
-    teal: "bg-primary/10 text-primary",
-    yellow: "bg-accent/10 text-amber-700",
-    orange: "bg-orange-100 text-orange-600",
-    green: "bg-green-100 text-green-600",
-  }
-
-  const formatTime = (dateTime) => {
-    return new Date(dateTime).toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
-
-  const formatAppointmentType = (appointment) => {
-    return appointment.reason || "Khám tổng quát"
-  }
-
-  if (doctorLoading || statsLoading) {
-    return (
-      <div className="max-w-[1400px]">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Đang tải dữ liệu...</div>
-        </div>
-      </div>
-    )
-  }
+    fetchTodaySchedule();
+  }, []);
 
   return (
-    <div className="max-w-[1400px]">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Chào mừng, BS. {doctor?.fullName || "Bác sĩ"}</h1>
-        <p className="text-gray-600">Hôm nay là ngày {new Date().toLocaleDateString("vi-VN")}</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        {statsData.map((stat, index) => {
-          const Icon = stat.icon
-          return (
-            <div
-              key={index}
-              className="bg-white rounded-xl shadow-md p-6 flex items-center gap-6 hover:-translate-y-1 transition-transform"
-            >
+    <Card className="dashboard-overview-card">
+      <CardHeader>
+        <CardTitle>Lịch làm việc hôm nay</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="dashboard-overview-schedule">
+          {loading ? (
+            <div className="text-center py-4">Đang tải lịch làm việc...</div>
+          ) : todaySchedule.length === 0 ? (
+            <div className="text-center py-4">Không có lịch hẹn nào hôm nay</div>
+          ) : (
+            todaySchedule.map((appointment, index) => (
               <div
-                className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClasses[stat.color]}`}
+                key={appointment._id || index}
+                className="dashboard-overview-appointment"
               >
-                <Icon size={24} />
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
-                <div className="text-sm text-gray-600">{stat.label}</div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Lịch hẹn sắp tới</h2>
-            <button
-              className="px-4 py-2 text-primary hover:bg-primary/5 rounded-lg transition-colors"
-              onClick={onViewAppointments}
-              type="button"
-            >
-              Xem tất cả
-            </button>
-          </div>
-          <div className="space-y-4">
-            {appointmentsLoading ? (
-              <div className="text-center py-8 text-gray-500">Đang tải lịch hẹn...</div>
-            ) : upcomingAppointments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Không có lịch hẹn nào hôm nay</div>
-            ) : (
-              upcomingAppointments.map((appointment) => (
-                <div
-                  key={appointment._id}
-                  className="flex items-center gap-6 p-4 border border-gray-200 rounded-lg hover:border-primary hover:shadow-sm transition-all"
-                >
-                  <div className="text-lg font-semibold text-primary min-w-[60px]">
-                    {formatTime(appointment.scheduledStart)}
+                <div className="dashboard-overview-appointment-content">
+                  <div className="dashboard-overview-appointment-time">
+                    {new Date(appointment.scheduledStart).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                   </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900 mb-1">
-                      {appointment.patientId?.fullName || "Bệnh nhân"}
-                    </div>
-                    <div className="text-sm text-gray-600">{formatAppointmentType(appointment)}</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        appointment.mode === "online" ? "bg-primary/10 text-primary" : "bg-orange-100 text-orange-600"
-                      }`}
-                    >
-                      {appointment.mode === "online" ? "Trực tuyến" : "Tại viện"}
-                    </span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        appointment.status === "confirmed"
-                          ? "bg-green-100 text-green-600"
-                          : "bg-yellow-100 text-amber-700"
-                      }`}
-                    >
-                      {appointment.status === "confirmed" ? "Đã xác nhận" : "Chờ xác nhận"}
-                    </span>
+                  <div className="dashboard-overview-appointment-info">
+                    <p className="dashboard-overview-appointment-patient">
+                      {appointment.patientId?.fullName || appointment.patient?.fullName || 'N/A'}
+                    </p>
+                    <p className="dashboard-overview-appointment-type">
+                      Tư vấn {appointment.appointmentType || 'Trực tiếp'}
+                    </p>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+                <div className="dashboard-overview-appointment-badges">
+                  <Badge variant={appointment.appointmentType === "online" ? "default" : "secondary"}>
+                    {appointment.appointmentType === "online" ? "Trực tuyến" : "Trực tiếp"}
+                  </Badge>
+                  <Badge
+                    variant={appointment.status === "accepted" ? "default" : "outline"}
+                    className={appointment.status === "accepted" ? "dashboard-overview-status-confirmed" : ""}
+                  >
+                    {appointment.status === "accepted" ? "Đã chấp nhận" : 
+                     appointment.status === "pending_doctor" ? "Chờ bác sĩ xác nhận" : 
+                     appointment.status === "in_progress" ? "Đang khám" :
+                     appointment.status === "done" ? "Hoàn thành" :
+                     appointment.status === "rejected" ? "Bác sĩ từ chối" :
+                     appointment.status === "cancelled" ? "Đã hủy" :
+                     appointment.status === "no_show" ? "Không đến khám" : appointment.status}
+                  </Badge>
+                </div>
+              </div>
+            ))
+          )}
         </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Thao tác nhanh</h2>
-          <div className="space-y-3 mb-8">
-            {quickActions.map((action, index) => {
-              const Icon = action.icon
-              return (
-                <button
-                  key={index}
-                  onClick={action.onClick}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-accent hover:bg-accent/90 text-gray-900 rounded-lg font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
-                  type="button"
-                >
-                  <Icon size={20} />
-                  <span>{action.label}</span>
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="p-6 bg-gray-50 rounded-xl text-center">
-            <div className="w-20 h-20 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-              {doctor?.avatarUrl ? (
-                <img src={doctor.avatarUrl} alt="Doctor Avatar" className="w-full h-full rounded-full object-cover" />
-              ) : (
-                "BS"
-              )}
-            </div>
-            <div className="font-semibold text-gray-900 mb-1">BS. {doctor?.fullName || "Bác sĩ"}</div>
-            <div className="text-sm text-gray-600 mb-4">
-              {doctor?.specializationIds?.map((spec) => spec.name).join(", ") || "Chuyên khoa"}
-            </div>
-            <span className="inline-block px-3 py-1 bg-green-100 text-green-600 rounded-full text-xs font-medium">
-              {doctor?.isVerified ? "Đang hoạt động" : "Chờ xác minh"}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }
-
-DashboardOverview.propTypes = {
-  onViewAppointments: PropTypes.func, 
-}
-
-DashboardOverview.defaultProps = {
-  onViewAppointments: () => {},
-}
-
-export default DashboardOverview

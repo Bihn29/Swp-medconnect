@@ -8,6 +8,7 @@ import { sendMail } from "../utils/email.js";
 import { verifyPassword, hashPassword, toE164 } from "../helpers/auth.js";
 import User from "../models/user.model.js";
 import Patient from "../models/patient.model.js";
+import Doctor from "../models/doctor.model.js";
 import AuthProvider from "../models/auth_providers.model.js";
 import PasswordReset from "../models/passwordReset.model.js";
 import { ok, fail } from "../utils/response.js";
@@ -35,14 +36,12 @@ export async function loginPassword(req, res) {
     if (String(identifier || "").includes("@")) {
       user = await User.findOne({
         email: String(identifier).toLowerCase().trim(),
-        status: "active",
       }).select("+passwordHash");
     } else {
       const phone = toE164(identifier);
       if (phone) {
         user = await User.findOne({
           phone,
-          status: "active",
         }).select("+passwordHash");
       }
     }
@@ -50,6 +49,23 @@ export async function loginPassword(req, res) {
     if (!user) {
       console.log("[login] user not found");
       return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+    }
+
+    // Check user status
+    if (user.status === "blocked") {
+      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin.");
+    }
+
+    if (user.status === "pending") {
+      if (user.role === "doctor") {
+        return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản bác sĩ của bạn đang chờ admin phê duyệt. Vui lòng đợi thông báo từ email.");
+      } else {
+        return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản của bạn đang chờ kích hoạt. Vui lòng đợi thông báo từ email.");
+      }
+    }
+
+    if (user.status !== "active") {
+      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản của bạn chưa được kích hoạt.");
     }
 
     // 🔧 ĐÚNG THỨ TỰ so sánh: (plain, hash)
@@ -62,6 +78,7 @@ export async function loginPassword(req, res) {
     const customToken = await admin.auth().createCustomToken(uid, {
       app_user_id: String(user._id),
       role: user.role,
+      email: user.email, // Thêm email vào custom claims
     });
 
     return ok(res, {
@@ -158,6 +175,145 @@ export function getCurrentUser(req, res) {
       appUserId: claims.app_user_id ?? null,
     },
   });
+}
+
+/**
+ * Doctor register controller
+ */
+export async function registerDoctor(req, res) {
+  try {
+    const {
+      fullName,
+      email,
+      phone,
+      password,
+      specialty,
+      licenseNumber,
+      licenseImage,
+    } = req.body || {};
+
+    if (!fullName || !email || !phone || !password || !specialty || !licenseNumber) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing required fields");
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+    if (!emailRegex.test(email)) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid email format");
+    }
+
+    // Validate phone format (Vietnamese)
+    const phoneRegex = /^\+84\d{9}$/;
+    if (!phoneRegex.test(phone)) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid phone format");
+    }
+
+    // Validate password length
+    if (password.length < 8) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Password must be at least 8 characters"
+      );
+    }
+
+    // Check if user already exists
+    const existingUserByEmail = await User.findOne({
+      email: email.toLowerCase(),
+    }).lean();
+    if (existingUserByEmail) {
+      return fail(res, 409, ERROR_CODES.CONFLICT, "Email already exists");
+    }
+
+    // Normalize phone and check
+    const normalizedPhone = toE164(phone);
+    if (!normalizedPhone) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid phone format");
+    }
+    const existingUserByPhone = await User.findOne({
+      phone: normalizedPhone,
+    }).lean();
+    if (existingUserByPhone) {
+      return fail(
+        res,
+        409,
+        ERROR_CODES.CONFLICT,
+        "Phone number already exists"
+      );
+    }
+
+    // Check if license number already exists
+    const existingDoctor = await Doctor.findOne({
+      licenseNo: licenseNumber,
+    }).lean();
+    if (existingDoctor) {
+      return fail(
+        res,
+        409,
+        ERROR_CODES.CONFLICT,
+        "License number already exists"
+      );
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Create user in MongoDB
+    const userDoc = await User.create({
+      email: email.toLowerCase().trim(),
+      passwordHash: hashedPassword,
+      role: "doctor",
+      status: "pending", // Bác sĩ cần được admin phê duyệt
+      fullName: fullName.trim(),
+      phone: normalizedPhone,
+    });
+
+    if (!userDoc) {
+      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Failed to create user");
+    }
+
+    // Create doctor document
+    await Doctor.create({
+      userId: userDoc._id,
+      fullName: fullName.trim(),
+      licenseNo: licenseNumber,
+      isVerified: false, // Cần admin phê duyệt
+      isActive: false, // Chưa được kích hoạt
+      bio: "",
+    });
+
+    // Create AuthProvider record for local login
+    try {
+      await AuthProvider.create({
+        userId: userDoc._id,
+        provider: "local",
+        providerUid: String(userDoc._id),
+        email: userDoc.email,
+        phone: userDoc.phone,
+        verified: false, // Chưa được xác thực
+      });
+    } catch (e) {
+      console.warn("Failed to create AuthProvider record:", e.message || e);
+    }
+
+    console.log("[registerDoctor] success for user:", userDoc._id);
+
+    return ok(res, {
+      message: "Đăng ký thành công! Tài khoản của bạn đang được admin phê duyệt. Vui lòng đợi thông báo từ email bạn đã đăng ký.",
+      user: {
+        id: userDoc._id,
+        fullName: userDoc.fullName,
+        email: userDoc.email,
+        phone: userDoc.phone,
+        role: userDoc.role,
+        status: userDoc.status,
+      },
+    });
+  } catch (e) {
+    console.error("❌ /api/auth/register-doctor error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
 }
 
 /**

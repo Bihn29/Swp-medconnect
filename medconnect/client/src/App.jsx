@@ -1,5 +1,5 @@
+import React from "react";
 import Layout from "./core/Layout";
-
 import { useQuery } from "@tanstack/react-query";
 
 // API base can be configured via Vite env var VITE_API_BASE (e.g. http://localhost:3000)
