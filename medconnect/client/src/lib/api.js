@@ -631,6 +631,14 @@ export async function getAdminSpecializations() {
   return r.json();
 }
 
+export async function getDoctorsBySpecialization(specializationId) {
+  const r = await fetch(`${BASE}/api/admin/specializations/${specializationId}/doctors`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export async function addSpecialization(data) {
   const r = await fetch(`${BASE}/api/admin/specializations`, {
     method: "POST",

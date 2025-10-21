@@ -13,15 +13,19 @@ import {
   UserOutlined,
   TeamOutlined
 } from '@ant-design/icons';
-import { getAdminSpecializations, addSpecialization, updateSpecialization, deleteSpecialization } from '../../lib/api';
+import { getAdminSpecializations, addSpecialization, updateSpecialization, deleteSpecialization, getDoctorsBySpecialization } from '../../lib/api';
 import './Specializations.scss';
 
 const Specializations = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isDoctorsModalVisible, setIsDoctorsModalVisible] = useState(false);
   const [editingSpecialization, setEditingSpecialization] = useState(null);
+  const [selectedSpecialization, setSelectedSpecialization] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [specializations, setSpecializations] = useState([]);
+  const [doctors, setDoctors] = useState([]);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -87,6 +91,21 @@ const Specializations = () => {
     } catch (err) {
       console.error('Error saving specialization:', err);
       message.error('Có lỗi xảy ra');
+    }
+  };
+
+  const handleSpecializationClick = async (specialization) => {
+    try {
+      setDoctorsLoading(true);
+      setSelectedSpecialization(specialization);
+      const data = await getDoctorsBySpecialization(specialization.id);
+      setDoctors(data.data || data);
+      setIsDoctorsModalVisible(true);
+    } catch (err) {
+      console.error('Error fetching doctors:', err);
+      message.error('Không thể tải danh sách bác sĩ');
+    } finally {
+      setDoctorsLoading(false);
     }
   };
 
@@ -188,7 +207,7 @@ const Specializations = () => {
       <Row gutter={[24, 24]} className="specializations-grid">
         {specializations.map(specialization => (
           <Col xs={24} sm={12} md={8} lg={6} key={specialization.id}>
-            <Card className="specialization-card" hoverable>
+            <Card className="specialization-card" hoverable onClick={() => handleSpecializationClick(specialization)}>
               <div className="card-content">
                 <div className="specialization-icon">
                   {getIconForSpecialization(specialization.name, specialization.color)}
@@ -204,7 +223,10 @@ const Specializations = () => {
                   <Button 
                     type="text" 
                     icon={<EditOutlined />}
-                    onClick={() => handleEditSpecialization(specialization)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditSpecialization(specialization);
+                    }}
                     className="action-btn edit-btn"
                   >
                     Sửa
@@ -212,7 +234,10 @@ const Specializations = () => {
                   <Button 
                     type="text" 
                     icon={<DeleteOutlined />}
-                    onClick={() => handleDeleteSpecialization(specialization.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteSpecialization(specialization.id);
+                    }}
                     className="action-btn delete-btn"
                   >
                     Xóa
@@ -257,6 +282,64 @@ const Specializations = () => {
             <Input type="color" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Doctors Modal */}
+      <Modal
+        title={`Danh sách bác sĩ - ${selectedSpecialization?.name}`}
+        open={isDoctorsModalVisible}
+        onCancel={() => setIsDoctorsModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsDoctorsModalVisible(false)}>
+            Đóng
+          </Button>
+        ]}
+        width={800}
+        className="doctors-modal"
+      >
+        {doctorsLoading ? (
+          <div style={{ textAlign: 'center', padding: '50px' }}>
+            <Spin size="large" />
+            <p style={{ marginTop: '16px' }}>Đang tải danh sách bác sĩ...</p>
+          </div>
+        ) : (
+          <div className="doctors-list">
+            {doctors.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '50px' }}>
+                <UserOutlined style={{ fontSize: '48px', color: '#ccc' }} />
+                <p style={{ marginTop: '16px', color: '#666' }}>Chưa có bác sĩ nào trong chuyên khoa này</p>
+              </div>
+            ) : (
+              <Row gutter={[16, 16]}>
+                {doctors.map(doctor => (
+                  <Col xs={24} sm={12} md={8} key={doctor.id}>
+                    <Card className="doctor-card" size="small">
+                      <div className="doctor-info">
+                        <div className="doctor-avatar">
+                          {doctor.avatarUrl ? (
+                            <img src={doctor.avatarUrl} alt={doctor.fullName} />
+                          ) : (
+                            <UserOutlined />
+                          )}
+                        </div>
+                        <div className="doctor-details">
+                          <h4>{doctor.fullName}</h4>
+                          <p className="doctor-email">{doctor.email}</p>
+                          {doctor.licenseNo && (
+                            <p className="doctor-license">📋 {doctor.licenseNo}</p>
+                          )}
+                          {doctor.bio && (
+                            <p className="doctor-bio">{doctor.bio}</p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );

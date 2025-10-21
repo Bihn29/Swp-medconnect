@@ -168,9 +168,6 @@ const AdminLayout = () => {
       <Layout className="admin-main">
         <Header className="admin-header">
           <div className="header-left">
-            <div className="breadcrumb">
-              <span className="breadcrumb-path">{location.pathname}</span>
-            </div>
           </div>
           
           <div className="header-center">

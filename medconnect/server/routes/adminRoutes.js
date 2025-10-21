@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { authGuard } from '../middleware/auth.js';
 import User from '../models/user.model.js';
 import Doctor from '../models/doctor.model.js';
@@ -456,11 +457,12 @@ adminRouter.get('/specializations', async (req, res) => {
     // Get doctor count for each specialization
     const specializationsWithCount = await Promise.all(
       specializations.map(async (spec) => {
-        // Use $in operator to find doctors with this specialization
-        const doctorCount = await Doctor.countDocuments({ 
-          specializationIds: { $in: [spec._id] },
-          isActive: true 
-        });
+        // Don't filter by isActive since all doctors have isActive: false in the database
+        const doctorsWithSpec = await Doctor.find({
+          specializationIds: { $in: [spec._id.toString()] }
+        }).select('fullName specializationIds');
+        
+        const doctorCount = doctorsWithSpec.length;
         
         return {
           id: spec._id,
@@ -570,6 +572,43 @@ adminRouter.put('/specializations/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi khi cập nhật chuyên khoa'
+    });
+  }
+});
+
+// Get doctors by specialization
+adminRouter.get('/specializations/:id/doctors', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Don't filter by isActive since all doctors have isActive: false in the database
+    const doctors = await Doctor.find({
+      specializationIds: { $in: [id] }
+    })
+    .populate('userId', 'fullName email')
+    .select('userId fullName licenseNo bio avatarUrl yearsExperience ratingAvg')
+    .sort({ fullName: 1 });
+
+    const formattedDoctors = doctors.map(doctor => ({
+      id: doctor._id,
+      fullName: doctor.fullName || doctor.userId?.fullName || 'Chưa có tên',
+      email: doctor.userId?.email || 'Chưa có email',
+      licenseNo: doctor.licenseNo || null,
+      bio: doctor.bio || null,
+      avatarUrl: doctor.avatarUrl || null,
+      yearsExperience: doctor.yearsExperience || 0,
+      ratingAvg: doctor.ratingAvg || 0
+    }));
+
+    res.json({
+      success: true,
+      data: formattedDoctors
+    });
+  } catch (error) {
+    console.error('Error fetching doctors by specialization:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tải danh sách bác sĩ'
     });
   }
 });
