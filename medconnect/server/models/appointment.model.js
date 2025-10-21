@@ -34,7 +34,7 @@ const AppointmentSchema = new Schema(
     },
 
     scheduledStart: { type: Date, required: true },
-    scheduledEnd:   { type: Date, required: true },
+    scheduledEnd: { type: Date, required: true },
 
     status: {
       type: String,
@@ -80,7 +80,10 @@ AppointmentSchema.pre("validate", function (next) {
     this.scheduledEnd &&
     this.scheduledStart >= this.scheduledEnd
   ) {
-    this.invalidate("scheduledEnd", "scheduledEnd must be after scheduledStart");
+    this.invalidate(
+      "scheduledEnd",
+      "scheduledEnd must be after scheduledStart"
+    );
   }
   if (this.isNew && this.scheduledStart && this.scheduledStart < new Date()) {
     this.invalidate("scheduledStart", "scheduledStart must be in the future");
@@ -94,6 +97,7 @@ AppointmentSchema.index({ patientId: 1, scheduledStart: 1 });
 AppointmentSchema.index({ status: 1, scheduledStart: 1 });
 AppointmentSchema.index({ mode: 1, scheduledStart: 1 });
 AppointmentSchema.index({ clinicId: 1, scheduledStart: 1 });
+
 // KHÓA SLOT 1-1 khi còn hiệu lực (slot không thể bị book hai lần, bất kể online/offline)
 AppointmentSchema.index(
   { slotId: 1 },

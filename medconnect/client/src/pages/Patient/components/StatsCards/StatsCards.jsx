@@ -1,43 +1,149 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Calendar, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent } from "../../../../components/ui/Card";
+import { api } from "../../../../lib/api";
+import { Spin } from "antd";
 
-const stats = [
-  {
-    title: "Tổng lịch hẹn",
-    value: "24",
-    icon: Calendar,
-    description: "Trong tháng này",
-    trend: "+12% so với tháng trước",
-    trendUp: true,
-  },
-  {
-    title: "Đang chờ",
-    value: "3",
-    icon: Clock,
-    description: "Chờ xác nhận",
-    trend: "-2 so với tháng trước",
-    trendUp: false,
-  },
-  {
-    title: "Đã hoàn thành",
-    value: "18",
-    icon: CheckCircle2,
-    description: "Tháng này",
-    trend: "+8 so với tháng trước",
-    trendUp: true,
-  },
-  {
-    title: "Đã hủy",
-    value: "3",
-    icon: XCircle,
-    description: "Tháng này",
-    trend: "0 so với tháng trước",
-    trendUp: null, // neutral
-  },
-];
 
 export function StatsCards() {
+  const [stats, setStats] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all appointments
+      const response = await api.get("/api/patients/me/appointments");
+      
+      if (response.success) {
+        const appointments = response.data.appointments || [];
+        
+        // Calculate stats
+        const totalAppointments = appointments.length;
+        const pendingAppointments = appointments.filter(apt => 
+          apt.status === 'pending_doctor'
+        ).length;
+        const completedAppointments = appointments.filter(apt => 
+          apt.status === 'done'
+        ).length;
+        const cancelledAppointments = appointments.filter(apt => 
+          apt.status === 'cancelled'
+        ).length;
+
+        const statsData = [
+          {
+            title: "Tổng lịch hẹn",
+            value: totalAppointments.toString(),
+            icon: Calendar,
+            description: "Tất cả thời gian",
+            trend: totalAppointments > 0 ? `+${totalAppointments} lịch hẹn` : "Chưa có lịch hẹn",
+            trendUp: totalAppointments > 0,
+          },
+          {
+            title: "Đang chờ",
+            value: pendingAppointments.toString(),
+            icon: Clock,
+            description: "Chờ xác nhận",
+            trend: pendingAppointments > 0 ? `${pendingAppointments} lịch chờ` : "Không có lịch chờ",
+            trendUp: null,
+          },
+          {
+            title: "Đã hoàn thành",
+            value: completedAppointments.toString(),
+            icon: CheckCircle2,
+            description: "Đã khám xong",
+            trend: completedAppointments > 0 ? `${completedAppointments} lịch hoàn thành` : "Chưa có lịch hoàn thành",
+            trendUp: completedAppointments > 0,
+          },
+          {
+            title: "Đã hủy",
+            value: cancelledAppointments.toString(),
+            icon: XCircle,
+            description: "Đã hủy",
+            trend: cancelledAppointments > 0 ? `${cancelledAppointments} lịch đã hủy` : "Không có lịch hủy",
+            trendUp: false,
+          },
+        ];
+
+        setStats(statsData);
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      // Fallback to default stats if API fails
+      setStats([
+        {
+          title: "Tổng lịch hẹn",
+          value: "0",
+          icon: Calendar,
+          description: "Không thể tải dữ liệu",
+          trend: "Lỗi kết nối",
+          trendUp: null,
+        },
+        {
+          title: "Đang chờ",
+          value: "0",
+          icon: Clock,
+          description: "Không thể tải dữ liệu",
+          trend: "Lỗi kết nối",
+          trendUp: null,
+        },
+        {
+          title: "Đã hoàn thành",
+          value: "0",
+          icon: CheckCircle2,
+          description: "Không thể tải dữ liệu",
+          trend: "Lỗi kết nối",
+          trendUp: null,
+        },
+        {
+          title: "Đã hủy",
+          value: "0",
+          icon: XCircle,
+          description: "Không thể tải dữ liệu",
+          trend: "Lỗi kết nối",
+          trendUp: null,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+        }}
+      >
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            style={{
+              backgroundColor: "#ffffff",
+              border: "1px solid #e5e7eb",
+              borderRadius: "0.75rem",
+              padding: "1.5rem",
+              boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: "150px",
+            }}
+          >
+            <Spin size="large" />
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <div
       style={{

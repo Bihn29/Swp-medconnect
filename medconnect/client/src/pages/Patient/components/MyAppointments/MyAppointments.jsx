@@ -3,6 +3,7 @@ import { Badge } from "../../../../components/ui/Badge";
 import { Button } from "../../../../components/ui/Button";
 import { api } from "../../../../lib/api";
 import { Spin, message } from "antd";
+import { useNavigate } from "react-router-dom";
 import {
   Calendar,
   Clock,
@@ -11,7 +12,9 @@ import {
   MessageCircle,
   Video,
   X,
+  VideoCall,
 } from "lucide-react";
+import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 
 const STATUS = {
   confirmed: { label: "Đã xác nhận", tone: "#1d4ed8", text: "#ffffff" },
@@ -24,6 +27,9 @@ const STATUS = {
 export function MyAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
@@ -43,6 +49,16 @@ export function MyAppointments() {
     };
     load();
   }, []);
+
+  const handleShowDetail = (appointmentId) => {
+    setSelectedAppointmentId(appointmentId);
+    setShowDetailModal(true);
+  };
+
+  const handleCloseDetail = () => {
+    setShowDetailModal(false);
+    setSelectedAppointmentId(null);
+  };
 
   if (loading) {
     return (
@@ -169,29 +185,64 @@ export function MyAppointments() {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {a.mode === "online" ? (
-                  <Button>
-                    <Video size={16} style={{ marginRight: 6 }} /> Tham gia
+                {/* Video Call Button - Only show for accepted appointments */}
+                {a.status === "accepted" && a.mode === "online" ? (
+                  <Button
+                    type="primary"
+                    onClick={() => navigate(`/benh-nhan/video-call/${a._id}`)}
+                    style={{ 
+                      background: "#1890ff",
+                      borderColor: "#1890ff",
+                      color: "#fff"
+                    }}
+                  >
+                    <VideoCall size={16} style={{ marginRight: 6 }} /> 
+                    Video Call
                   </Button>
                 ) : null}
+                
+                {/* Regular Video Button for other online appointments */}
+                {a.mode === "online" && a.status !== "accepted" ? (
+                  <Button variant="secondary">
+                    <Video size={16} style={{ marginRight: 6 }} /> 
+                    Chờ duyệt
+                  </Button>
+                ) : null}
+                
                 <Button variant="secondary">
                   <Phone size={16} style={{ marginRight: 6 }} /> Gọi
                 </Button>
                 <Button variant="secondary">
-                  <MessageCircle size={16} style={{ marginRight: 6 }} /> Nhắn
-                  tin
+                  <MessageCircle size={16} style={{ marginRight: 6 }} /> Nhắn tin
                 </Button>
-                <Button
-                  variant="ghost"
-                  style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                <Button 
+                  variant="secondary"
+                  onClick={() => handleShowDetail(a._id)}
                 >
-                  <X size={16} style={{ marginRight: 6 }} /> Hủy
+                  Chi tiết
                 </Button>
+                
+                {/* Cancel button - only show for pending appointments */}
+                {a.status === "pending_doctor" && (
+                  <Button
+                    variant="ghost"
+                    style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                  >
+                    <X size={16} style={{ marginRight: 6 }} /> Hủy
+                  </Button>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Appointment Detail Modal */}
+      <AppointmentDetailModal
+        visible={showDetailModal}
+        onClose={handleCloseDetail}
+        appointmentId={selectedAppointmentId}
+      />
     </div>
   );
 }
