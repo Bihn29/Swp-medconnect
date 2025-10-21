@@ -1,0 +1,215 @@
+.verify-doctors {
+  .page-header {
+    margin-bottom: 32px;
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #262626;
+      margin: 0 0 8px 0;
+      line-height: 1.2;
+    }
+
+    p {
+      font-size: 16px;
+      color: #8c8c8c;
+      margin: 0;
+      line-height: 1.5;
+    }
+  }
+
+  .verification-tabs {
+    .ant-tabs-nav {
+      margin-bottom: 24px;
+
+      .ant-tabs-tab {
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: 500;
+
+        &.ant-tabs-tab-active {
+          .ant-tabs-tab-btn {
+            color: #1890ff;
+            font-weight: 600;
+          }
+        }
+      }
+
+      .ant-tabs-ink-bar {
+        background: #1890ff;
+        height: 3px;
+      }
+    }
+  }
+
+  .doctors-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .doctor-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: none;
+
+    .ant-card-body {
+      padding: 24px;
+    }
+
+    .doctor-info {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+
+      .doctor-details {
+        flex: 1;
+
+        .doctor-name {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 8px;
+
+          h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #262626;
+            margin: 0;
+            line-height: 1.2;
+          }
+
+          .ant-tag {
+            border-radius: 16px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 500;
+            border: none;
+          }
+        }
+
+        .specialty {
+          font-size: 16px;
+          color: #1890ff;
+          font-weight: 600;
+          margin: 0 0 16px 0;
+        }
+
+        .doctor-meta {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 16px;
+
+          .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #595959;
+
+            .anticon {
+              color: #8c8c8c;
+              font-size: 14px;
+            }
+          }
+        }
+
+        .documents {
+          margin-bottom: 16px;
+
+          p {
+            font-size: 14px;
+            font-weight: 600;
+            color: #262626;
+            margin: 0 0 8px 0;
+          }
+
+          .document-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+
+            .ant-btn {
+              padding: 4px 8px;
+              height: auto;
+              font-size: 12px;
+              border-radius: 6px;
+            }
+          }
+        }
+
+        .submission-info {
+          p {
+            font-size: 14px;
+            color: #595959;
+            margin: 0 0 4px 0;
+
+            strong {
+              color: #262626;
+            }
+          }
+
+          .rejection-reason {
+            margin-top: 12px;
+
+            .reason-box {
+              background: #fff2f0;
+              border: 1px solid #ffccc7;
+              border-radius: 8px;
+              padding: 12px;
+              margin-top: 8px;
+              color: #ff4d4f;
+              font-size: 14px;
+            }
+          }
+        }
+      }
+
+      .doctor-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 120px;
+
+        .ant-btn {
+          width: 100%;
+          border-radius: 8px;
+          font-weight: 500;
+
+          &.ant-btn-primary {
+            background: #1890ff;
+            border-color: #1890ff;
+          }
+
+          &.ant-btn-dangerous {
+            background: #ff4d4f;
+            border-color: #ff4d4f;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .verify-doctors {
+    .doctor-card {
+      .doctor-info {
+        flex-direction: column;
+        gap: 16px;
+
+        .doctor-actions {
+          flex-direction: row;
+          min-width: auto;
+          width: 100%;
+
+          .ant-btn {
+            flex: 1;
+          }
+        }
+      }
+    }
+  }
+}

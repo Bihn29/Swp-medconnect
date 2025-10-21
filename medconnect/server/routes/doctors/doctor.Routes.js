@@ -18,8 +18,7 @@ import {
   blockTimeSlot,
   getDoctorReviews,
   respondToReview,
-  getDoctorAvailableTimeSlots,
-  createTestTimeSlots
+  getDoctorAvailableTimeSlots
 } from "../../controllers/doctorController.js";
 
 const router = express.Router();
@@ -28,7 +27,6 @@ const router = express.Router();
 router.get("/", getAllDoctors); // Get all doctors for search/listing
 router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
 router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
-router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
 
 // Protected routes (require authentication)
 router.use(authGuard);
