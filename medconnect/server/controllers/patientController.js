@@ -163,17 +163,24 @@ export async function getSpecializations(req, res) {
 export async function getDoctorsBySpecialization(req, res) {
   try {
     const { specializationId } = req.params;
-    
+
     if (!specializationId) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Specialization ID is required");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Specialization ID is required"
+      );
     }
 
-    const doctors = await Doctor.find({ 
+    const doctors = await Doctor.find({
       specializationIds: specializationId,
-      isVerified: true 
+      isVerified: true,
     })
       .populate("specializationIds", "name")
-      .select("_id fullName bio avatarUrl specializationIds ratingCount ratingAvg yearsExperience")
+      .select(
+        "_id fullName bio avatarUrl specializationIds ratingCount ratingAvg yearsExperience"
+      )
       .sort({ ratingAvg: -1 })
       .lean();
 
@@ -203,7 +210,7 @@ export async function getDoctorTimeSlots(req, res) {
     // Parse date and create date range for the day
     const startDate = new Date(date);
     startDate.setHours(0, 0, 0, 0);
-    
+
     const endDate = new Date(date);
     endDate.setHours(23, 59, 59, 999);
 
@@ -211,18 +218,20 @@ export async function getDoctorTimeSlots(req, res) {
     const timeSlots = await DoctorTimeSlot.find({
       doctorId: doctorId,
       startAt: { $gte: startDate, $lte: endDate },
-      status: "available"
+      status: "available",
     })
       .sort({ startAt: 1 })
       .lean();
 
     // Format time slots for frontend
-    const formattedSlots = timeSlots.map(slot => ({
+    const formattedSlots = timeSlots.map((slot) => ({
       _id: slot._id,
       startTime: slot.startAt.toTimeString().slice(0, 5), // HH:MM format
       endTime: slot.endAt.toTimeString().slice(0, 5),
-      timeRange: `${slot.startAt.toTimeString().slice(0, 5)} - ${slot.endAt.toTimeString().slice(0, 5)}`,
-      available: slot.status === "available"
+      timeRange: `${slot.startAt.toTimeString().slice(0, 5)} - ${slot.endAt
+        .toTimeString()
+        .slice(0, 5)}`,
+      available: slot.status === "available",
     }));
 
     return ok(res, { timeSlots: formattedSlots });
@@ -241,7 +250,12 @@ export async function bookAppointment(req, res) {
     const appUserId = claims.app_user_id;
 
     if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User ID not found in token");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
     }
 
     const {
@@ -251,28 +265,48 @@ export async function bookAppointment(req, res) {
       clinicId, // required if mode is "offline"
       reason,
       scheduledStart,
-      scheduledEnd
+      scheduledEnd,
     } = req.body;
 
     // Validate required fields
     if (!doctorId || !slotId || !mode || !scheduledStart || !scheduledEnd) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Missing required fields");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Missing required fields"
+      );
     }
 
     // Validate mode
     if (!["online", "offline"].includes(mode)) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Mode must be 'online' or 'offline'");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Mode must be 'online' or 'offline'"
+      );
     }
 
     // If offline mode, clinicId is required
     if (mode === "offline" && !clinicId) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Clinic ID is required for offline appointments");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Clinic ID is required for offline appointments"
+      );
     }
 
     // Get or create patient profile
     let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Patient profile not found. Please complete your profile first.");
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Patient profile not found. Please complete your profile first."
+      );
     }
 
     // Verify the time slot exists and is available
@@ -282,11 +316,21 @@ export async function bookAppointment(req, res) {
     }
 
     if (timeSlot.status !== "available") {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Time slot is no longer available");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Time slot is no longer available"
+      );
     }
 
     if (timeSlot.doctorId.toString() !== doctorId) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Time slot does not belong to the selected doctor");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Time slot does not belong to the selected doctor"
+      );
     }
 
     // TODO: Comment out payment validation for now
@@ -310,7 +354,7 @@ export async function bookAppointment(req, res) {
       // TODO: Comment out payment-related fields for now
       // paymentId: paymentId,
       // patientPaidAt: paymentId ? new Date() : undefined,
-      autoExpireAt: new Date(Date.now() + 12 * 60 * 60 * 1000) // 12 hours from now
+      autoExpireAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours from now
     });
 
     await appointment.save();
@@ -327,17 +371,21 @@ export async function bookAppointment(req, res) {
 
     return ok(res, {
       message: "Appointment booked successfully. Waiting for doctor approval.",
-      appointment: populatedAppointment
+      appointment: populatedAppointment,
     });
-
   } catch (error) {
     console.error("Error booking appointment:", error);
-    
+
     // Handle duplicate slot booking error
     if (error.code === 11000) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "This time slot has already been booked");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "This time slot has already been booked"
+      );
     }
-    
+
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }
@@ -351,21 +399,36 @@ export async function getPatientAppointments(req, res) {
     const appUserId = claims.app_user_id;
 
     if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User ID not found in token");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
     }
 
     // Find patient by user ID
     const patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Patient profile not found");
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Patient profile not found"
+      );
     }
 
-    const { status, page = 1, limit = 10 } = req.query;
-    
+    const { status, page = 1, limit = 50 } = req.query;
+
     const query = { patientId: patient._id };
     if (status) {
       query.status = status;
     }
+
+    // Debug: Log query and count
+    console.log("Patient appointments query:", query);
+    const totalCount = await Appointment.countDocuments(query);
+    console.log("Total appointments for patient:", totalCount);
 
     const appointments = await Appointment.find(query)
       .populate({
@@ -373,8 +436,8 @@ export async function getPatientAppointments(req, res) {
         select: "fullName specializationIds avatarUrl",
         populate: {
           path: "specializationIds",
-          select: "name"
-        }
+          select: "name",
+        },
       })
       .populate("slotId", "startAt endAt")
       .populate("clinicId", "name address")
@@ -382,6 +445,18 @@ export async function getPatientAppointments(req, res) {
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .lean();
+
+    // Debug: Log returned appointments
+    console.log("Returned appointments count:", appointments.length);
+    console.log(
+      "Appointments details:",
+      appointments.map((apt) => ({
+        id: apt._id,
+        status: apt.status,
+        scheduledStart: apt.scheduledStart,
+        doctor: apt.doctorId?.fullName,
+      }))
+    );
 
     const total = await Appointment.countDocuments(query);
 
@@ -391,12 +466,101 @@ export async function getPatientAppointments(req, res) {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
-
   } catch (error) {
     console.error("Error fetching patient appointments:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Cancel patient appointment
+ */
+export async function cancelPatientAppointment(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    const { appointmentId } = req.params;
+    const { cancelReason } = req.body;
+
+    // Find patient by user ID
+    const patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Patient profile not found"
+      );
+    }
+
+    // Find appointment belonging to this patient
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      patientId: patient._id,
+    });
+
+    if (!appointment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
+    }
+
+    // Check if appointment can be cancelled
+    if (appointment.status === "cancelled") {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Appointment is already cancelled"
+      );
+    }
+
+    if (appointment.status === "done") {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Cannot cancel completed appointment"
+      );
+    }
+
+    // Update appointment status
+    const updateData = {
+      status: "cancelled",
+      cancelledAt: new Date(),
+      cancelledBy: appUserId,
+    };
+
+    if (cancelReason) {
+      updateData.cancelReason = cancelReason;
+    }
+
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      updateData,
+      { new: true }
+    )
+      .populate("doctorId", "fullName specializationIds avatarUrl")
+      .populate("slotId", "startAt endAt")
+      .populate("clinicId", "name address");
+
+    return ok(res, {
+      appointment: updatedAppointment,
+      message: "Appointment cancelled successfully",
+    });
+  } catch (error) {
+    console.error("Error cancelling patient appointment:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }
@@ -428,15 +592,15 @@ export async function getAppointmentDetails(req, res) {
     // Get appointment with populated data
     const appointment = await Appointment.findOne({
       _id: appointmentId,
-      patientId: patient._id
+      patientId: patient._id,
     })
       .populate({
         path: "doctorId",
         select: "fullName specializationIds phone avatarUrl",
         populate: {
           path: "specializationIds",
-          select: "name"
-        }
+          select: "name",
+        },
       })
       .populate("clinicId", "name address")
       .populate("slotId", "startAt endAt")
@@ -453,7 +617,7 @@ export async function getAppointmentDetails(req, res) {
     return fail(
       res,
       500,
-      ERROR_CODES.INTERNAL_SERVER_ERROR,
+      ERROR_CODES.SERVER_ERROR,
       "Failed to fetch appointment details"
     );
   }

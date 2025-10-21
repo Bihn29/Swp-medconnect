@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { auth } from "../lib/firebase";
 import { getCurrentUser, getCurrentPatientProfile } from "../lib/api";
 
@@ -6,19 +6,22 @@ export function useUserProfile() {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const isFetching = useRef(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
+      // Prevent multiple simultaneous calls
+      if (isFetching.current) return;
+
       try {
+        isFetching.current = true;
         setLoading(true);
         setError(null);
 
         // Get current user from Firebase
         const firebaseUser = auth.currentUser;
-        console.log("Firebase user:", firebaseUser);
 
         if (!firebaseUser) {
-          console.log("No Firebase user found");
           setUserProfile(null);
           setLoading(false);
           return;
@@ -27,51 +30,15 @@ export function useUserProfile() {
         // Try to fetch full patient profile first, fallback to basic user info
         let profileData = null;
         try {
-          console.log(
-            "Attempting to fetch patient profile from /api/patients/me/profile..."
-          );
           const patientResponse = await getCurrentPatientProfile();
-          console.log("Patient profile response:", patientResponse);
-          console.log(
-            "Patient profile data structure:",
-            JSON.stringify(patientResponse, null, 2)
-          );
           profileData = patientResponse?.data || patientResponse;
-
-          // Log the structure for debugging
-          if (profileData) {
-            console.log("Patient profile structure:", {
-              hasUser: !!profileData.user,
-              hasProfile: !!profileData.profile,
-              userData: profileData.user,
-              patientData: profileData.profile,
-            });
-
-            // Debug blood type and allergy notes specifically
-            console.log("=== BLOOD TYPE & ALLERGY DEBUG ===");
-            console.log("profileData.profile:", profileData.profile);
-            console.log(
-              "bloodType from profile:",
-              profileData.profile?.bloodType
-            );
-            console.log(
-              "allergyNotes from profile:",
-              profileData.profile?.allergyNotes
-            );
-          }
         } catch (patientError) {
-          console.warn(
-            "Failed to fetch patient profile, trying basic user info:",
-            patientError
-          );
           // Fallback to basic user info
           try {
-            console.log("Attempting to fetch basic user info...");
             const userResponse = await getCurrentUser();
-            console.log("Basic user response:", userResponse);
             profileData = userResponse?.data || userResponse;
           } catch (userError) {
-            console.error("Failed to fetch basic user info:", userError);
+            console.error("Failed to fetch user info:", userError);
             throw userError;
           }
         }
@@ -118,12 +85,6 @@ export function useUserProfile() {
           ...profileData?.profile,
         };
 
-        console.log("=== USER PROFILE LOADED ===");
-        console.log("Raw profile data:", profileData);
-        console.log("Combined profile:", combinedProfile);
-        console.log("Blood type:", combinedProfile.bloodType);
-        console.log("Allergy notes:", combinedProfile.allergyNotes);
-
         setUserProfile(combinedProfile);
       } catch (err) {
         console.error("Error fetching user profile:", err);
@@ -144,6 +105,7 @@ export function useUserProfile() {
         }
       } finally {
         setLoading(false);
+        isFetching.current = false;
       }
     };
 
@@ -162,8 +124,9 @@ export function useUserProfile() {
 
   const refreshProfile = async () => {
     const firebaseUser = auth.currentUser;
-    if (firebaseUser) {
+    if (firebaseUser && !isFetching.current) {
       try {
+        isFetching.current = true;
         setLoading(true);
 
         // Try to fetch full patient profile first, fallback to basic user info
@@ -172,10 +135,6 @@ export function useUserProfile() {
           const patientResponse = await getCurrentPatientProfile();
           profileData = patientResponse?.data || patientResponse;
         } catch (patientError) {
-          console.warn(
-            "Failed to fetch patient profile, trying basic user info:",
-            patientError
-          );
           // Fallback to basic user info
           const userResponse = await getCurrentUser();
           profileData = userResponse?.data || userResponse;
@@ -220,12 +179,6 @@ export function useUserProfile() {
           ...profileData?.profile,
         };
 
-        console.log("=== USER PROFILE LOADED ===");
-        console.log("Raw profile data:", profileData);
-        console.log("Combined profile:", combinedProfile);
-        console.log("Blood type:", combinedProfile.bloodType);
-        console.log("Allergy notes:", combinedProfile.allergyNotes);
-
         setUserProfile(combinedProfile);
         setError(null);
       } catch (err) {
@@ -233,6 +186,7 @@ export function useUserProfile() {
         setError(err.message);
       } finally {
         setLoading(false);
+        isFetching.current = false;
       }
     }
   };
