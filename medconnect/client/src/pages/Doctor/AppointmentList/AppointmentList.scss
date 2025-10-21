@@ -14,14 +14,30 @@
 
 .appointment-list-header-content {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
   gap: 1rem;
+  flex-wrap: nowrap;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
 }
 
 .appointment-list-search {
-  flex: 1;
-  min-width: 16rem;
+  flex: 0 0 auto;
+  min-width: 20rem;
+  max-width: 30rem;
   position: relative;
+  width: 100%;
+  
+  @media (max-width: 768px) {
+    min-width: 100%;
+    max-width: 100%;
+  }
 }
 
 .appointment-list-search-icon {
@@ -36,6 +52,8 @@
 
 .appointment-list-search-input {
   padding-left: 2.5rem;
+  width: 100%;
+  min-width: 20rem;
 }
 
 .appointment-list-content {
@@ -46,11 +64,14 @@
 
 .appointment-list-table-wrapper {
   overflow-x: auto;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
 }
 
 .appointment-list-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .appointment-list-thead {
@@ -63,10 +84,17 @@
 
 .appointment-list-th {
   text-align: left;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.5rem;
   font-weight: 600;
   color: #0f172a;
   background-color: #f8fafc;
+  font-size: 0.875rem;
+  
+  &:nth-child(1) { width: 15%; } /* Bệnh nhân */
+  &:nth-child(2) { width: 15%; } /* Ngày & Giờ */
+  &:nth-child(3) { width: 10%; } /* Loại */
+  &:nth-child(4) { width: 20%; } /* Lý do */
+  &:nth-child(5) { width: 40%; } /* Trạng thái */
 }
 
 .appointment-list-tbody {
@@ -85,7 +113,16 @@
 }
 
 .appointment-list-td {
-  padding: 1rem;
+  padding: 0.75rem 0.5rem;
+  word-wrap: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.875rem;
+  
+  @media (max-width: 640px) {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.8rem;
+  }
 }
 
 .appointment-list-patient {
@@ -95,6 +132,8 @@
 
 .appointment-list-datetime {
   color: #64748b;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .appointment-list-reason {
@@ -109,7 +148,46 @@
 
 .appointment-list-actions {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: row;
+  gap: 0.25rem;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.appointment-list-status-info {
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.appointment-list-status-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+  
+  @media (max-width: 640px) {
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+}
+
+.appointment-list-patient-name {
+  cursor: pointer;
+  color: #000000;
+  
+  &:hover {
+    color: #0891b2;
+  }
+}
+
+.appointment-list-accept-btn,
+.appointment-list-reject-btn,
+.appointment-list-start-btn,
+.appointment-list-complete-btn,
+.appointment-list-noshow-btn {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  height: auto;
+  min-width: auto;
 }
 
 .appointment-list-accept-btn {

@@ -305,7 +305,7 @@ export async function updateAppointmentStatus(req, res) {
     // Validate status transition
     const validStatusTransitions = {
       "pending_doctor": ["accepted", "rejected", "cancelled"],
-      "accepted": ["in_progress", "cancelled", "done"],
+      "accepted": ["in_progress", "cancelled", "done", "no_show"],
       "in_progress": ["done", "cancelled"],
       // "rejected", "cancelled", "done", "no_show" are terminal states or handled by patient
     };
@@ -326,6 +326,9 @@ export async function updateAppointmentStatus(req, res) {
       updateData.cancelReason = cancelReason;
       updateData.cancelledAt = new Date();
       updateData.cancelledBy = user._id;
+    } else if (status === 'no_show') {
+      updateData.noShowAt = new Date();
+      updateData.noShowBy = doctor._id;
     }
 
     

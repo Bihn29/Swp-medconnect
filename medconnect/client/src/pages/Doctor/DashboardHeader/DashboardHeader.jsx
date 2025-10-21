@@ -1,6 +1,5 @@
-import { Bell, Search, Settings } from "lucide-react"
+import { Bell, Settings } from "lucide-react"
 import { Button } from "../../../components/ui/Button"
-import { Input } from "../../../components/ui/Input"
 import { useNavigate } from "react-router-dom"
 import "./DashboardHeader.scss"
 
@@ -14,10 +13,6 @@ export default function DashboardHeader() {
         <p className="dashboard-header-subtitle">Đây là những gì đang xảy ra trong phòng khám của bạn hôm nay</p>
       </div>
       <div className="dashboard-header-actions">
-        <div className="dashboard-header-search">
-          <Search className="dashboard-header-search-icon" />
-          <Input placeholder="Tìm kiếm bệnh nhân..." className="dashboard-header-search-input" />
-        </div>
         <Button variant="ghost" size="icon" className="dashboard-header-notification">
           <Bell className="h-5 w-5" />
           <span className="dashboard-header-notification-badge" />

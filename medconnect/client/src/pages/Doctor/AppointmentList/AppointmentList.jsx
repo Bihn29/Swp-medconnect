@@ -1,23 +1,22 @@
 import { useState, useEffect } from "react"
-import PropTypes from "prop-types"
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/Card"
 import { Button } from "../../../components/ui/Button"
 import { Badge } from "../../../components/ui/Badge"
+import { CheckCircle, XCircle, Clock, Search } from "lucide-react"
 import { Input } from "../../../components/ui/Input"
-import { Search, CheckCircle, XCircle, Clock } from "lucide-react"
 import { getDoctorAppointmentsWithFallback, updateAppointmentStatus } from "../../../lib/api"
 // Dialog components không tồn tại, sẽ sử dụng HTML elements thay thế
 import "./AppointmentList.scss"
 
-export default function AppointmentList({ searchQuery = "" }) {
+export default function AppointmentList() {
   const [appointments, setAppointments] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
-  const [searchTerm, setSearchTerm] = useState(searchQuery)
   const [updatingAppointments, setUpdatingAppointments] = useState(new Set())
+  const [searchTerm, setSearchTerm] = useState("")
 
   // Fetch appointments from API
   useEffect(() => {
@@ -47,6 +46,8 @@ export default function AppointmentList({ searchQuery = "" }) {
     appointment.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     appointment.reason?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+
 
   const getStatusIcon = (status) => {
     const icons = {
@@ -245,20 +246,20 @@ export default function AppointmentList({ searchQuery = "" }) {
     }
   }
 
-  const handleCancel = async (appointment) => {
+  const handleNoShow = async (appointment) => {
     try {
-      await updateAppointmentStatus(appointment._id, 'cancelled', 'Hủy bởi bác sĩ');
+      await updateAppointmentStatus(appointment._id, 'no_show', 'Bệnh nhân không đến khám');
       
       // Cập nhật trạng thái ngay lập tức trong UI
       setAppointments(prevAppointments => 
         prevAppointments.map(apt => 
           apt._id === appointment._id 
-            ? { ...apt, status: 'cancelled', cancelReason: 'Hủy bởi bác sĩ', cancelledAt: new Date() }
+            ? { ...apt, status: 'no_show' }
             : apt
         )
       );
       
-      alert(`Đã hủy lịch hẹn với ${appointment.patientId?.fullName || appointment.patient?.fullName || 'bệnh nhân'}`);
+      alert(`Đã đánh dấu ${appointment.patientId?.fullName || appointment.patient?.fullName || 'bệnh nhân'} là không đến khám`);
       
       // Refresh appointments list để đảm bảo đồng bộ
       setTimeout(async () => {
@@ -272,7 +273,7 @@ export default function AppointmentList({ searchQuery = "" }) {
         }
       }, 1000);
     } catch (error) {
-      alert('Có lỗi xảy ra khi hủy lịch hẹn: ' + error.message);
+      alert('Có lỗi xảy ra khi đánh dấu không đến khám: ' + error.message);
     }
   }
 
@@ -285,7 +286,7 @@ export default function AppointmentList({ searchQuery = "" }) {
           <div className="appointment-list-search">
             <Search className="appointment-list-search-icon" />
             <Input
-              placeholder="Tìm kiếm theo tên bệnh nhân hoặc lý do..."
+              placeholder="    Tìm kiếm ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="appointment-list-search-input"
@@ -303,19 +304,18 @@ export default function AppointmentList({ searchQuery = "" }) {
                 <th className="appointment-list-th">Loại</th>
                 <th className="appointment-list-th">Lý do</th>
                 <th className="appointment-list-th">Trạng thái</th>
-                <th className="appointment-list-th">Hành động</th>
               </tr>
             </thead>
             <tbody className="appointment-list-tbody">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="appointment-list-td text-center">
+                  <td colSpan="5" className="appointment-list-td text-center">
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : filteredAppointments.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="appointment-list-td text-center">
+                  <td colSpan="5" className="appointment-list-td text-center">
                     Không có lịch hẹn nào
                   </td>
                 </tr>
@@ -323,33 +323,33 @@ export default function AppointmentList({ searchQuery = "" }) {
                 filteredAppointments.map((apt) => (
                   <tr key={apt._id} className="appointment-list-row">
                     <td className="appointment-list-td appointment-list-patient">
-                      {apt.patientId?.fullName || apt.patient?.fullName || 'N/A'}
+                      <span 
+                        className="appointment-list-patient-name"
+                        onClick={() => handleViewDetails(apt)}
+                        style={{ cursor: 'pointer', color: '#000000' }}
+                      >
+                        {apt.patientId?.fullName || apt.patient?.fullName || 'N/A'}
+                      </span>
                     </td>
                     <td className="appointment-list-td appointment-list-datetime">
                       {new Date(apt.scheduledStart).toLocaleDateString('vi-VN')} {new Date(apt.scheduledStart).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="appointment-list-td">
-                      <Badge variant="outline">{apt.appointmentType || 'Trực tiếp'}</Badge>
+                      <Badge variant="outline">{apt.mode === 'online' ? 'Trực tuyến' : 'Trực tiếp'}</Badge>
                     </td>
                     <td className="appointment-list-td appointment-list-reason">
                       {apt.notes || apt.reason || 'N/A'}
                     </td>
-                    <td className="appointment-list-td">
-                      <Badge className={getStatusColor(apt.status)}>
-                        <span className="appointment-list-status">
-                          {getStatusIcon(apt.status)}
-                          {getStatusText(apt.status)}
-                        </span>
-                      </Badge>
-                    </td>
                     <td className="appointment-list-td appointment-list-actions">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleViewDetails(apt)}
-                      >
-                        Xem
-                      </Button>
+                      <div className="appointment-list-status-info">
+                        <Badge className={getStatusColor(apt.status)}>
+                          <span className="appointment-list-status">
+                            {getStatusIcon(apt.status)}
+                            {getStatusText(apt.status)}
+                          </span>
+                        </Badge>
+                      </div>
+                      <div className="appointment-list-status-actions">
                       {apt.status === "pending_doctor" && (
                         <>
                           <Button 
@@ -383,41 +383,31 @@ export default function AppointmentList({ searchQuery = "" }) {
                           <Button 
                             size="sm" 
                             variant="destructive"
-                            onClick={() => handleCancel(apt)}
+                            onClick={() => handleNoShow(apt)}
                             disabled={updatingAppointments.has(apt._id)}
                           >
-                            Hủy
+                            {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Không đến khám"}
                           </Button>
                         </>
                       )}
                       {apt.status === "in_progress" && (
-                        <>
-                          <Button 
-                            size="sm" 
-                            variant="secondary"
-                            onClick={() => handleComplete(apt)}
-                            disabled={updatingAppointments.has(apt._id)}
-                          >
-                            {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Hoàn thành"}
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive"
-                            onClick={() => handleCancel(apt)}
-                            disabled={updatingAppointments.has(apt._id)}
-                          >
-                            Hủy
-                          </Button>
-                        </>
+                        <Button 
+                          size="sm" 
+                          variant="secondary"
+                          onClick={() => handleComplete(apt)}
+                          disabled={updatingAppointments.has(apt._id)}
+                        >
+                          {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Hoàn thành"}
+                        </Button>
                       )}
-                      {(apt.status === "done" || apt.status === "rejected" || apt.status === "cancelled" || apt.status === "no_show") && (
+                      {(apt.status === "done" || apt.status === "rejected" || apt.status === "no_show") && (
                         <span className="text-sm text-gray-500">
                           {apt.status === "done" && "Đã hoàn thành"}
                           {apt.status === "rejected" && "Đã từ chối"}
-                          {apt.status === "cancelled" && "Đã hủy"}
                           {apt.status === "no_show" && "Không đến khám"}
                         </span>
                       )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -535,26 +525,48 @@ export default function AppointmentList({ searchQuery = "" }) {
                     </>
                   )}
                   {selectedAppointment.status === "accepted" && (
-                    <Button 
-                      size="sm" 
-                      variant="secondary"
-                      onClick={async () => {
-                        try {
-                          await updateAppointmentStatus(selectedAppointment._id, 'in_progress');
-                          alert('Đã bắt đầu khám bệnh');
-                          setIsDetailDialogOpen(false);
-                          // Refresh appointments
-                          const updatedAppointments = await getDoctorAppointmentsWithFallback();
-                          if (updatedAppointments.success && updatedAppointments.data?.appointments) {
-                            setAppointments(updatedAppointments.data.appointments);
+                    <>
+                      <Button 
+                        size="sm" 
+                        variant="secondary"
+                        onClick={async () => {
+                          try {
+                            await updateAppointmentStatus(selectedAppointment._id, 'in_progress');
+                            alert('Đã bắt đầu khám bệnh');
+                            setIsDetailDialogOpen(false);
+                            // Refresh appointments
+                            const updatedAppointments = await getDoctorAppointmentsWithFallback();
+                            if (updatedAppointments.success && updatedAppointments.data?.appointments) {
+                              setAppointments(updatedAppointments.data.appointments);
+                            }
+                          } catch (error) {
+                            alert('Có lỗi xảy ra: ' + error.message);
                           }
-                        } catch (error) {
-                          alert('Có lỗi xảy ra: ' + error.message);
-                        }
-                      }}
-                    >
-                      Bắt đầu khám
-                    </Button>
+                        }}
+                      >
+                        Bắt đầu khám
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={async () => {
+                          try {
+                            await updateAppointmentStatus(selectedAppointment._id, 'no_show', 'Bệnh nhân không đến khám');
+                            alert('Đã đánh dấu bệnh nhân không đến khám');
+                            setIsDetailDialogOpen(false);
+                            // Refresh appointments
+                            const updatedAppointments = await getDoctorAppointmentsWithFallback();
+                            if (updatedAppointments.success && updatedAppointments.data?.appointments) {
+                              setAppointments(updatedAppointments.data.appointments);
+                            }
+                          } catch (error) {
+                            alert('Có lỗi xảy ra: ' + error.message);
+                          }
+                        }}
+                      >
+                        Không đến khám
+                      </Button>
+                    </>
                   )}
                   {selectedAppointment.status === "in_progress" && (
                     <Button 
@@ -583,9 +595,6 @@ export default function AppointmentList({ searchQuery = "" }) {
                   )}
                   {selectedAppointment.status === "rejected" && (
                     <p className="text-red-600 text-sm">Bác sĩ đã từ chối lịch hẹn</p>
-                  )}
-                  {selectedAppointment.status === "cancelled" && (
-                    <p className="text-red-600 text-sm">Lịch hẹn đã bị hủy</p>
                   )}
                   {selectedAppointment.status === "no_show" && (
                     <p className="text-gray-600 text-sm">Bệnh nhân không đến khám</p>
@@ -665,8 +674,4 @@ export default function AppointmentList({ searchQuery = "" }) {
       )}
     </Card>
   )
-}
-
-AppointmentList.propTypes = {
-  searchQuery: PropTypes.string
 }

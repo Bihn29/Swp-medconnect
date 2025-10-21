@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Search, Clock, Users, FileText, Upload } from "lucide-react";
+import { Bell, Clock, Users, FileText, Upload } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
 import Sidebar from "../Sidebar/Sidebar";
@@ -13,7 +13,6 @@ import { getDoctorProfileWithFallback, getDoctorDashboardStatsWithFallback } fro
 
 export default function DoctorDashboard() {
   const [activeMenu, setActiveMenu] = useState("dashboard");
-  const [searchQuery, setSearchQuery] = useState("");
   const [doctorInfo, setDoctorInfo] = useState(null);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -167,17 +166,7 @@ export default function DoctorDashboard() {
             {/* Appointments */}
             {activeMenu === "appointments" && (
               <div className="space-y-6">
-                <div className="appointment-search">
-                  <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm bệnh nhân..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-white border-slate-200 w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <AppointmentList searchQuery={searchQuery} />
+                <AppointmentList />
               </div>
             )}
 
