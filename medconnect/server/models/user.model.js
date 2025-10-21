@@ -15,7 +15,7 @@ const UserSchema = new Schema(
       required: function () { return this.authProvider === "local"; },
     },
     role: { type: String, enum: ["patient", "doctor", "admin"], default: "patient" },
-    status: { type: String, enum: ["active", "blocked"], default: "active" },
+    status: { type: String, enum: ["active", "blocked", "pending"], default: "active" },
     fullName: { type: String, trim: true },
     phone: { type: String, unique: true, sparse: true, trim: true },
     authProvider: { type: String, enum: ["local", "google", "phone"], default: "local" },
@@ -24,5 +24,13 @@ const UserSchema = new Schema(
   },
   { timestamps: true, versionKey: false, collection: "Users" }
 );
+
+// Virtual populate for doctor profile
+UserSchema.virtual('doctorProfile', {
+  ref: 'Doctor',
+  localField: '_id',
+  foreignField: 'userId',
+  justOne: true
+});
 
 export default model("User", UserSchema);

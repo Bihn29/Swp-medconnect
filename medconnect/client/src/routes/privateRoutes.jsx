@@ -6,6 +6,8 @@ import DefaultLayout from "../layouts/DefaultLayout/DefaultLayout";
 // Middlewares
 import AuthMiddleware from "../middlewares/AuthMiddleware";
 import PatientMiddleware from "../middlewares/PatientMiddleware";
+import AdminMiddleware from "../middlewares/AdminMiddleware";
+import DoctorMiddleware from "../middlewares/DoctorMiddleware";
 
 // Shared Components
 import Profile from "../pages/Auth/Profile";
@@ -32,6 +34,14 @@ import ScheduleManagement from "../pages/Doctor/ScheduleManagement/ScheduleManag
 import Notifications from "../pages/Doctor/Notifications/Notifications";
 import Feedback from "../pages/Doctor/Feedback/Feedback";
 
+// Admin Components
+import AdminDashboard from "../pages/Admin/AdminDashboard";
+import VerifyDoctors from "../pages/Admin/VerifyDoctors";
+import UserManagement from "../pages/Admin/UserManagement";
+import Specializations from "../pages/Admin/Specializations";
+import AppointmentManagement from "../pages/Admin/AppointmentManagement";
+import AdminLayout from "../layouts/AdminLayout/AdminLayout";
+
 /**
  * Private Routes - Routes requiring authentication
  * Organized by user roles and functionality
@@ -50,15 +60,10 @@ export const privateRoutes = (
       </Route>
     </Route>
 
-    {/* ==================== OTHER ROUTES WITH DEFAULT LAYOUT ==================== */}
-    <Route element={<DefaultLayout />}>
-      {/* ==================== AUTHENTICATED ROUTES ==================== */}
-      <Route element={<AuthMiddleware />}>
-        {/* ==================== SHARED ROUTES ==================== */}
-        {/* Routes accessible by all authenticated users */}
-        <Route path="/tai-khoan" element={<Profile />} />
-
-        {/* ==================== DOCTOR ROUTES ==================== */}
+    {/* ==================== DOCTOR ROUTES (NO DEFAULT LAYOUT) ==================== */}
+    {/* Doctor routes with custom layout (no default header/footer) */}
+    <Route element={<AuthMiddleware />}>
+      <Route element={<DoctorMiddleware />}>
         {/* Main doctor dashboard */}
         <Route path="/bac-si" element={<DoctorDashboard />} />
         
@@ -88,6 +93,16 @@ export const privateRoutes = (
         <Route path="/bac-si/thong-bao" element={<Notifications />} />
         <Route path="/bac-si/danh-gia" element={<Feedback />} />
       </Route>
+    </Route>
+
+    {/* ==================== OTHER ROUTES WITH DEFAULT LAYOUT ==================== */}
+    <Route element={<DefaultLayout />}>
+      {/* ==================== AUTHENTICATED ROUTES ==================== */}
+      <Route element={<AuthMiddleware />}>
+        {/* ==================== SHARED ROUTES ==================== */}
+        {/* Routes accessible by all authenticated users */}
+        <Route path="/tai-khoan" element={<Profile />} />
+      </Route>
 
       {/* ==================== PATIENT-SPECIFIC ROUTES ==================== */}
       {/* Routes that require patient role specifically */}
@@ -107,5 +122,18 @@ export const privateRoutes = (
         <Route path="/dat-lich/:doctorId" element={<AppointmentBooking />} />
       </Route>
     </Route>
+
+        {/* ==================== ADMIN ROUTES ==================== */}
+        {/* Admin routes with admin middleware protection */}
+        <Route element={<AdminMiddleware />}>
+          <Route element={<AdminLayout />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/verify-doctors" element={<VerifyDoctors />} />
+            <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/specializations" element={<Specializations />} />
+            <Route path="/admin/appointments" element={<AppointmentManagement />} />
+          </Route>
+        </Route>
   </>
 );

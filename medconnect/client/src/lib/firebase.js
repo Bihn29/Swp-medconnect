@@ -41,3 +41,35 @@ export function onAuth(cb) {
 export async function logout() {
   await signOut(auth);
 }
+
+// Clear all Firebase auth data completely
+export async function clearAuthData() {
+  try {
+    // Sign out first
+    await signOut(auth);
+    
+    // Clear any cached data
+    if (typeof window !== 'undefined') {
+      // Clear localStorage
+      localStorage.clear();
+      
+      // Clear sessionStorage
+      sessionStorage.clear();
+      
+      // Clear IndexedDB for Firebase
+      if ('indexedDB' in window) {
+        try {
+          const deleteReq = indexedDB.deleteDatabase('firebaseLocalStorageDb');
+          deleteReq.onsuccess = () => console.log('IndexedDB cleared');
+          deleteReq.onerror = () => console.log('Error clearing IndexedDB');
+        } catch (e) {
+          console.log('IndexedDB not available');
+        }
+      }
+    }
+    
+    console.log('All auth data cleared');
+  } catch (error) {
+    console.error('Error clearing auth data:', error);
+  }
+}

@@ -7,7 +7,17 @@ import {
   updateAppointmentStatus,
   getConsultationRecords,
   createConsultationSummary,
-  createPrescription
+  createPrescription,
+  getDoctorTimeSlots,
+  createTimeSlot,
+  updateTimeSlot,
+  deleteTimeSlot,
+  blockTimeSlot,
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  getDoctorReviews,
+  respondToReview
 } from "../lib/api.js";
 
 export function useDoctor() {
@@ -198,5 +208,262 @@ export function useConsultationRecords(params = {}) {
     refetch: fetchRecords,
     createSummary,
     createPrescription: createPrescriptionRecord
+  };
+}
+
+export function useDoctorTimeSlots(params = {}) {
+  const [timeSlots, setTimeSlots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchTimeSlots = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getDoctorTimeSlots(params);
+      setTimeSlots(response.timeSlots || []);
+    } catch (err) {
+      setError(err.message);
+      console.error("Failed to fetch time slots:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [params]);
+
+  const createNewTimeSlot = useCallback(async (slotData) => {
+    try {
+      setError(null);
+      const response = await createTimeSlot(slotData);
+      await fetchTimeSlots(); // Refresh the list
+      return response.timeSlot;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [fetchTimeSlots]);
+
+  const updateExistingTimeSlot = useCallback(async (slotId, slotData) => {
+    try {
+      setError(null);
+      const response = await updateTimeSlot(slotId, slotData);
+      await fetchTimeSlots(); // Refresh the list
+      return response.timeSlot;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [fetchTimeSlots]);
+
+  const removeTimeSlot = useCallback(async (slotId) => {
+    try {
+      setError(null);
+      await deleteTimeSlot(slotId);
+      await fetchTimeSlots(); // Refresh the list
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [fetchTimeSlots]);
+
+  const blockTime = useCallback(async (blockData) => {
+    try {
+      setError(null);
+      const response = await blockTimeSlot(blockData);
+      await fetchTimeSlots(); // Refresh the list
+      return response.blockedSlot;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [fetchTimeSlots]);
+
+  useEffect(() => {
+    fetchTimeSlots();
+  }, [fetchTimeSlots]);
+
+  return {
+    timeSlots,
+    loading,
+    error,
+    refetch: fetchTimeSlots,
+    createTimeSlot: createNewTimeSlot,
+    updateTimeSlot: updateExistingTimeSlot,
+    deleteTimeSlot: removeTimeSlot,
+    blockTimeSlot: blockTime
+  };
+}
+
+export function useDoctorDashboard() {
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getDoctorDashboardStats();
+      setDashboardData(response);
+    } catch (err) {
+      setError(err.message);
+      console.error("Failed to fetch dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  return {
+    dashboardData,
+    loading,
+    error,
+    refetch: fetchDashboardData
+  };
+}
+
+export function useDoctorNotifications(params = {}) {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getNotifications(params);
+      setNotifications(response.notifications || []);
+    } catch (err) {
+      setError(err.message);
+      console.error("Failed to fetch notifications:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [params]);
+
+  const markAsRead = useCallback(async (notificationId) => {
+    try {
+      setError(null);
+      await markNotificationAsRead(notificationId);
+      await fetchNotifications(); // Refresh the list
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [fetchNotifications]);
+
+  const markAllAsRead = useCallback(async () => {
+    try {
+      setError(null);
+      await markAllNotificationsAsRead();
+      await fetchNotifications(); // Refresh the list
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  return {
+    notifications,
+    loading,
+    error,
+    refetch: fetchNotifications,
+    markAsRead,
+    markAllAsRead
+  };
+}
+
+export function useDoctorPrescriptions(params = {}) {
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchPrescriptions = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      // This would need to be implemented in api.js
+      // const response = await getDoctorPrescriptions(params);
+      // setPrescriptions(response.prescriptions || []);
+      setPrescriptions([]); // Placeholder
+    } catch (err) {
+      setError(err.message);
+      console.error("Failed to fetch prescriptions:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [params]);
+
+  const createNewPrescription = useCallback(async (prescriptionData) => {
+    try {
+      setError(null);
+      const response = await createPrescription(prescriptionData);
+      await fetchPrescriptions(); // Refresh the list
+      return response.prescription;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [fetchPrescriptions]);
+
+  useEffect(() => {
+    fetchPrescriptions();
+  }, [fetchPrescriptions]);
+
+  return {
+    prescriptions,
+    loading,
+    error,
+    refetch: fetchPrescriptions,
+    createPrescription: createNewPrescription
+  };
+}
+
+export function useDoctorReviews(params = {}) {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchReviews = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getDoctorReviews(params);
+      setReviews(response.reviews || []);
+    } catch (err) {
+      setError(err.message);
+      console.error("Failed to fetch reviews:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [params]);
+
+  const respondToReviewItem = useCallback(async (reviewId, response) => {
+    try {
+      setError(null);
+      await respondToReview(reviewId, response);
+      await fetchReviews(); // Refresh the list
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [fetchReviews]);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
+  return {
+    reviews,
+    loading,
+    error,
+    refetch: fetchReviews,
+    respondToReview: respondToReviewItem
   };
 }
