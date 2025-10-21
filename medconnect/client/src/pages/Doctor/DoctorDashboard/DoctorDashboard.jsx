@@ -1,21 +1,19 @@
 import { useState, useEffect } from "react";
-import { Bell, Clock, Users, FileText, Upload } from "lucide-react";
+import { Clock, Users, FileText, Upload } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
 import Sidebar from "../Sidebar/Sidebar";
 import ScheduleManagement from "../ScheduleManagement/ScheduleManagement";
 import AppointmentList from "../AppointmentList/AppointmentList";
-import EPrescription from "../EPrescription/EPrescription";
 import MedicalHistory from "../MedicalHistory/MedicalHistory";
 import ProfileSettings from "../ProfileSettings/ProfileSettings";
 import "./DoctorDashboard.scss";
-import { getDoctorProfileWithFallback, getDoctorDashboardStatsWithFallback } from "../../../lib/api";
+import { getDoctorProfileWithFallback, getDoctorDashboardStatsWithFallback, api } from "../../../lib/api";
 
 export default function DoctorDashboard() {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [doctorInfo, setDoctorInfo] = useState(null);
   const [dashboardStats, setDashboardStats] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   // Fetch doctor info and dashboard stats
   useEffect(() => {
@@ -34,8 +32,6 @@ export default function DoctorDashboard() {
             if (stats) setDashboardStats(stats);
       } catch (error) {
         console.error('Error fetching doctor data:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -214,30 +210,57 @@ export default function DoctorDashboard() {
                           const file = e.target.files?.[0];
                           if (file) {
                             try {
-                              // Convert file to base64 for upload
-                              const reader = new FileReader();
-                              reader.onload = async (event) => {
-                                const base64 = event.target?.result;
+                              // Validate file size (max 2MB)
+                              if (file.size > 2 * 1024 * 1024) {
+                                alert("Kích thước ảnh không được vượt quá 2MB");
+                                return;
+                              }
+
+                              // Validate file type
+                              if (!file.type.startsWith('image/')) {
+                                alert("Vui lòng chọn file ảnh hợp lệ");
+                                return;
+                              }
+
+                              // Resize image to reduce size
+                              const canvas = document.createElement('canvas');
+                              const ctx = canvas.getContext('2d');
+                              const img = new Image();
+                              
+                              img.onload = async () => {
+                                // Calculate new dimensions (max 300x300)
+                                const maxSize = 300;
+                                let { width, height } = img;
+                                
+                                if (width > height) {
+                                  if (width > maxSize) {
+                                    height = (height * maxSize) / width;
+                                    width = maxSize;
+                                  }
+                                } else {
+                                  if (height > maxSize) {
+                                    width = (width * maxSize) / height;
+                                    height = maxSize;
+                                  }
+                                }
+                                
+                                canvas.width = width;
+                                canvas.height = height;
+                                
+                                // Draw resized image
+                                ctx.drawImage(img, 0, 0, width, height);
+                                
+                                // Convert to base64 with quality 0.8
+                                const base64 = canvas.toDataURL('image/jpeg', 0.8);
                                 
                                 // Call API to update avatar
-                                const response = await fetch("/api/doctors/me/avatar", {
-                                  method: "PATCH",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  credentials: "include",
-                                  body: JSON.stringify({ avatar: base64 }),
-                                });
-
-                                if (response.ok) {
-                                  alert("Ảnh đại diện đã được cập nhật thành công");
-                                  // Refresh doctor data
-                                  window.location.reload();
-                                } else {
-                                  throw new Error("Failed to update avatar");
-                                }
+                                await api.put("/api/doctors/me/profile", { avatarUrl: base64 });
+                                alert("Ảnh đại diện đã được cập nhật thành công");
+                                // Refresh doctor data
+                                window.location.reload();
                               };
-                              reader.readAsDataURL(file);
+                              
+                              img.src = URL.createObjectURL(file);
                             } catch (error) {
                               console.error("Error updating avatar:", error);
                               alert("Có lỗi xảy ra khi cập nhật ảnh đại diện");
