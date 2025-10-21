@@ -1,30 +1,56 @@
-import { useState, useEffect } from "react";
-import { User, Mail, Phone, MapPin, Award, Calendar } from "lucide-react";
-import { useDoctor } from "../../../hooks/useDoctor.js";
+import { useState, useEffect } from "react"
+import { User, Mail, Phone, MapPin, Award, Calendar } from "lucide-react"
+import { getDoctorProfileWithFallback, updateDoctorProfile } from "../../../lib/api"
 
 const ProfileSettings = () => {
-  const { doctor, loading, error, updateProfile } = useDoctor();
+  const [doctorInfo, setDoctorInfo] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [formData, setFormData] = useState({
     fullName: "",
+    email: "",
+    phone: "",
+    specialization: "",
+    address: "",
     bio: "",
-    yearsExperience: "",
     licenseNo: "",
-    avatarUrl: ""
-  });
-  const [isEditing, setIsEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
+    graduationYear: "",
+    yearsExperience: 0,
+    ratingAvg: 0,
+    ratingCount: 0
+  })
 
+  // Fetch doctor info from API
   useEffect(() => {
-    if (doctor) {
-      setFormData({
-        fullName: doctor.fullName || "",
-        bio: doctor.bio || "",
-        yearsExperience: doctor.yearsExperience || "",
-        licenseNo: doctor.licenseNo || "",
-        avatarUrl: doctor.avatarUrl || ""
-      });
-    }
-  }, [doctor]);
+    const fetchDoctorInfo = async () => {
+      try {
+        const doctor = await getDoctorProfileWithFallback();
+        if (doctor) {
+          setDoctorInfo(doctor);
+          setFormData({
+            fullName: doctor.userId?.fullName || doctor.fullName || "",
+            email: doctor.userId?.email || "",
+            phone: doctor.userId?.phone || "",
+            specialization: doctor.specializationIds?.[0]?.name || "",
+            address: doctor.clinicDefaultId?.address || "",
+            bio: doctor.bio || "",
+            licenseNo: doctor.licenseNo || "",
+            graduationYear: doctor.education?.[0]?.year || "",
+            yearsExperience: doctor.yearsExperience || 0,
+            ratingAvg: doctor.ratingAvg || 0,
+            ratingCount: doctor.ratingCount || 0
+          });
+        } else {
+          console.error('No doctor found');
+        }
+      } catch (error) {
+        console.error('Error fetching doctor info:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDoctorInfo();
+  }, []);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -35,33 +61,33 @@ const ProfileSettings = () => {
 
   const handleSave = async () => {
     try {
-      setSaving(true);
-      await updateProfile(formData);
-      setIsEditing(false);
+      const response = await updateDoctorProfile(formData);
+      if (response) {
+        alert('Thông tin đã được cập nhật thành công');
+      } else {
+        alert('Có lỗi xảy ra khi cập nhật thông tin');
+      }
     } catch (error) {
-      console.error("Failed to update profile:", error);
-    } finally {
-      setSaving(false);
+      console.error('Error updating profile:', error);
+      alert('Có lỗi xảy ra khi cập nhật thông tin');
     }
   };
 
   if (loading) {
     return (
       <div className="max-w-[1200px]">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Đang tải thông tin...</div>
+        <h1 className="text-4xl font-bold text-gray-900 mb-8">Thông tin cá nhân</h1>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg text-gray-600">Đang tải thông tin...</div>
         </div>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="max-w-[1200px]">
-        <div className="text-center py-8 text-red-500">Có lỗi xảy ra: {error}</div>
-      </div>
-    );
-  }
+  // Extract initials for avatar
+  const fullName = formData.fullName || "";
+  const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase() || "BS";
+
   return (
     <div className="max-w-[1200px]">
       <h1 className="text-4xl font-bold text-gray-900 mb-8">Thông tin cá nhân</h1>
@@ -70,15 +96,7 @@ const ProfileSettings = () => {
         <div className="bg-white rounded-xl shadow-md p-6 row-span-2">
           <div className="text-center pb-8 border-b border-gray-200 mb-8">
             <div className="w-[120px] h-[120px] rounded-full bg-primary text-white flex items-center justify-center text-[2.5rem] font-bold mx-auto mb-6">
-              {doctor?.avatarUrl ? (
-                <img 
-                  src={doctor.avatarUrl} 
-                  alt="Doctor Avatar" 
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                "BS"
-              )}
+              {initials}
             </div>
             <button className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors">
               Thay đổi ảnh
@@ -87,15 +105,15 @@ const ProfileSettings = () => {
 
           <div className="space-y-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-2">{doctor?.ratingCount || 0}</div>
+              <div className="text-3xl font-bold text-primary mb-2">{formData.ratingCount}</div>
               <div className="text-sm text-gray-600">Bệnh nhân</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-2">{doctor?.yearsExperience || 0}</div>
+              <div className="text-3xl font-bold text-primary mb-2">{formData.yearsExperience}</div>
               <div className="text-sm text-gray-600">Năm kinh nghiệm</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-2">{doctor?.ratingAvg?.toFixed(1) || "0.0"}</div>
+              <div className="text-3xl font-bold text-primary mb-2">{formData.ratingAvg.toFixed(1)}</div>
               <div className="text-sm text-gray-600">Đánh giá</div>
             </div>
           </div>
@@ -114,8 +132,7 @@ const ProfileSettings = () => {
                     type="text" 
                     value={formData.fullName}
                     onChange={(e) => handleInputChange('fullName', e.target.value)}
-                    disabled={!isEditing}
-                    className="flex-1 border-none outline-none disabled:bg-gray-50" 
+                    className="flex-1 border-none outline-none" 
                   />
                 </div>
               </div>
@@ -126,9 +143,9 @@ const ProfileSettings = () => {
                   <Award size={18} className="text-gray-400 flex-shrink-0" />
                   <input 
                     type="text" 
-                    value={doctor?.specializationIds?.map(spec => spec.name).join(", ") || ""}
-                    disabled
-                    className="flex-1 border-none outline-none disabled:bg-gray-50" 
+                    value={formData.specialization}
+                    onChange={(e) => handleInputChange('specialization', e.target.value)}
+                    className="flex-1 border-none outline-none" 
                   />
                 </div>
               </div>
@@ -141,9 +158,9 @@ const ProfileSettings = () => {
                   <Mail size={18} className="text-gray-400 flex-shrink-0" />
                   <input 
                     type="email" 
-                    value={doctor?.userId?.email || ""}
-                    disabled
-                    className="flex-1 border-none outline-none disabled:bg-gray-50" 
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    className="flex-1 border-none outline-none" 
                   />
                 </div>
               </div>
@@ -154,41 +171,24 @@ const ProfileSettings = () => {
                   <Phone size={18} className="text-gray-400 flex-shrink-0" />
                   <input 
                     type="tel" 
-                    value={doctor?.userId?.phone || ""}
-                    disabled
-                    className="flex-1 border-none outline-none disabled:bg-gray-50" 
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    className="flex-1 border-none outline-none" 
                   />
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold text-gray-900 text-[15px]">Năm kinh nghiệm</label>
-                <div className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-lg focus-within:border-primary transition-colors">
-                  <Calendar size={18} className="text-gray-400 flex-shrink-0" />
-                  <input 
-                    type="number" 
-                    value={formData.yearsExperience}
-                    onChange={(e) => handleInputChange('yearsExperience', e.target.value)}
-                    disabled={!isEditing}
-                    className="flex-1 border-none outline-none disabled:bg-gray-50" 
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold text-gray-900 text-[15px]">Số chứng chỉ hành nghề</label>
-                <div className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-lg focus-within:border-primary transition-colors">
-                  <Award size={18} className="text-gray-400 flex-shrink-0" />
-                  <input 
-                    type="text" 
-                    value={formData.licenseNo}
-                    onChange={(e) => handleInputChange('licenseNo', e.target.value)}
-                    disabled={!isEditing}
-                    className="flex-1 border-none outline-none disabled:bg-gray-50" 
-                  />
-                </div>
+            <div className="flex flex-col gap-2">
+              <label className="font-semibold text-gray-900 text-[15px]">Địa chỉ</label>
+              <div className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-lg focus-within:border-primary transition-colors">
+                <MapPin size={18} className="text-gray-400 flex-shrink-0" />
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
+                  className="flex-1 border-none outline-none"
+                />
               </div>
             </div>
 
@@ -198,50 +198,17 @@ const ProfileSettings = () => {
                 rows="4"
                 value={formData.bio}
                 onChange={(e) => handleInputChange('bio', e.target.value)}
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm resize-y transition-colors focus:outline-none focus:border-primary disabled:bg-gray-50"
-              />
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm resize-y transition-colors focus:outline-none focus:border-primary"
+              ></textarea>
             </div>
           </div>
 
-          <div className="flex gap-4">
-            {!isEditing ? (
-              <button 
-                className="flex-1 px-6 py-3 bg-accent hover:bg-accent/90 text-gray-900 rounded-lg font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
-                onClick={() => setIsEditing(true)}
-              >
-                Chỉnh sửa thông tin
-              </button>
-            ) : (
-              <>
-                <button 
-                  className="flex-1 px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
-                  onClick={handleSave}
-                  disabled={saving}
-                >
-                  {saving ? "Đang lưu..." : "Lưu thay đổi"}
-                </button>
-                <button 
-                  className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg font-medium transition-all"
-                  onClick={() => {
-                    setIsEditing(false);
-                    // Reset form data
-                    if (doctor) {
-                      setFormData({
-                        fullName: doctor.fullName || "",
-                        bio: doctor.bio || "",
-                        yearsExperience: doctor.yearsExperience || "",
-                        licenseNo: doctor.licenseNo || "",
-                        avatarUrl: doctor.avatarUrl || ""
-                      });
-                    }
-                  }}
-                >
-                  Hủy
-                </button>
-              </>
-            )}
-          </div>
+          <button 
+            onClick={handleSave}
+            className="w-full px-6 py-3 bg-accent hover:bg-accent/90 text-gray-900 rounded-lg font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
+          >
+            Lưu thay đổi
+          </button>
         </div>
 
         <div className="bg-white rounded-xl shadow-md p-6">
@@ -253,9 +220,9 @@ const ProfileSettings = () => {
             <div className="flex gap-4 p-4 bg-gray-50 rounded-lg">
               <Award className="text-primary flex-shrink-0" size={20} />
               <div>
-                <div className="text-sm text-gray-600 mb-1">Chuyên khoa</div>
+                <div className="text-sm text-gray-600 mb-1">Bằng cấp</div>
                 <div className="font-semibold text-gray-900">
-                  {doctor?.specializationIds?.map(spec => spec.name).join(", ") || "Chưa cập nhật"}
+                  {doctorInfo?.education?.[0]?.degree || "Bác sĩ Đa khoa"} - {doctorInfo?.education?.[0]?.school || "ĐH Y Dược"}
                 </div>
               </div>
             </div>
@@ -263,28 +230,16 @@ const ProfileSettings = () => {
             <div className="flex gap-4 p-4 bg-gray-50 rounded-lg">
               <Calendar className="text-primary flex-shrink-0" size={20} />
               <div>
-                <div className="text-sm text-gray-600 mb-1">Năm kinh nghiệm</div>
-                <div className="font-semibold text-gray-900">{doctor?.yearsExperience || 0} năm</div>
+                <div className="text-sm text-gray-600 mb-1">Năm tốt nghiệp</div>
+                <div className="font-semibold text-gray-900">{formData.graduationYear || "N/A"}</div>
               </div>
             </div>
 
             <div className="flex gap-4 p-4 bg-gray-50 rounded-lg">
               <Award className="text-primary flex-shrink-0" size={20} />
               <div>
-                <div className="text-sm text-gray-600 mb-1">Chứng chỉ hành nghề</div>
-                <div className="font-semibold text-gray-900">
-                  {doctor?.licenseNo || "Chưa cập nhật"}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4 p-4 bg-gray-50 rounded-lg">
-              <Award className="text-primary flex-shrink-0" size={20} />
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Trạng thái xác minh</div>
-                <div className="font-semibold text-gray-900">
-                  {doctor?.isVerified ? "Đã xác minh" : "Chờ xác minh"}
-                </div>
+                <div className="text-sm text-gray-600 mb-1">Chứng chỉ</div>
+                <div className="font-semibold text-gray-900">Chứng chỉ hành nghề số {formData.licenseNo || "N/A"}</div>
               </div>
             </div>
           </div>

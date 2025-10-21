@@ -47,6 +47,7 @@ const Header = () => {
   const isFacilityPage = location.pathname === "/co-so-y-te";
   const isPackagePage = location.pathname === "/goi-kham";
   const isAppointmentPage = location.pathname === "/dat-lich-kham";
+  const isDoctorDashboard = location.pathname.startsWith("/bac-si");
 
   const useSearchCategories =
     isSearchPage ||
@@ -377,7 +378,7 @@ const Header = () => {
           </div>
 
           {/* Bell notification for appointments */}
-          {user && (
+          {user && !isDoctorDashboard && (
             <div className="patient-header-controls" style={{ marginLeft: 12 }}>
               <Dropdown
                 menu={{ items: apptMenuItems }}
@@ -409,7 +410,7 @@ const Header = () => {
             </div>
           )}
 
-          {user && (
+          {user && !isDoctorDashboard && (
             <Dropdown
               menu={{
                 items: [

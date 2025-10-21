@@ -7,6 +7,7 @@ import {
   getCurrentUser,
   logout,
   register,
+  registerDoctor,
   googleRegister,
   /* === ADD: Forgot/Reset === */
   forgotPassword,
@@ -20,6 +21,7 @@ const router = express.Router();
 router.post("/login-password", loginPassword);
 router.post("/google-login", googleLogin);
 router.post("/register", register);
+router.post("/register-doctor", registerDoctor);
 router.post("/google-register", googleRegister);
 router.post("/session", createSession);
 router.get("/me", authGuard, getCurrentUser);

@@ -1,117 +1,169 @@
-"use client"
+import { useState, useEffect } from "react";
+import { 
+  LayoutDashboard, 
+  Calendar, 
+  Clock, 
+  FileText, 
+  Users, 
+  Settings, 
+  Bell, 
+  MessageSquare,
+  Stethoscope,
+  LogOut,
+  Plus
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { clearUserData } from "../../../utils/clearUserData";
+import { getDoctorProfileWithFallback } from "../../../lib/api";
+import "./Sidebar.scss";
 
-import PropTypes from "prop-types";
-import { LayoutDashboard, Calendar, Users, FileText, Settings, Bell, MessageSquare, Video, Shield } from "lucide-react"
+const menuItems = [
+  {
+    label: "Dashboard",
+    subtitle: "Tổng quan hôm nay",
+    icon: LayoutDashboard,
+    id: "dashboard",
+  },
+  {
+    label: "Lịch làm việc",
+    subtitle: "Quản lý slot & lịch",
+    icon: Clock,
+    id: "schedule",
+  },
+  {
+    label: "Lịch hẹn",
+    subtitle: "Danh sách lịch hẹn",
+    icon: Users,
+    id: "appointments",
+  },
+  {
+    label: "Hồ sơ khám",
+    subtitle: "Lịch sử tư vấn",
+    icon: FileText,
+    id: "medical-history",
+  },
+  {
+    label: "Thông báo",
+    subtitle: "Thông báo hệ thống",
+    icon: Bell,
+    id: "notifications",
+  },
+  {
+    label: "Đánh giá",
+    subtitle: "Phản hồi bệnh nhân",
+    icon: MessageSquare,
+    id: "reviews",
+  },
+];
 
-const Sidebar = ({ activeView, onNavigate }) => {
-  const menuItems = [
-    {
-      id: "dashboard",
-      label: "Trang cá nhân",
-      icon: LayoutDashboard,
-      description: "Tổng quan hôm nay",
-    },
-    {
-      id: "schedule",
-      label: "Lịch làm việc",
-      icon: Calendar,
-      description: "Quản lý slot & lịch",
-    },
-    {
-      id: "appointments",
-      label: "Lịch hẹn",
-      icon: Users,
-      description: "Danh sách lịch hẹn",
-    },
-    {
-      id: "consultations",
-      label: "Hồ sơ khám",
-      icon: FileText,
-      description: "Lịch sử tư vấn",
-    },
-    {
-      id: "notifications",
-      label: "Thông báo",
-      icon: Bell,
-      description: "Thông báo hệ thống",
-    },
-    {
-      id: "feedback",
-      label: "Đánh giá",
-      icon: MessageSquare,
-      description: "Phản hồi bệnh nhân",
-    },
-    {
-      id: "profile",
-      label: "Hồ sơ",
-      icon: Settings,
-      description: "Cài đặt cá nhân",
-    },
-  ]
+export default function Sidebar({ activeMenu, onMenuChange }) {
+  const [doctorInfo, setDoctorInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchDoctorInfo = async () => {
+      try {
+        const doctor = await getDoctorProfileWithFallback();
+        if (doctor) {
+          setDoctorInfo(doctor);
+        } else {
+          console.error('No doctor found');
+        }
+      } catch (error) {
+        console.error('Error fetching doctor info:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDoctorInfo();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      console.log("Logout clicked - clearing all user data...");
+      await clearUserData();
+    } catch (error) {
+      console.error("Error during logout:", error);
+      // Fallback: just reload the page
+      window.location.reload();
+    }
+  };
+
+  const handleProfileClick = () => {
+    onMenuChange("settings");
+  };
 
   return (
-    <div className="w-[280px] bg-white shadow-lg h-screen fixed left-0 top-0 overflow-y-auto">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <Shield className="text-white" size={20} />
+    <aside className="doctor-sidebar">
+      <div className="doctor-sidebar-header">
+        <div className="doctor-sidebar-logo">
+          <div className="doctor-sidebar-logo-icon">
+            <Plus className="doctor-sidebar-logo-plus" />
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">MedConnect</h1>
-            <p className="text-xs text-gray-500">Doctor Portal</p>
+          <div className="doctor-sidebar-logo-text">
+            <h1 className="doctor-sidebar-title">MedConnect</h1>
+            <p className="doctor-sidebar-subtitle">Cổng thông tin bác sĩ</p>
           </div>
         </div>
       </div>
 
-      <nav className="p-4">
-        <div className="space-y-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon
-            const isActive = activeView === item.id
+      <nav className="doctor-sidebar-nav">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeMenu === item.id;
 
-            return (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all group ${
-                  isActive ? "bg-primary text-white shadow-md" : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                }`}
-              >
-                <Icon
-                  size={20}
-                  className={`flex-shrink-0 ${isActive ? "text-white" : "text-gray-500 group-hover:text-gray-700"}`}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">{item.label}</div>
-                  <div className={`text-xs ${isActive ? "text-white/80" : "text-gray-500"}`}>{item.description}</div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+          return (
+                  <button
+                    key={item.id}
+                    onClick={() => onMenuChange(item.id)}
+                    className={`doctor-sidebar-nav-item ${isActive ? "doctor-sidebar-nav-item--active" : ""}`}
+                  >
+                    <Icon className="doctor-sidebar-nav-icon" />
+                    <div className="doctor-sidebar-nav-text">
+                      <span className="doctor-sidebar-nav-label">{item.label}</span>
+                      <span className="doctor-sidebar-nav-subtitle">{item.subtitle}</span>
+                    </div>
+                  </button>
+          );
+        })}
       </nav>
 
-      <div className="absolute bottom-4 left-4 right-4">
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-              <Video className="text-primary" size={16} />
+      <div className="doctor-sidebar-footer">
+        {loading ? (
+          <div className="doctor-sidebar-profile">
+            <div className="doctor-sidebar-profile-avatar">...</div>
+            <div className="doctor-sidebar-profile-info">
+              <p className="doctor-sidebar-profile-name">Đang tải...</p>
+              <p className="doctor-sidebar-profile-specialty">Bác sĩ</p>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-900">Video Call</div>
-              <div className="text-xs text-gray-500">Sẵn sàng khám online</div>
-            </div>
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
           </div>
-        </div>
+        ) : (
+          <div className="doctor-sidebar-profile" onClick={handleProfileClick}>
+            <div className="doctor-sidebar-profile-avatar">
+              {(doctorInfo?.userId?.fullName || doctorInfo?.fullName || 'Bác sĩ').split(' ').map(n => n[0]).join('').toUpperCase()}
+            </div>
+            <div className="doctor-sidebar-profile-info">
+              <p className="doctor-sidebar-profile-name">
+                {doctorInfo?.userId?.fullName || doctorInfo?.fullName || 'Bác sĩ'}
+              </p>
+              <p className="doctor-sidebar-profile-specialty">
+                {doctorInfo?.specializationIds?.[0]?.name || 'Bác sĩ'}
+              </p>
+            </div>
+          </div>
+        )}
+        
+        <button 
+          onClick={handleLogout}
+          className="doctor-sidebar-logout"
+          title="Đăng xuất"
+        >
+          <LogOut className="w-5 h-5" />
+          <span>Đăng xuất</span>
+        </button>
       </div>
-    </div>
-  )
+    </aside>
+  );
 }
-
-Sidebar.propTypes = {
-  activeView: PropTypes.string.isRequired,
-  onNavigate: PropTypes.func.isRequired,
-};
-
-export default Sidebar

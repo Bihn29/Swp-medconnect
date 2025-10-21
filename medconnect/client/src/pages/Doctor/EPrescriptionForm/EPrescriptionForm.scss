@@ -1,0 +1,330 @@
+.e-prescription-form {
+  @apply space-y-6;
+}
+
+.e-prescription-patient-card {
+  @apply border-0 shadow-sm;
+}
+
+.e-prescription-patient-grid {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-6;
+}
+
+.e-prescription-patient-field {
+  @apply space-y-2;
+}
+
+.e-prescription-patient-label {
+  @apply text-sm font-medium text-foreground;
+}
+
+.e-prescription-patient-input {
+  @apply mt-2;
+}
+
+.e-prescription-drugs-card {
+  @apply border-0 shadow-sm;
+}
+
+.e-prescription-drugs-header {
+  @apply flex flex-row items-center justify-between;
+}
+
+.e-prescription-drugs-add-btn {
+  @apply bg-[#0891b2] hover:bg-[#067891];
+}
+
+.e-prescription-drugs-empty {
+  @apply text-center py-8 text-muted-foreground;
+}
+
+.e-prescription-drugs-list {
+  @apply space-y-4;
+}
+
+.e-prescription-drug-item {
+  @apply p-4 border border-border rounded-lg;
+}
+
+.e-prescription-drug-item-header {
+  @apply flex items-start justify-between mb-3;
+}
+
+.e-prescription-drug-item-info {
+  @apply flex-1;
+}
+
+.e-prescription-drug-item-name {
+  @apply font-semibold text-foreground;
+}
+
+.e-prescription-drug-item-dosage {
+  @apply text-sm text-muted-foreground;
+}
+
+.e-prescription-drug-item-remove {
+  @apply bg-red-500 hover:bg-red-600;
+}
+
+.e-prescription-drug-item-content {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-3 text-sm;
+}
+
+.e-prescription-drug-item-section {
+  @apply space-y-1;
+}
+
+.e-prescription-drug-item-label {
+  @apply text-muted-foreground;
+}
+
+.e-prescription-drug-item-value {
+  @apply font-medium text-foreground;
+}
+
+.e-prescription-drug-item-warning {
+  @apply mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded;
+}
+
+.e-prescription-drug-item-warning-text {
+  @apply text-xs font-medium text-yellow-800;
+}
+
+.e-prescription-drug-dialog {
+  @apply max-w-md;
+}
+
+.e-prescription-drug-form {
+  @apply space-y-4;
+}
+
+.e-prescription-drug-form-field {
+  @apply space-y-2;
+}
+
+.e-prescription-drug-form-label {
+  @apply text-sm font-medium text-foreground;
+}
+
+.e-prescription-drug-form-input {
+  @apply mt-2;
+}
+
+.e-prescription-drug-form-select {
+  @apply mt-2;
+}
+
+.e-prescription-drug-form-actions {
+  @apply flex gap-2 pt-4;
+}
+
+.e-prescription-drug-form-cancel {
+  @apply flex-1;
+}
+
+.e-prescription-drug-form-submit {
+  @apply flex-1 bg-[#0891b2] hover:bg-[#067891];
+}
+
+.e-prescription-actions {
+  @apply flex gap-4;
+}
+
+.e-prescription-issue-btn {
+  @apply flex-1 bg-[#0891b2] hover:bg-[#067891] h-12 text-base;
+}
+
+.e-prescription-qr-dialog {
+  @apply max-w-md;
+}
+
+.e-prescription-qr-content {
+  @apply space-y-4;
+}
+
+.e-prescription-qr-success {
+  @apply p-4 bg-green-50 border border-green-200 rounded-lg;
+}
+
+.e-prescription-qr-success-text {
+  @apply text-sm text-green-800 font-medium;
+}
+
+.e-prescription-qr-code-section {
+  @apply p-4 bg-muted rounded-lg;
+}
+
+.e-prescription-qr-code-label {
+  @apply text-xs text-muted-foreground mb-2;
+}
+
+.e-prescription-qr-code-value {
+  @apply font-mono font-bold text-foreground break-all;
+}
+
+.e-prescription-qr-display {
+  @apply flex items-center justify-center p-6 bg-white border-2 border-dashed border-border rounded-lg;
+}
+
+.e-prescription-qr-placeholder {
+  @apply text-center;
+}
+
+.e-prescription-qr-icon {
+  @apply w-16 h-16 mx-auto text-[#0891b2] mb-2;
+}
+
+.e-prescription-qr-placeholder-text {
+  @apply text-xs text-muted-foreground;
+}
+
+.e-prescription-qr-info {
+  @apply space-y-2 text-sm;
+}
+
+.e-prescription-qr-info-item {
+  @apply space-y-1;
+}
+
+.e-prescription-qr-info-label {
+  @apply text-muted-foreground;
+}
+
+.e-prescription-qr-info-value {
+  @apply font-semibold text-foreground;
+}
+
+.e-prescription-qr-actions {
+  @apply flex gap-2 pt-4;
+}
+
+.e-prescription-qr-close {
+  @apply flex-1;
+}
+
+.e-prescription-qr-download {
+  flex: 1;
+  background-color: #0891b2;
+
+  &:hover {
+    background-color: #067891;
+  }
+}
+
+// Dialog styles
+.e-prescription-drug-dialog-overlay,
+.e-prescription-qr-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.e-prescription-drug-dialog,
+.e-prescription-qr-dialog {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 32rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.e-prescription-drug-dialog-header,
+.e-prescription-qr-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.e-prescription-drug-dialog-title,
+.e-prescription-qr-dialog-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.e-prescription-drug-dialog-close,
+.e-prescription-qr-dialog-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0.25rem;
+
+  &:hover {
+    color: #0f172a;
+  }
+}
+
+// Select styles
+.e-prescription-drug-form-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.e-prescription-drug-form-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background-color: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+  }
+}
+
+.e-prescription-drug-form-select-arrow {
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.e-prescription-drug-form-select-content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 0.25rem;
+}
+
+.e-prescription-drug-form-select-item {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background-color: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 0.875rem;
+  color: #2d3748;
+
+  &:hover {
+    background-color: #f1f5f9;
+  }
+}

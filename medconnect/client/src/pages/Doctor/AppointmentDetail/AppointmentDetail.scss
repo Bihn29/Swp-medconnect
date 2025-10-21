@@ -1,199 +1,397 @@
-@import '../../../styles/variables';
-@import '../../../styles/mixins';
+/* Appointment Detail Styles */
+.appointment-detail-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
 
-.appointment-detail {
-  &__header {
-    @include flex-between;
-    margin-bottom: $spacing-xl;
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
 
-    h2 {
-      font-size: $font-size-2xl;
-      font-weight: 700;
-      color: $gray-900;
-      margin: 0;
-    }
+.back-button:hover {
+  background: #f9fafb;
+  border-color: var(--primary);
+  color: var(--primary);
+}
 
-    button {
-      padding: $spacing-sm $spacing-lg;
-      border: 1px solid $gray-300;
-      background-color: $white;
-      color: $gray-700;
-      border-radius: $radius-md;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all $transition-base;
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
 
-      &:hover {
-        border-color: $primary-color;
-        color: $primary-color;
-      }
-    }
+.detail-title {
+  font-size: 2.25rem;
+  font-weight: bold;
+  color: #111827;
+}
+
+.detail-badges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.badge {
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.badge.type-online {
+  background: rgba(20, 184, 166, 0.1);
+  color: #0d9488;
+}
+
+.badge.type-offline {
+  background: rgba(147, 51, 234, 0.1);
+  color: #7c3aed;
+}
+
+.badge.status-pending {
+  background: rgba(251, 191, 36, 0.1);
+  color: #d97706;
+}
+
+.badge.status-accepted {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.badge.status-rejected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.badge.status-completed {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.detail-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.detail-card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #111827;
+}
+
+.detail-card-title svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--primary);
+}
+
+.detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.patient-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.patient-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.patient-email {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.contact-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.contact-info svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.appointment-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.info-item svg {
+  width: 1rem;
+  height: 1rem;
+  color: #6b7280;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #374151;
+}
+
+.info-value {
+  color: #6b7280;
+}
+
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.action-button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.action-button.primary {
+  background: var(--primary);
+  color: white;
+}
+
+.action-button.primary:hover {
+  background: #0891b2;
+}
+
+.action-button.secondary {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.action-button.secondary:hover {
+  background: #f9fafb;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.action-button.danger {
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+}
+
+.action-button.danger:hover {
+  background: #fef2f2;
+}
+
+.action-button.success {
+  background: #16a34a;
+  color: white;
+}
+
+.action-button.success:hover {
+  background: #15803d;
+}
+
+.action-button.info {
+  background: #2563eb;
+  color: white;
+}
+
+.action-button.info:hover {
+  background: #1d4ed8;
+}
+
+.detail-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.reason-section,
+.notes-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #111827;
+}
+
+.section-content {
+  color: #374151;
+  line-height: 1.6;
+}
+
+.attachments-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.attachments-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #111827;
+}
+
+.attachments-title svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--primary);
+}
+
+.attachments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.attachment-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: all 0.3s ease;
+}
+
+.attachment-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.attachment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.attachment-header svg {
+  width: 1rem;
+  height: 1rem;
+  color: #6b7280;
+}
+
+.attachment-name {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #111827;
+}
+
+.download-button {
+  width: 100%;
+  padding: 0.5rem;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.download-button:hover {
+  background: #f9fafb;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.loading-container,
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.loading-text {
+  color: #6b7280;
+}
+
+.error-text {
+  color: #ef4444;
+}
+
+@media (max-width: 768px) {
+  .appointment-detail-container {
+    padding: 1rem;
   }
 
-  &__content {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: $spacing-xl;
-
-    @include tablet {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  &__main {
-    display: flex;
+  .detail-header {
     flex-direction: column;
-    gap: $spacing-lg;
+    gap: 1rem;
+    align-items: flex-start;
   }
 
-  &__sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-lg;
+  .detail-title {
+    font-size: 1.875rem;
   }
 
-  &__card {
-    @include card;
-
-    h3 {
-      font-size: $font-size-lg;
-      font-weight: 600;
-      color: $gray-900;
-      margin: 0 0 $spacing-lg 0;
-      padding-bottom: $spacing-md;
-      border-bottom: 1px solid $gray-200;
-    }
+  .detail-badges {
+    flex-wrap: wrap;
   }
 
-  &__info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: $spacing-lg;
-
-    @include mobile {
-      grid-template-columns: 1fr;
-    }
+  .detail-grid {
+    grid-template-columns: 1fr;
   }
 
-  &__info-item {
-    label {
-      display: block;
-      font-size: $font-size-sm;
-      font-weight: 500;
-      color: $gray-600;
-      margin-bottom: $spacing-xs;
-    }
-
-    p {
-      font-size: $font-size-base;
-      color: $gray-900;
-      margin: 0;
-    }
+  .detail-bottom-grid {
+    grid-template-columns: 1fr;
   }
 
-  &__history-item {
-    padding: $spacing-md;
-    background-color: $gray-50;
-    border-radius: $radius-md;
-    margin-bottom: $spacing-md;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    &-header {
-      @include flex-between;
-      margin-bottom: $spacing-sm;
-
-      strong {
-        color: $gray-900;
-      }
-
-      span {
-        font-size: $font-size-sm;
-        color: $gray-500;
-      }
-    }
-
-    p {
-      font-size: $font-size-sm;
-      color: $gray-700;
-      margin: 0;
-    }
-  }
-
-  &__attachments {
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-sm;
-  }
-
-  &__attachment {
-    @include flex-between;
-    padding: $spacing-md;
-    background-color: $gray-50;
-    border-radius: $radius-md;
-    transition: background-color $transition-base;
-
-    &:hover {
-      background-color: $gray-100;
-    }
-
-    &-info {
-      display: flex;
-      align-items: center;
-      gap: $spacing-md;
-
-      svg {
-        width: 24px;
-        height: 24px;
-        color: $primary-color;
-      }
-
-      span {
-        font-size: $font-size-sm;
-        color: $gray-900;
-      }
-    }
-
-    button {
-      padding: $spacing-xs $spacing-md;
-      border: none;
-      background-color: $primary-color;
-      color: $white;
-      border-radius: $radius-sm;
-      font-size: $font-size-xs;
-      cursor: pointer;
-      transition: background-color $transition-base;
-
-      &:hover {
-        background-color: $primary-dark;
-      }
-    }
-  }
-
-  &__actions {
-    display: flex;
-    gap: $spacing-md;
-
-    button {
-      flex: 1;
-      @include button-base;
-      font-size: $font-size-base;
-
-      &.accept {
-        @include button-primary;
-      }
-
-      &.reject {
-        background-color: $white;
-        color: $error;
-        border: 2px solid $error;
-
-        &:hover {
-          background-color: $error-light;
-        }
-      }
-    }
+  .attachments-grid {
+    grid-template-columns: 1fr;
   }
 }

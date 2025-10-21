@@ -1,13 +1,13 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { authGuard } from '../middleware/auth.js';
-import User from '../models/user.model.js';
-import Doctor from '../models/doctor.model.js';
-import Specialization from '../models/specialization.model.js';
-import Appointment from '../models/appointment.model.js';
-import LicenseVerification from '../models/licenseVerification.model.js';
-import Patient from '../models/patient.model.js';
-import Clinic from '../models/clinic.model.js';
+import { authGuard } from '../../middleware/auth.js';
+import User from '../../models/user.model.js';
+import Doctor from '../../models/doctor.model.js';
+import Specialization from '../../models/specialization.model.js';
+import Appointment from '../../models/appointment.model.js';
+import LicenseVerification from '../../models/licenseVerification.model.js';
+import Patient from '../../models/patient.model.js';
+import Clinic from '../../models/clinic.model.js';
 
 const adminRouter = express.Router();
 
@@ -152,6 +152,65 @@ adminRouter.get('/dashboard/system-status', async (req, res) => {
 });
 
 // Doctors - Pending verification
+// Doctors - All (for admin management)
+adminRouter.get('/doctors', async (req, res) => {
+  try {
+    const { search, status, specialization } = req.query;
+    
+    let query = {};
+    
+    // Add search filter
+    if (search) {
+      query.$or = [
+        { fullName: { $regex: search, $options: 'i' } },
+        { licenseNo: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Add status filter
+    if (status === 'verified') {
+      query.isVerified = true;
+    } else if (status === 'pending') {
+      query.isVerified = false;
+    }
+    
+    // Add specialization filter
+    if (specialization) {
+      query.specializationIds = { $in: [specialization] };
+    }
+    
+    const doctors = await Doctor.find(query)
+      .populate('userId', 'fullName email')
+      .populate('specializationIds', 'name')
+      .select('userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications isVerified createdAt updatedAt')
+      .sort({ createdAt: -1 });
+
+    const formattedDoctors = doctors.map(doctor => ({
+      id: doctor._id,
+      name: doctor.fullName || doctor.userId?.fullName || 'Chưa có tên',
+      email: doctor.userId?.email || 'Chưa có email',
+      specialty: doctor.specializationIds?.map(s => s.name).join(', ') || 'Chưa chọn chuyên khoa',
+      education: doctor.education?.map(edu => `${edu.degree} - ${edu.school}`).join(', ') || 'Chưa cập nhật',
+      experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
+      license: doctor.licenseNo || 'Chưa có giấy phép',
+      status: doctor.isVerified ? 'verified' : 'pending',
+      submittedDate: formatDate(doctor.createdAt),
+      avatar: doctor.avatarUrl || null
+    }));
+    
+    res.json({
+      success: true,
+      data: formattedDoctors
+    });
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tải danh sách bác sĩ'
+    });
+  }
+});
+
 adminRouter.get('/doctors/pending', async (req, res) => {
   try {
     const pendingDoctors = await Doctor.find({ isVerified: false })

@@ -1,0 +1,48 @@
+.quick-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.quick-stats-card {
+  border: none;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.quick-stats-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.5rem;
+}
+
+.quick-stats-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.quick-stats-icon {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.quick-stats-icon-svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.quick-stats-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #0f172a;
+}

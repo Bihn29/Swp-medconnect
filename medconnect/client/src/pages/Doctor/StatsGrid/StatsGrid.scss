@@ -1,0 +1,135 @@
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.stats-grid-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-color: #cbd5e1;
+  }
+}
+
+.stats-grid-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.stats-grid-card-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.stats-grid-card-icon {
+  width: 2rem;
+  height: 2rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  color: #0891b2;
+}
+
+.stats-grid-card-value {
+  font-size: 1.875rem;
+  font-weight: bold;
+  color: #0f172a;
+  margin: 0 0 0.5rem 0;
+}
+
+.stats-grid-card-description {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.stats-grid-card-trend {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+
+  &.trend-up {
+    color: #16a34a;
+  }
+
+  &.trend-down {
+    color: #dc2626;
+  }
+
+  &.trend-neutral {
+    color: #64748b;
+  }
+}
+
+.stats-grid-card-trend-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.stats-grid-card-trend-text {
+  margin: 0;
+}
+
+// Color variants for different stat types
+.stats-grid-card {
+  &.stats-primary {
+    .stats-grid-card-icon {
+      background: #e0f2fe;
+      color: #0277bd;
+    }
+  }
+
+  &.stats-success {
+    .stats-grid-card-icon {
+      background: #e8f5e8;
+      color: #2e7d32;
+    }
+  }
+
+  &.stats-warning {
+    .stats-grid-card-icon {
+      background: #fff8e1;
+      color: #f57c00;
+    }
+  }
+
+  &.stats-danger {
+    .stats-grid-card-icon {
+      background: #ffebee;
+      color: #d32f2f;
+    }
+  }
+
+  &.stats-info {
+    .stats-grid-card-icon {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+  }
+
+  &.stats-teal {
+    .stats-grid-card-icon {
+      background: #e0f2f1;
+      color: #00695c;
+    }
+  }
+}
