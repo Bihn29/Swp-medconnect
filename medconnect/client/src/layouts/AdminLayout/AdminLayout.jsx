@@ -1,0 +1,209 @@
+import React, { useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Layout, Menu, Avatar, Badge, Button, Input, Dropdown } from 'antd';
+import {
+  HomeOutlined,
+  SafetyCertificateOutlined,
+  TeamOutlined,
+  MedicineBoxOutlined,
+  CalendarOutlined,
+  FileTextOutlined,
+  SettingOutlined,
+  LogoutOutlined,
+  SearchOutlined,
+  BellOutlined,
+  UserOutlined,
+  DownOutlined
+} from '@ant-design/icons';
+import './AdminLayout.scss';
+
+const { Header, Sider, Content } = Layout;
+
+const AdminLayout = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Menu items
+  const menuItems = [
+    {
+      key: '/admin',
+      icon: <HomeOutlined />,
+      label: 'Tổng quan',
+    },
+    {
+      key: '/admin/verify-doctors',
+      icon: <SafetyCertificateOutlined />,
+      label: 'Xác minh bác sĩ',
+    },
+    {
+      key: '/admin/users',
+      icon: <TeamOutlined />,
+      label: 'Quản lý người dùng',
+    },
+    {
+      key: '/admin/specializations',
+      icon: <MedicineBoxOutlined />,
+      label: 'Chuyên khoa',
+    },
+    {
+      key: '/admin/appointments',
+      icon: <CalendarOutlined />,
+      label: 'Quản lý lịch hẹn',
+    },
+    {
+      key: '/admin/reports',
+      icon: <FileTextOutlined />,
+      label: 'Báo cáo',
+    },
+    {
+      key: '/admin/system-settings',
+      icon: <SettingOutlined />,
+      label: 'Cài đặt hệ thống',
+    },
+  ];
+
+  const handleMenuClick = ({ key }) => {
+    navigate(key);
+  };
+
+  const handleLogout = () => {
+    // Implement logout logic
+    navigate('/');
+  };
+
+  const userMenuItems = [
+    {
+      key: 'profile',
+      label: 'Hồ sơ cá nhân',
+    },
+    {
+      key: 'settings',
+      label: 'Cài đặt',
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'logout',
+      label: 'Đăng xuất',
+      danger: true,
+      onClick: handleLogout,
+    },
+  ];
+
+  return (
+    <Layout className="admin-layout">
+      <Sider 
+        trigger={null} 
+        collapsible 
+        collapsed={collapsed}
+        className="admin-sider"
+        width={280}
+      >
+        <div className="admin-logo">
+          <div className="logo-icon">
+            <MedicineBoxOutlined />
+          </div>
+          <div className="logo-text">
+            <div className="logo-title">MedConnect</div>
+            <div className="logo-subtitle">Chăm sóc sức khỏe</div>
+          </div>
+        </div>
+
+        <div className="admin-profile">
+          <Avatar size={48} icon={<UserOutlined />} />
+          <div className="profile-info">
+            <div className="profile-name">Admin</div>
+            <div className="profile-role">Quản trị viên</div>
+          </div>
+          <DownOutlined className="profile-dropdown" />
+        </div>
+
+        <div className="role-tabs">
+          <Button className="role-tab">Bệnh nhân</Button>
+          <Button className="role-tab">Bác sĩ</Button>
+          <Button className="role-tab active">Admin</Button>
+        </div>
+
+        <Menu
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          items={menuItems.map(item => ({
+            ...item,
+            label: (
+              <div className="menu-item">
+                <span>{item.label}</span>
+                {item.badge && (
+                  <Badge count={item.badge} size="small" />
+                )}
+              </div>
+            ),
+          }))}
+          onClick={handleMenuClick}
+          className="admin-menu"
+        />
+
+        <div className="admin-footer">
+          <Menu
+            mode="inline"
+            items={[
+              {
+                key: 'settings',
+                icon: <SettingOutlined />,
+                label: 'Cài đặt',
+              },
+              {
+                key: 'logout',
+                icon: <LogoutOutlined />,
+                label: 'Đăng xuất',
+                onClick: handleLogout,
+              },
+            ]}
+            className="footer-menu"
+          />
+        </div>
+      </Sider>
+
+      <Layout className="admin-main">
+        <Header className="admin-header">
+          <div className="header-left">
+          </div>
+          
+          <div className="header-center">
+            <Input
+              placeholder="Tìm kiếm bác sĩ, chuyên khoa..."
+              prefix={<SearchOutlined />}
+              className="admin-search"
+            />
+          </div>
+
+          <div className="header-right">
+            <Button
+              type="text"
+              icon={<BellOutlined />}
+              className="notification-btn"
+            />
+            
+            <Dropdown
+              menu={{ items: userMenuItems }}
+              placement="bottomRight"
+            >
+              <Button type="text" className="user-btn">
+                <Avatar size={32} icon={<UserOutlined />} />
+                <span>Admin</span>
+                <DownOutlined />
+              </Button>
+            </Dropdown>
+          </div>
+        </Header>
+
+        <Content className="admin-content">
+          <Outlet />
+        </Content>
+      </Layout>
+    </Layout>
+  );
+};
+
+export default AdminLayout;

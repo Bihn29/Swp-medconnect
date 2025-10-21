@@ -113,7 +113,7 @@ export async function completeLogout() {
 
 // Admin functions
 export async function getPendingDoctors() {
-  const r = await fetch(`${BASE}/api/admin/pending-doctors`, {
+  const r = await fetch(`${BASE}/api/admin/doctors/pending`, {
     credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
@@ -136,7 +136,7 @@ export async function getAllDoctorsForAdmin(params = {}) {
 }
 
 export async function approveDoctor(doctorId, adminNotes = "") {
-  const r = await fetch(`${BASE}/api/admin/approve-doctor/${doctorId}`, {
+  const r = await fetch(`${BASE}/api/admin/doctors/${doctorId}/approve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -147,7 +147,7 @@ export async function approveDoctor(doctorId, adminNotes = "") {
 }
 
 export async function rejectDoctor(doctorId, reason = "") {
-  const r = await fetch(`${BASE}/api/admin/reject-doctor/${doctorId}`, {
+  const r = await fetch(`${BASE}/api/admin/doctors/${doctorId}/reject`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -771,15 +771,170 @@ export async function getAllSpecializations(params = {}) {
   }
 }
 
+// Admin API functions
+export async function getAdminDashboardStats() {
+  const r = await fetch(`${BASE}/api/admin/dashboard/stats`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getAdminDashboardActivities() {
+  const r = await fetch(`${BASE}/api/admin/dashboard/activities`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getAdminSystemStatus() {
+  const r = await fetch(`${BASE}/api/admin/dashboard/system-status`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getVerifiedDoctors() {
+  const r = await fetch(`${BASE}/api/admin/doctors/verified`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getRejectedDoctors() {
+  const r = await fetch(`${BASE}/api/admin/doctors/rejected`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+
+
+export async function getAdminUsers(params = {}) {
+  const queryParams = new URLSearchParams();
+  if (params.search) queryParams.append("search", params.search);
+  if (params.role) queryParams.append("role", params.role);
+
+  const r = await fetch(`${BASE}/api/admin/users?${queryParams}`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function suspendUser(userId) {
+  const r = await fetch(`${BASE}/api/admin/users/${userId}/suspend`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function activateUser(userId) {
+  const r = await fetch(`${BASE}/api/admin/users/${userId}/activate`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function deleteUser(userId) {
+  const r = await fetch(`${BASE}/api/admin/users/${userId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getAdminSpecializations() {
+  const r = await fetch(`${BASE}/api/admin/specializations`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getDoctorsBySpecialization(specializationId) {
+  const r = await fetch(`${BASE}/api/admin/specializations/${specializationId}/doctors`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function addSpecialization(data) {
+  const r = await fetch(`${BASE}/api/admin/specializations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function updateSpecialization(id, data) {
+  const r = await fetch(`${BASE}/api/admin/specializations/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function deleteSpecialization(id) {
+  const r = await fetch(`${BASE}/api/admin/specializations/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Admin Appointment Management APIs
+export async function getAdminAppointments(params = {}) {
+  const queryParams = new URLSearchParams();
+  if (params.status) queryParams.append("status", params.status);
+  if (params.startDate) queryParams.append("startDate", params.startDate);
+  if (params.endDate) queryParams.append("endDate", params.endDate);
+
+  const r = await fetch(`${BASE}/api/admin/appointments?${queryParams}`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function updateAdminAppointmentStatus(appointmentId, status) {
+  const r = await fetch(`${BASE}/api/admin/appointments/${appointmentId}/status`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ status }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function deleteAdminAppointment(appointmentId) {
+  const r = await fetch(`${BASE}/api/admin/appointments/${appointmentId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 // Notification functions
-// export async function markNotificationAsRead(notificationId) {
-//   const r = await fetch(`${BASE}/api/notifications/${notificationId}/read`, {
-//     method: "PUT",
-//     credentials: "include",
-//   });
-//   if (!r.ok) throw new Error(await r.text());
-//   return r.json();
-// }
 
 // Create api object with all functions for easier import
 const apiObject = {
@@ -805,7 +960,10 @@ const apiObject = {
   updateDoctorProfile,
   getDoctorAppointments,
   getDoctorDashboardStats,
-  updateAppointmentStatus,
+  // Admin appointment functions
+  getAdminAppointments,
+  updateAdminAppointmentStatus,
+  deleteAdminAppointment,
 
   // Consultation and prescription functions
   getConsultationRecords,

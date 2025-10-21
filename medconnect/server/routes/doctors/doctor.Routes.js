@@ -26,6 +26,8 @@ const router = express.Router();
 
 // Public routes
 router.get("/", getAllDoctors); // Get all doctors for search/listing
+router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
+router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
 
 // Protected routes (require authentication)
 router.use(authGuard);

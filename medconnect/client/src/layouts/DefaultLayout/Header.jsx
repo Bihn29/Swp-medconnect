@@ -2,6 +2,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
+import { useAuth } from "../../hooks/useAuth";
+import { useUserProfile } from "../../hooks/useUserProfile";
 import {
   MenuOutlined,
   SearchOutlined,
@@ -15,6 +17,8 @@ import "./Header.scss";
 const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { userProfile } = useUserProfile();
 
   // Navigation categories cho trang chủ
   const defaultCategories = [
@@ -55,7 +59,6 @@ const Header = () => {
   const categories = useSearchCategories ? searchCategories : defaultCategories;
 
   const [activeCat, setActiveCat] = useState("all");
-  const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // register dropdown state (was referenced but not defined)
   const [registerDropdownOpen, setRegisterDropdownOpen] = useState(false);
@@ -243,6 +246,12 @@ const Header = () => {
       return;
     }
 
+    // admin dashboard shortcut
+    if (key === "admin") {
+      navigate("/admin/dashboard");
+      return;
+    }
+
     // fallback: navigate to route named by key
     if (key) navigate(`/${key}`);
   };
@@ -376,29 +385,27 @@ const Header = () => {
                 placement="bottomRight"
                 trigger={["click"]}
               >
-                <Badge count={apptCount} overflowCount={99}>
-                  <Button
-                    type="text"
-                    shape="circle"
-                    size="large"
-                    style={{
-                      width: 48,
-                      height: 48,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                    icon={
-                      <BellOutlined
-                        style={{
-                          fontSize: 24,
-                          color: "var(--primary-color, #12c2e9)",
-                        }}
-                      />
-                    }
-                    aria-label="Thông báo lịch hẹn"
-                  />
-                </Badge>
+                <Button
+                  type="text"
+                  shape="circle"
+                  size="large"
+                  style={{
+                    width: 48,
+                    height: 48,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  icon={
+                    <BellOutlined
+                      style={{
+                        fontSize: 24,
+                        color: "var(--primary-color, #12c2e9)",
+                      }}
+                    />
+                  }
+                  aria-label="Thông báo lịch hẹn"
+                />
               </Dropdown>
             </div>
           )}
@@ -445,6 +452,18 @@ const Header = () => {
                     ),
                   },
                   { key: "dashboard", label: "Trang cá nhân" },
+                  // Admin Dashboard link - only show for admin users
+                  ...(userProfile?.role === 'admin' || userProfile?.role === 'ADMIN' ? [{
+                    key: "admin",
+                    label: (
+                      <div style={{ minWidth: 220 }}>
+                        <div style={{ fontWeight: 700, color: "#1890ff" }}>🛡️ Admin Dashboard</div>
+                        <div style={{ fontSize: 12, color: "#666" }}>
+                          Quản trị hệ thống
+                        </div>
+                      </div>
+                    ),
+                  }] : []),
                   { type: "divider", key: "d2" },
                   { key: "logout", label: "Đăng xuất", danger: true },
                 ],
