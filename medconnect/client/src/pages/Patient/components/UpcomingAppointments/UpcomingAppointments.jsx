@@ -37,12 +37,13 @@ export function UpcomingAppointments() {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/patients/me/appointments?limit=5");
+      const response = await api.get("/api/patients/me/appointments?limit=50");
 
       if (response.success) {
-        // Filter only upcoming appointments (not completed)
+        // Filter only upcoming appointments with accepted and pending status
         const upcomingAppointments = response.data.appointments.filter(
-          (appointment) => appointment.status !== "done"
+          (appointment) =>
+            ["pending_doctor", "accepted"].includes(appointment.status)
         );
 
         // Transform API data to match component format
@@ -102,7 +103,10 @@ export function UpcomingAppointments() {
           minHeight: "200px",
         }}
       >
-        <Spin size="large" tip="Đang tải lịch hẹn..." />
+        <div className="flex items-center justify-center">
+          <Spin size="large" />
+          <span className="ml-2">Đang tải lịch hẹn...</span>
+        </div>
       </div>
     );
   }

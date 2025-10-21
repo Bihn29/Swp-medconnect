@@ -94,15 +94,40 @@ export function MyAppointments() {
   };
 
   // Phân chia appointments
-  const upcomingAppointments = appointments.filter(
-    (appointment) => appointment.status !== "done"
+  const upcomingAppointments = appointments.filter((appointment) =>
+    ["pending_doctor", "accepted"].includes(appointment.status)
+  );
+
+  // Debug: Log appointments to see what statuses we have
+  console.log(
+    "All appointments:",
+    appointments.map((a) => ({
+      id: a._id,
+      status: a.status,
+      doctor: a.doctorId?.fullName,
+    }))
+  );
+  console.log(
+    "Upcoming appointments:",
+    upcomingAppointments.map((a) => ({
+      id: a._id,
+      status: a.status,
+      doctor: a.doctorId?.fullName,
+    }))
   );
   const completedAppointments = appointments.filter(
     (appointment) => appointment.status === "done"
   );
+  const cancelledAppointments = appointments.filter(
+    (appointment) => appointment.status === "cancelled"
+  );
 
   const currentAppointments =
-    activeTab === "upcoming" ? upcomingAppointments : completedAppointments;
+    activeTab === "upcoming"
+      ? upcomingAppointments
+      : activeTab === "completed"
+      ? completedAppointments
+      : cancelledAppointments;
 
   if (loading) {
     return (
@@ -188,6 +213,27 @@ export function MyAppointments() {
           >
             Đã khám ({completedAppointments.length})
           </button>
+          <button
+            onClick={() => setActiveTab("cancelled")}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "8px",
+              border:
+                activeTab === "cancelled"
+                  ? "2px solid #3b82f6"
+                  : "2px solid transparent",
+              backgroundColor:
+                activeTab === "cancelled" ? "#ffffff" : "transparent",
+              color: "#1e293b",
+              fontSize: "14px",
+              fontWeight: "500",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              outline: "none",
+            }}
+          >
+            Đã hủy ({cancelledAppointments.length})
+          </button>
         </div>
       </div>
 
@@ -211,7 +257,8 @@ export function MyAppointments() {
             minute: "2-digit",
           });
           const fee = a.feeAmount || a.consultationFee || 0;
-          const feeText = new Intl.NumberFormat("vi-VN").format(fee) + "đ";
+          const feeText =
+            fee > 0 ? new Intl.NumberFormat("vi-VN").format(fee) + "đ" : "";
 
           return (
             <div
@@ -287,9 +334,11 @@ export function MyAppointments() {
                         ? "Khám online"
                         : a.clinicId?.name || "Phòng khám"}
                     </span>
-                    <span style={{ marginLeft: 8, fontWeight: 600 }}>
-                      {feeText}
-                    </span>
+                    {feeText && (
+                      <span style={{ marginLeft: 8, fontWeight: 600 }}>
+                        {feeText}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -301,6 +350,11 @@ export function MyAppointments() {
                     <MessageCircle size={16} style={{ marginRight: 6 }} /> Nhắn
                     tin
                   </Button>
+                ) : a.status === "cancelled" ? (
+                  // Appointments đã hủy không có nút action
+                  <span style={{ color: "#6b7280", fontSize: "14px" }}>
+                    Lịch hẹn đã được hủy
+                  </span>
                 ) : (
                   // Appointments chưa hoàn thành có đầy đủ nút
                   <>

@@ -21,6 +21,7 @@ const buildApiUrl = (path) => {
 };
 
 const App = () => {
+  // Only make API call in development for testing
   const { data, error, isError } = useQuery({
     queryKey: ["test"],
     queryFn: async () => {
@@ -33,19 +34,26 @@ const App = () => {
       }
       return res.json();
     },
-    // short stale time for this demo
-    staleTime: 1000 * 5,
+    // Only run in development
+    enabled: import.meta.env.DEV,
+    // Increase stale time to reduce calls
+    staleTime: 1000 * 30, // 30 seconds
+    // Cache for 5 minutes
+    gcTime: 1000 * 60 * 5,
   });
 
-  // helpful debug logs in dev
+  // Only log in development
   if (import.meta.env.DEV) {
     console.log(
       "API base:",
       apiBaseFromEnv ?? "(env not set, fallback to http://localhost:3000)"
     );
-    console.log("Fetching users ->", buildApiUrl("/users"));
-    if (isError) console.error("Fetch users error:", error);
-    else console.log("Users:", data);
+    if (data) {
+      console.log("Users:", data);
+    }
+    if (isError) {
+      console.error("Fetch users error:", error);
+    }
   }
 
   return <Layout />;

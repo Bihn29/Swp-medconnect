@@ -418,12 +418,17 @@ export async function getPatientAppointments(req, res) {
       );
     }
 
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, page = 1, limit = 50 } = req.query;
 
     const query = { patientId: patient._id };
     if (status) {
       query.status = status;
     }
+
+    // Debug: Log query and count
+    console.log("Patient appointments query:", query);
+    const totalCount = await Appointment.countDocuments(query);
+    console.log("Total appointments for patient:", totalCount);
 
     const appointments = await Appointment.find(query)
       .populate({
@@ -440,6 +445,18 @@ export async function getPatientAppointments(req, res) {
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .lean();
+
+    // Debug: Log returned appointments
+    console.log("Returned appointments count:", appointments.length);
+    console.log(
+      "Appointments details:",
+      appointments.map((apt) => ({
+        id: apt._id,
+        status: apt.status,
+        scheduledStart: apt.scheduledStart,
+        doctor: apt.doctorId?.fullName,
+      }))
+    );
 
     const total = await Appointment.countDocuments(query);
 

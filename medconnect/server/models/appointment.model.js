@@ -34,7 +34,7 @@ const AppointmentSchema = new Schema(
     },
 
     scheduledStart: { type: Date, required: true },
-    scheduledEnd: { type: Date, required: true },
+    scheduledEnd:   { type: Date, required: true },
 
     status: {
       type: String,
@@ -42,33 +42,27 @@ const AppointmentSchema = new Schema(
         "pending_doctor",
         "accepted",
         "rejected",
-        "confirmed",
         "in_progress",
         "cancelled",
-        "auto_cancelled",
         "done",
         "no_show",
       ],
       default: "pending_doctor",
     },
 
+    // Lý do đặt/hủy/từ chối
     reason: String,
     cancelledAt: Date,
     cancelledBy: { type: Schema.Types.ObjectId, ref: "User" },
     cancelReason: String,
     rescheduledFromId: { type: Schema.Types.ObjectId, ref: "Appointment" },
 
-    // Auto-refund helpers (12h không phản hồi)
-    patientPaidAt: Date,
-    doctorRespondedAt: Date,
-    autoExpireAt: { type: Date, index: true }, // now + 12h
-    autoAction: { type: String, enum: ["auto_refund", null], default: null },
-
-    // Tracking
+    // Tracking thao tác bác sĩ
     acceptedBy: { type: Schema.Types.ObjectId, ref: "Doctor" },
     rejectedBy: { type: Schema.Types.ObjectId, ref: "Doctor" },
     rejectReason: String,
 
+    // Thanh toán (nếu có)
     paymentId: {
       type: Schema.Types.ObjectId,
       ref: "Payment",
@@ -86,10 +80,7 @@ AppointmentSchema.pre("validate", function (next) {
     this.scheduledEnd &&
     this.scheduledStart >= this.scheduledEnd
   ) {
-    this.invalidate(
-      "scheduledEnd",
-      "scheduledEnd must be after scheduledStart"
-    );
+    this.invalidate("scheduledEnd", "scheduledEnd must be after scheduledStart");
   }
   if (this.isNew && this.scheduledStart && this.scheduledStart < new Date()) {
     this.invalidate("scheduledStart", "scheduledStart must be in the future");
@@ -103,17 +94,13 @@ AppointmentSchema.index({ patientId: 1, scheduledStart: 1 });
 AppointmentSchema.index({ status: 1, scheduledStart: 1 });
 AppointmentSchema.index({ mode: 1, scheduledStart: 1 });
 AppointmentSchema.index({ clinicId: 1, scheduledStart: 1 });
-AppointmentSchema.index({ status: 1, autoExpireAt: 1 });
-
 // KHÓA SLOT 1-1 khi còn hiệu lực (slot không thể bị book hai lần, bất kể online/offline)
 AppointmentSchema.index(
   { slotId: 1 },
   {
     unique: true,
     partialFilterExpression: {
-      status: {
-        $in: ["pending_doctor", "accepted", "confirmed", "in_progress", "done"],
-      },
+      status: { $in: ["pending_doctor", "accepted", "in_progress", "done"] },
     },
   }
 );
