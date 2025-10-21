@@ -85,7 +85,6 @@
 * {
   border-color: var(--border);
   outline-color: var(--ring);
-  outline-opacity: 0.5;
 }
 
 body {
@@ -177,18 +176,18 @@ body {
 }
 
 .cardHeader .icon.cyan {
-  background: var(--secondary);
-  color: var(--primary);
+  background: #e0f7fa;
+  color: #06b6d4;
 }
 
 .cardHeader .icon.blue {
-  background: var(--muted);
-  color: var(--accent);
+  background: #e0f7fa;
+  color: #06b6d4;
 }
 
 .cardHeader .icon.red {
-  background: var(--destructive);
-  color: var(--destructive-foreground);
+  background: #fef2f2;
+  color: #dc2626;
 }
 
 .cardHeader h2 {
@@ -240,9 +239,8 @@ body {
 }
 
 .inputWrapper:focus-within {
-  border-color: var(--ring);
-  box-shadow: 0 0 0 3px var(--ring);
-  box-shadow-opacity: 0.1;
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
 }
 
 .inputWrapper .icon {
@@ -278,9 +276,8 @@ body {
 
 .textarea:focus {
   outline: none;
-  border-color: var(--ring);
-  box-shadow: 0 0 0 3px var(--ring);
-  box-shadow-opacity: 0.1;
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
 }
 
 .textarea::placeholder {
@@ -294,8 +291,8 @@ body {
 .formActions button {
   width: 100%;
   padding: 0.75rem 1.5rem;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: #06b6d4;
+  color: white;
   border: none;
   border-radius: calc(var(--radius) - 2px);
   font-weight: 600;
@@ -305,7 +302,7 @@ body {
 }
 
 .formActions button:hover {
-  background: var(--accent);
+  background: #0891b2;
   box-shadow: var(--shadow-lg);
   transform: translateY(-1px);
 }
@@ -327,11 +324,11 @@ body {
 }
 
 .infoCard:hover {
-  border-color: var(--ring);
+  border-color: #06b6d4;
 }
 
 .infoCard .icon {
-  color: var(--primary);
+  color: #06b6d4;
   flex-shrink: 0;
 }
 
@@ -366,8 +363,8 @@ body {
 .securityButton {
   width: 100%;
   padding: 0.75rem 1.5rem;
-  background: var(--destructive);
-  color: var(--destructive-foreground);
+  background: #06b6d4;
+  color: white;
   border: none;
   border-radius: calc(var(--radius) - 2px);
   font-weight: 600;
@@ -377,8 +374,7 @@ body {
 }
 
 .securityButton:hover {
-  background: var(--destructive);
-  opacity: 0.9;
+  background: #0891b2;
   box-shadow: var(--shadow-lg);
   transform: translateY(-1px);
 }
@@ -416,7 +412,7 @@ body {
   }
 
   &:focus-within {
-    border-color: #0891b2;
+    border-color: #06b6d4;
     background: #ffffff;
     box-shadow: 0 0 0 4px rgba(8, 145, 178, 0.1);
   }
