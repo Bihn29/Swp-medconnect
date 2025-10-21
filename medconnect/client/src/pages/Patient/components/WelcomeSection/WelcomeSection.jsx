@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { useUserProfile } from "../../../../hooks/useUserProfile";
@@ -7,6 +8,7 @@ import "./WelcomeSection.scss";
 
 export function WelcomeSection() {
   const { userProfile } = useUserProfile();
+  const navigate = useNavigate();
 
   const currentHour = new Date().getHours();
   const greeting =
@@ -18,6 +20,10 @@ export function WelcomeSection() {
 
   const userName =
     userProfile?.fullName || userProfile?.displayName || "Người dùng";
+
+  const handleBookAppointment = () => {
+    navigate("/dat-lich");
+  };
 
   return (
     <div
@@ -81,6 +87,7 @@ export function WelcomeSection() {
         >
           {/* Đặt lịch ngay button */}
           <button
+            onClick={handleBookAppointment}
             style={{
               display: "flex",
               alignItems: "center",

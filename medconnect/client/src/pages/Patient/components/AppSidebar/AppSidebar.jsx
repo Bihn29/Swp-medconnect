@@ -34,7 +34,6 @@ export function AppSidebar() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-
   const mainMenuItems = [
     { icon: Home, label: "Trang chủ", href: "/benh-nhan" },
     { icon: Search, label: "Tìm bác sĩ", href: "/search-doctors" },
@@ -53,7 +52,6 @@ export function AppSidebar() {
     { icon: Settings, label: "Cài đặt", href: "/benh-nhan/cai-dat" },
     { icon: LogOut, label: "Đăng xuất", href: "/logout" },
   ];
-
 
   // Get user info from profile or use fallback
   const userInfo = {
@@ -148,10 +146,10 @@ export function AppSidebar() {
       >
         <div className="sidebar-content">
           {/* Logo Section */}
-          <div 
+          <div
             className="logo-section"
             onClick={handleLogoClick}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: "pointer" }}
           >
             <div className="logo-container">
               <div className="logo-icon">
@@ -165,10 +163,10 @@ export function AppSidebar() {
           </div>
 
           {/* User Profile Section */}
-          <div 
+          <div
             className="user-profile-section"
             onClick={handleUserProfileClick}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: "pointer" }}
           >
             <div className="user-avatar">
               <img

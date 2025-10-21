@@ -6,8 +6,6 @@ import notificationRouter from "./notificationRoutes.js";
 import specializationRouter from "./specializations/specialization.route.js";
 import patientRouter from "./patientRoutes.js";
 import usersRouter from "./users/user.route.js";
-import adminRouter from "./adminRoutes.js";
-import testRouter from "./testRoutes.js";
 import { getAllAppointments } from "../controllers/doctorController.js";
 
 // Auth routes (register, login, forgot/reset password, etc.)
@@ -31,13 +29,11 @@ console.log("[router] mounted /api/appointments");
 apiRouter.use("/notifications", notificationRouter);
 console.log("[router] mounted /api/notifications");
 
-// Admin routes
-apiRouter.use("/admin", adminRouter);
-console.log("[router] mounted /api/admin");
 
-// Test routes (for development)
-apiRouter.use("/test", testRouter);
-console.log("[router] mounted /api/test");
+
+
+
+
 
 //admin
 // apiRouter.use("/doctor", adminRouter);

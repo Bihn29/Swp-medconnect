@@ -31,10 +31,8 @@
   background: #ffffff;
 }
 
-.specialization-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.specialization-grid {
+  width: 100%;
 }
 
 /* Results Header */
@@ -51,28 +49,30 @@
 .specialization-card {
   transition: all 0.3s ease;
   cursor: pointer;
+  height: 100%;
 }
 
 .specialization-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(69, 195, 210, 0.15) !important;
   border-color: #45c3d2 !important;
 }
 
 .specialization-card .ant-card-body {
   padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
-.specialization-info {
-  width: 100%;
-}
-
-.specialization-info .ant-typography h4 {
-  cursor: pointer;
+.specialization-card .ant-typography h4 {
   transition: color 0.3s ease;
+  margin-bottom: 8px;
 }
 
-.specialization-info .ant-typography h4:hover {
+.specialization-card:hover .ant-typography h4 {
   color: #45c3d2 !important;
 }
 
@@ -136,17 +136,6 @@
 
   .specialization-card .ant-card-body {
     padding: 16px;
-  }
-
-  .specialization-card .ant-row {
-    flex-direction: column;
-    text-align: center;
-    gap: 16px;
-  }
-
-  .specialization-card .ant-col {
-    flex: none;
-    width: 100%;
   }
 }
 
