@@ -74,12 +74,20 @@ const DoctorList = () => {
         console.log("Fetching all doctors (no specialization filter)");
       }
 
-      const response = await api.get(`/api/doctors?${params.toString()}`);
+      const url = `/api/doctors?${params.toString()}`;
+      console.log("🔍 Fetching doctors with URL:", url);
+      console.log("🔍 Selected specialty:", selectedSpecialty);
+      console.log("🔍 Params:", params.toString());
+
+      const response = await api.get(url);
 
       if (response.success) {
+        console.log("✅ Doctors fetched:", response.data.doctors.length);
+        console.log("✅ Doctors data:", response.data.doctors);
         setDoctors(response.data.doctors);
         setTotalDoctors(response.data.pagination.total);
       } else {
+        console.log("❌ Failed to fetch doctors:", response);
         message.error("Không thể tải danh sách bác sĩ");
         setDoctors([]);
       }
@@ -127,14 +135,19 @@ const DoctorList = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const qSpecialty = params.get("specialty");
-    console.log("URL specialty parameter:", qSpecialty);
+    console.log("🔍 URL specialty parameter:", qSpecialty);
+    console.log("🔍 Current selectedSpecialty:", selectedSpecialty);
     if (qSpecialty) {
       // If qSpecialty looks like an ObjectId (24 hex characters), use it directly
       if (qSpecialty.match(/^[0-9a-fA-F]{24}$/)) {
-        console.log("Setting selectedSpecialty to ObjectId:", qSpecialty);
+        console.log("✅ Setting selectedSpecialty to ObjectId:", qSpecialty);
         setSelectedSpecialty(qSpecialty);
         setCurrentPage(1);
+      } else {
+        console.log("❌ Invalid ObjectId format:", qSpecialty);
       }
+    } else {
+      console.log("ℹ️ No specialty parameter in URL");
     }
     // Always set urlProcessed to true after processing URL (or if no URL param)
     setUrlProcessed(true);
@@ -142,7 +155,14 @@ const DoctorList = () => {
 
   useEffect(() => {
     // Only fetch doctors after URL has been processed
+    console.log(
+      "🔄 useEffect triggered - urlProcessed:",
+      urlProcessed,
+      "selectedSpecialty:",
+      selectedSpecialty
+    );
     if (urlProcessed) {
+      console.log("🚀 Calling fetchDoctors...");
       fetchDoctors();
     }
   }, [currentPage, searchTerm, selectedSpecialty, urlProcessed]);

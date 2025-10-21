@@ -42,7 +42,7 @@ export function AppSidebar() {
       label: "Lịch hẹn của tôi",
       href: "/my-appointments",
     },
-    { icon: Video, label: "Tư vấn trực tuyến", href: "/consultations" },
+    { icon: Video, label: "Tư vấn trực tuyến", href: "/tu-van-truc-tuyen" },
     { icon: FileText, label: "Hồ sơ sức khỏe", href: "/medical-records" },
     { icon: CreditCard, label: "Thanh toán", href: "/payments" },
     { icon: Bell, label: "Thông báo", href: "/notifications" },
