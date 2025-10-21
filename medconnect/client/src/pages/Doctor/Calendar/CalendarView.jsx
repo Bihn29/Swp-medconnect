@@ -1,19 +1,41 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ChevronLeft, ChevronRight, Filter } from "lucide-react"
-import { useDoctorAppointments } from "../../../hooks/useDoctor.js"
+import { getDoctorAppointmentsWithFallback } from "../../../lib/api"
 
 const CalendarView = () => {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState("month")
   const [filterType, setFilterType] = useState("all")
+  const [appointments, setAppointments] = useState([])
+  const [loading, setLoading] = useState(true)
 
   // Get appointments for the current month
-  const { appointments, loading } = useDoctorAppointments({
-    date: currentDate.toISOString().split("T")[0].substring(0, 7), // YYYY-MM format
-    limit: 100,
-  })
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        setLoading(true);
+        const response = await getDoctorAppointmentsWithFallback({
+          date: currentDate.toISOString().split("T")[0].substring(0, 7), // YYYY-MM format
+          limit: 100,
+        });
+        
+        if (response.success && response.data?.appointments) {
+          setAppointments(response.data.appointments);
+        } else {
+          setAppointments([]);
+        }
+      } catch (error) {
+        console.error('Error fetching appointments:', error);
+        setAppointments([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAppointments();
+  }, [currentDate]);
 
   const daysOfWeek = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"]
 

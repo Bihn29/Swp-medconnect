@@ -8,6 +8,7 @@ import ConsultationSummary from "../models/consultationSummary.model.js";
 import Prescription from "../models/prescription.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Review from "../models/review.model.js";
+import AuthProvider from "../models/auth_providers.model.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
@@ -40,21 +41,34 @@ export async function getDoctorProfile(req, res) {
  */
 export async function getCurrentDoctorProfile(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
+    
+    // Use email-based authentication instead of Firebase UID
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
     }
 
-    const doctor = await Doctor.findOne({ userId: appUserId })
-      .populate("userId", "fullName email phone")
-      .populate("specializationIds", "name code")
-      .populate("clinicDefaultId", "name address phone")
+    // Find user directly by email (simplified approach)
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      console.log("❌ User not found by email:", userEmail);
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+    
+    console.log("👤 Found user by email:", user);
+
+    // Find doctor profile
+    const doctor = await Doctor.findOne({ userId: user._id })
+      .populate('userId', 'fullName email phone')
+      .populate('specializationIds', 'name code')
+      .populate('clinicDefaultId', 'name address phone')
       .lean();
-
+      
     if (!doctor) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found for user");
     }
-
+    
+    console.log("👨‍⚕️ Found doctor:", doctor);
     return ok(res, { doctor });
   } catch (e) {
     console.error("❌ getCurrentDoctorProfile error:", e);
@@ -117,12 +131,25 @@ export async function updateDoctorProfile(req, res) {
  */
 export async function getDoctorAppointments(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
+    console.log("🔍 getDoctorAppointments - req.user:", req.user);
+    
+    // Use email-based authentication instead of Firebase UID
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
     }
 
-    const doctor = await Doctor.findOne({ userId: appUserId });
+    // Find user directly by email (simplified approach)
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      console.log("❌ User not found by email:", userEmail);
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+    
+    console.log("👤 Found user by email:", user);
+
+    // Then find the Doctor document by userId
+    const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
@@ -169,12 +196,25 @@ export async function getDoctorAppointments(req, res) {
  */
 export async function getDoctorDashboardStats(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
+    console.log("🔍 getDoctorDashboardStats - req.user:", req.user);
+    
+    // Use email-based authentication instead of Firebase UID
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
     }
 
-    const doctor = await Doctor.findOne({ userId: appUserId });
+    // Find user directly by email (simplified approach)
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      console.log("❌ User not found by email:", userEmail);
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+    
+    console.log("👤 Found user by email:", user);
+
+    // Then find the Doctor document by userId
+    const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
@@ -237,15 +277,26 @@ export async function getDoctorDashboardStats(req, res) {
  */
 export async function updateAppointmentStatus(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
+    console.log("🔍 updateAppointmentStatus - req.user:", req.user);
+    console.log("🔍 updateAppointmentStatus - req.user.email:", req.user?.email);
+    
+    // Use email-based authentication instead of Firebase UID
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      console.log("❌ User email not found in token");
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
     }
 
+    // Find user directly by email (simplified approach)
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+    
     const { appointmentId } = req.params;
     const { status, cancelReason } = req.body;
 
-    const doctor = await Doctor.findOne({ userId: appUserId });
+    const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
@@ -256,16 +307,40 @@ export async function updateAppointmentStatus(req, res) {
     });
 
     if (!appointment) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found or does not belong to this doctor");
+    }
+
+
+    // Validate status transition
+    const validStatusTransitions = {
+      "pending_doctor": ["accepted", "rejected", "cancelled"],
+      "accepted": ["in_progress", "cancelled", "done", "no_show"],
+      "in_progress": ["done", "cancelled"],
+      // "rejected", "cancelled", "done", "no_show" are terminal states or handled by patient
+    };
+
+    if (!validStatusTransitions[appointment.status] || !validStatusTransitions[appointment.status].includes(status)) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, `Invalid status transition from ${appointment.status} to ${status}`);
     }
 
     const updateData = { status };
-    if (status === "cancelled" && cancelReason) {
+    
+    // Handle different status updates
+    if (status === 'accepted') {
+      updateData.acceptedBy = doctor._id;
+    } else if (status === 'rejected') {
+      updateData.rejectedBy = doctor._id;
+      updateData.rejectReason = cancelReason; // Use cancelReason as rejectReason
+    } else if (status === 'cancelled') {
       updateData.cancelReason = cancelReason;
       updateData.cancelledAt = new Date();
-      updateData.cancelledBy = appUserId;
+      updateData.cancelledBy = user._id;
+    } else if (status === 'no_show') {
+      updateData.noShowAt = new Date();
+      updateData.noShowBy = doctor._id;
     }
 
+    
     const updatedAppointment = await Appointment.findByIdAndUpdate(
       appointmentId,
       updateData,
@@ -274,7 +349,11 @@ export async function updateAppointmentStatus(req, res) {
       .populate("patientId", "fullName dob gender phone")
       .populate("slotId");
 
-    return ok(res, { appointment: updatedAppointment });
+
+    return ok(res, { 
+      message: "Appointment status updated successfully", 
+      appointment: updatedAppointment 
+    });
   } catch (e) {
     console.error("❌ updateAppointmentStatus error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
@@ -422,12 +501,32 @@ export async function getDoctorAvailableTimeSlots(req, res) {
  */
 export async function getConsultationRecords(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
+    console.log("🔍 getConsultationRecords - req.user:", req.user);
+    
+    // Firebase user object has uid, not app_user_id
+    const firebaseUid = req.user?.uid;
+    if (!firebaseUid) {
       return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
     }
 
-    const doctor = await Doctor.findOne({ userId: appUserId });
+    // First, find the AuthProvider document by Firebase UID
+    const authProvider = await AuthProvider.findOne({ 
+      providerUid: firebaseUid,
+      provider: 'local'
+    }).lean();
+    
+    if (!authProvider) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Auth provider not found");
+    }
+
+    // Then find the User document by userId from auth provider
+    const user = await User.findById(authProvider.userId).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found in database");
+    }
+
+    // Then find the Doctor document by userId
+    const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
@@ -1008,5 +1107,44 @@ export async function createTestTimeSlots(req, res) {
   } catch (e) {
     console.error("❌ createTestTimeSlots error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+
+
+/**
+ * Get all appointments (public endpoint for fallback)
+ */
+export async function getAllAppointments(req, res) {
+  try {
+    console.log("🔍 getAllAppointments - query:", req.query);
+    
+    const { page = 1, limit = 100 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const appointments = await Appointment.find({})
+      .populate('patientId', 'fullName dob gender phone')
+      .populate('doctorId', 'fullName licenseNo')
+      .populate('slotId')
+      .sort({ scheduledStart: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Appointment.countDocuments({});
+
+    console.log("✅ getAllAppointments - found:", appointments.length);
+    return ok(res, {
+      appointments,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error("❌ getAllAppointments error:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
   }
 }

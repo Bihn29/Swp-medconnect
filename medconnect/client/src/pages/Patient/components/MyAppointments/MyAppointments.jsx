@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Badge } from "../../../../components/ui/Badge";
 import { Button } from "../../../../components/ui/Button";
-import { api, cancelAppointment } from "../../../../lib/api";
+import { api } from "../../../../lib/api";
 import { Spin, message, Modal } from "antd";
+import { useNavigate } from "react-router-dom";
 import {
   Calendar,
   Clock,
@@ -11,7 +12,9 @@ import {
   MessageCircle,
   Video,
   X,
+  VideoIcon,
 } from "lucide-react";
+import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 
 const STATUS = {
   confirmed: { label: "Đã xác nhận", tone: "#1d4ed8", text: "#ffffff" },
@@ -25,6 +28,9 @@ export function MyAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("upcoming");
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
@@ -128,6 +134,15 @@ export function MyAppointments() {
       : activeTab === "completed"
       ? completedAppointments
       : cancelledAppointments;
+  const handleShowDetail = (appointmentId) => {
+    setSelectedAppointmentId(appointmentId);
+    setShowDetailModal(true);
+  };
+
+  const handleCloseDetail = () => {
+    setShowDetailModal(false);
+    setSelectedAppointmentId(null);
+  };
 
   if (loading) {
     return (
@@ -358,11 +373,32 @@ export function MyAppointments() {
                 ) : (
                   // Appointments chưa hoàn thành có đầy đủ nút
                   <>
-                    {a.mode === "online" ? (
-                      <Button>
-                        <Video size={16} style={{ marginRight: 6 }} /> Tham gia
+                    {/* Video Call Button - Only show for accepted appointments */}
+                    {a.status === "accepted" && a.mode === "online" ? (
+                      <Button
+                        type="primary"
+                        onClick={() =>
+                          navigate(`/benh-nhan/video-call/${a._id}`)
+                        }
+                        style={{
+                          background: "#1890ff",
+                          borderColor: "#1890ff",
+                          color: "#fff",
+                        }}
+                      >
+                        <VideoIcon size={16} style={{ marginRight: 6 }} />
+                        Video Call
                       </Button>
                     ) : null}
+
+                    {/* Regular Video Button for other online appointments */}
+                    {a.mode === "online" && a.status !== "accepted" ? (
+                      <Button variant="secondary">
+                        <Video size={16} style={{ marginRight: 6 }} />
+                        Chờ duyệt
+                      </Button>
+                    ) : null}
+
                     <Button variant="secondary">
                       <Phone size={16} style={{ marginRight: 6 }} /> Gọi
                     </Button>
@@ -371,12 +407,22 @@ export function MyAppointments() {
                       Nhắn tin
                     </Button>
                     <Button
-                      variant="ghost"
-                      style={{ color: "#dc2626", borderColor: "#fecaca" }}
-                      onClick={() => handleCancelAppointment(a._id)}
+                      variant="secondary"
+                      onClick={() => handleShowDetail(a._id)}
                     >
-                      <X size={16} style={{ marginRight: 6 }} /> Hủy
+                      Chi tiết
                     </Button>
+
+                    {/* Cancel button - only show for pending appointments */}
+                    {a.status === "pending_doctor" && (
+                      <Button
+                        variant="ghost"
+                        style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                        onClick={() => handleCancelAppointment(a._id)}
+                      >
+                        <X size={16} style={{ marginRight: 6 }} /> Hủy
+                      </Button>
+                    )}
                   </>
                 )}
               </div>
@@ -384,6 +430,13 @@ export function MyAppointments() {
           );
         })}
       </div>
+
+      {/* Appointment Detail Modal */}
+      <AppointmentDetailModal
+        visible={showDetailModal}
+        onClose={handleCloseDetail}
+        appointmentId={selectedAppointmentId}
+      />
     </div>
   );
 }

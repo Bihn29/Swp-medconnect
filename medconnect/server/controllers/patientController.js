@@ -564,3 +564,61 @@ export async function cancelPatientAppointment(req, res) {
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }
+
+/**
+ * Get appointment details by ID
+ */
+export async function getAppointmentDetails(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+    const { appointmentId } = req.params;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    // Find patient by userId
+    const patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Patient not found");
+    }
+
+    // Get appointment with populated data
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      patientId: patient._id,
+    })
+      .populate({
+        path: "doctorId",
+        select: "fullName specializationIds phone avatarUrl",
+        populate: {
+          path: "specializationIds",
+          select: "name",
+        },
+      })
+      .populate("clinicId", "name address")
+      .populate("slotId", "startAt endAt")
+      .lean();
+
+    if (!appointment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
+    }
+
+    return ok(res, appointment);
+  } catch (error) {
+    console.error("Error fetching appointment details:", error);
+    console.error("Error stack:", error.stack);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      "Failed to fetch appointment details"
+    );
+  }
+}

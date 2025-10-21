@@ -11,6 +11,7 @@ import { Button } from "../../../../components/ui/Button";
 import { Badge } from "../../../../components/ui/Badge";
 import { api } from "../../../../lib/api";
 import { message, Spin } from "antd";
+import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 import "./UpcomingAppointments.scss";
 
 const statusConfig = {
@@ -29,6 +30,8 @@ export function UpcomingAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     fetchAppointments();
@@ -86,6 +89,16 @@ export function UpcomingAppointments() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleShowDetail = (appointmentId) => {
+    setSelectedAppointmentId(appointmentId);
+    setShowDetailModal(true);
+  };
+
+  const handleCloseDetail = () => {
+    setShowDetailModal(false);
+    setSelectedAppointmentId(null);
   };
 
   if (loading) {
@@ -357,6 +370,39 @@ export function UpcomingAppointments() {
                   gap: "0.5rem",
                 }}
               >
+                {/* Video Call Button - Only show for accepted online appointments */}
+                {appointment.status === "accepted" && appointment.mode === "online" ? (
+                  <button
+                    style={{
+                      padding: "0.5rem 1rem",
+                      backgroundColor: "#10b981",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "0.375rem",
+                      fontSize: "0.75rem",
+                      fontWeight: "500",
+                      cursor: "pointer",
+                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                      position: "relative",
+                      overflow: "hidden",
+                      boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.backgroundColor = "#059669";
+                      e.target.style.transform = "translateY(-1px) scale(1.02)";
+                      e.target.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.backgroundColor = "#10b981";
+                      e.target.style.transform = "translateY(0) scale(1)";
+                      e.target.style.boxShadow = "0 2px 4px rgba(16, 185, 129, 0.2)";
+                    }}
+                    onClick={() => window.open(`/benh-nhan/video-call/${appointment.id}`, '_blank')}
+                  >
+                    📹 Video Call
+                  </button>
+                ) : null}
+                
                 <button
                   style={{
                     padding: "0.5rem 1rem",
@@ -390,6 +436,7 @@ export function UpcomingAppointments() {
                   onMouseUp={(e) => {
                     e.target.style.transform = "translateY(-1px) scale(1.02)";
                   }}
+                  onClick={() => handleShowDetail(appointment.id)}
                 >
                   Chi tiết
                 </button>
@@ -437,6 +484,13 @@ export function UpcomingAppointments() {
           ))
         )}
       </div>
+
+      {/* Appointment Detail Modal */}
+      <AppointmentDetailModal
+        visible={showDetailModal}
+        onClose={handleCloseDetail}
+        appointmentId={selectedAppointmentId}
+      />
     </div>
   );
 }

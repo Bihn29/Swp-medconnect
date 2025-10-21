@@ -62,7 +62,6 @@ const DoctorSchema = new Schema(
 );
 
 // Indexes
-DoctorSchema.index({ userId: 1 });
 DoctorSchema.index({ specializationIds: 1 });
 DoctorSchema.index({ isVerified: 1, isActive: 1 });
 DoctorSchema.index({ ratingAvg: -1, ratingCount: -1 });
