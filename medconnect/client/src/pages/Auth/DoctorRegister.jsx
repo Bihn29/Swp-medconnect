@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { registerDoctor } from "../../lib/api.js";
 import "./DoctorRegister.scss";
 
 export default function DoctorRegister() {
@@ -161,15 +162,24 @@ export default function DoctorRegister() {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Prepare form data for API
+      const doctorData = {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: toE164(formData.phone),
+        password: formData.password,
+        specialty: formData.specialty,
+        licenseNumber: formData.licenseNumber,
+        licenseImage: formData.licenseImage, // Note: In production, you'd need to handle file upload
+      };
       
-      // Show success message
-      setSuccessMessage(
-        "Tài khoản của bạn đang được admin phê duyệt. Vui lòng đợi thông báo từ email bạn đã đăng ký."
-      );
+      // Call API to register doctor
+      const response = await registerDoctor(doctorData);
+      
+      // Show success message from API response
+      setSuccessMessage(response.message || "Đăng ký thành công!");
 
-      // Reset form after 3 seconds
+      // Reset form after 5 seconds
       setTimeout(() => {
         setFormData({
           fullName: "",
@@ -181,13 +191,28 @@ export default function DoctorRegister() {
           licenseNumber: "",
           licenseImage: null,
         });
+        setAcceptedTerms(false);
+        setAcceptedPrivacy(false);
         setSuccessMessage("");
       }, 5000);
 
     } catch (err) {
       console.error("Registration error:", err);
+      
+      // Parse error message from API response
+      let errorMessage = "Có lỗi xảy ra khi đăng ký. Vui lòng thử lại.";
+      try {
+        const errorData = JSON.parse(err.message);
+        errorMessage = errorData.message || errorMessage;
+      } catch (parseErr) {
+        // If not JSON, use the error message as is
+        if (err.message && err.message !== "[object Object]") {
+          errorMessage = err.message;
+        }
+      }
+      
       setErrors({
-        general: "Có lỗi xảy ra khi đăng ký. Vui lòng thử lại.",
+        general: errorMessage,
       });
     } finally {
       setLoading(false);

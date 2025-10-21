@@ -1,32 +1,70 @@
 /* =======================================================
  * COLLECTION: Doctors
- *  Hồ sơ bác sĩ
+ *  Thông tin bác sĩ
  * ======================================================= */
-
 
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
 const DoctorSchema = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
+    userId: { 
+      type: Schema.Types.ObjectId, 
+      ref: "User", 
+      required: true,
+      unique: true 
+    },
+    
     fullName: { type: String, required: true, trim: true },
-    licenseNo: String,
-    yearsExperience: Number,
-    bio: String,
-    avatarUrl: String,
-    clinicDefaultId: { type: Schema.Types.ObjectId, ref: "Clinic" },
+    licenseNo: { type: String, unique: true, sparse: true },
+    yearsExperience: { type: Number, min: 0, default: 0 },
+    bio: { type: String, trim: true },
+    avatarUrl: { type: String },
+    
+    // Chuyên khoa
+    specializationIds: [{ 
+      type: Schema.Types.ObjectId, 
+      ref: "Specialization" 
+    }],
+    
+    // Phòng khám mặc định
+    clinicDefaultId: { 
+      type: Schema.Types.ObjectId, 
+      ref: "Clinic" 
+    },
+    
+    // Đánh giá
+    ratingAvg: { type: Number, min: 0, max: 5, default: 0 },
+    ratingCount: { type: Number, min: 0, default: 0 },
+    
+    // Trạng thái
     isVerified: { type: Boolean, default: false },
-    specializationIds: [{ type: Schema.Types.ObjectId, ref: "Specialization" }],
-    ratingCount: { type: Number, default: 0 },
-    ratingAvg: { type: Number, default: 0 },
+    isActive: { type: Boolean, default: true },
+    
+    // Thông tin bổ sung
+    education: [{ 
+      degree: String,
+      school: String,
+      year: Number
+    }],
+    
+    certifications: [{ 
+      name: String,
+      issuer: String,
+      date: Date
+    }],
   },
-  { timestamps: true, versionKey: false, collection: "Doctors" }
+  { 
+    timestamps: true, 
+    versionKey: false, 
+    collection: "Doctors" 
+  }
 );
 
-DoctorSchema.index({ isVerified: 1, specializationIds: 1 });
-DoctorSchema.index({ fullName: "text", bio: "text" });
-DoctorSchema.index({ isVerified: 1, specializationIds: 1, ratingAvg: -1 });
+// Indexes
+DoctorSchema.index({ userId: 1 });
+DoctorSchema.index({ specializationIds: 1 });
+DoctorSchema.index({ isVerified: 1, isActive: 1 });
+DoctorSchema.index({ ratingAvg: -1, ratingCount: -1 });
 
 export default model("Doctor", DoctorSchema);
-

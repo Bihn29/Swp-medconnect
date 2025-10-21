@@ -27,10 +27,38 @@ export function useUserProfile() {
         // Try to fetch full patient profile first, fallback to basic user info
         let profileData = null;
         try {
-          console.log("Attempting to fetch patient profile...");
+          console.log(
+            "Attempting to fetch patient profile from /api/patients/me/profile..."
+          );
           const patientResponse = await getCurrentPatientProfile();
           console.log("Patient profile response:", patientResponse);
+          console.log(
+            "Patient profile data structure:",
+            JSON.stringify(patientResponse, null, 2)
+          );
           profileData = patientResponse?.data || patientResponse;
+
+          // Log the structure for debugging
+          if (profileData) {
+            console.log("Patient profile structure:", {
+              hasUser: !!profileData.user,
+              hasProfile: !!profileData.profile,
+              userData: profileData.user,
+              patientData: profileData.profile,
+            });
+
+            // Debug blood type and allergy notes specifically
+            console.log("=== BLOOD TYPE & ALLERGY DEBUG ===");
+            console.log("profileData.profile:", profileData.profile);
+            console.log(
+              "bloodType from profile:",
+              profileData.profile?.bloodType
+            );
+            console.log(
+              "allergyNotes from profile:",
+              profileData.profile?.allergyNotes
+            );
+          }
         } catch (patientError) {
           console.warn(
             "Failed to fetch patient profile, trying basic user info:",
@@ -49,28 +77,32 @@ export function useUserProfile() {
         }
 
         // Combine Firebase user data with API profile data
+        // Priority: Patient profile data > User data > Firebase data
         const combinedProfile = {
           uid: firebaseUser.uid,
+          // Email: User data first, then Firebase
           email: profileData?.user?.email || firebaseUser.email,
+          // Phone: Patient profile first, then user data, then Firebase
           phone:
-            profileData?.user?.phone ||
             profileData?.profile?.phone ||
+            profileData?.user?.phone ||
             firebaseUser.phoneNumber,
+          // Display name: Patient profile first, then user data, then Firebase
           displayName:
-            profileData?.user?.fullName ||
             profileData?.profile?.fullName ||
+            profileData?.user?.fullName ||
             firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
           role: profileData?.user?.role,
           appUserId: profileData?.user?._id,
           // Additional profile fields
           fullName:
-            profileData?.user?.fullName ||
             profileData?.profile?.fullName ||
+            profileData?.user?.fullName ||
             firebaseUser.displayName,
           avatar: firebaseUser.photoURL,
           profileComplete: profileData?.profile?.isComplete || false,
-          // Patient specific fields
+          // Patient specific fields (from patient collection)
           dob: profileData?.profile?.dob,
           gender: profileData?.profile?.gender,
           nationalId: profileData?.profile?.nationalId,
@@ -78,9 +110,19 @@ export function useUserProfile() {
           wardCode: profileData?.profile?.wardCode,
           districtCode: profileData?.profile?.districtCode,
           provinceCode: profileData?.profile?.provinceCode,
-          // Add any other fields from your API response
+          relationshipToOwner: profileData?.profile?.relationshipToOwner,
+          // Blood type and allergy notes
+          bloodType: profileData?.profile?.bloodType,
+          allergyNotes: profileData?.profile?.allergyNotes,
+          // Add any other fields from patient profile
           ...profileData?.profile,
         };
+
+        console.log("=== USER PROFILE LOADED ===");
+        console.log("Raw profile data:", profileData);
+        console.log("Combined profile:", combinedProfile);
+        console.log("Blood type:", combinedProfile.bloodType);
+        console.log("Allergy notes:", combinedProfile.allergyNotes);
 
         setUserProfile(combinedProfile);
       } catch (err) {
@@ -141,25 +183,28 @@ export function useUserProfile() {
 
         const combinedProfile = {
           uid: firebaseUser.uid,
+          // Email: User data first, then Firebase
           email: profileData?.user?.email || firebaseUser.email,
+          // Phone: Patient profile first, then user data, then Firebase
           phone:
-            profileData?.user?.phone ||
             profileData?.profile?.phone ||
+            profileData?.user?.phone ||
             firebaseUser.phoneNumber,
+          // Display name: Patient profile first, then user data, then Firebase
           displayName:
-            profileData?.user?.fullName ||
             profileData?.profile?.fullName ||
+            profileData?.user?.fullName ||
             firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
           role: profileData?.user?.role,
           appUserId: profileData?.user?._id,
           fullName:
-            profileData?.user?.fullName ||
             profileData?.profile?.fullName ||
+            profileData?.user?.fullName ||
             firebaseUser.displayName,
           avatar: firebaseUser.photoURL,
           profileComplete: profileData?.profile?.isComplete || false,
-          // Patient specific fields
+          // Patient specific fields (from patient collection)
           dob: profileData?.profile?.dob,
           gender: profileData?.profile?.gender,
           nationalId: profileData?.profile?.nationalId,
@@ -167,8 +212,19 @@ export function useUserProfile() {
           wardCode: profileData?.profile?.wardCode,
           districtCode: profileData?.profile?.districtCode,
           provinceCode: profileData?.profile?.provinceCode,
+          relationshipToOwner: profileData?.profile?.relationshipToOwner,
+          // Blood type and allergy notes
+          bloodType: profileData?.profile?.bloodType,
+          allergyNotes: profileData?.profile?.allergyNotes,
+          // Add any other fields from patient profile
           ...profileData?.profile,
         };
+
+        console.log("=== USER PROFILE LOADED ===");
+        console.log("Raw profile data:", profileData);
+        console.log("Combined profile:", combinedProfile);
+        console.log("Blood type:", combinedProfile.bloodType);
+        console.log("Allergy notes:", combinedProfile.allergyNotes);
 
         setUserProfile(combinedProfile);
         setError(null);
