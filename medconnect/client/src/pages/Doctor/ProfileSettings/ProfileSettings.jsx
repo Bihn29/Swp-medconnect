@@ -10,6 +10,12 @@ const ProfileSettings = () => {
   const [doctorInfo, setDoctorInfo] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  })
+  const [passwordErrors, setPasswordErrors] = useState({})
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -72,6 +78,88 @@ const ProfileSettings = () => {
     } catch (error) {
       console.error("Error updating profile:", error)
       alert("Có lỗi xảy ra khi cập nhật thông tin")
+    }
+  }
+
+  const handlePasswordChange = (field, value) => {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+    
+    // Clear error when user starts typing
+    if (passwordErrors[field]) {
+      setPasswordErrors(prev => ({
+        ...prev,
+        [field]: ""
+      }))
+    }
+  }
+
+  const validatePassword = () => {
+    const errors = {}
+    
+    if (!passwordData.currentPassword) {
+      errors.currentPassword = "Vui lòng nhập mật khẩu hiện tại"
+    }
+    
+    if (!passwordData.newPassword) {
+      errors.newPassword = "Vui lòng nhập mật khẩu mới"
+    } else if (passwordData.newPassword.length < 6) {
+      errors.newPassword = "Mật khẩu mới phải có ít nhất 6 ký tự"
+    }
+    
+    if (!passwordData.confirmPassword) {
+      errors.confirmPassword = "Vui lòng xác nhận mật khẩu mới"
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      errors.confirmPassword = "Mật khẩu xác nhận không khớp"
+    }
+    
+    if (passwordData.currentPassword === passwordData.newPassword) {
+      errors.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại"
+    }
+    
+    setPasswordErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleChangePassword = async () => {
+    if (!validatePassword()) {
+      return
+    }
+    
+    try {
+      // Call API to change password
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        }),
+      })
+      
+      if (response.ok) {
+        alert("Mật khẩu đã được thay đổi thành công")
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: ""
+        })
+        setPasswordErrors({})
+      } else {
+        if (response.status === 400) {
+          setPasswordErrors({ currentPassword: "Mật khẩu hiện tại không đúng" })
+        } else {
+          alert("Có lỗi xảy ra khi thay đổi mật khẩu")
+        }
+      }
+    } catch (error) {
+      console.error("Error changing password:", error)
+      alert("Có lỗi xảy ra khi thay đổi mật khẩu")
     }
   }
 
@@ -197,28 +285,37 @@ const ProfileSettings = () => {
                 </div>
 
                 <div className="securitySection">
-                  <PasswordField
-                    label="Mật khẩu hiện tại"
-                    placeholder="Nhập mật khẩu hiện tại"
-                    showPassword={showPassword}
-                    onToggle={() => setShowPassword(!showPassword)}
-                  />
-                  <PasswordField
-                    label="Mật khẩu mới"
-                    placeholder="Nhập mật khẩu mới"
-                    showPassword={showPassword}
-                    onToggle={() => setShowPassword(!showPassword)}
-                  />
-                  <PasswordField
-                    label="Xác nhận mật khẩu mới"
-                    placeholder="Nhập lại mật khẩu mới"
-                    showPassword={showPassword}
-                    onToggle={() => setShowPassword(!showPassword)}
-                  />
+                <PasswordField
+                  label="Mật khẩu hiện tại"
+                  placeholder="Nhập mật khẩu hiện tại"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => handlePasswordChange("currentPassword", e.target.value)}
+                  showPassword={showPassword}
+                  onToggle={() => setShowPassword(!showPassword)}
+                  error={passwordErrors.currentPassword}
+                />
+                <PasswordField
+                  label="Mật khẩu mới"
+                  placeholder="Nhập mật khẩu mới"
+                  value={passwordData.newPassword}
+                  onChange={(e) => handlePasswordChange("newPassword", e.target.value)}
+                  showPassword={showPassword}
+                  onToggle={() => setShowPassword(!showPassword)}
+                  error={passwordErrors.newPassword}
+                />
+                <PasswordField
+                  label="Xác nhận mật khẩu mới"
+                  placeholder="Nhập lại mật khẩu mới"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => handlePasswordChange("confirmPassword", e.target.value)}
+                  showPassword={showPassword}
+                  onToggle={() => setShowPassword(!showPassword)}
+                  error={passwordErrors.confirmPassword}
+                />
 
-                  <button className="securityButton">
-                    Đổi mật khẩu
-                  </button>
+                <button className="securityButton" onClick={handleChangePassword}>
+                  Đổi mật khẩu
+                </button>
                 </div>
               </div>
             </div>
@@ -267,14 +364,16 @@ InfoCard.propTypes = {
   content: PropTypes.string.isRequired,
 }
 
-const PasswordField = ({ label, placeholder, showPassword, onToggle }) => (
+const PasswordField = ({ label, placeholder, value, onChange, showPassword, onToggle, error }) => (
   <div className="passwordField">
     <label>{label}</label>
-    <div className="inputWrapper">
+    <div className={`inputWrapper ${error ? 'error' : ''}`}>
       <Lock size={18} className="icon" />
       <input
         type={showPassword ? "text" : "password"}
         placeholder={placeholder}
+        value={value || ""}
+        onChange={onChange}
       />
       <i
         className={`bi ${
@@ -283,14 +382,18 @@ const PasswordField = ({ label, placeholder, showPassword, onToggle }) => (
         onClick={onToggle}
       />
     </div>
+    {error && <div className="error-text">{error}</div>}
   </div>
 )
 
 PasswordField.propTypes = {
   label: PropTypes.string.isRequired,
   placeholder: PropTypes.string.isRequired,
+  value: PropTypes.string,
+  onChange: PropTypes.func.isRequired,
   showPassword: PropTypes.bool.isRequired,
   onToggle: PropTypes.func.isRequired,
+  error: PropTypes.string,
 }
 
 export default ProfileSettings

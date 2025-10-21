@@ -256,6 +256,10 @@ export default function DoctorDashboard() {
                                 // Call API to update avatar
                                 await api.put("/api/doctors/me/profile", { avatarUrl: base64 });
                                 alert("Ảnh đại diện đã được cập nhật thành công");
+                                
+                                // Dispatch custom event to update sidebar
+                                window.dispatchEvent(new CustomEvent('avatarUpdated'));
+                                
                                 // Refresh doctor data
                                 window.location.reload();
                               };

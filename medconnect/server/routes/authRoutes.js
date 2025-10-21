@@ -13,6 +13,7 @@ import {
   forgotPassword,
   verifyPasswordOtp,
   resetPassword,
+  changePassword,
 } from "../controllers/authController.js";
 
 const router = express.Router();
@@ -31,5 +32,8 @@ router.post("/logout", logout);
 router.post("/forgot", forgotPassword);        // requestPasswordOtp(email)
 router.post("/verify-otp", verifyPasswordOtp); // verifyPasswordOtp(email, otp) -> { resetToken }
 router.post("/reset", resetPassword);          // resetPasswordWithToken(token, newPassword)
+
+// === Change password (yêu cầu đăng nhập) ===
+router.post("/change-password", authGuard, changePassword); // changePassword(currentPassword, newPassword)
 
 export default router;
