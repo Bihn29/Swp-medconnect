@@ -51,36 +51,36 @@ export default function AppointmentList() {
 
   const getStatusIcon = (status) => {
     const icons = {
-      "accepted": <CheckCircle className="w-4 h-4 text-green-600" />,
-      "pending_doctor": <Clock className="w-4 h-4 text-yellow-600" />,
-      "rejected": <XCircle className="w-4 h-4 text-red-600" />,
-      "cancelled": <XCircle className="w-4 h-4 text-red-600" />,
-      "in_progress": <Clock className="w-4 h-4 text-blue-600" />,
-      "done": <CheckCircle className="w-4 h-4 text-green-600" />,
-      "no_show": <XCircle className="w-4 h-4 text-gray-600" />,
+      "accepted": <CheckCircle className="w-4 h-4 text-white" />, // Xanh lá đậm
+      "pending_doctor": <Clock className="w-4 h-4 text-white" />, // Vàng
+      "rejected": <XCircle className="w-4 h-4 text-white" />, // Đỏ - Bác sĩ từ chối
+      "cancelled": <XCircle className="w-4 h-4 text-white" />, // Cam - Bệnh nhân hủy
+      "in_progress": <Clock className="w-4 h-4 text-white" />, // Xanh dương - Đang khám
+      "done": <CheckCircle className="w-4 h-4 text-white" />, // Xanh lá - Hoàn thành
+      "no_show": <XCircle className="w-4 h-4 text-white" />, // Xám - Không đến khám
       // Fallback for old status names
-      "confirmed": <CheckCircle className="w-4 h-4 text-green-600" />,
-      "pending": <Clock className="w-4 h-4 text-yellow-600" />,
-      "completed": <CheckCircle className="w-4 h-4 text-blue-600" />,
+      "confirmed": <CheckCircle className="w-4 h-4 text-white" />,
+      "pending": <Clock className="w-4 h-4 text-white" />,
+      "completed": <CheckCircle className="w-4 h-4 text-white" />,
     }
     return icons[status] || null
   }
 
   const getStatusColor = (status) => {
     const colors = {
-      "accepted": "bg-green-100 text-green-800",
-      "pending_doctor": "bg-yellow-100 text-yellow-800",
-      "rejected": "bg-red-100 text-red-800",
-      "cancelled": "bg-red-100 text-red-800",
-      "in_progress": "bg-blue-100 text-blue-800",
-      "done": "bg-green-100 text-green-800",
-      "no_show": "bg-gray-100 text-gray-800",
+      "accepted": "!bg-green-500 !text-white", // Xanh lá đậm - Đã chấp nhận
+      "pending_doctor": "!bg-purple-500 !text-white", // Tím - Chờ bác sĩ xác nhận
+      "rejected": "!bg-red-500 !text-white", // Đỏ - Bác sĩ từ chối
+      "cancelled": "!bg-orange-500 !text-white", // Cam - Bệnh nhân hủy
+      "in_progress": "!bg-blue-500 !text-white", // Xanh dương - Đang khám
+      "done": "!bg-emerald-500 !text-white", // Xanh lá - Hoàn thành
+      "no_show": "!bg-gray-500 !text-white", // Xám - Không đến khám
       // Fallback for old status names
-      "confirmed": "bg-green-100 text-green-800",
-      "pending": "bg-yellow-100 text-yellow-800",
-      "completed": "bg-blue-100 text-blue-800",
+      "confirmed": "!bg-green-500 !text-white",
+      "pending": "!bg-purple-500 !text-white",
+      "completed": "!bg-emerald-500 !text-white",
     }
-    return colors[status] || "bg-gray-100 text-gray-800"
+    return colors[status] || "!bg-gray-500 !text-white"
   }
 
   const getStatusText = (status) => {
@@ -88,7 +88,7 @@ export default function AppointmentList() {
       "accepted": "Đã chấp nhận",
       "pending_doctor": "Chờ bác sĩ xác nhận", 
       "rejected": "Bác sĩ từ chối",
-      "cancelled": "Đã hủy",
+      "cancelled": "Bệnh nhân hủy",
       "in_progress": "Đang khám",
       "done": "Hoàn thành",
       "no_show": "Không đến khám",
@@ -342,7 +342,7 @@ export default function AppointmentList() {
                     </td>
                     <td className="appointment-list-td appointment-list-actions">
                       <div className="appointment-list-status-info">
-                        <Badge className={getStatusColor(apt.status)}>
+                        <Badge className={getStatusColor(apt.status)} data-status={apt.status}>
                           <span className="appointment-list-status">
                             {getStatusIcon(apt.status)}
                             {getStatusText(apt.status)}
@@ -399,13 +399,6 @@ export default function AppointmentList() {
                         >
                           {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Hoàn thành"}
                         </Button>
-                      )}
-                      {(apt.status === "done" || apt.status === "rejected" || apt.status === "no_show") && (
-                        <span className="text-sm text-gray-500">
-                          {apt.status === "done" && "Đã hoàn thành"}
-                          {apt.status === "rejected" && "Đã từ chối"}
-                          {apt.status === "no_show" && "Không đến khám"}
-                        </span>
                       )}
                       </div>
                     </td>
