@@ -1,198 +1,475 @@
-@import '../styles/variables';
-@import '../styles/mixins';
+// Doctor Profile Settings Styles
+// Using doctor theme colors: cyan/teal primary colors
 
+// Color variables matching doctor theme
+$primary-cyan: #0891b2;
+$primary-cyan-dark: #0e7490;
+$primary-cyan-light: #06b6d4;
+$accent-cyan: #67e8f9;
+$accent-cyan-light: #cffafe;
+
+$success-green: #10b981;
+$success-green-light: #d1fae5;
+$warning-amber: #f59e0b;
+$warning-amber-light: #fef3c7;
+$error-red: #ef4444;
+$error-red-light: #fee2e2;
+$info-blue: #3b82f6;
+$info-blue-light: #dbeafe;
+
+$gray-50: #f9fafb;
+$gray-100: #f3f4f6;
+$gray-200: #e5e7eb;
+$gray-300: #d1d5db;
+$gray-400: #9ca3af;
+$gray-500: #6b7280;
+$gray-600: #4b5563;
+$gray-700: #374151;
+$gray-900: #111827;
+
+$white: #ffffff;
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+$shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+$shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
+
+// Main container
 .profile-settings {
-  &__header {
-    margin-bottom: $spacing-xl;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: 2rem;
 
-    h2 {
-      font-size: $font-size-2xl;
-      font-weight: 700;
+  &__container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  &__header {
+    margin-bottom: 2rem;
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
       color: $gray-900;
-      margin: 0 0 $spacing-sm 0;
+      margin: 0 0 0.5rem 0;
+      background: linear-gradient(135deg, $primary-cyan 0%, $primary-cyan-dark 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     p {
-      font-size: $font-size-base;
+      font-size: 1rem;
       color: $gray-600;
       margin: 0;
+      font-weight: 500;
     }
   }
 
-  &__content {
+  &__grid {
     display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: $spacing-xl;
+    grid-template-columns: 1fr 3fr;
+    gap: 1.5rem;
 
-    @include tablet {
+    @media (max-width: 1024px) {
       grid-template-columns: 1fr;
     }
-  }
-
-  &__main {
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-lg;
   }
 
   &__sidebar {
     display: flex;
     flex-direction: column;
-    gap: $spacing-lg;
+    gap: 1.5rem;
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
   }
 
   &__card {
-    @include card;
+    background: $white;
+    border-radius: 1rem;
+    box-shadow: $shadow-sm;
+    border: 1px solid $gray-200;
+    padding: 2rem;
+    transition: all 0.3s ease;
 
-    h3 {
-      font-size: $font-size-lg;
-      font-weight: 600;
-      color: $gray-900;
-      margin: 0 0 $spacing-lg 0;
-      padding-bottom: $spacing-md;
-      border-bottom: 1px solid $gray-200;
+    &:hover {
+      box-shadow: $shadow-md;
+      transform: translateY(-1px);
     }
   }
 
-  &__avatar-section {
-    @include flex-center;
-    flex-direction: column;
-    gap: $spacing-lg;
-    padding: $spacing-xl 0;
-  }
-
-  &__avatar {
-    width: 120px;
-    height: 120px;
-    border-radius: $radius-full;
-    background-color: $primary-color;
-    color: $white;
-    @include flex-center;
-    font-size: $font-size-4xl;
-    font-weight: 700;
-  }
-
-  &__avatar-actions {
+  &__card-header {
     display: flex;
-    gap: $spacing-md;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid $gray-200;
+
+    .icon {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &.cyan {
+        background: $accent-cyan-light;
+        color: $primary-cyan;
+      }
+
+      &.blue {
+        background: $info-blue-light;
+        color: $info-blue;
+      }
+
+      &.red {
+        background: $error-red-light;
+        color: $error-red;
+      }
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0;
+    }
+  }
+
+  &__profile-card {
+    background: $white;
+    border-radius: 1rem;
+    box-shadow: $shadow-sm;
+    border: 1px solid $gray-200;
+    padding: 2rem;
+    position: sticky;
+    top: 2rem;
+  }
+
+  &__avatar-section {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid $gray-200;
+
+    .avatar {
+      width: 6rem;
+      height: 6rem;
+      border-radius: 50%;
+      background: linear-gradient(135deg, $primary-cyan 0%, $primary-cyan-light 100%);
+      color: $white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.875rem;
+      font-weight: 700;
+      margin: 0 auto 1rem;
+      box-shadow: $shadow-lg;
+    }
+
+    h3 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0 0 0.25rem 0;
+    }
+
+    p {
+      font-size: 0.875rem;
+      color: $gray-600;
+      margin: 0 0 1rem 0;
+    }
 
     button {
-      @include button-base;
+      width: 100%;
+      padding: 0.5rem 1rem;
+      background: $gray-100;
+      color: $gray-900;
+      border: none;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+      cursor: pointer;
 
-      &.primary {
-        @include button-primary;
+      &:hover {
+        background: $gray-200;
+      }
+    }
+  }
+
+  &__stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  &__stat-item {
+    text-align: center;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid;
+
+    &.cyan {
+      background: linear-gradient(135deg, $accent-cyan-light 0%, $accent-cyan-light 100%);
+      border-color: $accent-cyan;
+    }
+
+    &.blue {
+      background: linear-gradient(135deg, $info-blue-light 0%, $info-blue-light 100%);
+      border-color: $info-blue-light;
+    }
+
+    &.purple {
+      background: linear-gradient(135deg, #f3e8ff 0%, #f3e8ff 100%);
+      border-color: #e9d5ff;
+    }
+
+    .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+
+      &.cyan {
+        color: $primary-cyan;
       }
 
-      &.secondary {
-        @include button-secondary;
+      &.blue {
+        color: $info-blue;
       }
+
+      &.purple {
+        color: #8b5cf6;
+      }
+    }
+
+    .label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: $gray-600;
     }
   }
 
   &__form-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: $spacing-lg;
+    gap: 1.5rem;
 
-    @include mobile {
+    @media (max-width: 768px) {
       grid-template-columns: 1fr;
     }
   }
 
   &__form-group {
-    label {
-      display: block;
-      font-size: $font-size-sm;
-      font-weight: 500;
-      color: $gray-700;
-      margin-bottom: $spacing-sm;
+    &.full-width {
+      grid-column: 1 / -1;
     }
 
-    input,
-    textarea,
-    select {
-      @include input-base;
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: $gray-900;
+      margin-bottom: 0.5rem;
+    }
+
+    .input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid $gray-200;
+      border-radius: 0.5rem;
+      transition: all 0.2s ease;
+
+      &:focus-within {
+        border-color: $primary-cyan;
+        box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+      }
+
+      .icon {
+        color: $gray-400;
+        flex-shrink: 0;
+      }
+
+      input {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: $gray-900;
+
+        &::placeholder {
+          color: $gray-400;
+        }
+      }
     }
 
     textarea {
-      min-height: 100px;
-      resize: vertical;
-    }
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid $gray-200;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      resize: none;
+      transition: all 0.2s ease;
 
-    &.full-width {
-      grid-column: 1 / -1;
+      &:focus {
+        outline: none;
+        border-color: $primary-cyan;
+        box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+      }
+
+      &::placeholder {
+        color: $gray-400;
+      }
     }
   }
 
   &__form-actions {
-    display: flex;
-    gap: $spacing-md;
-    justify-content: flex-end;
-    padding-top: $spacing-lg;
-    border-top: 1px solid $gray-200;
+    margin-top: 1.5rem;
 
     button {
-      @include button-base;
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      background: linear-gradient(135deg, $primary-cyan 0%, $primary-cyan-light 100%);
+      color: $white;
+      border: none;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+      cursor: pointer;
 
-      &.primary {
-        @include button-primary;
+      &:hover {
+        background: linear-gradient(135deg, $primary-cyan-dark 0%, $primary-cyan 100%);
+        box-shadow: $shadow-lg;
+        transform: translateY(-1px);
       }
-
-      &.secondary {
-        @include button-secondary;
-      }
     }
   }
 
-  &__stats {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: $spacing-md;
-  }
-
-  &__stat-item {
-    @include flex-between;
-    padding: $spacing-md;
-    background-color: $gray-50;
-    border-radius: $radius-md;
-
-    span {
-      font-size: $font-size-sm;
-      color: $gray-600;
-    }
-
-    strong {
-      font-size: $font-size-lg;
-      color: $gray-900;
-    }
-  }
-
-  &__preferences {
+  &__info-cards {
     display: flex;
     flex-direction: column;
-    gap: $spacing-md;
+    gap: 1rem;
   }
 
-  &__preference-item {
-    @include flex-between;
-    padding: $spacing-md 0;
-    border-bottom: 1px solid $gray-200;
+  &__info-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, $gray-50 0%, $gray-100 100%);
+    border-radius: 0.5rem;
+    border: 1px solid $gray-200;
+    transition: all 0.2s ease;
 
-    &:last-child {
-      border-bottom: none;
+    &:hover {
+      border-color: $gray-300;
     }
 
-    label {
-      font-size: $font-size-sm;
-      color: $gray-700;
-      cursor: pointer;
+    .icon {
+      color: $primary-cyan;
+      flex-shrink: 0;
     }
 
-    input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
+    .content {
+      flex: 1;
+
+      .title {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: $gray-600;
+        margin-bottom: 0.25rem;
+      }
+
+      .value {
+        font-weight: 600;
+        color: $gray-900;
+      }
+    }
+  }
+
+  &__security-section {
+    .password-field {
+      margin-bottom: 1.5rem;
+
+      label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: $gray-900;
+        margin-bottom: 0.5rem;
+      }
+
+      .input-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid $gray-200;
+        border-radius: 0.5rem;
+        transition: all 0.2s ease;
+
+        &:focus-within {
+          border-color: $primary-cyan;
+          box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+        }
+
+        .icon {
+          color: $gray-400;
+          flex-shrink: 0;
+        }
+
+        input {
+          flex: 1;
+          border: none;
+          outline: none;
+          background: transparent;
+          color: $gray-900;
+
+          &::placeholder {
+            color: $gray-400;
+          }
+        }
+
+        .toggle-btn {
+          color: $gray-400;
+          background: none;
+          border: none;
+          cursor: pointer;
+          transition: color 0.2s ease;
+
+          &:hover {
+            color: $gray-600;
+          }
+        }
+      }
+    }
+
+    .security-button {
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      background: linear-gradient(135deg, $error-red 0%, #dc2626 100%);
+      color: $white;
+      border: none;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
       cursor: pointer;
-      accent-color: $primary-color;
+
+      &:hover {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        box-shadow: $shadow-lg;
+        transform: translateY(-1px);
+      }
     }
   }
 }
