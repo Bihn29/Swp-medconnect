@@ -27,7 +27,6 @@ import DoctorDashboard from "../pages/Doctor/DoctorDashboard/DoctorDashboard";
 import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage";
 import AppointmentList from "../pages/Doctor/AppointmentList/AppointmentList";
 import AppointmentDetail from "../pages/Doctor/AppointmentDetail/AppointmentDetail";
-import CalendarView from "../pages/Doctor/Calendar/CalendarView";
 import ConsultationRecords from "../pages/Doctor/ConsultationRecords/ConsultationRecords";
 import ProfileSettings from "../pages/Doctor/ProfileSettings/ProfileSettings";
 import ScheduleManagement from "../pages/Doctor/ScheduleManagement/ScheduleManagement";
@@ -77,7 +76,7 @@ export const privateRoutes = (
 
         {/* ==================== SCHEDULE MANAGEMENT ==================== */}
         {/* Doctor schedule and calendar routes */}
-        <Route path="/bac-si/lich-lam-viec" element={<CalendarView />} />
+        <Route path="/bac-si/lich-lam-viec" element={<ScheduleManagement />} />
         <Route path="/bac-si/quan-ly-lich" element={<ScheduleManagement />} />
 
         {/* ==================== MEDICAL RECORDS ==================== */}

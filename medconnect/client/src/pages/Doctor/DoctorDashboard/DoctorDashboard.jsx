@@ -157,10 +157,7 @@ export default function DoctorDashboard() {
 
             {/* Schedule */}
             {activeMenu === "schedule" && (
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-slate-900">Lịch làm việc tuần</h3>
-                <ScheduleManagement />
-              </div>
+              <ScheduleManagement />
             )}
 
             {/* Appointments */}

@@ -7,6 +7,7 @@ import Clinic from "../models/clinic.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
 import Prescription from "../models/prescription.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
+import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
 import Review from "../models/review.model.js";
 import AuthProvider from "../models/auth_providers.model.js";
 import { ok, fail } from "../utils/response.js";
@@ -720,7 +721,6 @@ export async function getDoctorTimeSlots(req, res) {
     }
 
     const slots = await DoctorTimeSlot.find(filter)
-      .populate("clinicId", "name address")
       .sort({ startAt: 1 })
       .skip(skip)
       .limit(parseInt(limit))
@@ -758,9 +758,9 @@ export async function createTimeSlot(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const { startAt, endAt, mode, clinicId, notes } = req.body;
+    const { startAt, endAt } = req.body;
 
-    if (!startAt || !endAt || !mode) {
+    if (!startAt || !endAt) {
       return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing required fields");
     }
 
@@ -784,11 +784,8 @@ export async function createTimeSlot(req, res) {
 
     const slot = await DoctorTimeSlot.create({
       doctorId: doctor._id,
-      clinicId,
       startAt: new Date(startAt),
       endAt: new Date(endAt),
-      mode,
-      notes,
     });
 
     return ok(res, { slot });
@@ -891,9 +888,7 @@ export async function blockTimeSlot(req, res) {
       doctorId: doctor._id,
       startAt: new Date(startAt),
       endAt: new Date(endAt),
-      mode: "offline",
       status: "blocked",
-      notes: reason || notes,
     });
 
     return ok(res, { slot });
@@ -1107,5 +1102,180 @@ export async function getAllAppointments(req, res) {
   } catch (error) {
     console.error("❌ getAllAppointments error:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
+  }
+}
+
+/**
+ * Auto-generate time slots for a doctor based on schedule rules
+ */
+export async function autoGenerateTimeSlots(req, res) {
+  try {
+    console.log("🔍 autoGenerateTimeSlots - req.user:", req.user);
+    
+    // Use email-based authentication
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    // Find doctor profile
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const { days = 30 } = req.body; // Default to generate 30 days ahead
+
+    // Create default schedule rules for the doctor if they don't exist
+    await createDefaultScheduleRules(doctor._id);
+
+    // Get schedule rules for the doctor
+    const scheduleRules = await DoctorScheduleRule.find({
+      doctorId: doctor._id,
+      isActive: true
+    }).lean();
+
+    if (scheduleRules.length === 0) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "No schedule rules found for doctor");
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const createdSlots = [];
+    const skippedSlots = [];
+
+    // Generate slots for the specified number of days
+    for (let dayOffset = 0; dayOffset < days; dayOffset++) {
+      const currentDate = new Date(today);
+      currentDate.setDate(today.getDate() + dayOffset);
+      
+      const weekday = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
+      
+      // Skip weekends (Saturday = 6, Sunday = 0)
+      if (weekday === 0 || weekday === 6) {
+        console.log(`Skipping weekend: ${currentDate.toDateString()}`);
+        continue;
+      }
+
+      // Find schedule rule for this weekday
+      const rule = scheduleRules.find(r => r.weekday === weekday);
+      if (!rule) {
+        console.log(`No schedule rule found for weekday ${weekday}`);
+        continue;
+      }
+
+      // Generate slots for this day using the schedule rule
+      const slots = DoctorScheduleRule.generateSlotsForDate({
+        date: currentDate,
+        blocks: rule.blocks,
+        slotBlockMinutes: rule.slotBlockMinutes
+      });
+
+      // Create slots in database
+      for (const slot of slots) {
+        try {
+          // Check if slot already exists
+          const existingSlot = await DoctorTimeSlot.findOne({
+            doctorId: doctor._id,
+            startAt: slot.startAt,
+            endAt: slot.endAt
+          });
+
+          if (!existingSlot) {
+            const newSlot = await DoctorTimeSlot.create({
+              doctorId: doctor._id,
+              startAt: slot.startAt,
+              endAt: slot.endAt,
+              status: "available"
+            });
+            createdSlots.push(newSlot);
+          } else {
+            skippedSlots.push({
+              startAt: slot.startAt,
+              endAt: slot.endAt,
+              reason: "Already exists"
+            });
+          }
+        } catch (error) {
+          console.error("Error creating slot:", error);
+          skippedSlots.push({
+            startAt: slot.startAt,
+            endAt: slot.endAt,
+            reason: error.message
+          });
+        }
+      }
+    }
+
+    return ok(res, {
+      message: `Generated ${createdSlots.length} new time slots for doctor ${doctor.fullName}`,
+      createdSlots: createdSlots.length,
+      skippedSlots: skippedSlots.length,
+      details: {
+        created: createdSlots,
+        skipped: skippedSlots
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ autoGenerateTimeSlots error:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
+  }
+}
+
+/**
+ * Create default schedule rules for a doctor
+ */
+async function createDefaultScheduleRules(doctorId) {
+  try {
+    // Check if rules already exist
+    const existingRules = await DoctorScheduleRule.find({
+      doctorId: doctorId,
+      isActive: true
+    });
+
+    if (existingRules.length > 0) {
+      console.log("Schedule rules already exist for doctor:", doctorId);
+      return;
+    }
+
+    // Create default schedule rules for weekdays (Monday to Friday)
+    const defaultRules = [];
+    
+    for (let weekday = 1; weekday <= 5; weekday++) { // Monday to Friday
+      const rule = {
+        doctorId: doctorId,
+        weekday: weekday,
+        blocks: [
+          {
+            startTime: "07:00",
+            endTime: "11:40"
+          },
+          {
+            startTime: "13:00", 
+            endTime: "17:00"
+          }
+        ],
+        slotBlockMinutes: 20,
+        consultMinutes: 20,
+        effectiveFrom: new Date(),
+        isActive: true
+      };
+      defaultRules.push(rule);
+    }
+
+    await DoctorScheduleRule.insertMany(defaultRules);
+    console.log(`Created default schedule rules for doctor ${doctorId}`);
+    
+  } catch (error) {
+    console.error("Error creating default schedule rules:", error);
+    throw error;
   }
 }

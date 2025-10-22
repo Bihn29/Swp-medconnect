@@ -1,14 +1,20 @@
-import { useState } from "react";
-import { Clock, Send } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Clock, Send, ChevronLeft, ChevronRight, Plus, Search, Calendar, Filter } from "lucide-react";
 import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
+import { Input } from "../../../components/ui/Input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../components/ui/Dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/Select";
 import { useDoctorTimeSlots } from "../../../hooks/useDoctor";
 import "./ScheduleManagement.scss";
 
 export default function ScheduleManagement() {
-  const { timeSlots, loading, error, refetch } = useDoctorTimeSlots();
+  const { timeSlots, loading, error, refetch, autoGenerateTimeSlots } = useDoctorTimeSlots();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState("week");
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Leave request states
   const [showLeaveRequest, setShowLeaveRequest] = useState(false);
   const [leaveData, setLeaveData] = useState({
     startDate: "",
@@ -16,6 +22,7 @@ export default function ScheduleManagement() {
     reason: "",
   });
 
+  // Booking states
   const [showBookSlot, setShowBookSlot] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [bookingData, setBookingData] = useState({
@@ -24,6 +31,33 @@ export default function ScheduleManagement() {
     reason: "",
     type: "online",
   });
+
+  // Appointments states
+  const [appointments, setAppointments] = useState([]);
+
+  // Fetch appointments for current date
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        const appointmentsResponse = await fetch(`http://localhost:3000/api/doctors/me/appointments?date=${dateStr}`, {
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (appointmentsResponse.ok) {
+          const appointmentsData = await appointmentsResponse.json();
+          if (appointmentsData.success && appointmentsData.data?.appointments) {
+            setAppointments(appointmentsData.data.appointments);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching appointments:', error);
+      }
+    };
+
+    fetchAppointments();
+  }, [currentDate]);
 
   const handleLeaveRequest = async () => {
     if (leaveData.startDate && leaveData.endDate && leaveData.reason) {
@@ -82,6 +116,29 @@ export default function ScheduleManagement() {
     }
   };
 
+  const handleAutoGenerateSlots = async () => {
+    console.log("🚀 Auto-generate slots button clicked!");
+    try {
+      const result = await autoGenerateTimeSlots(30); // Generate for 30 days
+      console.log("Auto-generated slots:", result);
+      alert(`Đã tạo ${result.createdSlots} slot mới cho 30 ngày tới!`);
+    } catch (error) {
+      console.error("Error auto-generating slots:", error);
+      alert("Có lỗi khi tạo slot tự động: " + error.message);
+    }
+  };
+
+  const handleSlotClick = (date, time, slot) => {
+    if (slot && slot.status !== "available") {
+      // Show slot details
+      alert(`Slot: ${slot.patientName || "Trống"} - ${slot.status}`);
+    } else {
+      // Book new slot
+      setSelectedSlot({ date, time });
+      setShowBookSlot(true);
+    }
+  };
+
   const getWeekDates = (date) => {
     const curr = new Date(date);
     const first = curr.getDate() - curr.getDay();
@@ -93,12 +150,37 @@ export default function ScheduleManagement() {
     return weekDates;
   };
 
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+    const startingDayOfWeek = firstDay.getDay()
+
+    const days = []
+    const prevMonthLastDay = new Date(year, month, 0).getDate()
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+      days.push({ day: prevMonthLastDay - i, isCurrentMonth: false })
+    }
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({ day: i, isCurrentMonth: true })
+    }
+    const remainingDays = 42 - days.length
+    for (let i = 1; i <= remainingDays; i++) {
+      days.push({ day: i, isCurrentMonth: false })
+    }
+    return days
+  };
+
   const weekDates = getWeekDates(new Date(currentDate));
+  const monthDays = getDaysInMonth(currentDate);
+  
   const timeSlotsList = [
     "07:00", "07:30", "08:00", "08:30", "09:00", "09:30",
     "10:00", "10:30", "11:00", "11:30", "12:00", "12:30",
-    "13:00", "14:00", "14:30", "15:00", "15:30", "16:00",
-    "16:30", "17:00",
+    "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", 
+    "16:00", "16:30", "17:00",
   ];
 
   const formatDate = (date) => date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
@@ -110,7 +192,7 @@ export default function ScheduleManagement() {
   const getSlotForDateTime = (dayIdx, time) => {
     const dateStr = formatDate(weekDates[dayIdx]);
     return timeSlots?.find((s) => {
-      const slotDate = new Date(s.startTime);
+      const slotDate = new Date(s.startAt);
       return formatDate(slotDate) === dateStr && slotDate.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) === time;
     });
   };
@@ -118,301 +200,446 @@ export default function ScheduleManagement() {
   const getStatusColor = (status) => {
     switch (status) {
       case "pending":
-        return { bg: "bg-yellow-400/80", hover: "hover:bg-yellow-500", text: "Chờ xác nhận" };
+        return { bg: "bg-yellow-400", hover: "hover:bg-yellow-500", text: "Chờ xác nhận" };
       case "confirmed":
-        return { bg: "bg-green-500/80", hover: "hover:bg-green-600", text: "Đã xác nhận" };
+        return { bg: "bg-green-500", hover: "hover:bg-green-600", text: "Đã xác nhận" };
       case "cancelled":
-        return { bg: "bg-red-500/80", hover: "hover:bg-red-600", text: "Hủy" };
+        return { bg: "bg-red-500", hover: "hover:bg-red-600", text: "Hủy" };
       case "completed":
-        return { bg: "bg-cyan-500/80", hover: "hover:bg-cyan-600", text: "Hoàn thành" };
+        return { bg: "bg-blue-500", hover: "hover:bg-blue-600", text: "Hoàn thành" };
       case "leave":
-        return { bg: "bg-orange-500/80", hover: "hover:bg-orange-600", text: "Nghỉ" };
+        return { bg: "bg-orange-500", hover: "hover:bg-orange-600", text: "Nghỉ" };
       default:
-        return { bg: "bg-teal-400/80", hover: "hover:bg-teal-500", text: "Trống" };
+        return { bg: "bg-gray-200", hover: "hover:bg-gray-300", text: "Trống" };
     }
+  };
+
+  // Helper functions for horizontal layout
+  const navigateDate = (direction) => {
+    const newDate = new Date(currentDate);
+    if (viewType === "week") {
+      newDate.setDate(newDate.getDate() + (direction * 7));
+    } else {
+      newDate.setMonth(newDate.getMonth() + direction);
+    }
+    setCurrentDate(newDate);
+  };
+
+  const getWeekStart = (date) => {
+    const start = new Date(date);
+    start.setDate(start.getDate() - start.getDay());
+    return start;
+  };
+
+  const getWeekEnd = (date) => {
+    const end = new Date(date);
+    end.setDate(end.getDate() + (6 - end.getDay()));
+    return end;
+  };
+
+  const getWeekDays = () => {
+    const start = getWeekStart(currentDate);
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(start);
+      day.setDate(start.getDate() + i);
+      days.push({
+        name: day.toLocaleDateString('vi-VN', { weekday: 'short' }),
+        date: day.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
+        fullDate: day.toISOString().split('T')[0]
+      });
+    }
+    return days;
+  };
+
+  const getMonthDays = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    const days = [];
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push({
+        date: '',
+        fullDate: '',
+        isCurrentMonth: false,
+        isToday: false
+      });
+    }
+    
+    // Add days of the current month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const today = new Date();
+      days.push({
+        date: day.toString(),
+        fullDate: date.toISOString().split('T')[0],
+        isCurrentMonth: true,
+        isToday: date.toDateString() === today.toDateString()
+      });
+    }
+    
+    return days;
+  };
+
+  const getTimeSlotsForDay = (date) => {
+    if (!timeSlots) return [];
+    
+    const daySlots = timeSlots.filter(slot => {
+      const slotDate = new Date(slot.startAt).toISOString().split('T')[0];
+      return slotDate === date;
+    });
+
+    return daySlots.map(slot => ({
+      id: slot._id,
+      time: new Date(slot.startAt).toLocaleTimeString('vi-VN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }),
+      status: slot.status,
+      patientName: slot.patientName || null
+    }));
+  };
+
+  const getTodaySlots = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return getTimeSlotsForDay(today);
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-8">
-        <div className="text-gray-500">Đang tải lịch làm việc...</div>
+      <div className="schedule-management-loading">
+        <div className="loading-spinner"></div>
+        <p>Đang tải lịch làm việc...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex justify-center items-center py-8">
-        <div className="text-red-500">Lỗi: {error}</div>
+      <div className="schedule-management-error">
+        <p>Lỗi: {error}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          <Button
-            className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
-            onClick={() => setShowLeaveRequest(!showLeaveRequest)}
+    <div className="schedule-management">
+      {/* Header - Glass Effect */}
+      <div className="schedule-header">
+        <div className="schedule-title">
+          <Calendar className="title-icon" />
+          <h1>Quản lý lịch làm việc</h1>
+        </div>
+        
+        {/* Navigation Controls */}
+        <div className="header-navigation">
+          <div className="view-toggle-header">
+            <Button
+              variant={viewType === "week" ? "primary" : "outline"}
+              onClick={() => setViewType("week")}
+              size="sm"
+              className={viewType === "week" ? "active" : ""}
+            >
+              Tuần
+            </Button>
+            <Button
+              variant={viewType === "day" ? "primary" : "outline"}
+              onClick={() => setViewType("day")}
+              size="sm"
+              className={viewType === "day" ? "active" : ""}
+            >
+              Ngày
+            </Button>
+          </div>
+          
+          <div className="week-selector">
+            <Button
+              variant={viewType === "week" ? "primary" : "outline"}
+              onClick={() => setViewType("week")}
+              size="sm"
+              className={viewType === "week" ? "active" : ""}
+            >
+              Tuần
+            </Button>
+            <Button
+              variant={viewType === "day" ? "primary" : "outline"}
+              onClick={() => setViewType("day")}
+              size="sm"
+              className={viewType === "day" ? "active" : ""}
+            >
+              Ngày
+            </Button>
+          </div>
+          
+          {/* Status Legend */}
+          <div className="status-legend">
+            <span className="legend-label">Trạng thái:</span>
+            <div className="legend-items">
+              <div className="legend-item">
+                <div className="legend-dot pending"></div>
+                <span>Chờ xác nhận</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-dot confirmed"></div>
+                <span>Đã xác nhận</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-dot cancelled"></div>
+                <span>Đã hủy</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-dot completed"></div>
+                <span>Hoàn thành</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="schedule-actions">
+          <Button 
+            onClick={handleAutoGenerateSlots}
+            className="auto-generate-btn"
+            variant="success"
           >
-            <Clock className="w-4 h-4" />
-            Lịch nghỉ
+            🚀 Tạo slot tự động
+          </Button>
+          <Button 
+            onClick={() => setShowLeaveRequest(true)}
+            className="leave-request-btn"
+            variant="warning"
+          >
+            📅 Lịch nghỉ
           </Button>
         </div>
       </div>
 
-      {showLeaveRequest && (
-        <Card className="p-6 border-0 shadow-sm bg-orange-50 space-y-4">
-          <h4 className="font-semibold text-slate-900">Yêu cầu lịch nghỉ</h4>
-          <p className="text-sm text-slate-600">Gửi yêu cầu lịch nghỉ cho admin để duyệt</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700">Từ ngày</label>
-              <input
-                type="date"
-                value={leaveData.startDate}
-                onChange={(e) => setLeaveData({ ...leaveData, startDate: e.target.value })}
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
+      {/* Main Content - Calendar Only */}
+      <div className="schedule-main-horizontal">
+        {/* Calendar Content */}
+        <div className="schedule-content">
+          {/* Calendar View */}
+          <Card className="calendar-card">
+            <div className="calendar-container">
+              {viewType === "week" ? (
+                <div className="week-view">
+                  {/* Header with days horizontally */}
+                  <div className="week-header">
+                    <div className="time-label">Giờ</div>
+                    {getWeekDays().map((day, index) => (
+                      <div key={index} className="day-header">
+                        <div className="day-name">{day.name}</div>
+                        <div className="day-date">{day.date}</div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Grid with time slots as rows and days as columns */}
+                  <div className="week-grid">
+                    {timeSlotsList.map((time, timeIndex) => (
+                      <div key={timeIndex} className="time-row">
+                        {/* Time label */}
+                        <div className="time-label">
+                          {time}
+                        </div>
+                        
+                        {/* Day slots for this time */}
+                        {getWeekDays().map((day, dayIndex) => {
+                          const slot = getTimeSlotsForDay(day.fullDate).find(s => s.time === time);
+                          return (
+                            <div
+                              key={dayIndex}
+                              className={`time-slot ${slot ? slot.status : 'available'}`}
+                              onClick={() => handleSlotClick(day.fullDate, time, slot)}
+                            >
+                              <div className="slot-status">
+                                {slot ? (
+                                  <>
+                                    {slot.status === 'available' && <span className="status-dot available"></span>}
+                                    {slot.status === 'booked' && <span className="status-dot booked"></span>}
+                                    {slot.status === 'blocked' && <span className="status-dot blocked"></span>}
+                                  </>
+                                ) : (
+                                  <span className="status-dot available"></span>
+                                )}
+                              </div>
+                              {slot && slot.patientName && (
+                                <div className="slot-patient">{slot.patientName}</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="month-view">
+                  <div className="month-grid">
+                    {getMonthDays().map((day, index) => (
+                      <div
+                        key={index}
+                        className={`month-day ${day.isCurrentMonth ? 'current-month' : 'other-month'} ${day.isToday ? 'today' : ''}`}
+                      >
+                        <div className="day-number">{day.date}</div>
+                        <div className="day-slots">
+                          {getTimeSlotsForDay(day.fullDate).slice(0, 3).map((slot, slotIndex) => (
+                            <div
+                              key={slotIndex}
+                              className={`mini-slot ${slot.status}`}
+                              title={`${slot.time} - ${slot.patientName || 'Trống'}`}
+                            >
+                              {slot.status === 'booked' && <span className="mini-dot booked"></span>}
+                              {slot.status === 'blocked' && <span className="mini-dot blocked"></span>}
+                            </div>
+                          ))}
+                          {getTimeSlotsForDay(day.fullDate).length > 3 && (
+                            <div className="more-slots">+{getTimeSlotsForDay(day.fullDate).length - 3}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700">Đến ngày</label>
-              <input
-                type="date"
-                value={leaveData.endDate}
-                onChange={(e) => setLeaveData({ ...leaveData, endDate: e.target.value })}
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700">Lý do</label>
-              <input
-                type="text"
-                value={leaveData.reason}
-                onChange={(e) => setLeaveData({ ...leaveData, reason: e.target.value })}
-                placeholder="Lý do xin nghỉ"
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleLeaveRequest} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white gap-2">
-              <Send className="w-4 h-4" />
-              Gửi yêu cầu
-            </Button>
-            <Button onClick={() => setShowLeaveRequest(false)} variant="outline" className="flex-1">
-              Hủy
-            </Button>
-          </div>
-        </Card>
-      )}
+          </Card>
+        </div>
+      </div>
 
-      <div className="space-y-4">
-        <div className="bg-gradient-to-r from-slate-600 to-slate-700 p-4 rounded-lg shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant={viewType === "week" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewType("week")}
-                className={
-                  viewType === "week"
-                    ? "bg-white text-slate-700 hover:bg-slate-100"
-                    : "text-white border-white hover:bg-slate-600"
-                }
-              >
-                Tuần
-              </Button>
-              <Button
-                variant={viewType === "day" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewType("day")}
-                className={
-                  viewType === "day"
-                    ? "bg-white text-slate-700 hover:bg-slate-100"
-                    : "text-white border-white hover:bg-slate-600"
-                }
-              >
-                Ngày
-              </Button>
-              <Button
-                variant={viewType === "month" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewType("month")}
-                className={
-                  viewType === "month"
-                    ? "bg-white text-slate-700 hover:bg-slate-100"
-                    : "text-white border-white hover:bg-slate-600"
-                }
-              >
-                Tháng
-              </Button>
-              <input
-                type="date"
-                value={currentDate.toISOString().split("T")[0]}
-                onChange={(e) => setCurrentDate(new Date(e.target.value))}
-                className="ml-2 bg-white text-slate-900 border-0 w-40 px-3 py-2 rounded-md"
-              />
+      {/* Leave Request Dialog */}
+      <Dialog open={showLeaveRequest} onOpenChange={setShowLeaveRequest}>
+        <DialogContent className="leave-request-dialog">
+          <DialogHeader>
+            <DialogTitle>Yêu cầu lịch nghỉ</DialogTitle>
+          </DialogHeader>
+          <div className="leave-form">
+            <p className="leave-description">Gửi yêu cầu lịch nghỉ cho admin để duyệt</p>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Từ ngày</label>
+                <Input
+                  type="date"
+                  value={leaveData.startDate}
+                  onChange={(e) => setLeaveData({ ...leaveData, startDate: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Đến ngày</label>
+                <Input
+                  type="date"
+                  value={leaveData.endDate}
+                  onChange={(e) => setLeaveData({ ...leaveData, endDate: e.target.value })}
+                />
+              </div>
+              <div className="form-group full-width">
+                <label>Lý do</label>
+                <textarea
+                  value={leaveData.reason}
+                  onChange={(e) => setLeaveData({ ...leaveData, reason: e.target.value })}
+                  placeholder="Lý do xin nghỉ"
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    outline: 'none',
+                    transition: 'border-color 0.3s ease'
+                  }}
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-white text-sm font-medium">Trạng thái:</span>
-              <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs">
-                Chờ xác nhận
+            <div className="form-actions">
+              <Button onClick={handleLeaveRequest} className="submit-btn">
+                <Send size={16} />
+                Gửi yêu cầu
               </Button>
-              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white text-xs">
-                Đã xác nhận
-              </Button>
-              <Button size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white text-xs">
-                Hoàn thành
-              </Button>
-              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white text-xs">
+              <Button onClick={() => setShowLeaveRequest(false)} variant="outline">
                 Hủy
               </Button>
             </div>
           </div>
-        </div>
+        </DialogContent>
+      </Dialog>
 
-        {/* Schedule table with mountain background */}
-        <div
-          className="rounded-lg overflow-hidden shadow-lg border border-slate-200"
-          style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=600&fit=crop')",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-slate-600/80 backdrop-blur-sm border-b border-slate-400">
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-white w-24 bg-slate-700/80">Giờ</th>
-                  {weekDates.map((date, idx) => (
-                    <th
-                      key={idx}
-                      className="px-4 py-4 text-center text-sm font-semibold text-white min-w-40 bg-slate-600/60"
-                    >
-                      <div className="text-xs font-medium text-slate-200 mb-1">{getDayName(date)}</div>
-                      <div className="text-sm font-bold text-white">{formatDate(date)}</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {timeSlotsList.map((time, timeIdx) => (
-                  <tr key={timeIdx} className="border-b border-slate-400/50 hover:bg-slate-600/20 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-white bg-slate-700/60 sticky left-0">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-slate-300" />
-                        <span>{time}</span>
-              </div>
-                    </td>
-                    {weekDates.map((_, dayIdx) => {
-                      const slot = getSlotForDateTime(dayIdx, time);
-                      const statusColor = slot ? getStatusColor(slot.status) : getStatusColor("empty");
-                      return (
-                        <td key={dayIdx} className="px-4 py-3 text-center bg-slate-600/10 backdrop-blur-sm">
-                          {!slot ? (
-                            <button
-                              onClick={() => {
-                                setSelectedSlot({ date: formatDate(weekDates[dayIdx]), time });
-                                setShowBookSlot(true);
-                              }}
-                              className="w-full px-3 py-2 bg-teal-400/80 hover:bg-teal-500 text-white rounded text-xs font-medium transition-colors"
-                            >
-                              Trống
-                            </button>
-                          ) : (
-                            <button
-                              className={`w-full px-3 py-2 ${statusColor.bg} ${statusColor.hover} text-white rounded text-xs font-medium transition-colors`}
-                            >
-                              <div className="font-semibold truncate">{slot.patientName || statusColor.text}</div>
-                              <div className="text-xs opacity-90">{slot.type === "online" ? "Online" : "Offline"}</div>
-                            </button>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
 
       {/* Booking Modal */}
-      {showBookSlot && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4">Đặt slot cho bệnh nhân</h3>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-slate-700 mb-2">
-                  Ngày: {selectedSlot?.date} - Giờ: {selectedSlot?.time}
-                </p>
+      <Dialog open={showBookSlot} onOpenChange={setShowBookSlot}>
+        <DialogContent className="booking-dialog">
+          <DialogHeader>
+            <DialogTitle>Đặt slot cho bệnh nhân</DialogTitle>
+          </DialogHeader>
+          {selectedSlot && (
+            <div className="booking-form">
+              <div className="booking-info">
+                <p>Ngày: {selectedSlot.date} - Giờ: {selectedSlot.time}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Tên bệnh nhân</label>
-                <input
-                  type="text"
+              
+              <div className="form-field">
+                <label>Tên bệnh nhân</label>
+                <Input
+                  placeholder="Nhập tên bệnh nhân"
                   value={bookingData.patientName}
                   onChange={(e) => setBookingData({ ...bookingData, patientName: e.target.value })}
-                  placeholder="Nhập tên bệnh nhân"
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Số điện thoại</label>
-                <input
-                  type="text"
+              
+              <div className="form-field">
+                <label>Số điện thoại</label>
+                <Input
+                  placeholder="Nhập số điện thoại"
                   value={bookingData.patientPhone}
                   onChange={(e) => setBookingData({ ...bookingData, patientPhone: e.target.value })}
-                  placeholder="Nhập số điện thoại"
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Loại khám</label>
-                <select
+              
+              <div className="form-field">
+                <label>Loại khám</label>
+                <Select
                   value={bookingData.type}
-                  onChange={(e) => setBookingData({ ...bookingData, type: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                  onValueChange={(value) => setBookingData({ ...bookingData, type: value })}
                 >
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="online">Online</SelectItem>
+                    <SelectItem value="offline">Offline</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Lý do khám</label>
+              
+              <div className="form-field">
+                <label>Lý do khám</label>
                 <textarea
                   value={bookingData.reason}
                   onChange={(e) => setBookingData({ ...bookingData, reason: e.target.value })}
                   placeholder="Nhập lý do khám"
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md resize-none"
                   rows={3}
                 />
               </div>
-              <div className="flex gap-2 mt-4">
-                <Button
-                  onClick={handleBookSlot}
-                  className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
-                >
+              
+              <div className="form-actions">
+                <Button onClick={handleBookSlot} className="submit-btn">
                   Đặt slot
                 </Button>
-                <Button
-                  onClick={() => setShowBookSlot(false)}
-                  variant="outline"
-                  className="flex-1"
-                >
+                <Button onClick={() => setShowBookSlot(false)} variant="outline">
                   Hủy
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

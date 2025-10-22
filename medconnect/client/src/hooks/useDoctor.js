@@ -13,6 +13,7 @@ import {
   updateTimeSlot,
   deleteTimeSlot,
   blockTimeSlot,
+  autoGenerateTimeSlots,
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
@@ -228,7 +229,7 @@ export function useDoctorTimeSlots(params = {}) {
     } finally {
       setLoading(false);
     }
-  }, [params]);
+  }, [JSON.stringify(params)]);
 
   const createNewTimeSlot = useCallback(async (slotData) => {
     try {
@@ -277,6 +278,18 @@ export function useDoctorTimeSlots(params = {}) {
     }
   }, [fetchTimeSlots]);
 
+  const autoGenerateSlots = useCallback(async (days = 30) => {
+    try {
+      setError(null);
+      const response = await autoGenerateTimeSlots(days);
+      await fetchTimeSlots(); // Refresh the list
+      return response;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [fetchTimeSlots]);
+
   useEffect(() => {
     fetchTimeSlots();
   }, [fetchTimeSlots]);
@@ -289,7 +302,8 @@ export function useDoctorTimeSlots(params = {}) {
     createTimeSlot: createNewTimeSlot,
     updateTimeSlot: updateExistingTimeSlot,
     deleteTimeSlot: removeTimeSlot,
-    blockTimeSlot: blockTime
+    blockTimeSlot: blockTime,
+    autoGenerateTimeSlots: autoGenerateSlots
   };
 }
 

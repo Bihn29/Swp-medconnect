@@ -628,6 +628,17 @@ export async function blockTimeSlot(blockData) {
   return r.json();
 }
 
+export async function autoGenerateTimeSlots(days = 30) {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/auto-generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ days }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 // Review functions
 export async function getDoctorReviews(params = {}) {
   const searchParams = new URLSearchParams();

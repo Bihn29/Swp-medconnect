@@ -20,16 +20,15 @@ import {
   respondToReview,
   getDoctorAvailableTimeSlots,
   createTestTimeSlots,
+  autoGenerateTimeSlots,
 } from "../../controllers/doctorController.js";
 
 const router = express.Router();
 
 // Public routes
 router.get("/", getAllDoctors); // Get all doctors for search/listing
-router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
-router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
 
-// Protected routes (require authentication)
+// Protected routes (require authentication) - MUST COME BEFORE /:doctorId routes
 router.use(authGuard);
 
 // Current doctor routes (must come before /:doctorId routes)
@@ -49,12 +48,14 @@ router.post("/me/time-slots", createTimeSlot);
 router.put("/me/time-slots/:slotId", updateTimeSlot);
 router.delete("/me/time-slots/:slotId", deleteTimeSlot);
 router.post("/me/time-slots/block", blockTimeSlot);
+router.post("/me/time-slots/auto-generate", autoGenerateTimeSlots);
 
 // Review routes
 router.get("/me/reviews", getDoctorReviews);
 router.post("/me/reviews/:reviewId/respond", respondToReview);
 
-// Public doctor profile routes (must come after /me routes)
+// Public doctor profile routes (now protected because after authGuard, but that's the issue!)
+// We need to handle these differently
 router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
 router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
 router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
