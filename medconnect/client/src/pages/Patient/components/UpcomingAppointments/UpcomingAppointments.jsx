@@ -368,10 +368,12 @@ export function UpcomingAppointments() {
                   display: "flex",
                   flexDirection: "column",
                   gap: "0.5rem",
+                  minWidth: "120px", // Fixed width for consistent button sizing
                 }}
               >
                 {/* Video Call Button - Only show for accepted online appointments */}
-                {appointment.status === "accepted" && appointment.mode === "online" ? (
+                {appointment.status === "accepted" &&
+                appointment.mode === "online" ? (
                   <button
                     style={{
                       padding: "0.5rem 1rem",
@@ -386,23 +388,32 @@ export function UpcomingAppointments() {
                       position: "relative",
                       overflow: "hidden",
                       boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
+                      width: "100%", // Fixed width
+                      minWidth: "120px", // Minimum width
                     }}
                     onMouseOver={(e) => {
                       e.target.style.backgroundColor = "#059669";
                       e.target.style.transform = "translateY(-1px) scale(1.02)";
-                      e.target.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
+                      e.target.style.boxShadow =
+                        "0 4px 12px rgba(16, 185, 129, 0.3)";
                     }}
                     onMouseOut={(e) => {
                       e.target.style.backgroundColor = "#10b981";
                       e.target.style.transform = "translateY(0) scale(1)";
-                      e.target.style.boxShadow = "0 2px 4px rgba(16, 185, 129, 0.2)";
+                      e.target.style.boxShadow =
+                        "0 2px 4px rgba(16, 185, 129, 0.2)";
                     }}
-                    onClick={() => window.open(`/benh-nhan/video-call/${appointment.id}`, '_blank')}
+                    onClick={() =>
+                      window.open(
+                        `/benh-nhan/video-call/${appointment.id}`,
+                        "_blank"
+                      )
+                    }
                   >
                     📹 Video Call
                   </button>
                 ) : null}
-                
+
                 <button
                   style={{
                     padding: "0.5rem 1rem",
@@ -417,6 +428,8 @@ export function UpcomingAppointments() {
                     position: "relative",
                     overflow: "hidden",
                     boxShadow: "0 2px 4px rgba(59, 130, 246, 0.2)",
+                    width: "100%", // Fixed width
+                    minWidth: "120px", // Minimum width
                   }}
                   onMouseOver={(e) => {
                     e.target.style.backgroundColor = "#2563eb";
@@ -454,6 +467,8 @@ export function UpcomingAppointments() {
                     position: "relative",
                     overflow: "hidden",
                     boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                    width: "100%", // Fixed width
+                    minWidth: "120px", // Minimum width
                   }}
                   onMouseOver={(e) => {
                     e.target.style.backgroundColor = "#fef2f2";
