@@ -324,31 +324,178 @@ export function Settings() {
 
         {activeTab === "notifications" && (
           <div className="notifications-section">
-            <h2 className="section-title">Cài đặt thông báo</h2>
-            <p className="section-subtitle">
-              Quản lý cách bạn nhận thông báo từ hệ thống
-            </p>
-            {/* Thêm nội dung thông báo ở đây */}
+            <div className="section-header">
+              <h2 className="section-title">Cài đặt thông báo</h2>
+              <p className="section-subtitle">
+                Quản lý cách bạn nhận thông báo từ hệ thống
+              </p>
+            </div>
+
+            <div className="notification-settings">
+              <div className="setting-item">
+                <div className="setting-info">
+                  <h3 className="setting-title">Thông báo lịch hẹn</h3>
+                  <p className="setting-description">
+                    Nhận thông báo về lịch hẹn mới, thay đổi lịch hẹn
+                  </p>
+                </div>
+                <div className="setting-toggle">
+                  <input
+                    type="checkbox"
+                    id="appointment-notifications"
+                    defaultChecked
+                  />
+                  <label
+                    htmlFor="appointment-notifications"
+                    className="toggle-label"
+                  >
+                    <span className="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="setting-item">
+                <div className="setting-info">
+                  <h3 className="setting-title">Thông báo tư vấn</h3>
+                  <p className="setting-description">
+                    Nhận thông báo khi bác sĩ trả lời tư vấn trực tuyến
+                  </p>
+                </div>
+                <div className="setting-toggle">
+                  <input
+                    type="checkbox"
+                    id="consultation-notifications"
+                    defaultChecked
+                  />
+                  <label
+                    htmlFor="consultation-notifications"
+                    className="toggle-label"
+                  >
+                    <span className="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="setting-item">
+                <div className="setting-info">
+                  <h3 className="setting-title">Thông báo email</h3>
+                  <p className="setting-description">
+                    Nhận thông báo qua email về các hoạt động quan trọng
+                  </p>
+                </div>
+                <div className="setting-toggle">
+                  <input
+                    type="checkbox"
+                    id="email-notifications"
+                    defaultChecked
+                  />
+                  <label htmlFor="email-notifications" className="toggle-label">
+                    <span className="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="setting-item">
+                <div className="setting-info">
+                  <h3 className="setting-title">Thông báo SMS</h3>
+                  <p className="setting-description">
+                    Nhận thông báo qua tin nhắn SMS
+                  </p>
+                </div>
+                <div className="setting-toggle">
+                  <input type="checkbox" id="sms-notifications" />
+                  <label htmlFor="sms-notifications" className="toggle-label">
+                    <span className="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
         {activeTab === "security" && (
           <div className="security-section">
-            <h2 className="section-title">Bảo mật tài khoản</h2>
-            <p className="section-subtitle">
-              Quản lý mật khẩu và bảo mật tài khoản
-            </p>
-            {/* Thêm nội dung bảo mật ở đây */}
+            <div className="section-header">
+              <h2 className="section-title">Bảo mật tài khoản</h2>
+              <p className="section-subtitle">
+                Quản lý mật khẩu và bảo mật tài khoản
+              </p>
+            </div>
+
+            <div className="security-settings">
+              <div className="security-item">
+                <div className="security-info">
+                  <h3 className="security-title">Đổi mật khẩu</h3>
+                  <p className="security-description">
+                    Thay đổi mật khẩu để bảo vệ tài khoản của bạn
+                  </p>
+                </div>
+                <button className="security-button">Đổi mật khẩu</button>
+              </div>
+
+              <div className="security-item">
+                <div className="security-info">
+                  <h3 className="security-title">Xác thực 2 bước</h3>
+                  <p className="security-description">
+                    Thêm lớp bảo mật bổ sung cho tài khoản
+                  </p>
+                </div>
+                <button className="security-button">Kích hoạt</button>
+              </div>
+
+              <div className="security-item">
+                <div className="security-info">
+                  <h3 className="security-title">Đăng nhập gần đây</h3>
+                  <p className="security-description">
+                    Xem lịch sử đăng nhập và thiết bị đã sử dụng
+                  </p>
+                </div>
+                <button className="security-button">Xem lịch sử</button>
+              </div>
+            </div>
           </div>
         )}
 
         {activeTab === "payment" && (
           <div className="payment-section">
-            <h2 className="section-title">Thông tin thanh toán</h2>
-            <p className="section-subtitle">
-              Quản lý phương thức thanh toán và hóa đơn
-            </p>
-            {/* Thêm nội dung thanh toán ở đây */}
+            <div className="section-header">
+              <h2 className="section-title">Thông tin thanh toán</h2>
+              <p className="section-subtitle">
+                Quản lý phương thức thanh toán và hóa đơn
+              </p>
+            </div>
+
+            <div className="payment-settings">
+              <div className="payment-item">
+                <div className="payment-info">
+                  <h3 className="payment-title">Phương thức thanh toán</h3>
+                  <p className="payment-description">
+                    Quản lý thẻ tín dụng, ví điện tử
+                  </p>
+                </div>
+                <button className="payment-button">Quản lý</button>
+              </div>
+
+              <div className="payment-item">
+                <div className="payment-info">
+                  <h3 className="payment-title">Lịch sử thanh toán</h3>
+                  <p className="payment-description">
+                    Xem tất cả giao dịch và hóa đơn
+                  </p>
+                </div>
+                <button className="payment-button">Xem lịch sử</button>
+              </div>
+
+              <div className="payment-item">
+                <div className="payment-info">
+                  <h3 className="payment-title">Hóa đơn điện tử</h3>
+                  <p className="payment-description">
+                    Tải xuống hóa đơn và biên lai
+                  </p>
+                </div>
+                <button className="payment-button">Tải xuống</button>
+              </div>
+            </div>
           </div>
         )}
       </div>

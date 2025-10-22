@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, List, Avatar, Spin, Alert } from 'antd';
+import React, { useState, useEffect } from "react";
+import { Card, Row, Col, List, Avatar, Spin, Alert } from "antd";
 import {
   UserOutlined,
   SafetyCertificateOutlined,
   CalendarOutlined,
   DollarOutlined,
   CheckCircleOutlined,
-  TeamOutlined
-} from '@ant-design/icons';
-import { getAdminDashboardStats, getAdminDashboardActivities, getAdminSystemStatus } from '../../lib/api';
-import './AdminDashboard.scss';
+  TeamOutlined,
+} from "@ant-design/icons";
+import {
+  getAdminDashboardStats,
+  getAdminDashboardActivities,
+  getAdminSystemStatus,
+} from "../../lib/api";
+import "./AdminDashboard.scss";
 
 const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -19,7 +23,7 @@ const AdminDashboard = () => {
     verifiedDoctors: 0,
     pendingDoctors: 0,
     monthlyAppointments: 0,
-    revenue: 0
+    revenue: 0,
   });
   const [recentActivities, setRecentActivities] = useState([]);
   const [systemStatus, setSystemStatus] = useState([]);
@@ -31,7 +35,7 @@ const AdminDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch stats data
       const stats = await getAdminDashboardStats();
       setStatsData(stats.data || stats);
@@ -43,10 +47,9 @@ const AdminDashboard = () => {
       // Fetch system status
       const status = await getAdminSystemStatus();
       setSystemStatus(status.data || status);
-
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      setError('Không thể tải dữ liệu dashboard');
+      console.error("Error fetching dashboard data:", err);
+      setError("Không thể tải dữ liệu dashboard");
     } finally {
       setLoading(false);
     }
@@ -54,37 +57,37 @@ const AdminDashboard = () => {
 
   const statsCards = [
     {
-      title: 'Tổng người dùng',
+      title: "Tổng người dùng",
       value: statsData.totalUsers,
-      change: 'Tổng số người dùng trong hệ thống',
-      changeValue: '',
+      change: "Tổng số người dùng trong hệ thống",
+      changeValue: "",
       icon: <UserOutlined />,
-      color: '#1890ff'
+      color: "#1890ff",
     },
     {
-      title: 'Bác sĩ đã xác minh',
+      title: "Bác sĩ đã xác minh",
       value: statsData.verifiedDoctors,
       change: `${statsData.pendingDoctors} đang chờ xác minh`,
       changeValue: `+${statsData.pendingDoctors}`,
       icon: <SafetyCertificateOutlined />,
-      color: '#52c41a'
+      color: "#52c41a",
     },
     {
-      title: 'Lịch hẹn tháng này',
+      title: "Lịch hẹn tháng này",
       value: statsData.monthlyAppointments,
-      change: 'Tổng số lịch hẹn trong tháng',
-      changeValue: '',
+      change: "Tổng số lịch hẹn trong tháng",
+      changeValue: "",
       icon: <CalendarOutlined />,
-      color: '#722ed1'
+      color: "#722ed1",
     },
     {
-      title: 'Doanh thu',
+      title: "Doanh thu",
       value: `${statsData.revenue}M`,
-      change: 'Doanh thu từ lịch hẹn',
-      changeValue: '',
+      change: "Doanh thu từ lịch hẹn",
+      changeValue: "",
       icon: <DollarOutlined />,
-      color: '#fa8c16'
-    }
+      color: "#fa8c16",
+    },
   ];
 
   if (loading) {
@@ -94,9 +97,9 @@ const AdminDashboard = () => {
           <h1>Tổng quan hệ thống</h1>
           <p>Giám sát và quản lý nền tảng MedConnect</p>
         </div>
-        <div style={{ textAlign: 'center', padding: '50px' }}>
+        <div style={{ textAlign: "center", padding: "50px" }}>
           <Spin size="large" />
-          <p style={{ marginTop: '16px' }}>Đang tải dữ liệu...</p>
+          <p style={{ marginTop: "16px" }}>Đang tải dữ liệu...</p>
         </div>
       </div>
     );
@@ -114,7 +117,7 @@ const AdminDashboard = () => {
           description={error}
           type="error"
           showIcon
-          style={{ margin: '20px 0' }}
+          style={{ margin: "20px 0" }}
         />
       </div>
     );

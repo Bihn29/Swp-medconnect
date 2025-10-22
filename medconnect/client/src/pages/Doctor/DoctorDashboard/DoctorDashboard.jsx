@@ -9,7 +9,10 @@ import EPrescription from "../EPrescription/EPrescription";
 import MedicalHistory from "../MedicalHistory/MedicalHistory";
 import ProfileSettings from "../ProfileSettings/ProfileSettings";
 import "./DoctorDashboard.scss";
-import { getDoctorProfileWithFallback, getDoctorDashboardStatsWithFallback } from "../../../lib/api";
+import {
+  getDoctorProfileWithFallback,
+  getDoctorDashboardStatsWithFallback,
+} from "../../../lib/api";
 
 export default function DoctorDashboard() {
   const [activeMenu, setActiveMenu] = useState("dashboard");
@@ -26,14 +29,14 @@ export default function DoctorDashboard() {
         if (doctor) {
           setDoctorInfo(doctor);
         } else {
-          console.error('No doctor found');
+          console.error("No doctor found");
         }
 
-            // Fetch dashboard stats
-            const stats = await getDoctorDashboardStatsWithFallback();
-            if (stats) setDashboardStats(stats);
+        // Fetch dashboard stats
+        const stats = await getDoctorDashboardStatsWithFallback();
+        if (stats) setDashboardStats(stats);
       } catch (error) {
-        console.error('Error fetching doctor data:', error);
+        console.error("Error fetching doctor data:", error);
       } finally {
         setLoading(false);
       }
@@ -43,35 +46,40 @@ export default function DoctorDashboard() {
   }, []);
 
   // Get doctor info from API data
-  const doctorName = doctorInfo?.userId?.fullName || doctorInfo?.fullName || "Đang tải...";
-  const doctorAvatar = doctorInfo?.avatarUrl || "https://api.dicebear.com/7.x/avataaars/svg?seed=doctor";
+  const doctorName =
+    doctorInfo?.userId?.fullName || doctorInfo?.fullName || "Đang tải...";
+  const doctorAvatar =
+    doctorInfo?.avatarUrl ||
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=doctor";
 
-  const stats = dashboardStats ? [
-    {
-      label: "Ca khám hôm nay",
-      value: dashboardStats.todayAppointmentsCount || "0",
-      icon: Clock,
-      color: "dashboard-stat-card-teal"
-    },
-    {
-      label: "Slot trống",
-      value: dashboardStats.availableSlotsToday || "0",
-      icon: Users,
-      color: "dashboard-stat-card-teal"
-    },
-    {
-      label: "Lịch hẹn chờ",
-      value: dashboardStats.pendingAppointmentsCount || "0",
-      icon: FileText,
-      color: "dashboard-stat-card-teal"
-    },
-    {
-      label: "Tổng ca tuần này",
-      value: dashboardStats.weeklyAppointmentsCount || "0",
-      icon: FileText,
-      color: "dashboard-stat-card-teal"
-    }
-  ] : [];
+  const stats = dashboardStats
+    ? [
+        {
+          label: "Ca khám hôm nay",
+          value: dashboardStats.todayAppointmentsCount || "0",
+          icon: Clock,
+          color: "dashboard-stat-card-teal",
+        },
+        {
+          label: "Slot trống",
+          value: dashboardStats.availableSlotsToday || "0",
+          icon: Users,
+          color: "dashboard-stat-card-teal",
+        },
+        {
+          label: "Lịch hẹn chờ",
+          value: dashboardStats.pendingAppointmentsCount || "0",
+          icon: FileText,
+          color: "dashboard-stat-card-teal",
+        },
+        {
+          label: "Tổng ca tuần này",
+          value: dashboardStats.weeklyAppointmentsCount || "0",
+          icon: FileText,
+          color: "dashboard-stat-card-teal",
+        },
+      ]
+    : [];
 
   return (
     <div className="doctor-dashboard-container">
@@ -134,7 +142,8 @@ export default function DoctorDashboard() {
                       <div>
                         <p className="dashboard-info-label">Lịch hẹn hôm nay</p>
                         <p className="dashboard-info-value">
-                          {dashboardStats?.todayAppointmentsCount || "0"} cuộc hẹn
+                          {dashboardStats?.todayAppointmentsCount || "0"} cuộc
+                          hẹn
                         </p>
                       </div>
                       <div>
@@ -146,7 +155,8 @@ export default function DoctorDashboard() {
                       <div>
                         <p className="dashboard-info-label">Chờ xác nhận</p>
                         <p className="dashboard-info-value">
-                          {dashboardStats?.pendingAppointmentsCount || "0"} lịch hẹn
+                          {dashboardStats?.pendingAppointmentsCount || "0"} lịch
+                          hẹn
                         </p>
                       </div>
                     </div>
@@ -158,7 +168,9 @@ export default function DoctorDashboard() {
             {/* Schedule */}
             {activeMenu === "schedule" && (
               <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-slate-900">Lịch làm việc tuần</h3>
+                <h3 className="text-xl font-semibold text-slate-900">
+                  Lịch làm việc tuần
+                </h3>
                 <ScheduleManagement />
               </div>
             )}
@@ -170,34 +182,40 @@ export default function DoctorDashboard() {
               </div>
             )}
 
-                 {/* Medical History */}
-                 {activeMenu === "medical-history" && <MedicalHistory />}
+            {/* Medical History */}
+            {activeMenu === "medical-history" && <MedicalHistory />}
 
-                 {/* Notifications */}
-                 {activeMenu === "notifications" && (
-                   <div className="space-y-6">
-                     <h3 className="text-xl font-semibold text-slate-900">Thông báo hệ thống</h3>
-                     <div className="bg-white p-6 rounded-lg border border-gray-200">
-                       <p className="text-gray-600">Chưa có thông báo mới</p>
-                     </div>
-                   </div>
-                 )}
+            {/* Notifications */}
+            {activeMenu === "notifications" && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-slate-900">
+                  Thông báo hệ thống
+                </h3>
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <p className="text-gray-600">Chưa có thông báo mới</p>
+                </div>
+              </div>
+            )}
 
-                 {/* Reviews */}
-                 {activeMenu === "reviews" && (
-                   <div className="space-y-6">
-                     <h3 className="text-xl font-semibold text-slate-900">Đánh giá từ bệnh nhân</h3>
-                     <div className="bg-white p-6 rounded-lg border border-gray-200">
-                       <p className="text-gray-600">Chưa có đánh giá nào</p>
-                     </div>
-                   </div>
-                 )}
+            {/* Reviews */}
+            {activeMenu === "reviews" && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-slate-900">
+                  Đánh giá từ bệnh nhân
+                </h3>
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <p className="text-gray-600">Chưa có đánh giá nào</p>
+                </div>
+              </div>
+            )}
 
             {/* Settings */}
             {activeMenu === "settings" && (
               <div className="space-y-6">
                 <Card className="p-6 border-0 shadow-sm">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Cập nhật ảnh đại diện</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                    Cập nhật ảnh đại diện
+                  </h3>
                   <div className="flex items-center gap-6">
                     <img
                       src={doctorAvatar || "/placeholder.svg"}
@@ -218,19 +236,24 @@ export default function DoctorDashboard() {
                               const reader = new FileReader();
                               reader.onload = async (event) => {
                                 const base64 = event.target?.result;
-                                
+
                                 // Call API to update avatar
-                                const response = await fetch("/api/doctors/me/avatar", {
-                                  method: "PATCH",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  credentials: "include",
-                                  body: JSON.stringify({ avatar: base64 }),
-                                });
+                                const response = await fetch(
+                                  "/api/doctors/me/avatar",
+                                  {
+                                    method: "PATCH",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    credentials: "include",
+                                    body: JSON.stringify({ avatar: base64 }),
+                                  }
+                                );
 
                                 if (response.ok) {
-                                  alert("Ảnh đại diện đã được cập nhật thành công");
+                                  alert(
+                                    "Ảnh đại diện đã được cập nhật thành công"
+                                  );
                                   // Refresh doctor data
                                   window.location.reload();
                                 } else {
@@ -252,7 +275,6 @@ export default function DoctorDashboard() {
                 <ProfileSettings />
               </div>
             )}
-
           </div>
         </main>
       </div>

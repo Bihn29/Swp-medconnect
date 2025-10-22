@@ -194,11 +194,13 @@
 }
 
 .main-menu {
+  flex: 0 0 auto;
   padding-bottom: 1rem;
 }
 
 .settings-section {
-  margin-top: 1rem !important;
+  margin-top: auto !important;
+  padding-top: 1rem;
 }
 
 .menu-separator {

@@ -97,10 +97,10 @@ export default function PatientDashboard() {
             <div className="space-y-6">
               <WelcomeSection />
               <StatsCards />
-              
+
               {/* Video Call Notification */}
               <VideoCallNotification />
-              
+
               <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2 space-y-6">
                   <AppointmentCalendar />
