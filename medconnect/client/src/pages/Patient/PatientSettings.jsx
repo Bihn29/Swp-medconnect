@@ -30,7 +30,10 @@ const PatientSettings = () => {
   if (loading || profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Spin size="large" tip="Đang tải dữ liệu..." />
+        <div className="flex items-center justify-center">
+          <Spin size="large" />
+          <span className="ml-2">Đang tải dữ liệu...</span>
+        </div>
       </div>
     );
   }

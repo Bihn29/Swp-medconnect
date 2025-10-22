@@ -34,7 +34,7 @@ const AppointmentSchema = new Schema(
     },
 
     scheduledStart: { type: Date, required: true },
-    scheduledEnd: { type: Date, required: true },
+    scheduledEnd:   { type: Date, required: true },
 
     status: {
       type: String,
@@ -80,10 +80,7 @@ AppointmentSchema.pre("validate", function (next) {
     this.scheduledEnd &&
     this.scheduledStart >= this.scheduledEnd
   ) {
-    this.invalidate(
-      "scheduledEnd",
-      "scheduledEnd must be after scheduledStart"
-    );
+    this.invalidate("scheduledEnd", "scheduledEnd must be after scheduledStart");
   }
   if (this.isNew && this.scheduledStart && this.scheduledStart < new Date()) {
     this.invalidate("scheduledStart", "scheduledStart must be in the future");

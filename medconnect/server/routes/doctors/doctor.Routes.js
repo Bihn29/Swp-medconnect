@@ -21,12 +21,17 @@ import {
   getDoctorAvailableTimeSlots,
   createTestTimeSlots,
   autoGenerateTimeSlots,
+  getDoctorClinics
 } from "../../controllers/doctorController.js";
 
 const router = express.Router();
 
 // Public routes
 router.get("/", getAllDoctors); // Get all doctors for search/listing
+router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
+router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
+router.get("/:doctorId/clinics", getDoctorClinics); // Get doctor clinics
+router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
 
 // Protected routes (require authentication) - MUST COME BEFORE /:doctorId routes
 router.use(authGuard);

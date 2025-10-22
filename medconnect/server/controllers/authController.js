@@ -868,4 +868,62 @@ export async function testEmail(req, res) {
   }
 }
 
+/**
+ * POST /api/auth/change-password
+ * body: { currentPassword, newPassword }
+ * 
+ * 
+ *  đang fix lỗi chưa xong 
+ */
+export async function changePassword(req, res) {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu mật khẩu hiện tại hoặc mật khẩu mới");
+    }
+
+    // Validate password length
+    if (newPassword.length < 6) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu mới phải có ít nhất 6 ký tự");
+    }
+
+    // Lấy user từ req.user (đã được authGuard xác thực)
+    const userId = req.user?.app_user_id;
+    if (!userId) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "Không tìm thấy thông tin người dùng");
+    }
+
+    // Tìm user và lấy passwordHash
+    const user = await User.findById(userId).select("+passwordHash");
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Người dùng không tồn tại");
+    }
+
+    // Kiểm tra mật khẩu hiện tại
+    const isCurrentPasswordValid = await verifyPassword(user.passwordHash, currentPassword);
+    if (!isCurrentPasswordValid) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu hiện tại không đúng");
+    }
+
+    // Kiểm tra mật khẩu mới có khác mật khẩu cũ không
+    const isSamePassword = await verifyPassword(user.passwordHash, newPassword);
+    if (isSamePassword) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu mới phải khác mật khẩu hiện tại");
+    }
+
+    // Hash mật khẩu mới và lưu vào database
+    const hashedNewPassword = await hashPassword(newPassword);
+    user.passwordHash = hashedNewPassword;
+    await user.save();
+
+    return ok(res, { 
+      ok: true, 
+      message: "Đổi mật khẩu thành công" 
+    });
+  } catch (e) {
+    console.error("changePassword error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
 //------------------------------------------------- OTP & RESET PASSWORD

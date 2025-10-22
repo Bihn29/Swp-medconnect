@@ -51,6 +51,8 @@ const TimeSlotSelection = () => {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [selectedMode, setSelectedMode] = useState("online");
   const [showBookingForm, setShowBookingForm] = useState(false);
+  const [clinics, setClinics] = useState([]);
+  const [clinicsLoading, setClinicsLoading] = useState(false);
 
   useEffect(() => {
     if (location.state?.doctor && location.state?.specialization) {
@@ -66,6 +68,12 @@ const TimeSlotSelection = () => {
       fetchTimeSlots();
     }
   }, [selectedDate, doctor]);
+
+  useEffect(() => {
+    if (doctor) {
+      fetchDoctorClinics();
+    }
+  }, [doctor]);
 
   const fetchTimeSlots = async () => {
     try {
@@ -89,6 +97,25 @@ const TimeSlotSelection = () => {
       setTimeSlots([]);
     } finally {
       setTimeSlotsLoading(false);
+    }
+  };
+
+  const fetchDoctorClinics = async () => {
+    try {
+      setClinicsLoading(true);
+      const response = await api.get(`/api/doctors/${doctor._id}/clinics`);
+
+      if (response.success) {
+        setClinics(response.data.clinics);
+      } else {
+        console.error("Error fetching clinics:", response.message);
+        setClinics([]);
+      }
+    } catch (error) {
+      console.error("Error fetching doctor clinics:", error);
+      setClinics([]);
+    } finally {
+      setClinicsLoading(false);
     }
   };
 
@@ -131,10 +158,10 @@ const TimeSlotSelection = () => {
           .toISOString(),
       };
 
-      // TODO: Comment out payment-related fields for now
-      // if (selectedMode === "offline") {
-      //   appointmentData.clinicId = values.clinicId;
-      // }
+      // Add clinicId for offline appointments
+      if (selectedMode === "offline") {
+        appointmentData.clinicId = values.clinicId;
+      }
 
       const response = await api.post(
         "/api/patients/appointments",
@@ -356,19 +383,30 @@ const TimeSlotSelection = () => {
                       </Radio.Group>
                     </Form.Item>
 
-                    {/* TODO: Comment out clinic selection for now */}
-                    {/* {selectedMode === "offline" && (
+                    {selectedMode === "offline" && (
                       <Form.Item
                         name="clinicId"
                         label="Chọn phòng khám"
-                        rules={[{ required: true, message: "Vui lòng chọn phòng khám!" }]}
+                        rules={[
+                          {
+                            required: true,
+                            message: "Vui lòng chọn phòng khám!",
+                          },
+                        ]}
                       >
-                        <Select placeholder="Chọn phòng khám">
-                          <Option value="clinic1">Phòng khám 1</Option>
-                          <Option value="clinic2">Phòng khám 2</Option>
+                        <Select
+                          placeholder="Chọn phòng khám"
+                          loading={clinicsLoading}
+                          disabled={clinicsLoading}
+                        >
+                          {clinics.map((clinic) => (
+                            <Option key={clinic._id} value={clinic._id}>
+                              {clinic.name} - {clinic.address}
+                            </Option>
+                          ))}
                         </Select>
                       </Form.Item>
-                    )} */}
+                    )}
 
                     {/* Reason */}
                     <Form.Item name="reason" label="Lý do khám">

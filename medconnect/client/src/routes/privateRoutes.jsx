@@ -49,6 +49,7 @@ export const privateRoutes = (
   <>
     {/* ==================== PATIENT DASHBOARD (NO DEFAULT LAYOUT) ==================== */}
     {/* Patient dashboard with custom layout (no default header/footer) */}
+    
     <Route element={<AuthMiddleware />}>
       <Route element={<PatientMiddleware />}>
         <Route path="/benh-nhan" element={<PatientDashboard />} />
@@ -56,6 +57,7 @@ export const privateRoutes = (
         <Route path="/benh-nhan/video-call/:appointmentId" element={<PatientVideoCallPage />} />
         <Route path="/search-doctors" element={<PatientDashboard />} />
         <Route path="/my-appointments" element={<PatientDashboard />} />
+        <Route path="/tu-van-truc-tuyen" element={<PatientDashboard />} />
       </Route>
     </Route>
 

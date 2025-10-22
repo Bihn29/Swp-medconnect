@@ -140,7 +140,7 @@ const Homepage = () => {
   // ---- Specialty list ----
   // Use data from API instead of static data
   const specialties = specializations.map((spec) => ({
-    id: spec.code || spec._id,
+    id: spec._id, // Use _id consistently like Specialization component
     title: spec.name,
     icon: spec.avatar
       ? `${import.meta.env.VITE_API_URL || "http://localhost:3000"}${
@@ -170,19 +170,22 @@ const Homepage = () => {
 
   return (
     <div className="homepage">
-      <section 
+      <section
         className="hero-section"
         style={{
           background: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url('/Banner1.jpg')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
         }}
       >
         <div className="marquee">
-          <p>📢 Đặt lịch khám trực tuyến, hỗ trợ bạn đi khám từ lúc vào viện đến khi kết thúc khám. Gọi ngay 1900 2267!</p>
+          <p>
+            📢 Đặt lịch khám trực tuyến, hỗ trợ bạn đi khám từ lúc vào viện đến
+            khi kết thúc khám. Gọi ngay 1900 2267!
+          </p>
         </div>
-        
+
         <div className="container">
           <Row justify="center" align="middle" style={{ minHeight: "350px" }}>
             <Col xs={24} lg={20} style={{ textAlign: "center" }}>
@@ -245,11 +248,7 @@ const Homepage = () => {
             <Col xs={24} sm={12} md={8}>
               <Link to="/danh-sach-bac-si">
                 {/* <Card hoverable variant="plain" style={{ textAlign: "center" }}> */}
-                <Card
-                  hoverable
-                  variant="plain" 
-                  style={{ textAlign: "center" }}
-                >
+                <Card hoverable variant="plain" style={{ textAlign: "center" }}>
                   <img
                     src="https://cdn.bookingcare.vn/fo/w640/2023/11/01/140234-bac-si.png"
                     alt="Bác sĩ"
@@ -269,11 +268,7 @@ const Homepage = () => {
             <Col xs={24} sm={12} md={8}>
               <Link to="/chuyen-khoa">
                 {/* <Card hoverable variant="plain" style={{ textAlign: "center" }}> */}
-                <Card
-                  hoverable
-                  variant="plain" 
-                  style={{ textAlign: "center" }}
-                >
+                <Card hoverable variant="plain" style={{ textAlign: "center" }}>
                   <img
                     src="https://cdn.bookingcare.vn/fo/w640/2023/11/01/140537-chuyen-khoa.png"
                     alt="Chuyên khoa"
@@ -406,7 +401,17 @@ const Homepage = () => {
               <div key={index} style={{ padding: "0 12px" }}>
                 <Card
                   hoverable
-                  onClick={() => navigate(`/specialties/${specialty.id}`)}
+                  onClick={() => {
+                    console.log(
+                      "🏠 Homepage: Navigating to specialty:",
+                      specialty.id
+                    );
+                    navigate(
+                      `/danh-sach-bac-si?specialty=${encodeURIComponent(
+                        specialty.id
+                      )}`
+                    );
+                  }}
                   variant="outlined"
                   style={{
                     borderRadius: "16px",
