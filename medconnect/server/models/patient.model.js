@@ -1,6 +1,6 @@
 /* =======================================================
  * COLLECTION: Patients
- * Hồ sơ bệnh nhân (hỗ trợ người thân)
+ * Hồ sơ bệnh nhân (cho phòng khám / bệnh viện tư)
  * ======================================================= */
 
 import mongoose from "mongoose";
@@ -8,17 +8,62 @@ const { Schema, model } = mongoose;
 
 const PatientSchema = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true }, // NOT unique
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+
+    // 🧍‍♂️ Thông tin cá nhân cơ bản
     fullName: { type: String, required: true, trim: true },
     dob: Date,
     gender: { type: String, enum: ["male", "female", "other"] },
-    nationalId: String,
-    phone: String,
-    address: String,
-    wardCode: Number,
-    districtCode: Number,
-    provinceCode: Number,
+    ethnicity: String,
+    nationality: { type: String, default: "Vietnam" },
+    occupation: String,
+    citizenId: String, // CCCD / định danh cá nhân (không bắt buộc)
 
+    // 📞 Liên hệ & địa chỉ
+    phone: String,
+    email: String,
+    address: String,
+    houseNumber: String,
+
+    // 🩺 Bảo hiểm y tế (tuỳ chọn)
+    insuranceNumber: String,
+    primaryClinic: String,
+    insuranceValidFrom: Date,
+    insuranceValidTo: Date,
+
+    // 👨‍👩‍👧 Người đại diện / chăm sóc (dành cho bệnh nhân không tự đăng ký)
+    representativeName: String,
+    representativeCitizenId: String,
+    representativeRelation: String,
+    representativePhone: String,
+
+    // 🧬 Tiền sử y tế
+    bloodType: {
+      type: String,
+      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"],
+      default: "Unknown",
+    },
+
+    // Dị ứng, bệnh lý, tiêm chủng
+    allergyNotes: { type: String, trim: true, default: "", maxlength: 500 },
+
+    // Cho phép nhập hoặc chọn nhiều bệnh mạn tính
+    medicalHistory: [{ type: String, trim: true }],
+
+    // Lịch sử tiêm chủng (người dùng có thể nhập dần hoặc hệ thống gợi ý)
+    vaccinationHistory: [
+      {
+        vaccineName: String,
+        date: Date,
+        place: String,
+      },
+    ],
+
+    // 📛 Liên hệ khẩn cấp
+    emergencyContactName: String,
+    emergencyContactPhone: String,
+
+    // ⚙️ Quản trị & liên thông (tối giản)
     relationshipToOwner: {
       type: String,
       enum: [
@@ -33,28 +78,25 @@ const PatientSchema = new Schema(
       default: "self",
     },
 
-    // 🩸 Thêm nhóm máu
-    bloodType: {
-      type: String,
-      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"],
-      default: "Unknown",
-    },
+    // Dự phòng cho tích hợp định danh điện tử / API VNeID
+    vneidId: String,
 
-    // ⚠️ Thêm ghi chú dị ứng
-    allergyNotes: {
-      type: String,
-      trim: true,
-      default: "",
-      maxlength: 500, // giới hạn độ dài để tránh nhập quá nhiều
-    },
+    // Ảnh hồ sơ
+    avatarUrl: String,
+
+    // Ghi chú nội bộ (dành cho bác sĩ hoặc hệ thống)
+    notes: String,
+
+    // Tự động đánh dấu nếu hồ sơ đã đủ thông tin tối thiểu
+    isProfileComplete: { type: Boolean, default: false },
   },
   { timestamps: true, versionKey: false, collection: "Patients" }
 );
 
-// 🗂️ Index giúp tìm kiếm nhanh theo user hoặc vị trí địa lý
+// 🗂️ Index tối ưu tìm kiếm
 PatientSchema.index({ userId: 1, fullName: 1 });
 PatientSchema.index({ provinceCode: 1, districtCode: 1, wardCode: 1 });
 
 export default model("Patient", PatientSchema);
 
-// Thanh moi sua
+// Thanh sua

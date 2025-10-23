@@ -20,6 +20,30 @@ export function Settings() {
     bloodType: "",
     address: "",
     allergies: "",
+    // Thông tin cá nhân bổ sung
+    ethnicity: "",
+    nationality: "",
+    occupation: "",
+    citizenId: "",
+    // Địa chỉ chi tiết (không có wardCode, districtCode, provinceCode)
+    houseNumber: "",
+    // Bảo hiểm y tế
+    insuranceNumber: "",
+    primaryClinic: "",
+    insuranceValidFrom: "",
+    insuranceValidTo: "",
+    // Người đại diện
+    representativeName: "",
+    representativeCitizenId: "",
+    representativeRelation: "",
+    representativePhone: "",
+    // Liên hệ khẩn cấp
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    // Tiền sử y tế
+    medicalHistory: [],
+    // Ghi chú
+    notes: "",
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -53,6 +77,32 @@ export function Settings() {
         bloodType: userProfile.bloodType || "",
         address: userProfile.address || "",
         allergies: userProfile.allergyNotes || "",
+        // Thông tin cá nhân bổ sung
+        ethnicity: userProfile.ethnicity || "",
+        nationality: userProfile.nationality || "Vietnam",
+        occupation: userProfile.occupation || "",
+        citizenId: userProfile.citizenId || "",
+        // Địa chỉ chi tiết
+        houseNumber: userProfile.houseNumber || "",
+        // Bảo hiểm y tế
+        insuranceNumber: userProfile.insuranceNumber || "",
+        primaryClinic: userProfile.primaryClinic || "",
+        insuranceValidFrom: formatDateForDisplay(
+          userProfile.insuranceValidFrom
+        ),
+        insuranceValidTo: formatDateForDisplay(userProfile.insuranceValidTo),
+        // Người đại diện
+        representativeName: userProfile.representativeName || "",
+        representativeCitizenId: userProfile.representativeCitizenId || "",
+        representativeRelation: userProfile.representativeRelation || "",
+        representativePhone: userProfile.representativePhone || "",
+        // Liên hệ khẩn cấp
+        emergencyContactName: userProfile.emergencyContactName || "",
+        emergencyContactPhone: userProfile.emergencyContactPhone || "",
+        // Tiền sử y tế
+        medicalHistory: userProfile.medicalHistory || [],
+        // Ghi chú
+        notes: userProfile.notes || "",
       };
 
       console.log("=== FORM DATA UPDATED ===");
@@ -72,6 +122,30 @@ export function Settings() {
         bloodType: "",
         address: "",
         allergies: "",
+        // Thông tin cá nhân bổ sung
+        ethnicity: "",
+        nationality: "Vietnam",
+        occupation: "",
+        citizenId: "",
+        // Địa chỉ chi tiết
+        houseNumber: "",
+        // Bảo hiểm y tế
+        insuranceNumber: "",
+        primaryClinic: "",
+        insuranceValidFrom: "",
+        insuranceValidTo: "",
+        // Người đại diện
+        representativeName: "",
+        representativeCitizenId: "",
+        representativeRelation: "",
+        representativePhone: "",
+        // Liên hệ khẩn cấp
+        emergencyContactName: "",
+        emergencyContactPhone: "",
+        // Tiền sử y tế
+        medicalHistory: [],
+        // Ghi chú
+        notes: "",
       });
     }
   }, [userProfile, profileLoading]);
@@ -118,6 +192,30 @@ export function Settings() {
         address: formData.address,
         bloodType: formData.bloodType,
         allergyNotes: formData.allergies,
+        // Thông tin cá nhân bổ sung
+        ethnicity: formData.ethnicity,
+        nationality: formData.nationality,
+        occupation: formData.occupation,
+        citizenId: formData.citizenId,
+        // Địa chỉ chi tiết
+        houseNumber: formData.houseNumber,
+        // Bảo hiểm y tế
+        insuranceNumber: formData.insuranceNumber,
+        primaryClinic: formData.primaryClinic,
+        insuranceValidFrom: formatDateForAPI(formData.insuranceValidFrom),
+        insuranceValidTo: formatDateForAPI(formData.insuranceValidTo),
+        // Người đại diện
+        representativeName: formData.representativeName,
+        representativeCitizenId: formData.representativeCitizenId,
+        representativeRelation: formData.representativeRelation,
+        representativePhone: formData.representativePhone,
+        // Liên hệ khẩn cấp
+        emergencyContactName: formData.emergencyContactName,
+        emergencyContactPhone: formData.emergencyContactPhone,
+        // Tiền sử y tế
+        medicalHistory: formData.medicalHistory,
+        // Ghi chú
+        notes: formData.notes,
       };
 
       console.log("Data to send to API:", updateData);
@@ -205,105 +303,415 @@ export function Settings() {
               </div>
             </div>
 
-            {/* Form Fields */}
-            <div className="form-grid">
-              <div className="form-column">
-                <div className="form-group">
-                  <label className="form-label">Họ và tên</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.fullName}
-                    onChange={(e) =>
-                      handleInputChange("fullName", e.target.value)
-                    }
-                    placeholder="Nhập họ và tên"
-                  />
+            {/* Thông tin cơ bản */}
+            <div className="form-section">
+              <h3 className="section-subtitle">Thông tin cơ bản</h3>
+              <div className="form-grid">
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">Họ và tên *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.fullName}
+                      onChange={(e) =>
+                        handleInputChange("fullName", e.target.value)
+                      }
+                      placeholder="Nhập họ và tên"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Số điện thoại</label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        handleInputChange("phone", e.target.value)
+                      }
+                      placeholder="Nhập số điện thoại"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Giới tính</label>
+                    <select
+                      className="form-input"
+                      value={formData.gender}
+                      onChange={(e) =>
+                        handleInputChange("gender", e.target.value)
+                      }
+                    >
+                      <option value="">Chọn giới tính</option>
+                      <option value="male">Nam</option>
+                      <option value="female">Nữ</option>
+                      <option value="other">Khác</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Dân tộc</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.ethnicity}
+                      onChange={(e) =>
+                        handleInputChange("ethnicity", e.target.value)
+                      }
+                      placeholder="Nhập dân tộc"
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Số điện thoại</label>
-                  <input
-                    type="tel"
-                    className="form-input"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    placeholder="Nhập số điện thoại"
-                  />
-                </div>
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">Email</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      value={formData.email}
+                      onChange={(e) =>
+                        handleInputChange("email", e.target.value)
+                      }
+                      placeholder="Nhập email"
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label className="form-label">Giới tính</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.gender}
-                    onChange={(e) =>
-                      handleInputChange("gender", e.target.value)
-                    }
-                  />
-                </div>
+                  <div className="form-group">
+                    <label className="form-label">Ngày sinh</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={formData.birthDate}
+                      onChange={(e) =>
+                        handleInputChange("birthDate", e.target.value)
+                      }
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label className="form-label">Địa chỉ</label>
-                  <textarea
-                    className="form-textarea"
-                    value={formData.address}
-                    onChange={(e) =>
-                      handleInputChange("address", e.target.value)
-                    }
-                    rows={3}
-                  />
-                </div>
-              </div>
+                  <div className="form-group">
+                    <label className="form-label">Quốc tịch</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.nationality}
+                      onChange={(e) =>
+                        handleInputChange("nationality", e.target.value)
+                      }
+                      placeholder="Nhập quốc tịch"
+                    />
+                  </div>
 
-              <div className="form-column">
-                <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input
-                    type="email"
-                    className="form-input"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Ngày sinh</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={formData.birthDate}
-                    onChange={(e) =>
-                      handleInputChange("birthDate", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Nhóm máu</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.bloodType}
-                    onChange={(e) =>
-                      handleInputChange("bloodType", e.target.value)
-                    }
-                  />
+                  <div className="form-group">
+                    <label className="form-label">Nghề nghiệp</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.occupation}
+                      onChange={(e) =>
+                        handleInputChange("occupation", e.target.value)
+                      }
+                      placeholder="Nhập nghề nghiệp"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Allergies */}
-            <div className="form-group allergies-group">
-              <label className="form-label">Dị ứng (nếu có)</label>
-              <textarea
-                className="form-textarea allergies-textarea"
-                placeholder="Nhập các loại thuốc hoặc thực phẩm gây dị ứng..."
-                value={formData.allergies}
-                onChange={(e) => handleInputChange("allergies", e.target.value)}
-                rows={4}
-              />
+            {/* Địa chỉ */}
+            <div className="form-section">
+              <h3 className="section-subtitle">Địa chỉ</h3>
+              <div className="form-grid">
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">Địa chỉ</label>
+                    <textarea
+                      className="form-textarea"
+                      value={formData.address}
+                      onChange={(e) =>
+                        handleInputChange("address", e.target.value)
+                      }
+                      rows={3}
+                      placeholder="Nhập địa chỉ đầy đủ"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Số nhà</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.houseNumber}
+                      onChange={(e) =>
+                        handleInputChange("houseNumber", e.target.value)
+                      }
+                      placeholder="Nhập số nhà"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">CCCD/CMND</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.citizenId}
+                      onChange={(e) =>
+                        handleInputChange("citizenId", e.target.value)
+                      }
+                      placeholder="Nhập số CCCD/CMND"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Thông tin y tế */}
+            <div className="form-section">
+              <h3 className="section-subtitle">Thông tin y tế</h3>
+              <div className="form-grid">
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">Nhóm máu</label>
+                    <select
+                      className="form-input"
+                      value={formData.bloodType}
+                      onChange={(e) =>
+                        handleInputChange("bloodType", e.target.value)
+                      }
+                    >
+                      <option value="">Chọn nhóm máu</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="Unknown">Không rõ</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bảo hiểm y tế */}
+            <div className="form-section">
+              <h3 className="section-subtitle">Bảo hiểm y tế</h3>
+              <div className="form-grid">
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">Số thẻ BHYT</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.insuranceNumber}
+                      onChange={(e) =>
+                        handleInputChange("insuranceNumber", e.target.value)
+                      }
+                      placeholder="Nhập số thẻ BHYT"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      Cơ sở y tế đăng ký KCB ban đầu
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.primaryClinic}
+                      onChange={(e) =>
+                        handleInputChange("primaryClinic", e.target.value)
+                      }
+                      placeholder="Nhập tên cơ sở y tế"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">BHYT có hiệu lực từ</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={formData.insuranceValidFrom}
+                      onChange={(e) =>
+                        handleInputChange("insuranceValidFrom", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">BHYT có hiệu lực đến</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={formData.insuranceValidTo}
+                      onChange={(e) =>
+                        handleInputChange("insuranceValidTo", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Người đại diện */}
+            <div className="form-section">
+              <h3 className="section-subtitle">Người đại diện (nếu có)</h3>
+              <div className="form-grid">
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">Họ tên người đại diện</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.representativeName}
+                      onChange={(e) =>
+                        handleInputChange("representativeName", e.target.value)
+                      }
+                      placeholder="Nhập họ tên người đại diện"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      Số CCCD/CMND người đại diện
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.representativeCitizenId}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "representativeCitizenId",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Nhập số CCCD/CMND"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">Mối quan hệ</label>
+                    <select
+                      className="form-input"
+                      value={formData.representativeRelation}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "representativeRelation",
+                          e.target.value
+                        )
+                      }
+                    >
+                      <option value="">Chọn mối quan hệ</option>
+                      <option value="father">Cha</option>
+                      <option value="mother">Mẹ</option>
+                      <option value="spouse">Vợ/Chồng</option>
+                      <option value="child">Con</option>
+                      <option value="grandparent">Ông/Bà</option>
+                      <option value="other">Khác</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      Số điện thoại người đại diện
+                    </label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      value={formData.representativePhone}
+                      onChange={(e) =>
+                        handleInputChange("representativePhone", e.target.value)
+                      }
+                      placeholder="Nhập số điện thoại"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Liên hệ khẩn cấp */}
+            <div className="form-section">
+              <h3 className="section-subtitle">Liên hệ khẩn cấp</h3>
+              <div className="form-grid">
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">
+                      Họ tên người liên hệ khẩn cấp
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.emergencyContactName}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "emergencyContactName",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Nhập họ tên người liên hệ khẩn cấp"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">
+                      Số điện thoại liên hệ khẩn cấp
+                    </label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      value={formData.emergencyContactPhone}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "emergencyContactPhone",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Nhập số điện thoại"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Dị ứng và tiền sử y tế */}
+            <div className="form-section">
+              <h3 className="section-subtitle">Thông tin y tế bổ sung</h3>
+
+              <div className="form-group allergies-group">
+                <label className="form-label">Dị ứng (nếu có)</label>
+                <textarea
+                  className="form-textarea allergies-textarea"
+                  placeholder="Nhập các loại thuốc hoặc thực phẩm gây dị ứng..."
+                  value={formData.allergies}
+                  onChange={(e) =>
+                    handleInputChange("allergies", e.target.value)
+                  }
+                  rows={4}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Ghi chú bổ sung</label>
+                <textarea
+                  className="form-textarea"
+                  placeholder="Nhập các ghi chú khác về sức khỏe..."
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange("notes", e.target.value)}
+                  rows={3}
+                />
+              </div>
             </div>
 
             {/* Action Buttons */}

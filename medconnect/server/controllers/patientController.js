@@ -33,6 +33,11 @@ export async function getCurrentPatientProfile(req, res) {
     // Find patient profile
     const patient = await Patient.findOne({ userId: appUserId }).lean();
 
+    console.log("=== GET PATIENT PROFILE ===");
+    console.log("User ID:", appUserId);
+    console.log("Patient found:", !!patient);
+    console.log("Patient data:", patient);
+
     // Combine user and patient data
     const profileData = {
       user: {
@@ -52,14 +57,38 @@ export async function getCurrentPatientProfile(req, res) {
             fullName: patient.fullName,
             dob: patient.dob,
             gender: patient.gender,
-            nationalId: patient.nationalId,
+            ethnicity: patient.ethnicity,
+            nationality: patient.nationality,
+            occupation: patient.occupation,
+            citizenId: patient.citizenId,
             phone: patient.phone,
+            email: patient.email,
             address: patient.address,
+            houseNumber: patient.houseNumber,
+            // Bảo hiểm y tế
+            insuranceNumber: patient.insuranceNumber,
+            primaryClinic: patient.primaryClinic,
+            insuranceValidFrom: patient.insuranceValidFrom,
+            insuranceValidTo: patient.insuranceValidTo,
+            // Người đại diện
+            representativeName: patient.representativeName,
+            representativeCitizenId: patient.representativeCitizenId,
+            representativeRelation: patient.representativeRelation,
+            representativePhone: patient.representativePhone,
+            // Liên hệ khẩn cấp
+            emergencyContactName: patient.emergencyContactName,
+            emergencyContactPhone: patient.emergencyContactPhone,
+            // Thông tin y tế
+            bloodType: patient.bloodType,
+            allergyNotes: patient.allergyNotes,
+            medicalHistory: patient.medicalHistory,
+            // Ghi chú
+            notes: patient.notes,
+            // Legacy fields
+            nationalId: patient.nationalId,
             wardCode: patient.wardCode,
             districtCode: patient.districtCode,
             provinceCode: patient.provinceCode,
-            bloodType: patient.bloodType,
-            allergyNotes: patient.allergyNotes,
             relationshipToOwner: patient.relationshipToOwner,
             createdAt: patient.createdAt,
             updatedAt: patient.updatedAt,
@@ -99,6 +128,10 @@ export async function updatePatientProfile(req, res) {
 
     const updateData = req.body;
 
+    console.log("=== PATIENT UPDATE REQUEST ===");
+    console.log("Update data received:", updateData);
+    console.log("User ID:", appUserId);
+
     // Update user basic info
     const userUpdate = {};
     if (updateData.fullName) userUpdate.fullName = updateData.fullName;
@@ -114,21 +147,46 @@ export async function updatePatientProfile(req, res) {
       fullName: updateData.fullName,
       dob: updateData.dob,
       gender: updateData.gender,
-      nationalId: updateData.nationalId,
+      ethnicity: updateData.ethnicity,
+      nationality: updateData.nationality,
+      occupation: updateData.occupation,
+      citizenId: updateData.citizenId,
       phone: updateData.phone,
+      email: updateData.email,
       address: updateData.address,
-      wardCode: updateData.wardCode,
-      districtCode: updateData.districtCode,
-      provinceCode: updateData.provinceCode,
+      houseNumber: updateData.houseNumber,
+      // Bảo hiểm y tế
+      insuranceNumber: updateData.insuranceNumber,
+      primaryClinic: updateData.primaryClinic,
+      insuranceValidFrom: updateData.insuranceValidFrom,
+      insuranceValidTo: updateData.insuranceValidTo,
+      // Người đại diện
+      representativeName: updateData.representativeName,
+      representativeCitizenId: updateData.representativeCitizenId,
+      representativeRelation: updateData.representativeRelation,
+      representativePhone: updateData.representativePhone,
+      // Liên hệ khẩn cấp
+      emergencyContactName: updateData.emergencyContactName,
+      emergencyContactPhone: updateData.emergencyContactPhone,
+      // Thông tin y tế
       bloodType: updateData.bloodType,
       allergyNotes: updateData.allergyNotes,
+      medicalHistory: updateData.medicalHistory,
+      // Ghi chú
+      notes: updateData.notes,
     };
+
+    console.log("=== PATIENT UPDATE DATA ===");
+    console.log("Patient update object:", patientUpdate);
 
     const patient = await Patient.findOneAndUpdate(
       { userId: appUserId },
       patientUpdate,
       { upsert: true, new: true }
     );
+
+    console.log("=== PATIENT UPDATE RESULT ===");
+    console.log("Updated patient:", patient);
 
     return ok(res, {
       message: "Profile updated successfully",
