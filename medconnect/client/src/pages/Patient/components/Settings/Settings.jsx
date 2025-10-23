@@ -46,10 +46,19 @@ export function Settings() {
     notes: "",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // Update form data when user profile loads
   useEffect(() => {
+    console.log("=== SETTINGS useEffect ===");
+    console.log("userProfile:", userProfile);
+    console.log("profileLoading:", profileLoading);
+
     if (userProfile) {
+      console.log("=== USER PROFILE FOUND ===");
+      console.log("userProfile keys:", Object.keys(userProfile));
+      console.log("userProfile values:", userProfile);
+
       // Format date for display (YYYY-MM-DD for date input)
       const formatDateForDisplay = (dateString) => {
         if (!dateString) return "";
@@ -67,6 +76,15 @@ export function Settings() {
           return "";
         }
       };
+
+      console.log("=== MAPPING USER PROFILE TO FORM DATA ===");
+      console.log("userProfile.fullName:", userProfile.fullName);
+      console.log("userProfile.phone:", userProfile.phone);
+      console.log("userProfile.email:", userProfile.email);
+      console.log("userProfile.dob:", userProfile.dob);
+      console.log("userProfile.bloodType:", userProfile.bloodType);
+      console.log("userProfile.address:", userProfile.address);
+      console.log("userProfile.allergyNotes:", userProfile.allergyNotes);
 
       const newFormData = {
         fullName: userProfile.fullName || userProfile.displayName || "",
@@ -110,6 +128,8 @@ export function Settings() {
       console.log("Blood type from profile:", userProfile.bloodType);
       console.log("Allergy notes from profile:", userProfile.allergyNotes);
 
+      console.log("=== SETTING FORM DATA ===");
+      console.log("newFormData:", newFormData);
       setFormData(newFormData);
     } else if (!profileLoading) {
       // If no user profile and not loading, set empty form to allow editing
@@ -157,11 +177,294 @@ export function Settings() {
     { id: "payment", label: "Thanh toán", icon: CreditCard },
   ];
 
+  const validateField = (field, value) => {
+    const errors = {};
+
+    switch (field) {
+      case "fullName":
+        if (!value?.trim()) {
+          errors.fullName = "Họ và tên là bắt buộc";
+        } else if (value.trim().length < 2) {
+          errors.fullName = "Họ và tên phải có ít nhất 2 ký tự";
+        }
+        break;
+
+      case "email":
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          errors.email = "Email không đúng định dạng";
+        }
+        break;
+
+      case "phone":
+        if (
+          value &&
+          !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(value.replace(/\s/g, ""))
+        ) {
+          errors.phone = "Số điện thoại không đúng định dạng";
+        }
+        break;
+
+      case "birthDate":
+        if (value) {
+          const birthDate = new Date(value);
+          const today = new Date();
+          const age = today.getFullYear() - birthDate.getFullYear();
+
+          if (birthDate > today) {
+            errors.birthDate = "Ngày sinh không thể là tương lai";
+          } else if (age > 120) {
+            errors.birthDate = "Tuổi không hợp lệ";
+          }
+        }
+        break;
+
+      case "citizenId":
+        if (value && !/^[0-9]{9,12}$/.test(value)) {
+          errors.citizenId = "CCCD/CMND phải có 9-12 chữ số";
+        }
+        break;
+
+      case "representativeCitizenId":
+        if (value && !/^[0-9]{9,12}$/.test(value)) {
+          errors.representativeCitizenId =
+            "CCCD/CMND người đại diện phải có 9-12 chữ số";
+        }
+        break;
+
+      case "representativePhone":
+        if (
+          value &&
+          !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(value.replace(/\s/g, ""))
+        ) {
+          errors.representativePhone =
+            "Số điện thoại người đại diện không đúng định dạng";
+        }
+        break;
+
+      case "emergencyContactPhone":
+        if (
+          value &&
+          !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(value.replace(/\s/g, ""))
+        ) {
+          errors.emergencyContactPhone =
+            "Số điện thoại liên hệ khẩn cấp không đúng định dạng";
+        }
+        break;
+
+      case "allergies":
+        if (value && value.length > 500) {
+          errors.allergies = "Ghi chú dị ứng không được quá 500 ký tự";
+        }
+        break;
+
+      case "notes":
+        if (value && value.length > 1000) {
+          errors.notes = "Ghi chú không được quá 1000 ký tự";
+        }
+        break;
+
+      case "insuranceNumber":
+        if (value && !/^[0-9]{10,15}$/.test(value.replace(/\s/g, ""))) {
+          errors.insuranceNumber = "Số thẻ BHYT phải có 10-15 chữ số";
+        }
+        break;
+
+      case "primaryClinic":
+        if (value && value.trim().length < 3) {
+          errors.primaryClinic = "Tên cơ sở y tế phải có ít nhất 3 ký tự";
+        } else if (value && value.length > 200) {
+          errors.primaryClinic = "Tên cơ sở y tế không được quá 200 ký tự";
+        } else if (value && !/^[a-zA-ZÀ-ỹ\s\d\-.,()]+$/.test(value)) {
+          errors.primaryClinic =
+            "Tên cơ sở y tế chỉ được chứa chữ cái, số và ký tự đặc biệt cơ bản";
+        }
+        break;
+
+      case "representativeName":
+        if (value && value.trim().length < 2) {
+          errors.representativeName =
+            "Họ tên người đại diện phải có ít nhất 2 ký tự";
+        } else if (value && value.length > 100) {
+          errors.representativeName =
+            "Họ tên người đại diện không được quá 100 ký tự";
+        } else if (value && !/^[a-zA-ZÀ-ỹ\s]+$/.test(value)) {
+          errors.representativeName =
+            "Họ tên chỉ được chứa chữ cái và khoảng trắng";
+        }
+        break;
+
+      case "emergencyContactName":
+        if (value && value.trim().length < 2) {
+          errors.emergencyContactName =
+            "Họ tên người liên hệ khẩn cấp phải có ít nhất 2 ký tự";
+        } else if (value && value.length > 100) {
+          errors.emergencyContactName =
+            "Họ tên người liên hệ khẩn cấp không được quá 100 ký tự";
+        } else if (value && !/^[a-zA-ZÀ-ỹ\s]+$/.test(value)) {
+          errors.emergencyContactName =
+            "Họ tên chỉ được chứa chữ cái và khoảng trắng";
+        }
+        break;
+    }
+
+    return errors;
+  };
+
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
+
+    // Real-time validation
+    const fieldValidation = validateField(field, value);
+    setFieldErrors((prev) => ({
+      ...prev,
+      [field]: fieldValidation[field] || null,
+    }));
+  };
+
+  const validateForm = () => {
+    const errors = {};
+
+    // Validate required fields
+    if (!formData.fullName?.trim()) {
+      errors.fullName = "Họ và tên là bắt buộc";
+    } else if (formData.fullName.trim().length < 2) {
+      errors.fullName = "Họ và tên phải có ít nhất 2 ký tự";
+    }
+
+    // Validate email format
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = "Email không đúng định dạng";
+    }
+
+    // Validate phone format (Vietnamese phone numbers)
+    if (
+      formData.phone &&
+      !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(formData.phone.replace(/\s/g, ""))
+    ) {
+      errors.phone = "Số điện thoại không đúng định dạng";
+    }
+
+    // Validate date of birth
+    if (formData.birthDate) {
+      const birthDate = new Date(formData.birthDate);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+
+      if (birthDate > today) {
+        errors.birthDate = "Ngày sinh không thể là tương lai";
+      } else if (age > 120) {
+        errors.birthDate = "Tuổi không hợp lệ";
+      }
+    }
+
+    // Validate insurance dates
+    if (formData.insuranceValidFrom && formData.insuranceValidTo) {
+      const fromDate = new Date(formData.insuranceValidFrom);
+      const toDate = new Date(formData.insuranceValidTo);
+
+      if (fromDate >= toDate) {
+        errors.insuranceValidTo = "Ngày hết hạn phải sau ngày có hiệu lực";
+      }
+    }
+
+    // Validate representative phone
+    if (
+      formData.representativePhone &&
+      !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(
+        formData.representativePhone.replace(/\s/g, "")
+      )
+    ) {
+      errors.representativePhone =
+        "Số điện thoại người đại diện không đúng định dạng";
+    }
+
+    // Validate emergency contact phone
+    if (
+      formData.emergencyContactPhone &&
+      !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(
+        formData.emergencyContactPhone.replace(/\s/g, "")
+      )
+    ) {
+      errors.emergencyContactPhone =
+        "Số điện thoại liên hệ khẩn cấp không đúng định dạng";
+    }
+
+    // Validate citizen ID format (Vietnamese CCCD/CMND)
+    if (formData.citizenId && !/^[0-9]{9,12}$/.test(formData.citizenId)) {
+      errors.citizenId = "CCCD/CMND phải có 9-12 chữ số";
+    }
+
+    // Validate representative citizen ID
+    if (
+      formData.representativeCitizenId &&
+      !/^[0-9]{9,12}$/.test(formData.representativeCitizenId)
+    ) {
+      errors.representativeCitizenId =
+        "CCCD/CMND người đại diện phải có 9-12 chữ số";
+    }
+
+    // Validate allergy notes length
+    if (formData.allergies && formData.allergies.length > 500) {
+      errors.allergies = "Ghi chú dị ứng không được quá 500 ký tự";
+    }
+
+    // Validate notes length
+    if (formData.notes && formData.notes.length > 1000) {
+      errors.notes = "Ghi chú không được quá 1000 ký tự";
+    }
+
+    // Validate insurance number format
+    if (
+      formData.insuranceNumber &&
+      !/^[0-9]{10,15}$/.test(formData.insuranceNumber.replace(/\s/g, ""))
+    ) {
+      errors.insuranceNumber = "Số thẻ BHYT phải có 10-15 chữ số";
+    }
+
+    // Validate primary clinic name
+    if (formData.primaryClinic) {
+      if (formData.primaryClinic.trim().length < 3) {
+        errors.primaryClinic = "Tên cơ sở y tế phải có ít nhất 3 ký tự";
+      } else if (formData.primaryClinic.length > 200) {
+        errors.primaryClinic = "Tên cơ sở y tế không được quá 200 ký tự";
+      } else if (!/^[a-zA-ZÀ-ỹ\s\d\-.,()]+$/.test(formData.primaryClinic)) {
+        errors.primaryClinic =
+          "Tên cơ sở y tế chỉ được chứa chữ cái, số và ký tự đặc biệt cơ bản";
+      }
+    }
+
+    // Validate representative name
+    if (formData.representativeName) {
+      if (formData.representativeName.trim().length < 2) {
+        errors.representativeName =
+          "Họ tên người đại diện phải có ít nhất 2 ký tự";
+      } else if (formData.representativeName.length > 100) {
+        errors.representativeName =
+          "Họ tên người đại diện không được quá 100 ký tự";
+      } else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(formData.representativeName)) {
+        errors.representativeName =
+          "Họ tên chỉ được chứa chữ cái và khoảng trắng";
+      }
+    }
+
+    // Validate emergency contact name
+    if (formData.emergencyContactName) {
+      if (formData.emergencyContactName.trim().length < 2) {
+        errors.emergencyContactName =
+          "Họ tên người liên hệ khẩn cấp phải có ít nhất 2 ký tự";
+      } else if (formData.emergencyContactName.length > 100) {
+        errors.emergencyContactName =
+          "Họ tên người liên hệ khẩn cấp không được quá 100 ký tự";
+      } else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(formData.emergencyContactName)) {
+        errors.emergencyContactName =
+          "Họ tên chỉ được chứa chữ cái và khoảng trắng";
+      }
+    }
+
+    return errors;
   };
 
   const handleSave = async () => {
@@ -169,6 +472,17 @@ export function Settings() {
       setIsSaving(true);
       console.log("=== SAVING PROFILE ===");
       console.log("Form data:", formData);
+
+      // Validate form data
+      const validationErrors = validateForm();
+      if (Object.keys(validationErrors).length > 0) {
+        console.log("Validation errors:", validationErrors);
+        alert(
+          "Vui lòng kiểm tra lại thông tin:\n" +
+            Object.values(validationErrors).join("\n")
+        );
+        return;
+      }
 
       // Format date for API (convert YYYY-MM-DD to ISO string)
       const formatDateForAPI = (dateString) => {
@@ -184,6 +498,9 @@ export function Settings() {
       };
 
       // Prepare data for API
+      console.log("=== PREPARING UPDATE DATA ===");
+      console.log("formData before processing:", formData);
+
       const updateData = {
         fullName: formData.fullName,
         phone: formData.phone,
@@ -218,7 +535,9 @@ export function Settings() {
         notes: formData.notes,
       };
 
-      console.log("Data to send to API:", updateData);
+      console.log("=== SENDING TO API ===");
+      console.log("Update data:", updateData);
+      console.log("Update data JSON:", JSON.stringify(updateData, null, 2));
 
       // Call API to update patient profile
       const response = await updateCurrentPatientProfile(updateData);
@@ -312,7 +631,9 @@ export function Settings() {
                     <label className="form-label">Họ và tên *</label>
                     <input
                       type="text"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.fullName ? "error" : ""
+                      }`}
                       value={formData.fullName}
                       onChange={(e) =>
                         handleInputChange("fullName", e.target.value)
@@ -320,19 +641,27 @@ export function Settings() {
                       placeholder="Nhập họ và tên"
                       required
                     />
+                    {fieldErrors.fullName && (
+                      <div className="error-text">{fieldErrors.fullName}</div>
+                    )}
                   </div>
 
                   <div className="form-group">
                     <label className="form-label">Số điện thoại</label>
                     <input
                       type="tel"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.phone ? "error" : ""
+                      }`}
                       value={formData.phone}
                       onChange={(e) =>
                         handleInputChange("phone", e.target.value)
                       }
                       placeholder="Nhập số điện thoại"
                     />
+                    {fieldErrors.phone && (
+                      <div className="error-text">{fieldErrors.phone}</div>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -370,25 +699,35 @@ export function Settings() {
                     <label className="form-label">Email</label>
                     <input
                       type="email"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.email ? "error" : ""
+                      }`}
                       value={formData.email}
                       onChange={(e) =>
                         handleInputChange("email", e.target.value)
                       }
                       placeholder="Nhập email"
                     />
+                    {fieldErrors.email && (
+                      <div className="error-text">{fieldErrors.email}</div>
+                    )}
                   </div>
 
                   <div className="form-group">
                     <label className="form-label">Ngày sinh</label>
                     <input
                       type="date"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.birthDate ? "error" : ""
+                      }`}
                       value={formData.birthDate}
                       onChange={(e) =>
                         handleInputChange("birthDate", e.target.value)
                       }
                     />
+                    {fieldErrors.birthDate && (
+                      <div className="error-text">{fieldErrors.birthDate}</div>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -457,13 +796,18 @@ export function Settings() {
                     <label className="form-label">CCCD/CMND</label>
                     <input
                       type="text"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.citizenId ? "error" : ""
+                      }`}
                       value={formData.citizenId}
                       onChange={(e) =>
                         handleInputChange("citizenId", e.target.value)
                       }
                       placeholder="Nhập số CCCD/CMND"
                     />
+                    {fieldErrors.citizenId && (
+                      <div className="error-text">{fieldErrors.citizenId}</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -508,13 +852,20 @@ export function Settings() {
                     <label className="form-label">Số thẻ BHYT</label>
                     <input
                       type="text"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.insuranceNumber ? "error" : ""
+                      }`}
                       value={formData.insuranceNumber}
                       onChange={(e) =>
                         handleInputChange("insuranceNumber", e.target.value)
                       }
                       placeholder="Nhập số thẻ BHYT"
                     />
+                    {fieldErrors.insuranceNumber && (
+                      <div className="error-text">
+                        {fieldErrors.insuranceNumber}
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -523,13 +874,20 @@ export function Settings() {
                     </label>
                     <input
                       type="text"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.primaryClinic ? "error" : ""
+                      }`}
                       value={formData.primaryClinic}
                       onChange={(e) =>
                         handleInputChange("primaryClinic", e.target.value)
                       }
                       placeholder="Nhập tên cơ sở y tế"
                     />
+                    {fieldErrors.primaryClinic && (
+                      <div className="error-text">
+                        {fieldErrors.primaryClinic}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -570,13 +928,20 @@ export function Settings() {
                     <label className="form-label">Họ tên người đại diện</label>
                     <input
                       type="text"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.representativeName ? "error" : ""
+                      }`}
                       value={formData.representativeName}
                       onChange={(e) =>
                         handleInputChange("representativeName", e.target.value)
                       }
                       placeholder="Nhập họ tên người đại diện"
                     />
+                    {fieldErrors.representativeName && (
+                      <div className="error-text">
+                        {fieldErrors.representativeName}
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -585,7 +950,9 @@ export function Settings() {
                     </label>
                     <input
                       type="text"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.representativeCitizenId ? "error" : ""
+                      }`}
                       value={formData.representativeCitizenId}
                       onChange={(e) =>
                         handleInputChange(
@@ -595,6 +962,11 @@ export function Settings() {
                       }
                       placeholder="Nhập số CCCD/CMND"
                     />
+                    {fieldErrors.representativeCitizenId && (
+                      <div className="error-text">
+                        {fieldErrors.representativeCitizenId}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -627,13 +999,20 @@ export function Settings() {
                     </label>
                     <input
                       type="tel"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.representativePhone ? "error" : ""
+                      }`}
                       value={formData.representativePhone}
                       onChange={(e) =>
                         handleInputChange("representativePhone", e.target.value)
                       }
                       placeholder="Nhập số điện thoại"
                     />
+                    {fieldErrors.representativePhone && (
+                      <div className="error-text">
+                        {fieldErrors.representativePhone}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -650,7 +1029,9 @@ export function Settings() {
                     </label>
                     <input
                       type="text"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.emergencyContactName ? "error" : ""
+                      }`}
                       value={formData.emergencyContactName}
                       onChange={(e) =>
                         handleInputChange(
@@ -660,6 +1041,11 @@ export function Settings() {
                       }
                       placeholder="Nhập họ tên người liên hệ khẩn cấp"
                     />
+                    {fieldErrors.emergencyContactName && (
+                      <div className="error-text">
+                        {fieldErrors.emergencyContactName}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -670,7 +1056,9 @@ export function Settings() {
                     </label>
                     <input
                       type="tel"
-                      className="form-input"
+                      className={`form-input ${
+                        fieldErrors.emergencyContactPhone ? "error" : ""
+                      }`}
                       value={formData.emergencyContactPhone}
                       onChange={(e) =>
                         handleInputChange(
@@ -680,6 +1068,11 @@ export function Settings() {
                       }
                       placeholder="Nhập số điện thoại"
                     />
+                    {fieldErrors.emergencyContactPhone && (
+                      <div className="error-text">
+                        {fieldErrors.emergencyContactPhone}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -692,7 +1085,9 @@ export function Settings() {
               <div className="form-group allergies-group">
                 <label className="form-label">Dị ứng (nếu có)</label>
                 <textarea
-                  className="form-textarea allergies-textarea"
+                  className={`form-textarea allergies-textarea ${
+                    fieldErrors.allergies ? "error" : ""
+                  }`}
                   placeholder="Nhập các loại thuốc hoặc thực phẩm gây dị ứng..."
                   value={formData.allergies}
                   onChange={(e) =>
@@ -700,17 +1095,25 @@ export function Settings() {
                   }
                   rows={4}
                 />
+                {fieldErrors.allergies && (
+                  <div className="error-text">{fieldErrors.allergies}</div>
+                )}
               </div>
 
               <div className="form-group">
                 <label className="form-label">Ghi chú bổ sung</label>
                 <textarea
-                  className="form-textarea"
+                  className={`form-textarea ${
+                    fieldErrors.notes ? "error" : ""
+                  }`}
                   placeholder="Nhập các ghi chú khác về sức khỏe..."
                   value={formData.notes}
                   onChange={(e) => handleInputChange("notes", e.target.value)}
                   rows={3}
                 />
+                {fieldErrors.notes && (
+                  <div className="error-text">{fieldErrors.notes}</div>
+                )}
               </div>
             </div>
 
