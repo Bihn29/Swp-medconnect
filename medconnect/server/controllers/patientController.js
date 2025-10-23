@@ -33,11 +33,6 @@ export async function getCurrentPatientProfile(req, res) {
     // Find patient profile
     const patient = await Patient.findOne({ userId: appUserId }).lean();
 
-    console.log("=== GET PATIENT PROFILE ===");
-    console.log("User ID:", appUserId);
-    console.log("Patient found:", !!patient);
-    console.log("Patient data:", patient);
-
     // Combine user and patient data
     const profileData = {
       user: {
@@ -82,6 +77,7 @@ export async function getCurrentPatientProfile(req, res) {
             bloodType: patient.bloodType,
             allergyNotes: patient.allergyNotes,
             medicalHistory: patient.medicalHistory,
+            vaccinationHistory: patient.vaccinationHistory,
             // Ghi chú
             notes: patient.notes,
             // Legacy fields
@@ -127,10 +123,6 @@ export async function updatePatientProfile(req, res) {
     }
 
     const updateData = req.body;
-
-    console.log("=== PATIENT UPDATE REQUEST ===");
-    console.log("Update data received:", updateData);
-    console.log("User ID:", appUserId);
 
     // Server-side validation
     const validationErrors = {};
@@ -276,7 +268,6 @@ export async function updatePatientProfile(req, res) {
 
     // Return validation errors if any
     if (Object.keys(validationErrors).length > 0) {
-      console.log("Validation errors:", validationErrors);
       return fail(
         res,
         400,
@@ -326,21 +317,16 @@ export async function updatePatientProfile(req, res) {
       bloodType: updateData.bloodType,
       allergyNotes: updateData.allergyNotes,
       medicalHistory: updateData.medicalHistory,
+      vaccinationHistory: updateData.vaccinationHistory,
       // Ghi chú
       notes: updateData.notes,
     };
-
-    console.log("=== PATIENT UPDATE DATA ===");
-    console.log("Patient update object:", patientUpdate);
 
     const patient = await Patient.findOneAndUpdate(
       { userId: appUserId },
       patientUpdate,
       { upsert: true, new: true }
     );
-
-    console.log("=== PATIENT UPDATE RESULT ===");
-    console.log("Updated patient:", patient);
 
     return ok(res, {
       message: "Profile updated successfully",

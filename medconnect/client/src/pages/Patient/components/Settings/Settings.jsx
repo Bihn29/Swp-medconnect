@@ -42,6 +42,8 @@ export function Settings() {
     emergencyContactPhone: "",
     // Tiền sử y tế
     medicalHistory: [],
+    // Lịch sử tiêm chủng
+    vaccinationHistory: [],
     // Ghi chú
     notes: "",
   });
@@ -50,15 +52,7 @@ export function Settings() {
 
   // Update form data when user profile loads
   useEffect(() => {
-    console.log("=== SETTINGS useEffect ===");
-    console.log("userProfile:", userProfile);
-    console.log("profileLoading:", profileLoading);
-
     if (userProfile) {
-      console.log("=== USER PROFILE FOUND ===");
-      console.log("userProfile keys:", Object.keys(userProfile));
-      console.log("userProfile values:", userProfile);
-
       // Format date for display (YYYY-MM-DD for date input)
       const formatDateForDisplay = (dateString) => {
         if (!dateString) return "";
@@ -76,15 +70,6 @@ export function Settings() {
           return "";
         }
       };
-
-      console.log("=== MAPPING USER PROFILE TO FORM DATA ===");
-      console.log("userProfile.fullName:", userProfile.fullName);
-      console.log("userProfile.phone:", userProfile.phone);
-      console.log("userProfile.email:", userProfile.email);
-      console.log("userProfile.dob:", userProfile.dob);
-      console.log("userProfile.bloodType:", userProfile.bloodType);
-      console.log("userProfile.address:", userProfile.address);
-      console.log("userProfile.allergyNotes:", userProfile.allergyNotes);
 
       const newFormData = {
         fullName: userProfile.fullName || userProfile.displayName || "",
@@ -119,17 +104,12 @@ export function Settings() {
         emergencyContactPhone: userProfile.emergencyContactPhone || "",
         // Tiền sử y tế
         medicalHistory: userProfile.medicalHistory || [],
+        // Lịch sử tiêm chủng
+        vaccinationHistory: userProfile.vaccinationHistory || [],
         // Ghi chú
         notes: userProfile.notes || "",
       };
 
-      console.log("=== FORM DATA UPDATED ===");
-      console.log("New form data:", newFormData);
-      console.log("Blood type from profile:", userProfile.bloodType);
-      console.log("Allergy notes from profile:", userProfile.allergyNotes);
-
-      console.log("=== SETTING FORM DATA ===");
-      console.log("newFormData:", newFormData);
       setFormData(newFormData);
     } else if (!profileLoading) {
       // If no user profile and not loading, set empty form to allow editing
@@ -164,6 +144,8 @@ export function Settings() {
         emergencyContactPhone: "",
         // Tiền sử y tế
         medicalHistory: [],
+        // Lịch sử tiêm chủng
+        vaccinationHistory: [],
         // Ghi chú
         notes: "",
       });
@@ -470,13 +452,10 @@ export function Settings() {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      console.log("=== SAVING PROFILE ===");
-      console.log("Form data:", formData);
 
       // Validate form data
       const validationErrors = validateForm();
       if (Object.keys(validationErrors).length > 0) {
-        console.log("Validation errors:", validationErrors);
         alert(
           "Vui lòng kiểm tra lại thông tin:\n" +
             Object.values(validationErrors).join("\n")
@@ -498,9 +477,6 @@ export function Settings() {
       };
 
       // Prepare data for API
-      console.log("=== PREPARING UPDATE DATA ===");
-      console.log("formData before processing:", formData);
-
       const updateData = {
         fullName: formData.fullName,
         phone: formData.phone,
@@ -531,21 +507,17 @@ export function Settings() {
         emergencyContactPhone: formData.emergencyContactPhone,
         // Tiền sử y tế
         medicalHistory: formData.medicalHistory,
+        // Lịch sử tiêm chủng
+        vaccinationHistory: formData.vaccinationHistory,
         // Ghi chú
         notes: formData.notes,
       };
 
-      console.log("=== SENDING TO API ===");
-      console.log("Update data:", updateData);
-      console.log("Update data JSON:", JSON.stringify(updateData, null, 2));
-
       // Call API to update patient profile
       const response = await updateCurrentPatientProfile(updateData);
-      console.log("API Response:", response);
 
       // Refresh the profile data
       await refreshProfile();
-      console.log("Profile refreshed");
 
       // Show success message
       alert("Cập nhật thông tin thành công!");
@@ -558,7 +530,6 @@ export function Settings() {
   };
 
   const handleCancel = () => {
-    console.log("Cancelling changes");
     // Thêm logic hủy thay đổi ở đây
   };
 
@@ -1098,6 +1069,71 @@ export function Settings() {
                 {fieldErrors.allergies && (
                   <div className="error-text">{fieldErrors.allergies}</div>
                 )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Tiền sử bệnh lý</label>
+                <textarea
+                  className="form-textarea"
+                  placeholder="Nhập các bệnh lý đã mắc phải (mỗi bệnh một dòng)..."
+                  value={
+                    formData.medicalHistory
+                      ? formData.medicalHistory.join("\n")
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const medicalHistory = e.target.value
+                      .split("\n")
+                      .filter((item) => item.trim());
+                    handleInputChange("medicalHistory", medicalHistory);
+                  }}
+                  rows={4}
+                />
+                <div className="form-help-text">
+                  Mỗi bệnh lý một dòng, ví dụ: Tiểu đường, Cao huyết áp, Hen
+                  suyễn
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Lịch sử tiêm chủng</label>
+                <textarea
+                  className="form-textarea"
+                  placeholder="Nhập thông tin tiêm chủng (mỗi mũi tiêm một dòng)..."
+                  value={
+                    formData.vaccinationHistory
+                      ? formData.vaccinationHistory
+                          .map(
+                            (v) =>
+                              `${v.vaccineName || ""} - ${
+                                v.date
+                                  ? new Date(v.date).toLocaleDateString("vi-VN")
+                                  : ""
+                              } - ${v.place || ""}`
+                          )
+                          .join("\n")
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const lines = e.target.value
+                      .split("\n")
+                      .filter((line) => line.trim());
+                    const vaccinationHistory = lines.map((line) => {
+                      const parts = line.split(" - ");
+                      return {
+                        vaccineName: parts[0] || "",
+                        date: parts[1] ? new Date(parts[1]) : null,
+                        place: parts[2] || "",
+                      };
+                    });
+                    handleInputChange("vaccinationHistory", vaccinationHistory);
+                  }}
+                  rows={4}
+                />
+                <div className="form-help-text">
+                  Định dạng: Tên vaccine - Ngày tiêm - Nơi tiêm (mỗi mũi tiêm
+                  một dòng)
+                </div>
               </div>
 
               <div className="form-group">
