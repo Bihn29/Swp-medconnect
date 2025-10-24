@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { User, Bell, Lock, CreditCard, Upload } from "lucide-react";
+import { User, Lock, CreditCard, Upload, Eye, EyeOff } from "lucide-react";
 import { useUserProfile } from "../../../../hooks/useUserProfile";
 import { updateCurrentPatientProfile } from "../../../../lib/api";
 import "./Settings.scss";
@@ -46,26 +46,36 @@ export function Settings() {
     vaccinationHistory: [],
     // Ghi chú
     notes: "",
+    // Password change fields
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
   const [isSaving, setIsSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // Password change states
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   // Update form data when user profile loads
   useEffect(() => {
     if (userProfile) {
-      // Format date for display (YYYY-MM-DD for date input)
+      // Format date for display (DD/MM/YYYY for date input)
       const formatDateForDisplay = (dateString) => {
         if (!dateString) return "";
         try {
           const date = new Date(dateString);
           if (isNaN(date.getTime())) return "";
 
-          // Format as YYYY-MM-DD for date input
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, "0");
+          // Format as DD/MM/YYYY for date input
           const day = String(date.getDate()).padStart(2, "0");
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const year = date.getFullYear();
 
-          return `${year}-${month}-${day}`;
+          return `${day}/${month}/${year}`;
         } catch (error) {
           return "";
         }
@@ -154,7 +164,6 @@ export function Settings() {
 
   const tabs = [
     { id: "profile", label: "Hồ sơ", icon: User },
-    { id: "notifications", label: "Thông báo", icon: Bell },
     { id: "security", label: "Bảo mật", icon: Lock },
     { id: "payment", label: "Thanh toán", icon: CreditCard },
   ];
@@ -188,14 +197,23 @@ export function Settings() {
 
       case "birthDate":
         if (value) {
-          const birthDate = new Date(value);
-          const today = new Date();
-          const age = today.getFullYear() - birthDate.getFullYear();
+          // Validate DD/MM/YYYY format
+          const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+          if (!dateRegex.test(value)) {
+            errors.birthDate = "Ngày sinh phải có định dạng DD/MM/YYYY";
+          } else {
+            const [, day, month, year] = value.match(dateRegex);
+            const birthDate = new Date(year, month - 1, day);
+            const today = new Date();
+            const age = today.getFullYear() - birthDate.getFullYear();
 
-          if (birthDate > today) {
-            errors.birthDate = "Ngày sinh không thể là tương lai";
-          } else if (age > 120) {
-            errors.birthDate = "Tuổi không hợp lệ";
+            if (birthDate > today) {
+              errors.birthDate = "Ngày sinh không thể là tương lai";
+            } else if (age > 120) {
+              errors.birthDate = "Tuổi không hợp lệ";
+            } else if (isNaN(birthDate.getTime())) {
+              errors.birthDate = "Ngày sinh không hợp lệ";
+            }
           }
         }
         break;
@@ -287,6 +305,26 @@ export function Settings() {
             "Họ tên chỉ được chứa chữ cái và khoảng trắng";
         }
         break;
+
+      case "currentPassword":
+        if (value && value.length < 6) {
+          errors.currentPassword = "Mật khẩu hiện tại phải có ít nhất 6 ký tự";
+        }
+        break;
+
+      case "newPassword":
+        if (value && value.length < 6) {
+          errors.newPassword = "Mật khẩu mới phải có ít nhất 6 ký tự";
+        } else if (value && value.length > 50) {
+          errors.newPassword = "Mật khẩu mới không được quá 50 ký tự";
+        }
+        break;
+
+      case "confirmPassword":
+        if (value && value !== formData.newPassword) {
+          errors.confirmPassword = "Mật khẩu xác nhận không khớp";
+        }
+        break;
     }
 
     return errors;
@@ -304,6 +342,18 @@ export function Settings() {
       ...prev,
       [field]: fieldValidation[field] || null,
     }));
+
+    // If new password changes, re-validate confirm password
+    if (field === "newPassword") {
+      const confirmPasswordValidation = validateField(
+        "confirmPassword",
+        formData.confirmPassword
+      );
+      setFieldErrors((prev) => ({
+        ...prev,
+        confirmPassword: confirmPasswordValidation.confirmPassword || null,
+      }));
+    }
   };
 
   const validateForm = () => {
@@ -331,24 +381,45 @@ export function Settings() {
 
     // Validate date of birth
     if (formData.birthDate) {
-      const birthDate = new Date(formData.birthDate);
-      const today = new Date();
-      const age = today.getFullYear() - birthDate.getFullYear();
+      const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      if (!dateRegex.test(formData.birthDate)) {
+        errors.birthDate = "Ngày sinh phải có định dạng DD/MM/YYYY";
+      } else {
+        const [, day, month, year] = formData.birthDate.match(dateRegex);
+        const birthDate = new Date(year, month - 1, day);
+        const today = new Date();
+        const age = today.getFullYear() - birthDate.getFullYear();
 
-      if (birthDate > today) {
-        errors.birthDate = "Ngày sinh không thể là tương lai";
-      } else if (age > 120) {
-        errors.birthDate = "Tuổi không hợp lệ";
+        if (birthDate > today) {
+          errors.birthDate = "Ngày sinh không thể là tương lai";
+        } else if (age > 120) {
+          errors.birthDate = "Tuổi không hợp lệ";
+        } else if (isNaN(birthDate.getTime())) {
+          errors.birthDate = "Ngày sinh không hợp lệ";
+        }
       }
     }
 
     // Validate insurance dates
     if (formData.insuranceValidFrom && formData.insuranceValidTo) {
-      const fromDate = new Date(formData.insuranceValidFrom);
-      const toDate = new Date(formData.insuranceValidTo);
+      const fromDateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      const toDateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 
-      if (fromDate >= toDate) {
-        errors.insuranceValidTo = "Ngày hết hạn phải sau ngày có hiệu lực";
+      if (
+        fromDateRegex.test(formData.insuranceValidFrom) &&
+        toDateRegex.test(formData.insuranceValidTo)
+      ) {
+        const [, fromDay, fromMonth, fromYear] =
+          formData.insuranceValidFrom.match(fromDateRegex);
+        const [, toDay, toMonth, toYear] =
+          formData.insuranceValidTo.match(toDateRegex);
+
+        const fromDate = new Date(fromYear, fromMonth - 1, fromDay);
+        const toDate = new Date(toYear, toMonth - 1, toDay);
+
+        if (fromDate >= toDate) {
+          errors.insuranceValidTo = "Ngày hết hạn phải sau ngày có hiệu lực";
+        }
       }
     }
 
@@ -463,14 +534,19 @@ export function Settings() {
         return;
       }
 
-      // Format date for API (convert YYYY-MM-DD to ISO string)
+      // Format date for API (convert DD/MM/YYYY to ISO string)
       const formatDateForAPI = (dateString) => {
         if (!dateString) return null;
         try {
-          // Handle YYYY-MM-DD format from date input
-          const date = new Date(dateString);
-          if (isNaN(date.getTime())) return null;
-          return date.toISOString();
+          // Handle DD/MM/YYYY format from text input
+          const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+          if (dateRegex.test(dateString)) {
+            const [, day, month, year] = dateString.match(dateRegex);
+            const date = new Date(year, month - 1, day);
+            if (isNaN(date.getTime())) return null;
+            return date.toISOString();
+          }
+          return null;
         } catch (error) {
           return null;
         }
@@ -531,6 +607,61 @@ export function Settings() {
 
   const handleCancel = () => {
     // Thêm logic hủy thay đổi ở đây
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      setIsChangingPassword(true);
+
+      // Validate password fields
+      const passwordErrors = {};
+
+      if (!formData.currentPassword?.trim()) {
+        passwordErrors.currentPassword = "Mật khẩu hiện tại là bắt buộc";
+      }
+
+      if (!formData.newPassword?.trim()) {
+        passwordErrors.newPassword = "Mật khẩu mới là bắt buộc";
+      } else if (formData.newPassword.length < 6) {
+        passwordErrors.newPassword = "Mật khẩu mới phải có ít nhất 6 ký tự";
+      }
+
+      if (!formData.confirmPassword?.trim()) {
+        passwordErrors.confirmPassword = "Xác nhận mật khẩu là bắt buộc";
+      } else if (formData.confirmPassword !== formData.newPassword) {
+        passwordErrors.confirmPassword = "Mật khẩu xác nhận không khớp";
+      }
+
+      if (Object.keys(passwordErrors).length > 0) {
+        setFieldErrors(passwordErrors);
+        alert("Vui lòng kiểm tra lại thông tin mật khẩu");
+        return;
+      }
+
+      // TODO: Implement password change API call
+      // const response = await changePassword({
+      //   currentPassword: formData.currentPassword,
+      //   newPassword: formData.newPassword
+      // });
+
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Clear password fields
+      setFormData((prev) => ({
+        ...prev,
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      }));
+
+      alert("Đổi mật khẩu thành công!");
+    } catch (error) {
+      console.error("Error changing password:", error);
+      alert("Có lỗi xảy ra khi đổi mật khẩu. Vui lòng thử lại.");
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
@@ -687,7 +818,7 @@ export function Settings() {
                   <div className="form-group">
                     <label className="form-label">Ngày sinh</label>
                     <input
-                      type="date"
+                      type="text"
                       className={`form-input ${
                         fieldErrors.birthDate ? "error" : ""
                       }`}
@@ -695,6 +826,7 @@ export function Settings() {
                       onChange={(e) =>
                         handleInputChange("birthDate", e.target.value)
                       }
+                      placeholder="DD/MM/YYYY"
                     />
                     {fieldErrors.birthDate && (
                       <div className="error-text">{fieldErrors.birthDate}</div>
@@ -866,24 +998,26 @@ export function Settings() {
                   <div className="form-group">
                     <label className="form-label">BHYT có hiệu lực từ</label>
                     <input
-                      type="date"
+                      type="text"
                       className="form-input"
                       value={formData.insuranceValidFrom}
                       onChange={(e) =>
                         handleInputChange("insuranceValidFrom", e.target.value)
                       }
+                      placeholder="DD/MM/YYYY"
                     />
                   </div>
 
                   <div className="form-group">
                     <label className="form-label">BHYT có hiệu lực đến</label>
                     <input
-                      type="date"
+                      type="text"
                       className="form-input"
                       value={formData.insuranceValidTo}
                       onChange={(e) =>
                         handleInputChange("insuranceValidTo", e.target.value)
                       }
+                      placeholder="DD/MM/YYYY"
                     />
                   </div>
                 </div>
@@ -1169,136 +1303,108 @@ export function Settings() {
           </div>
         )}
 
-        {activeTab === "notifications" && (
-          <div className="notifications-section">
-            <div className="section-header">
-              <h2 className="section-title">Cài đặt thông báo</h2>
-              <p className="section-subtitle">
-                Quản lý cách bạn nhận thông báo từ hệ thống
-              </p>
-            </div>
-
-            <div className="notification-settings">
-              <div className="setting-item">
-                <div className="setting-info">
-                  <h3 className="setting-title">Thông báo lịch hẹn</h3>
-                  <p className="setting-description">
-                    Nhận thông báo về lịch hẹn mới, thay đổi lịch hẹn
-                  </p>
-                </div>
-                <div className="setting-toggle">
-                  <input
-                    type="checkbox"
-                    id="appointment-notifications"
-                    defaultChecked
-                  />
-                  <label
-                    htmlFor="appointment-notifications"
-                    className="toggle-label"
-                  >
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="setting-item">
-                <div className="setting-info">
-                  <h3 className="setting-title">Thông báo tư vấn</h3>
-                  <p className="setting-description">
-                    Nhận thông báo khi bác sĩ trả lời tư vấn trực tuyến
-                  </p>
-                </div>
-                <div className="setting-toggle">
-                  <input
-                    type="checkbox"
-                    id="consultation-notifications"
-                    defaultChecked
-                  />
-                  <label
-                    htmlFor="consultation-notifications"
-                    className="toggle-label"
-                  >
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="setting-item">
-                <div className="setting-info">
-                  <h3 className="setting-title">Thông báo email</h3>
-                  <p className="setting-description">
-                    Nhận thông báo qua email về các hoạt động quan trọng
-                  </p>
-                </div>
-                <div className="setting-toggle">
-                  <input
-                    type="checkbox"
-                    id="email-notifications"
-                    defaultChecked
-                  />
-                  <label htmlFor="email-notifications" className="toggle-label">
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="setting-item">
-                <div className="setting-info">
-                  <h3 className="setting-title">Thông báo SMS</h3>
-                  <p className="setting-description">
-                    Nhận thông báo qua tin nhắn SMS
-                  </p>
-                </div>
-                <div className="setting-toggle">
-                  <input type="checkbox" id="sms-notifications" />
-                  <label htmlFor="sms-notifications" className="toggle-label">
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {activeTab === "security" && (
           <div className="security-section">
             <div className="section-header">
-              <h2 className="section-title">Bảo mật tài khoản</h2>
-              <p className="section-subtitle">
-                Quản lý mật khẩu và bảo mật tài khoản
-              </p>
+              <h2 className="section-title">Bảo mật</h2>
             </div>
 
-            <div className="security-settings">
-              <div className="security-item">
-                <div className="security-info">
-                  <h3 className="security-title">Đổi mật khẩu</h3>
-                  <p className="security-description">
-                    Thay đổi mật khẩu để bảo vệ tài khoản của bạn
-                  </p>
+            <div className="change-password-form">
+              <div className="form-group">
+                <label className="form-label">Mật khẩu hiện tại</label>
+                <div className="password-input-container">
+                  <Lock className="password-icon" />
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    className={`form-input password-input ${
+                      fieldErrors.currentPassword ? "error" : ""
+                    }`}
+                    placeholder="Nhập mật khẩu hiện tại"
+                    value={formData.currentPassword || ""}
+                    onChange={(e) =>
+                      handleInputChange("currentPassword", e.target.value)
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  >
+                    {showCurrentPassword ? <Eye /> : <EyeOff />}
+                  </button>
                 </div>
-                <button className="security-button">Đổi mật khẩu</button>
+                {fieldErrors.currentPassword && (
+                  <div className="error-text">
+                    {fieldErrors.currentPassword}
+                  </div>
+                )}
               </div>
 
-              <div className="security-item">
-                <div className="security-info">
-                  <h3 className="security-title">Xác thực 2 bước</h3>
-                  <p className="security-description">
-                    Thêm lớp bảo mật bổ sung cho tài khoản
-                  </p>
+              <div className="form-group">
+                <label className="form-label">Mật khẩu mới</label>
+                <div className="password-input-container">
+                  <Lock className="password-icon" />
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    className={`form-input password-input ${
+                      fieldErrors.newPassword ? "error" : ""
+                    }`}
+                    placeholder="Nhập mật khẩu mới"
+                    value={formData.newPassword || ""}
+                    onChange={(e) =>
+                      handleInputChange("newPassword", e.target.value)
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    {showNewPassword ? <Eye /> : <EyeOff />}
+                  </button>
                 </div>
-                <button className="security-button">Kích hoạt</button>
+                {fieldErrors.newPassword && (
+                  <div className="error-text">{fieldErrors.newPassword}</div>
+                )}
               </div>
 
-              <div className="security-item">
-                <div className="security-info">
-                  <h3 className="security-title">Đăng nhập gần đây</h3>
-                  <p className="security-description">
-                    Xem lịch sử đăng nhập và thiết bị đã sử dụng
-                  </p>
+              <div className="form-group">
+                <label className="form-label">Xác nhận mật khẩu mới</label>
+                <div className="password-input-container">
+                  <Lock className="password-icon" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    className={`form-input password-input ${
+                      fieldErrors.confirmPassword ? "error" : ""
+                    }`}
+                    placeholder="Nhập lại mật khẩu mới"
+                    value={formData.confirmPassword || ""}
+                    onChange={(e) =>
+                      handleInputChange("confirmPassword", e.target.value)
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <Eye /> : <EyeOff />}
+                  </button>
                 </div>
-                <button className="security-button">Xem lịch sử</button>
+                {fieldErrors.confirmPassword && (
+                  <div className="error-text">
+                    {fieldErrors.confirmPassword}
+                  </div>
+                )}
               </div>
+
+              <button
+                className="change-password-button"
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+              >
+                {isChangingPassword ? "Đang xử lý..." : "Đổi mật khẩu"}
+              </button>
             </div>
           </div>
         )}

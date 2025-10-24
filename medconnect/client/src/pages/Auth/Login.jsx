@@ -111,7 +111,7 @@ export default function Login() {
         navigate("/bac-si");
         break;
       case "ADMIN":
-        navigate("/quan-tri");
+        navigate("/admin");
         break;
       default:
         navigate("/");
@@ -197,7 +197,7 @@ export default function Login() {
 
   const validateForm = () => {
     let isValid = true;
-    
+
     // Clear previous errors
     setEmailError("");
     setPhoneError("");
@@ -345,7 +345,13 @@ export default function Login() {
             <>
               <div className="input-group">
                 <input
-                  className={`login-input ${emailError ? 'input-error' : emailValid ? 'input-success' : ''}`}
+                  className={`login-input ${
+                    emailError
+                      ? "input-error"
+                      : emailValid
+                      ? "input-success"
+                      : ""
+                  }`}
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -356,8 +362,12 @@ export default function Login() {
                   autoComplete="email"
                   type="email"
                 />
-                {emailValid && <i className="bi bi-check-circle-fill input-success-icon" />}
-                {emailError && <i className="bi bi-exclamation-circle-fill input-error-icon" />}
+                {emailValid && (
+                  <i className="bi bi-check-circle-fill input-success-icon" />
+                )}
+                {emailError && (
+                  <i className="bi bi-exclamation-circle-fill input-error-icon" />
+                )}
               </div>
               {emailError && <div className="error-text">{emailError}</div>}
             </>
@@ -365,7 +375,13 @@ export default function Login() {
             <>
               <div className="input-group">
                 <input
-                  className={`login-input ${phoneError ? 'input-error' : phoneValid ? 'input-success' : ''}`}
+                  className={`login-input ${
+                    phoneError
+                      ? "input-error"
+                      : phoneValid
+                      ? "input-success"
+                      : ""
+                  }`}
                   value={phone}
                   onChange={(e) => {
                     setPhone(e.target.value);
@@ -376,8 +392,12 @@ export default function Login() {
                   autoComplete="tel"
                   type="tel"
                 />
-                {phoneValid && <i className="bi bi-check-circle-fill input-success-icon" />}
-                {phoneError && <i className="bi bi-exclamation-circle-fill input-error-icon" />}
+                {phoneValid && (
+                  <i className="bi bi-check-circle-fill input-success-icon" />
+                )}
+                {phoneError && (
+                  <i className="bi bi-exclamation-circle-fill input-error-icon" />
+                )}
               </div>
               {phoneError && <div className="error-text">{phoneError}</div>}
             </>
@@ -386,7 +406,13 @@ export default function Login() {
           <div className="password-group">
             <div className="input-group">
               <input
-                className={`login-input ${passwordError ? 'input-error' : passwordValid ? 'input-success' : ''}`}
+                className={`login-input ${
+                  passwordError
+                    ? "input-error"
+                    : passwordValid
+                    ? "input-success"
+                    : ""
+                }`}
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => {
@@ -397,8 +423,12 @@ export default function Login() {
                 placeholder="Nhập mật khẩu"
                 autoComplete="current-password"
               />
-              {passwordValid && <i className="bi bi-check-circle-fill input-success-icon" />}
-              {passwordError && <i className="bi bi-exclamation-circle-fill input-error-icon" />}
+              {passwordValid && (
+                <i className="bi bi-check-circle-fill input-success-icon" />
+              )}
+              {passwordError && (
+                <i className="bi bi-exclamation-circle-fill input-error-icon" />
+              )}
               <i
                 className={`bi ${
                   showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
@@ -410,9 +440,14 @@ export default function Login() {
 
           {passwordError && <div className="error-text">{passwordError}</div>}
 
-          <button 
-            type="submit" 
-            disabled={loading || !(mode === "email" ? emailValid && passwordValid : phoneValid && passwordValid)} 
+          <button
+            type="submit"
+            disabled={
+              loading ||
+              !(mode === "email"
+                ? emailValid && passwordValid
+                : phoneValid && passwordValid)
+            }
             className="btn btn-primary"
           >
             {loading ? "Đang đăng nhập..." : "Đăng nhập"}
@@ -453,7 +488,10 @@ export default function Login() {
             <Link to="/quen-mat-khau">Quên mật khẩu</Link>
             <Link to="/dang-ky">Đăng ký tài khoản mới</Link>
           </div>
-          <Link to="/" className="home-link"> Quay về trang chủ</Link>
+          <Link to="/" className="home-link">
+            {" "}
+            Quay về trang chủ
+          </Link>
         </div>
       </div>
     </div>

@@ -66,7 +66,7 @@ export default function Register() {
         navigate("/bac-si");
         break;
       case "ADMIN":
-        navigate("/quan-tri");
+        navigate("/admin");
         break;
       default:
         navigate("/");
