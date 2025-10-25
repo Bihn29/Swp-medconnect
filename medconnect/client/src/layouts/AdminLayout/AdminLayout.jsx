@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Layout, Menu, Avatar, Badge, Button, Input, Dropdown } from "antd";
+import { Layout, Menu, Avatar, Badge, Button, Dropdown } from "antd";
 import {
   HomeOutlined,
   SafetyCertificateOutlined,
@@ -10,7 +10,6 @@ import {
   FileTextOutlined,
   SettingOutlined,
   LogoutOutlined,
-  SearchOutlined,
   BellOutlined,
   UserOutlined,
   DownOutlined,
@@ -74,17 +73,6 @@ const AdminLayout = () => {
 
   const userMenuItems = [
     {
-      key: "profile",
-      label: "Hồ sơ cá nhân",
-    },
-    {
-      key: "settings",
-      label: "Cài đặt",
-    },
-    {
-      type: "divider",
-    },
-    {
       key: "logout",
       label: "Đăng xuất",
       danger: true,
@@ -101,7 +89,11 @@ const AdminLayout = () => {
         className="admin-sider"
         width={280}
       >
-        <div className="admin-logo">
+        <div 
+          className="admin-logo"
+          onClick={() => navigate("/")}
+          style={{ cursor: "pointer" }}
+        >
           <div className="logo-icon">
             <MedicineBoxOutlined />
           </div>
@@ -117,13 +109,6 @@ const AdminLayout = () => {
             <div className="profile-name">Admin</div>
             <div className="profile-role">Quản trị viên</div>
           </div>
-          <DownOutlined className="profile-dropdown" />
-        </div>
-
-        <div className="role-tabs">
-          <Button className="role-tab">Bệnh nhân</Button>
-          <Button className="role-tab">Bác sĩ</Button>
-          <Button className="role-tab active">Admin</Button>
         </div>
 
         <Menu
@@ -147,11 +132,6 @@ const AdminLayout = () => {
             mode="inline"
             items={[
               {
-                key: "settings",
-                icon: <SettingOutlined />,
-                label: "Cài đặt",
-              },
-              {
                 key: "logout",
                 icon: <LogoutOutlined />,
                 label: "Đăng xuất",
@@ -166,14 +146,6 @@ const AdminLayout = () => {
       <Layout className="admin-main">
         <Header className="admin-header">
           <div className="header-left"></div>
-
-          <div className="header-center">
-            <Input
-              placeholder="Tìm kiếm bác sĩ, chuyên khoa..."
-              prefix={<SearchOutlined />}
-              className="admin-search"
-            />
-          </div>
 
           <div className="header-right">
             <Button

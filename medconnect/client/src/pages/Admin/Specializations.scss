@@ -63,13 +63,21 @@
         .specialization-icon {
           width: 60px;
           height: 60px;
-          border-radius: 50%;
+          border-radius: 12px;
           background: rgba(24, 144, 255, 0.1);
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 24px;
           margin-bottom: 8px;
+          overflow: hidden;
+
+          .specialization-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+          }
         }
 
         .specialization-info {
@@ -81,6 +89,18 @@
             color: #262626;
             margin: 0 0 8px 0;
             line-height: 1.2;
+          }
+
+          .specialization-description {
+            font-size: 13px;
+            color: #8c8c8c;
+            margin: 0 0 8px 0;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
 
           .doctor-count {
@@ -161,6 +181,57 @@
       > label {
         font-size: 14px;
       }
+    }
+
+    .ant-upload {
+      width: 100%;
+    }
+
+    .ant-upload-list-picture-card {
+      .ant-upload-list-item {
+        width: 104px;
+        height: 104px;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+    }
+
+    .ant-upload-select-picture-card {
+      width: 104px;
+      height: 104px;
+      border-radius: 8px;
+      border: 2px dashed #d9d9d9;
+      background: #fafafa;
+      transition: all 0.3s ease;
+      z-index: 10;
+      pointer-events: auto;
+      position: relative;
+      cursor: pointer;
+
+      &:hover {
+        border-color: #1890ff;
+        background: #f0f8ff;
+        transform: scale(1.02);
+      }
+
+      .ant-upload-drag-icon {
+        margin-bottom: 8px;
+        color: #8c8c8c;
+        font-size: 24px;
+        pointer-events: none;
+      }
+
+      .ant-upload-text {
+        color: #8c8c8c;
+        font-size: 12px;
+        pointer-events: none;
+      }
+    }
+
+    .ant-form-item-extra {
+      color: #8c8c8c;
+      font-size: 12px;
+      margin-top: 4px;
     }
 
     .ant-input {
