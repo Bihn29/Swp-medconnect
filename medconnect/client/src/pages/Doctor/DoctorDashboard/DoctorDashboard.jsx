@@ -36,6 +36,21 @@ export default function DoctorDashboard() {
     };
 
     fetchDoctorData();
+
+    // Listen for doctor profile update event
+    const handleDoctorProfileUpdate = (event) => {
+      if (event.detail?.doctor) {
+        setDoctorInfo(event.detail.doctor);
+      } else {
+        fetchDoctorData();
+      }
+    };
+
+    window.addEventListener('doctorProfileUpdated', handleDoctorProfileUpdate);
+
+    return () => {
+      window.removeEventListener('doctorProfileUpdated', handleDoctorProfileUpdate);
+    };
   }, []);
 
   // Get doctor info from API data
