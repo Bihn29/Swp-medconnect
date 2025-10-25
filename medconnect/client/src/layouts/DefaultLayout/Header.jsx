@@ -184,7 +184,10 @@ const Header = () => {
   }, [location.pathname]);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));
+    const unsubscribe = auth.onAuthStateChanged((u) => {
+      // User state is managed by useAuth hook
+      console.log("Auth state changed:", u);
+    });
     return () => unsubscribe();
   }, []);
 
@@ -453,17 +456,26 @@ const Header = () => {
                   },
                   { key: "dashboard", label: "Trang cá nhân" },
                   // Admin Dashboard link - only show for admin users
-                  ...(userProfile?.role === 'admin' || userProfile?.role === 'ADMIN' ? [{
-                    key: "admin",
-                    label: (
-                      <div style={{ minWidth: 220 }}>
-                        <div style={{ fontWeight: 700, color: "#1890ff" }}>🛡️ Admin Dashboard</div>
-                        <div style={{ fontSize: 12, color: "#666" }}>
-                          Quản trị hệ thống
-                        </div>
-                      </div>
-                    ),
-                  }] : []),
+                  ...(userProfile?.role === "admin" ||
+                  userProfile?.role === "ADMIN"
+                    ? [
+                        {
+                          key: "admin",
+                          label: (
+                            <div style={{ minWidth: 220 }}>
+                              <div
+                                style={{ fontWeight: 700, color: "#1890ff" }}
+                              >
+                                🛡️ Admin Dashboard
+                              </div>
+                              <div style={{ fontSize: 12, color: "#666" }}>
+                                Quản trị hệ thống
+                              </div>
+                            </div>
+                          ),
+                        },
+                      ]
+                    : []),
                   { type: "divider", key: "d2" },
                   { key: "logout", label: "Đăng xuất", danger: true },
                 ],
@@ -667,9 +679,7 @@ const Header = () => {
           </div>
         </>
       )}
-      
     </header>
-    
   );
 };
 

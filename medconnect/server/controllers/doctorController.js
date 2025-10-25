@@ -41,11 +41,15 @@ export async function getDoctorProfile(req, res) {
  */
 export async function getCurrentDoctorProfile(req, res) {
   try {
-    
     // Use email-based authentication instead of Firebase UID
     const userEmail = req.user?.email;
     if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
     }
 
     // Find user directly by email (simplified approach)
@@ -54,20 +58,25 @@ export async function getCurrentDoctorProfile(req, res) {
       console.log("❌ User not found by email:", userEmail);
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
     }
-    
+
     console.log("👤 Found user by email:", user);
 
     // Find doctor profile
     const doctor = await Doctor.findOne({ userId: user._id })
-      .populate('userId', 'fullName email phone')
-      .populate('specializationIds', 'name code')
-      .populate('clinicDefaultId', 'name address phone')
+      .populate("userId", "fullName email phone")
+      .populate("specializationIds", "name code")
+      .populate("clinicDefaultId", "name address phone")
       .lean();
-      
+
     if (!doctor) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found for user");
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Doctor profile not found for user"
+      );
     }
-    
+
     console.log("👨‍⚕️ Found doctor:", doctor);
     return ok(res, { doctor });
   } catch (e) {
@@ -132,11 +141,16 @@ export async function updateDoctorProfile(req, res) {
 export async function getDoctorAppointments(req, res) {
   try {
     console.log("🔍 getDoctorAppointments - req.user:", req.user);
-    
+
     // Use email-based authentication instead of Firebase UID
     const userEmail = req.user?.email;
     if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
     }
 
     // Find user directly by email (simplified approach)
@@ -145,7 +159,7 @@ export async function getDoctorAppointments(req, res) {
       console.log("❌ User not found by email:", userEmail);
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
     }
-    
+
     console.log("👤 Found user by email:", user);
 
     // Then find the Doctor document by userId
@@ -197,11 +211,16 @@ export async function getDoctorAppointments(req, res) {
 export async function getDoctorDashboardStats(req, res) {
   try {
     console.log("🔍 getDoctorDashboardStats - req.user:", req.user);
-    
+
     // Use email-based authentication instead of Firebase UID
     const userEmail = req.user?.email;
     if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
     }
 
     // Find user directly by email (simplified approach)
@@ -210,7 +229,7 @@ export async function getDoctorDashboardStats(req, res) {
       console.log("❌ User not found by email:", userEmail);
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
     }
-    
+
     console.log("👤 Found user by email:", user);
 
     // Then find the Doctor document by userId
@@ -278,13 +297,21 @@ export async function getDoctorDashboardStats(req, res) {
 export async function updateAppointmentStatus(req, res) {
   try {
     console.log("🔍 updateAppointmentStatus - req.user:", req.user);
-    console.log("🔍 updateAppointmentStatus - req.user.email:", req.user?.email);
-    
+    console.log(
+      "🔍 updateAppointmentStatus - req.user.email:",
+      req.user?.email
+    );
+
     // Use email-based authentication instead of Firebase UID
     const userEmail = req.user?.email;
     if (!userEmail) {
       console.log("❌ User email not found in token");
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
     }
 
     // Find user directly by email (simplified approach)
@@ -292,7 +319,7 @@ export async function updateAppointmentStatus(req, res) {
     if (!user) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
     }
-    
+
     const { appointmentId } = req.params;
     const { status, cancelReason } = req.body;
 
@@ -307,40 +334,51 @@ export async function updateAppointmentStatus(req, res) {
     });
 
     if (!appointment) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found or does not belong to this doctor");
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Appointment not found or does not belong to this doctor"
+      );
     }
-
 
     // Validate status transition
     const validStatusTransitions = {
-      "pending_doctor": ["accepted", "rejected", "cancelled"],
-      "accepted": ["in_progress", "cancelled", "done", "no_show"],
-      "in_progress": ["done", "cancelled"],
+      pending_doctor: ["accepted", "rejected", "cancelled"],
+      accepted: ["in_progress", "cancelled", "done", "no_show"],
+      in_progress: ["done", "cancelled"],
       // "rejected", "cancelled", "done", "no_show" are terminal states or handled by patient
     };
 
-    if (!validStatusTransitions[appointment.status] || !validStatusTransitions[appointment.status].includes(status)) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, `Invalid status transition from ${appointment.status} to ${status}`);
+    if (
+      !validStatusTransitions[appointment.status] ||
+      !validStatusTransitions[appointment.status].includes(status)
+    ) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        `Invalid status transition from ${appointment.status} to ${status}`
+      );
     }
 
     const updateData = { status };
-    
+
     // Handle different status updates
-    if (status === 'accepted') {
+    if (status === "accepted") {
       updateData.acceptedBy = doctor._id;
-    } else if (status === 'rejected') {
+    } else if (status === "rejected") {
       updateData.rejectedBy = doctor._id;
       updateData.rejectReason = cancelReason; // Use cancelReason as rejectReason
-    } else if (status === 'cancelled') {
+    } else if (status === "cancelled") {
       updateData.cancelReason = cancelReason;
       updateData.cancelledAt = new Date();
       updateData.cancelledBy = user._id;
-    } else if (status === 'no_show') {
+    } else if (status === "no_show") {
       updateData.noShowAt = new Date();
       updateData.noShowBy = doctor._id;
     }
 
-    
     const updatedAppointment = await Appointment.findByIdAndUpdate(
       appointmentId,
       updateData,
@@ -349,10 +387,9 @@ export async function updateAppointmentStatus(req, res) {
       .populate("patientId", "fullName dob gender phone")
       .populate("slotId");
 
-
-    return ok(res, { 
-      message: "Appointment status updated successfully", 
-      appointment: updatedAppointment 
+    return ok(res, {
+      message: "Appointment status updated successfully",
+      appointment: updatedAppointment,
     });
   } catch (e) {
     console.error("❌ updateAppointmentStatus error:", e);
@@ -371,6 +408,7 @@ export async function getAllDoctors(req, res) {
       page = 1,
       limit = 10,
       verified,
+      facility,
     } = req.query;
 
     const skip = (page - 1) * limit;
@@ -409,8 +447,69 @@ export async function getAllDoctors(req, res) {
       filter.fullName = { $regex: search, $options: "i" };
     }
 
+    if (facility) {
+      // Find clinic by name and filter doctors by clinicDefaultId
+      try {
+        console.log("🔍 Searching for clinic with facility name:", facility);
+
+        // Try exact match first
+        let clinic = await Clinic.findOne({ name: facility });
+
+        // If not found, try regex match
+        if (!clinic) {
+          clinic = await Clinic.findOne({
+            name: { $regex: facility, $options: "i" },
+          });
+        }
+
+        // If still not found, try partial match
+        if (!clinic) {
+          const words = facility.split(" ").filter((word) => word.length > 2);
+          if (words.length > 0) {
+            clinic = await Clinic.findOne({
+              name: { $regex: words.join("|"), $options: "i" },
+            });
+          }
+        }
+
+        if (clinic) {
+          filter.clinicDefaultId = clinic._id;
+          console.log("✅ Found clinic:", clinic.name, "ID:", clinic._id);
+          console.log("🔍 Filter will be:", JSON.stringify(filter, null, 2));
+        } else {
+          console.log("❌ Clinic not found for facility:", facility);
+          // List all clinics for debugging
+          const allClinics = await Clinic.find({}, "name").lean();
+          console.log(
+            "Available clinics:",
+            allClinics.map((c) => c.name)
+          );
+
+          // Return empty results if clinic not found
+          return ok(res, {
+            doctors: [],
+            pagination: {
+              page: parseInt(page),
+              limit: parseInt(limit),
+              total: 0,
+              pages: 0,
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Error finding clinic:", error);
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Invalid facility name"
+        );
+      }
+    }
+
     console.log("Doctor filter:", JSON.stringify(filter, null, 2)); // Debug log
     console.log("Specialization parameter:", specialization); // Debug log
+    console.log("Facility parameter:", facility); // Debug log
 
     const doctors = await Doctor.find(filter)
       .populate("userId", "fullName email phone")
@@ -502,7 +601,7 @@ export async function getDoctorAvailableTimeSlots(req, res) {
 export async function getConsultationRecords(req, res) {
   try {
     console.log("🔍 getConsultationRecords - req.user:", req.user);
-    
+
     // Firebase user object has uid, not app_user_id
     const firebaseUid = req.user?.uid;
     if (!firebaseUid) {
@@ -510,11 +609,11 @@ export async function getConsultationRecords(req, res) {
     }
 
     // First, find the AuthProvider document by Firebase UID
-    const authProvider = await AuthProvider.findOne({ 
+    const authProvider = await AuthProvider.findOne({
       providerUid: firebaseUid,
-      provider: 'local'
+      provider: "local",
     }).lean();
-    
+
     if (!authProvider) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Auth provider not found");
     }
@@ -522,7 +621,12 @@ export async function getConsultationRecords(req, res) {
     // Then find the User document by userId from auth provider
     const user = await User.findById(authProvider.userId).lean();
     if (!user) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found in database");
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "User not found in database"
+      );
     }
 
     // Then find the Doctor document by userId
@@ -705,7 +809,7 @@ export async function getDoctorClinics(req, res) {
 
     // Get doctor's default clinic and any other clinics they work at
     const clinics = [];
-    
+
     // Add default clinic if exists
     if (doctor.clinicDefaultId) {
       const defaultClinic = await Clinic.findById(doctor.clinicDefaultId);
@@ -1110,22 +1214,20 @@ export async function createTestTimeSlots(req, res) {
   }
 }
 
-
-
 /**
  * Get all appointments (public endpoint for fallback)
  */
 export async function getAllAppointments(req, res) {
   try {
     console.log("🔍 getAllAppointments - query:", req.query);
-    
+
     const { page = 1, limit = 100 } = req.query;
     const skip = (page - 1) * limit;
 
     const appointments = await Appointment.find({})
-      .populate('patientId', 'fullName dob gender phone')
-      .populate('doctorId', 'fullName licenseNo')
-      .populate('slotId')
+      .populate("patientId", "fullName dob gender phone")
+      .populate("doctorId", "fullName licenseNo")
+      .populate("slotId")
       .sort({ scheduledStart: -1 })
       .skip(skip)
       .limit(parseInt(limit))
@@ -1140,11 +1242,16 @@ export async function getAllAppointments(req, res) {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error("❌ getAllAppointments error:", error);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
   }
 }

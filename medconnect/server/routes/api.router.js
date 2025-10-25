@@ -8,7 +8,7 @@ import patientRouter from "./patientRoutes.js";
 import usersRouter from "./users/user.route.js";
 import videoCallRouter from "./videoCallRoutes.js";
 import adminRouter from "./admin/admin.routes.js";
-
+import clinicRouter from "./clinicRoutes.js";
 import { getAllAppointments } from "../controllers/doctorController.js";
 
 // Auth routes (register, login, forgot/reset password, etc.)
@@ -41,6 +41,10 @@ console.log("[router] mounted /api/video-calls");
 // Admin routes
 apiRouter.use("/admin", adminRouter);
 console.log("[router] mounted /api/admin");
+
+// Clinic routes
+apiRouter.use("/clinics", clinicRouter);
+console.log("[router] mounted /api/clinics");
 
 //admin
 // apiRouter.use("/doctor", adminRouter);
