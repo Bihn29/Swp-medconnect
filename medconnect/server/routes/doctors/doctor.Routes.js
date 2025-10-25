@@ -23,12 +23,18 @@ import {
   getDoctorAvailableTimeSlots,
   createTestTimeSlots,
   getDoctorClinics,
+  getSearchDoctors,
+  getSearchSpecializations,
+  getSearchClinics,
 } from "../../controllers/doctorController.js";
 
 const router = express.Router();
 
 // Public routes
 router.get("/", getAllDoctors); // Get all doctors for search/listing
+router.get("/search", getSearchDoctors); // Search doctors with filters
+router.get("/specializations/search", getSearchSpecializations); // Search specializations
+router.get("/clinics/search", getSearchClinics); // Search clinics
 router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
 router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
 router.get("/:doctorId/clinics", getDoctorClinics); // Get doctor clinics

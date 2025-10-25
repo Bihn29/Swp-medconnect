@@ -1453,3 +1453,175 @@ export async function getAllAppointments(req, res) {
     );
   }
 }
+
+/**
+ * Get doctors for search page
+ */
+export async function getSearchDoctors(req, res) {
+  try {
+    const {
+      search,
+      specialization,
+      location,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    let filter = {};
+
+    // Search by name or specialty
+    if (search) {
+      filter.$or = [
+        { fullName: { $regex: search, $options: "i" } },
+        { bio: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Filter by specialization
+    if (specialization) {
+      filter.specializationIds = specialization;
+    }
+
+    // Filter by location (clinic)
+    if (location) {
+      filter.clinicDefaultId = location;
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const doctors = await Doctor.find(filter)
+      .populate("userId", "fullName email phone")
+      .populate("specializationIds", "name code")
+      .populate("clinicDefaultId", "name address phone")
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Doctor.countDocuments(filter);
+
+    return ok(res, {
+      doctors,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (e) {
+    console.error("❌ getSearchDoctors error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Get specializations for search page
+ */
+export async function getSearchSpecializations(req, res) {
+  try {
+    const { search, page = 1, limit = 10 } = req.query;
+
+    let filter = {};
+
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const specializations = await Specialization.find(filter)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    // Count doctors for each specialization
+    const specializationsWithCount = await Promise.all(
+      specializations.map(async (spec) => {
+        const doctorCount = await Doctor.countDocuments({
+          specializationIds: spec._id,
+          isActive: true,
+        });
+        return { ...spec, doctorCount };
+      })
+    );
+
+    const total = await Specialization.countDocuments(filter);
+
+    return ok(res, {
+      specializations: specializationsWithCount,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (e) {
+    console.error("❌ getSearchSpecializations error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Get clinics for search page
+ */
+export async function getSearchClinics(req, res) {
+  try {
+    const { search, page = 1, limit = 10 } = req.query;
+
+    let filter = {};
+
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { address: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const clinics = await Clinic.find(filter)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    // Get specializations available at each clinic
+    const clinicsWithSpecializations = await Promise.all(
+      clinics.map(async (clinic) => {
+        const doctors = await Doctor.find({
+          clinicDefaultId: clinic._id,
+          isActive: true,
+        }).populate("specializationIds", "name");
+
+        const specializations = [
+          ...new Set(
+            doctors.flatMap((doctor) =>
+              doctor.specializationIds.map((spec) => spec.name)
+            )
+          ),
+        ];
+
+        return { ...clinic, specializations };
+      })
+    );
+
+    const total = await Clinic.countDocuments(filter);
+
+    return ok(res, {
+      clinics: clinicsWithSpecializations,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (e) {
+    console.error("❌ getSearchClinics error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
