@@ -501,9 +501,40 @@ adminRouter.get('/users/:id', async (req, res) => {
       });
     }
     
+    let roleSpecificData = null;
+    
+    // Fetch role-specific data based on user role
+    if (user.role === 'patient') {
+      try {
+        roleSpecificData = await Patient.findOne({ userId: id })
+          .populate('userId', 'fullName email phone')
+          .select('-__v');
+      } catch (error) {
+        console.error('Error fetching patient data:', error);
+        // Continue without role-specific data
+      }
+    } else if (user.role === 'doctor') {
+      try {
+        roleSpecificData = await Doctor.findOne({ userId: id })
+          .populate('userId', 'fullName email phone')
+          .populate('specializationIds', 'name description avatar')
+          .populate('clinicDefaultId', 'name address')
+          .select('-__v');
+      } catch (error) {
+        console.error('Error fetching doctor data:', error);
+        // Continue without role-specific data
+      }
+    }
+    
+    // Combine user data with role-specific data
+    const userDetails = {
+      ...user.toObject(),
+      roleSpecificData: roleSpecificData
+    };
+    
     res.json({
       success: true,
-      data: user
+      data: userDetails
     });
   } catch (error) {
     console.error('Error fetching user details:', error);

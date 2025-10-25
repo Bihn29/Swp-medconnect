@@ -364,29 +364,88 @@ const UserManagement = () => {
             
             <Divider />
             
+            {/* Basic Information */}
             <Descriptions title="Thông tin cơ bản" bordered column={2}>
               <Descriptions.Item label="Họ và tên" span={2}>
-                {userDetails.fullName}
+                {userDetails.roleSpecificData?.fullName || userDetails.fullName}
               </Descriptions.Item>
               <Descriptions.Item label="Email">
                 <MailOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                {userDetails.email}
+                {userDetails.roleSpecificData?.email || userDetails.email}
               </Descriptions.Item>
               <Descriptions.Item label="Số điện thoại">
                 <PhoneOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                {userDetails.phone || 'Chưa cập nhật'}
+                {userDetails.roleSpecificData?.phone || userDetails.phone || 'Chưa cập nhật'}
               </Descriptions.Item>
               <Descriptions.Item label="Ngày sinh">
                 <CalendarOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                {userDetails.dateOfBirth || 'Chưa cập nhật'}
+                {userDetails.roleSpecificData?.dob ? new Date(userDetails.roleSpecificData.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
               </Descriptions.Item>
               <Descriptions.Item label="Giới tính">
-                {userDetails.gender || 'Chưa cập nhật'}
+                {userDetails.roleSpecificData?.gender === 'male' ? 'Nam' : 
+                 userDetails.roleSpecificData?.gender === 'female' ? 'Nữ' : 
+                 userDetails.roleSpecificData?.gender === 'other' ? 'Khác' : 'Chưa cập nhật'}
               </Descriptions.Item>
               <Descriptions.Item label="Địa chỉ" span={2}>
-                {userDetails.address || 'Chưa cập nhật'}
+                {userDetails.roleSpecificData?.address || userDetails.address || 'Chưa cập nhật'}
               </Descriptions.Item>
             </Descriptions>
+
+            {/* Role-specific Information */}
+            {userDetails.role === 'patient' && userDetails.roleSpecificData && (
+              <>
+                <Divider />
+                <Descriptions title="Thông tin bệnh nhân" bordered column={2}>
+                  <Descriptions.Item label="Mã bảo hiểm y tế">
+                    {userDetails.roleSpecificData.insuranceNumber || 'Chưa cập nhật'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Nghề nghiệp">
+                    {userDetails.roleSpecificData.occupation || 'Chưa cập nhật'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Dân tộc">
+                    {userDetails.roleSpecificData.ethnicity || 'Chưa cập nhật'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Quốc tịch">
+                    {userDetails.roleSpecificData.nationality || 'Chưa cập nhật'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="CCCD/CMND">
+                    {userDetails.roleSpecificData.citizenId || 'Chưa cập nhật'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Phòng khám chính">
+                    {userDetails.roleSpecificData.primaryClinic || 'Chưa cập nhật'}
+                  </Descriptions.Item>
+                </Descriptions>
+              </>
+            )}
+
+            {userDetails.role === 'doctor' && userDetails.roleSpecificData && (
+              <>
+                <Divider />
+                <Descriptions title="Thông tin bác sĩ" bordered column={2}>
+                  <Descriptions.Item label="Số giấy phép hành nghề">
+                    {userDetails.roleSpecificData.licenseNo || 'Chưa cập nhật'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Số năm kinh nghiệm">
+                    {userDetails.roleSpecificData.yearsExperience || 0} năm
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Chuyên khoa" span={2}>
+                    {userDetails.roleSpecificData.specializationIds && userDetails.roleSpecificData.specializationIds.length > 0 
+                      ? userDetails.roleSpecificData.specializationIds.map(spec => spec.name).join(', ')
+                      : 'Chưa cập nhật'
+                    }
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Phòng khám mặc định">
+                    {userDetails.roleSpecificData.clinicDefaultId?.name || 'Chưa cập nhật'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Địa chỉ phòng khám">
+                    {userDetails.roleSpecificData.clinicDefaultId?.address || 'Chưa cập nhật'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Giới thiệu" span={2}>
+                    {userDetails.roleSpecificData.bio || 'Chưa cập nhật'}
+                  </Descriptions.Item>
+                </Descriptions>
+              </>
+            )}
 
             <Divider />
 
