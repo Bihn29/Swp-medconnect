@@ -15,13 +15,16 @@ import {
   X,
 } from "lucide-react";
 import { useConsultationSummaries } from "../../../../hooks/useConsultationSummaries";
+import { useConsultationAdvice } from "../../../../hooks/useConsultationAdvice";
 import "./HealthProfile.scss";
 
 export function HealthProfile() {
   const [activeButton, setActiveButton] = useState(null);
   const [activeTab, setActiveTab] = useState("medical");
   const [selectedSummary, setSelectedSummary] = useState(null);
+  const [selectedAdvice, setSelectedAdvice] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [modalType, setModalType] = useState("summary"); // "summary" or "advice"
 
   // Fetch consultation summaries from API
   const {
@@ -30,6 +33,14 @@ export function HealthProfile() {
     error,
   } = useConsultationSummaries(1, 20);
   const medicalHistory = consultationData?.consultationSummaries || [];
+
+  // Fetch consultation advice from API
+  const {
+    data: consultationAdviceData,
+    isLoading: isLoadingAdvice,
+    error: errorAdvice,
+  } = useConsultationAdvice(1, 20);
+  const consultationHistory = consultationAdviceData?.consultationAdvice || [];
 
   const [healthMetrics] = useState([
     {
@@ -66,64 +77,6 @@ export function HealthProfile() {
     },
   ]);
 
-  const [consultationHistory] = useState([
-    {
-      id: 1,
-      type: "Video Call",
-      date: "15/10/2025",
-      doctor: "BS. Lê Thị C",
-      specialty: "Tâm lý",
-      duration: "30 phút",
-      topic: "Tư vấn về stress và lo âu",
-      summary:
-        "Bác sĩ đã tư vấn về các phương pháp quản lý stress, hướng dẫn các bài tập thở và khuyến nghị thay đổi lối sống.",
-      documents: [
-        {
-          name: "Tài liệu hướng dẫn thở.pdf",
-          type: "pdf",
-        },
-      ],
-    },
-    {
-      id: 2,
-      type: "Chat",
-      date: "12/10/2025",
-      doctor: "BS. Phạm Văn D",
-      specialty: "Dinh dưỡng",
-      duration: "20 phút",
-      topic: "Tư vấn chế độ ăn uống",
-      summary:
-        "Tư vấn về chế độ ăn uống cân bằng, các thực phẩm nên tránh và khuyến nghị về vitamin.",
-      documents: [
-        {
-          name: "Thực đơn mẫu.pdf",
-          type: "pdf",
-        },
-        {
-          name: "Danh sách thực phẩm.pdf",
-          type: "pdf",
-        },
-      ],
-    },
-    {
-      id: 3,
-      type: "Video Call",
-      date: "08/10/2025",
-      doctor: "BS. Hoàng Thị E",
-      specialty: "Da liễu",
-      duration: "25 phút",
-      topic: "Tư vấn về chăm sóc da",
-      summary:
-        "Hướng dẫn quy trình chăm sóc da hàng ngày, các sản phẩm phù hợp và cách phòng ngừa mụn.",
-      documents: [
-        {
-          name: "Hướng dẫn chăm sóc da.pdf",
-          type: "pdf",
-        },
-      ],
-    },
-  ]);
-
   const handleDownload = () => {
     console.log("Downloading health profile...");
     // Implement download functionality
@@ -131,12 +84,27 @@ export function HealthProfile() {
 
   const handleViewDetails = (recordId) => {
     console.log("Viewing details for record:", recordId);
-    // Find the record with full details
-    const record = medicalHistory.find((item) => item.id === recordId);
-    if (record && record.fullDetails) {
-      setSelectedSummary(record);
-      setShowDetailModal(true);
+
+    if (activeTab === "medical") {
+      // Find the record with full details from medical history
+      const record = medicalHistory.find((item) => item.id === recordId);
+      if (record && record.fullDetails) {
+        setSelectedSummary(record);
+        setSelectedAdvice(null);
+        setModalType("summary");
+        setShowDetailModal(true);
+      }
+    } else if (activeTab === "consultation") {
+      // Find the record with full details from consultation history
+      const record = consultationHistory.find((item) => item.id === recordId);
+      if (record && record.fullDetails) {
+        setSelectedAdvice(record);
+        setSelectedSummary(null);
+        setModalType("advice");
+        setShowDetailModal(true);
+      }
     }
+
     // Toggle active state
     setActiveButton(activeButton === recordId ? null : recordId);
   };
@@ -144,6 +112,8 @@ export function HealthProfile() {
   const closeDetailModal = () => {
     setShowDetailModal(false);
     setSelectedSummary(null);
+    setSelectedAdvice(null);
+    setModalType("summary");
   };
 
   const handleDownloadDocument = (documentName) => {
@@ -314,102 +284,126 @@ export function HealthProfile() {
         {/* Consultation History Tab */}
         {activeTab === "consultation" && (
           <div className="tab-content">
-            <div className="history-list">
-              {consultationHistory.map((record) => (
-                <div key={record.id} className="history-card consultation-card">
-                  <div className="card-header">
-                    <div className="card-title-section">
-                      <div className="card-icon">
-                        {record.type === "Video Call" ? (
-                          <Video className="card-icon-symbol" />
-                        ) : (
-                          <MessageCircle className="card-icon-symbol" />
-                        )}
-                      </div>
-                      <div className="card-title">
-                        <div className="specialty-name">{record.specialty}</div>
-                        <div className="card-meta">
-                          <div className="meta-item">
-                            <Calendar className="meta-icon" />
-                            <span>{record.date}</span>
+            {isLoadingAdvice ? (
+              <div className="loading-state">
+                <div className="loading-spinner"></div>
+                <p>Đang tải lịch sử tư vấn...</p>
+              </div>
+            ) : errorAdvice ? (
+              <div className="error-state">
+                <p>Có lỗi khi tải dữ liệu. Vui lòng thử lại sau.</p>
+              </div>
+            ) : consultationHistory.length === 0 ? (
+              <div className="empty-state">
+                <p>Chưa có lịch sử tư vấn nào.</p>
+              </div>
+            ) : (
+              <div className="history-list">
+                {consultationHistory.map((record) => (
+                  <div
+                    key={record.id}
+                    className="history-card consultation-card"
+                  >
+                    <div className="card-header">
+                      <div className="card-title-section">
+                        <div className="card-icon">
+                          {record.type === "Video Call" ? (
+                            <Video className="card-icon-symbol" />
+                          ) : (
+                            <MessageCircle className="card-icon-symbol" />
+                          )}
+                        </div>
+                        <div className="card-title">
+                          <div className="specialty-name">
+                            {record.specialty}
                           </div>
-                          <div className="meta-item">
-                            <User className="meta-icon" />
-                            <span>{record.doctor}</span>
-                          </div>
-                          <div className="meta-item">
-                            <span className="consultation-type">
-                              {record.type}
-                            </span>
+                          <div className="card-meta">
+                            <div className="meta-item">
+                              <Calendar className="meta-icon" />
+                              <span>{record.date}</span>
+                            </div>
+                            <div className="meta-item">
+                              <User className="meta-icon" />
+                              <span>{record.doctor}</span>
+                            </div>
+                            <div className="meta-item">
+                              <span className="consultation-type">
+                                {record.type}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <button
-                      className={`view-details-button ${
-                        activeButton === record.id ? "active" : ""
-                      }`}
-                      onClick={() => handleViewDetails(record.id)}
-                    >
-                      <Eye className="view-icon" />
-                      Xem chi tiết
-                    </button>
-                  </div>
-
-                  <div className="card-content">
-                    <div className="content-item">
-                      <div className="content-label">Chủ đề tư vấn:</div>
-                      <div className="content-value">{record.topic}</div>
+                      <button
+                        className={`view-details-button ${
+                          activeButton === record.id ? "active" : ""
+                        }`}
+                        onClick={() => handleViewDetails(record.id)}
+                      >
+                        <Eye className="view-icon" />
+                        Xem chi tiết
+                      </button>
                     </div>
 
-                    <div className="content-item">
-                      <div className="content-label">Thời gian:</div>
-                      <div className="content-value">{record.duration}</div>
-                    </div>
+                    <div className="card-content">
+                      <div className="content-item">
+                        <div className="content-label">Chủ đề tư vấn:</div>
+                        <div className="content-value">{record.topic}</div>
+                      </div>
 
-                    <div className="content-item">
-                      <div className="content-label">Tóm tắt:</div>
-                      <div className="content-value">{record.summary}</div>
-                    </div>
+                      <div className="content-item">
+                        <div className="content-label">Thời gian:</div>
+                        <div className="content-value">{record.duration}</div>
+                      </div>
 
-                    <div className="content-item">
-                      <div className="content-label">Tài liệu đính kèm:</div>
-                      <div className="documents-list">
-                        {record.documents.map((doc, index) => (
-                          <div key={index} className="document-item">
-                            <FileText className="document-icon" />
-                            <span
-                              className="document-link"
-                              onClick={() => handleDownloadDocument(doc.name)}
-                            >
-                              {doc.name}
-                            </span>
-                            <FileDown className="download-icon" />
-                          </div>
-                        ))}
+                      <div className="content-item">
+                        <div className="content-label">Tóm tắt:</div>
+                        <div className="content-value">{record.summary}</div>
+                      </div>
+
+                      <div className="content-item">
+                        <div className="content-label">Tài liệu đính kèm:</div>
+                        <div className="documents-list">
+                          {record.documents.map((doc, index) => (
+                            <div key={index} className="document-item">
+                              <FileText className="document-icon" />
+                              <span
+                                className="document-link"
+                                onClick={() => handleDownloadDocument(doc.name)}
+                              >
+                                {doc.name}
+                              </span>
+                              <FileDown className="download-icon" />
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* Detail Modal */}
-      {showDetailModal && selectedSummary && (
+      {showDetailModal && (selectedSummary || selectedAdvice) && (
         <div className="modal-overlay" onClick={closeDetailModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Chi tiết hồ sơ khám bệnh</h3>
+              <h3 className="modal-title">
+                {modalType === "summary"
+                  ? "Chi tiết hồ sơ khám bệnh"
+                  : "Chi tiết buổi tư vấn"}
+              </h3>
               <button className="modal-close" onClick={closeDetailModal}>
                 <X className="close-icon" />
               </button>
             </div>
 
             <div className="modal-body">
-              {selectedSummary.fullDetails && (
+              {modalType === "summary" && selectedSummary?.fullDetails && (
                 <div className="detail-content">
                   {/* Basic Info */}
                   <div className="detail-section">
@@ -648,6 +642,145 @@ export function HealthProfile() {
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+
+              {modalType === "advice" && selectedAdvice?.fullDetails && (
+                <div className="detail-content">
+                  {/* Basic Info */}
+                  <div className="detail-section">
+                    <h4>Thông tin cơ bản</h4>
+                    <div className="detail-grid">
+                      <div className="detail-item">
+                        <strong>Ngày tư vấn:</strong>
+                        <span>
+                          {new Date(
+                            selectedAdvice.fullDetails.startedAt
+                          ).toLocaleDateString("vi-VN")}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <strong>Loại tư vấn:</strong>
+                        <span>
+                          {selectedAdvice.fullDetails.adviceType === "general"
+                            ? "Tư vấn chung"
+                            : selectedAdvice.fullDetails.adviceType ===
+                              "follow_up"
+                            ? "Tái khám"
+                            : selectedAdvice.fullDetails.adviceType ===
+                              "second_opinion"
+                            ? "Ý kiến thứ hai"
+                            : "Không xác định"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <strong>Thời gian:</strong>
+                        <span>
+                          {selectedAdvice.fullDetails.durationMinutes
+                            ? `${selectedAdvice.fullDetails.durationMinutes} phút`
+                            : "Không xác định"}
+                        </span>
+                      </div>
+                      {selectedAdvice.fullDetails.endedAt && (
+                        <div className="detail-item">
+                          <strong>Kết thúc:</strong>
+                          <span>
+                            {new Date(
+                              selectedAdvice.fullDetails.endedAt
+                            ).toLocaleDateString("vi-VN")}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  <div className="detail-section">
+                    <h4>Tóm tắt buổi tư vấn</h4>
+                    <div className="summary-text">
+                      <p>{selectedAdvice.fullDetails.summary}</p>
+                    </div>
+                  </div>
+
+                  {/* Diagnoses */}
+                  {selectedAdvice.fullDetails.diagnoses &&
+                    selectedAdvice.fullDetails.diagnoses.length > 0 && (
+                      <div className="detail-section">
+                        <h4>Chẩn đoán tham khảo</h4>
+                        <div className="diagnoses-list">
+                          {selectedAdvice.fullDetails.diagnoses.map(
+                            (diagnosis, index) => (
+                              <div key={index} className="diagnosis-item">
+                                <strong>{diagnosis.name}</strong>
+                                {diagnosis.icd10 && (
+                                  <span className="icd-code">
+                                    (ICD-10: {diagnosis.icd10})
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Medications */}
+                  {selectedAdvice.fullDetails.medications &&
+                    selectedAdvice.fullDetails.medications.length > 0 && (
+                      <div className="detail-section">
+                        <h4>Đơn thuốc</h4>
+                        <div className="medications-list">
+                          {selectedAdvice.fullDetails.medications.map(
+                            (med, index) => (
+                              <div key={index} className="medication-item">
+                                <div className="med-name">
+                                  <strong>{med.name}</strong>
+                                </div>
+                                <div className="med-details">
+                                  <span>Liều lượng: {med.dosage}</span>
+                                  <span>Đường dùng: {med.route}</span>
+                                  <span>Số lượng: {med.quantity}</span>
+                                </div>
+                                <div className="med-instruction">
+                                  <strong>Hướng dẫn:</strong> {med.instruction}
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Notes */}
+                  {selectedAdvice.fullDetails.notes && (
+                    <div className="detail-section">
+                      <h4>Ghi chú bổ sung</h4>
+                      <div className="summary-text">
+                        <p>{selectedAdvice.fullDetails.notes}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Attachment */}
+                  {selectedAdvice.fullDetails.attachmentUrl && (
+                    <div className="detail-section">
+                      <h4>Tài liệu đính kèm</h4>
+                      <div className="documents-list">
+                        <div className="document-item">
+                          <FileText className="document-icon" />
+                          <span
+                            className="document-link"
+                            onClick={() =>
+                              handleDownloadDocument("Tài liệu tư vấn.pdf")
+                            }
+                          >
+                            Tài liệu tư vấn.pdf
+                          </span>
+                          <FileDown className="download-icon" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

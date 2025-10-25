@@ -5,6 +5,7 @@ import Specialization from "../models/specialization.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Appointment from "../models/appointment.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
+import ConsultationAdvice from "../models/consultationAdvice.model.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
@@ -953,6 +954,135 @@ export async function getPatientConsultationSummaries(req, res) {
     });
   } catch (error) {
     console.error("Error fetching patient consultation summaries:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Get patient's consultation advice (consultation history)
+ */
+export async function getPatientConsultationAdvice(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    // Find patient by user ID
+    const patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Patient profile not found"
+      );
+    }
+
+    const { page = 1, limit = 20 } = req.query;
+
+    // Get consultation advice for this patient
+    const consultationAdvice = await ConsultationAdvice.find({
+      patientId: patient._id,
+    })
+      .populate({
+        path: "doctorId",
+        select: "fullName specializationIds avatarUrl",
+        populate: {
+          path: "specializationIds",
+          select: "name",
+        },
+      })
+      .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
+      .populate("clinicId", "name address")
+      .sort({ startedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await ConsultationAdvice.countDocuments({
+      patientId: patient._id,
+    });
+
+    // Format the response for frontend
+    const formattedAdvice = consultationAdvice.map((advice) => {
+      // Get primary diagnosis
+      const primaryDiagnosis =
+        advice.diagnoses && advice.diagnoses.length > 0
+          ? advice.diagnoses[0].name
+          : "Không có chẩn đoán";
+
+      // Format medications
+      const medicationsText =
+        advice.medications && advice.medications.length > 0
+          ? advice.medications
+              .map((med) => `${med.name} - ${med.dosage} - ${med.instruction}`)
+              .join(", ")
+          : "Không có đơn thuốc";
+
+      // Format documents
+      const documents = [];
+      if (advice.attachmentUrl) {
+        documents.push({
+          name: `Tài liệu tư vấn.pdf`,
+          type: "pdf",
+        });
+      }
+
+      // Format duration
+      const duration = advice.durationMinutes
+        ? `${advice.durationMinutes} phút`
+        : "Không xác định";
+
+      return {
+        id: advice._id,
+        type: advice.mode === "online" ? "Video Call" : "Chat",
+        date: new Date(advice.startedAt).toLocaleDateString("vi-VN"),
+        doctor: `BS. ${advice.doctorId?.fullName || "Không xác định"}`,
+        specialty:
+          advice.doctorId?.specializationIds?.[0]?.name || "Không xác định",
+        duration: duration,
+        topic:
+          advice.summary.substring(0, 100) +
+          (advice.summary.length > 100 ? "..." : ""),
+        summary: advice.summary,
+        documents: documents,
+        // Full details for modal
+        fullDetails: {
+          adviceType: advice.adviceType,
+          summary: advice.summary,
+          startedAt: advice.startedAt,
+          endedAt: advice.endedAt,
+          durationMinutes: advice.durationMinutes,
+          diagnoses: advice.diagnoses,
+          medications: advice.medications,
+          attachmentUrl: advice.attachmentUrl,
+          notes: advice.notes,
+          appointment: advice.appointmentId,
+          clinic: advice.clinicId,
+          doctor: advice.doctorId,
+        },
+      };
+    });
+
+    return ok(res, {
+      consultationAdvice: formattedAdvice,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching patient consultation advice:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }

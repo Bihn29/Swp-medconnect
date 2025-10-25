@@ -11,6 +11,7 @@ import {
   cancelPatientAppointment,
   getAppointmentDetails,
   getPatientConsultationSummaries,
+  getPatientConsultationAdvice,
 } from "../controllers/patientController.js";
 
 const router = express.Router();
@@ -54,5 +55,8 @@ router.get(
   authGuard,
   getPatientConsultationSummaries
 );
+
+// Get patient's consultation advice (consultation history)
+router.get("/me/consultation-advice", authGuard, getPatientConsultationAdvice);
 
 export default router;
