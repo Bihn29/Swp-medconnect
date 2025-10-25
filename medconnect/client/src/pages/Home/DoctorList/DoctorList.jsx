@@ -426,11 +426,12 @@ const DoctorList = () => {
               block
               onClick={(e) => {
                 e.stopPropagation();
-                handleDoctorClick(doctor._id);
+                // Navigate to doctor reviews page
+                navigate(`/bac-si/${doctor._id}/danh-gia`);
               }}
               style={{ fontWeight: "500" }}
             >
-              Xem thông tin
+              Xem đánh giá
             </Button>
           </div>
         </Col>

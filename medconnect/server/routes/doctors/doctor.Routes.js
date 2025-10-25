@@ -17,10 +17,12 @@ import {
   deleteTimeSlot,
   blockTimeSlot,
   getDoctorReviews,
+  getPublicDoctorReviews,
+  createDoctorReview,
   respondToReview,
   getDoctorAvailableTimeSlots,
   createTestTimeSlots,
-  getDoctorClinics
+  getDoctorClinics,
 } from "../../controllers/doctorController.js";
 
 const router = express.Router();
@@ -30,6 +32,8 @@ router.get("/", getAllDoctors); // Get all doctors for search/listing
 router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
 router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
 router.get("/:doctorId/clinics", getDoctorClinics); // Get doctor clinics
+router.get("/:doctorId/reviews", getPublicDoctorReviews); // Get public doctor reviews
+router.post("/:doctorId/reviews", createDoctorReview); // Create a new review for a doctor
 router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
 
 // Protected routes (require authentication)

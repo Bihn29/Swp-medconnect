@@ -1114,6 +1114,204 @@ export async function getDoctorReviews(req, res) {
 }
 
 /**
+ * Get public doctor reviews (for public viewing)
+ */
+export async function getPublicDoctorReviews(req, res) {
+  try {
+    const { doctorId } = req.params;
+    const { page = 1, limit = 10, search, rating, sort = "newest" } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId)
+      .populate("specializationIds", "name")
+      .populate("clinicDefaultId", "name address")
+      .lean();
+
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    const filter = { doctorId };
+
+    if (rating && rating !== "all") {
+      filter.rating = parseInt(rating);
+    }
+
+    if (search) {
+      filter.comment = { $regex: search, $options: "i" };
+    }
+
+    let sortObj = {};
+    switch (sort) {
+      case "newest":
+        sortObj = { createdAt: -1 };
+        break;
+      case "oldest":
+        sortObj = { createdAt: 1 };
+        break;
+      case "highest":
+        sortObj = { rating: -1 };
+        break;
+      case "lowest":
+        sortObj = { rating: 1 };
+        break;
+      default:
+        sortObj = { createdAt: -1 };
+    }
+
+    const reviews = await Review.find(filter)
+      .populate("patientId", "fullName avatarUrl")
+      .populate("appointmentId", "scheduledStart mode status")
+      .sort(sortObj)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Review.countDocuments(filter);
+
+    // Calculate rating statistics
+    const ratingStats = await Review.aggregate([
+      { $match: { doctorId } },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: "$rating" },
+          totalReviews: { $sum: 1 },
+          ratingDistribution: {
+            $push: "$rating",
+          },
+        },
+      },
+    ]);
+
+    let ratingDistribution = {};
+    if (ratingStats.length > 0) {
+      const distribution = ratingStats[0].ratingDistribution;
+      for (let i = 1; i <= 5; i++) {
+        ratingDistribution[i] = distribution.filter((r) => r === i).length;
+      }
+    }
+
+    return ok(res, {
+      doctor: {
+        _id: doctor._id,
+        fullName: doctor.fullName,
+        avatarUrl: doctor.avatarUrl,
+        specializationIds: doctor.specializationIds,
+        clinicDefaultId: doctor.clinicDefaultId,
+        ratingAvg: ratingStats[0]?.averageRating || 0,
+        ratingCount: ratingStats[0]?.totalReviews || 0,
+        ratingDistribution,
+      },
+      reviews: reviews.map((review) => ({
+        _id: review._id,
+        rating: review.rating,
+        comment: review.comment,
+        tags: review.tags || [],
+        isAnonymous: review.isAnonymous,
+        doctorResponse: review.doctorResponse,
+        doctorResponseAt: review.doctorResponseAt,
+        helpfulCount: review.helpfulCount,
+        verified: review.verified,
+        createdAt: review.createdAt,
+        updatedAt: review.updatedAt,
+        patient: {
+          _id: review.patientId?._id,
+          fullName: review.isAnonymous
+            ? "Bệnh nhân"
+            : review.patientId?.fullName || "Bệnh nhân",
+          avatarUrl: review.isAnonymous ? null : review.patientId?.avatarUrl,
+        },
+        appointment: {
+          _id: review.appointmentId?._id,
+          scheduledStart: review.appointmentId?.scheduledStart,
+          mode: review.appointmentId?.mode,
+          status: review.appointmentId?.status,
+        },
+      })),
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (e) {
+    console.error("❌ getPublicDoctorReviews error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Create a new review for a doctor
+ */
+export async function createDoctorReview(req, res) {
+  try {
+    const { doctorId } = req.params;
+    const { appointmentId, rating, comment, tags, isAnonymous } = req.body;
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Verify appointment exists and belongs to this doctor
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      doctorId: doctorId,
+      status: "done", // Only allow reviews for completed appointments
+    });
+
+    if (!appointment) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Appointment not found or not completed"
+      );
+    }
+
+    // Check if review already exists for this appointment
+    const existingReview = await Review.findOne({ appointmentId });
+    if (existingReview) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Review already exists for this appointment"
+      );
+    }
+
+    // Create new review
+    const review = new Review({
+      appointmentId,
+      patientId: appointment.patientId,
+      doctorId,
+      rating,
+      comment,
+      tags: tags || [],
+      isAnonymous: isAnonymous || false,
+      verified: true,
+    });
+
+    await review.save();
+
+    // Populate the review with patient and appointment data
+    await review.populate([
+      { path: "patientId", select: "fullName avatarUrl" },
+      { path: "appointmentId", select: "scheduledStart mode status" },
+    ]);
+
+    return ok(res, { review }, "Review created successfully");
+  } catch (e) {
+    console.error("❌ createDoctorReview error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
  * Respond to review
  */
 export async function respondToReview(req, res) {
