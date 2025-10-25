@@ -1,10 +1,21 @@
+"use client"
+
 import { useState, useEffect } from "react"
-import { User, Mail, Phone, MapPin, Award, Calendar } from "lucide-react"
+import PropTypes from "prop-types"
+import { User, Mail, Phone, MapPin, Award, Calendar, Lock } from "lucide-react"
 import { getDoctorProfileWithFallback, updateDoctorProfile } from "../../../lib/api"
+import "./ProfileSettings.scss"
 
 const ProfileSettings = () => {
   const [doctorInfo, setDoctorInfo] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showPassword, setShowPassword] = useState(false)
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  })
+  const [passwordErrors, setPasswordErrors] = useState({})
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -16,16 +27,15 @@ const ProfileSettings = () => {
     graduationYear: "",
     yearsExperience: 0,
     ratingAvg: 0,
-    ratingCount: 0
+    ratingCount: 0,
   })
 
-  // Fetch doctor info from API
   useEffect(() => {
     const fetchDoctorInfo = async () => {
       try {
-        const doctor = await getDoctorProfileWithFallback();
+        const doctor = await getDoctorProfileWithFallback()
         if (doctor) {
-          setDoctorInfo(doctor);
+          setDoctorInfo(doctor)
           setFormData({
             fullName: doctor.userId?.fullName || doctor.fullName || "",
             email: doctor.userId?.email || "",
@@ -37,253 +47,353 @@ const ProfileSettings = () => {
             graduationYear: doctor.education?.[0]?.year || "",
             yearsExperience: doctor.yearsExperience || 0,
             ratingAvg: doctor.ratingAvg || 0,
-            ratingCount: doctor.ratingCount || 0
-          });
-        } else {
-          console.error('No doctor found');
+            ratingCount: doctor.ratingCount || 0,
+          })
         }
       } catch (error) {
-        console.error('Error fetching doctor info:', error);
+        console.error("Error fetching doctor info:", error)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchDoctorInfo();
-  }, []);
+    fetchDoctorInfo()
+  }, [])
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
-    }));
-  };
+      [field]: value,
+    }))
+  }
 
   const handleSave = async () => {
     try {
-      const response = await updateDoctorProfile(formData);
+      const response = await updateDoctorProfile(formData)
       if (response) {
-        alert('Thông tin đã được cập nhật thành công');
+        alert("Thông tin đã được cập nhật thành công")
       } else {
-        alert('Có lỗi xảy ra khi cập nhật thông tin');
+        alert("Có lỗi xảy ra khi cập nhật thông tin")
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
-      alert('Có lỗi xảy ra khi cập nhật thông tin');
+      console.error("Error updating profile:", error)
+      alert("Có lỗi xảy ra khi cập nhật thông tin")
     }
-  };
+  }
+
+  const handlePasswordChange = (field, value) => {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+    
+    // Clear error when user starts typing
+    if (passwordErrors[field]) {
+      setPasswordErrors(prev => ({
+        ...prev,
+        [field]: ""
+      }))
+    }
+  }
+
+  const validatePassword = () => {
+    const errors = {}
+    
+    if (!passwordData.currentPassword) {
+      errors.currentPassword = "Vui lòng nhập mật khẩu hiện tại"
+    }
+    
+    if (!passwordData.newPassword) {
+      errors.newPassword = "Vui lòng nhập mật khẩu mới"
+    } else if (passwordData.newPassword.length < 6) {
+      errors.newPassword = "Mật khẩu mới phải có ít nhất 6 ký tự"
+    }
+    
+    if (!passwordData.confirmPassword) {
+      errors.confirmPassword = "Vui lòng xác nhận mật khẩu mới"
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      errors.confirmPassword = "Mật khẩu xác nhận không khớp"
+    }
+    
+    if (passwordData.currentPassword === passwordData.newPassword) {
+      errors.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại"
+    }
+    
+    setPasswordErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleChangePassword = async () => {
+    if (!validatePassword()) {
+      return
+    }
+    
+    try {
+      // Call API to change password
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        }),
+      })
+      
+      if (response.ok) {
+        alert("Mật khẩu đã được thay đổi thành công")
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: ""
+        })
+        setPasswordErrors({})
+      } else {
+        if (response.status === 400) {
+          setPasswordErrors({ currentPassword: "Mật khẩu hiện tại không đúng" })
+        } else {
+          alert("Có lỗi xảy ra khi thay đổi mật khẩu")
+        }
+      }
+    } catch (error) {
+      console.error("Error changing password:", error)
+      alert("Có lỗi xảy ra khi thay đổi mật khẩu")
+    }
+  }
+
 
   if (loading) {
     return (
-      <div className="max-w-[1200px]">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8">Thông tin cá nhân</h1>
-        <div className="flex justify-center items-center h-64">
-          <div className="text-lg text-gray-600">Đang tải thông tin...</div>
+      <div className="profileSettings">
+        <div className="container">
+          <div className="header">
+            <h1>Đang tải thông tin...</h1>
+          </div>
         </div>
       </div>
-    );
+    )
   }
 
-  // Extract initials for avatar
-  const fullName = formData.fullName || "";
-  const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase() || "BS";
 
   return (
-    <div className="max-w-[1200px]">
-      <h1 className="text-4xl font-bold text-gray-900 mb-8">Thông tin cá nhân</h1>
+    <div className="profileSettings">
+      <div className="container">
+        {/* Main Content */}
+        <div className="main">
+            {/* Basic Information */}
+            <div className="card">
+              <div className="cardHeader">
+                <div className="icon cyan">
+                  <User size={20} />
+                </div>
+                <h2>Thông tin cơ bản</h2>
+              </div>
 
-      <div className="grid grid-cols-[300px_1fr] gap-8">
-        <div className="bg-white rounded-xl shadow-md p-6 row-span-2">
-          <div className="text-center pb-8 border-b border-gray-200 mb-8">
-            <div className="w-[120px] h-[120px] rounded-full bg-primary text-white flex items-center justify-center text-[2.5rem] font-bold mx-auto mb-6">
-              {initials}
-            </div>
-            <button className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors">
-              Thay đổi ảnh
-            </button>
-          </div>
-
-          <div className="space-y-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-2">{formData.ratingCount}</div>
-              <div className="text-sm text-gray-600">Bệnh nhân</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-2">{formData.yearsExperience}</div>
-              <div className="text-sm text-gray-600">Năm kinh nghiệm</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-2">{formData.ratingAvg.toFixed(1)}</div>
-              <div className="text-sm text-gray-600">Đánh giá</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6 pb-4 border-b-2 border-primary">Thông tin cơ bản</h2>
-
-          <div className="space-y-6 mb-8">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold text-gray-900 text-[15px]">Họ và tên</label>
-                <div className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-lg focus-within:border-primary transition-colors">
-                  <User size={18} className="text-gray-400 flex-shrink-0" />
-                  <input 
-                    type="text" 
+              <div className="formGrid">
+                <div className="formGroup">
+                  <FormField
+                    label="Họ và tên"
+                    icon={User}
                     value={formData.fullName}
-                    onChange={(e) => handleInputChange('fullName', e.target.value)}
-                    className="flex-1 border-none outline-none" 
+                    onChange={(e) => handleInputChange("fullName", e.target.value)}
                   />
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold text-gray-900 text-[15px]">Chuyên khoa</label>
-                <div className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-lg focus-within:border-primary transition-colors">
-                  <Award size={18} className="text-gray-400 flex-shrink-0" />
-                  <input 
-                    type="text" 
+                <div className="formGroup">
+                  <FormField
+                    label="Chuyên khoa"
+                    icon={Award}
                     value={formData.specialization}
-                    onChange={(e) => handleInputChange('specialization', e.target.value)}
-                    className="flex-1 border-none outline-none" 
+                    onChange={(e) => handleInputChange("specialization", e.target.value)}
                   />
                 </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold text-gray-900 text-[15px]">Email</label>
-                <div className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-lg focus-within:border-primary transition-colors">
-                  <Mail size={18} className="text-gray-400 flex-shrink-0" />
-                  <input 
-                    type="email" 
+                <div className="formGroup">
+                  <FormField
+                    label="Email"
+                    icon={Mail}
+                    type="email"
                     value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="flex-1 border-none outline-none" 
+                    onChange={(e) => handleInputChange("email", e.target.value)}
                   />
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold text-gray-900 text-[15px]">Số điện thoại</label>
-                <div className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-lg focus-within:border-primary transition-colors">
-                  <Phone size={18} className="text-gray-400 flex-shrink-0" />
-                  <input 
-                    type="tel" 
+                <div className="formGroup">
+                  <FormField
+                    label="Số điện thoại"
+                    icon={Phone}
+                    type="tel"
                     value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="flex-1 border-none outline-none" 
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                  />
+                </div>
+                <div className="formGroup fullWidth">
+                  <FormField
+                    label="Địa chỉ"
+                    icon={MapPin}
+                    value={formData.address}
+                    onChange={(e) => handleInputChange("address", e.target.value)}
+                  />
+                </div>
+                <div className="formGroup fullWidth">
+                  <label>Giới thiệu</label>
+                  <textarea
+                    rows="4"
+                    value={formData.bio}
+                    onChange={(e) => handleInputChange("bio", e.target.value)}
+                    placeholder="Nhập thông tin giới thiệu về bạn..."
+                    className="textarea"
                   />
                 </div>
               </div>
-            </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="font-semibold text-gray-900 text-[15px]">Địa chỉ</label>
-              <div className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-lg focus-within:border-primary transition-colors">
-                <MapPin size={18} className="text-gray-400 flex-shrink-0" />
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  className="flex-1 border-none outline-none"
-                />
+              <div className="formActions">
+                <button onClick={handleSave}>
+                  Lưu thay đổi
+                </button>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="font-semibold text-gray-900 text-[15px]">Giới thiệu</label>
-              <textarea
-                rows="4"
-                value={formData.bio}
-                onChange={(e) => handleInputChange('bio', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm resize-y transition-colors focus:outline-none focus:border-primary"
-              ></textarea>
-            </div>
-          </div>
+            {/* Professional Information and Security - Side by Side */}
+            <div className="twoColumnGrid">
+              {/* Professional Information */}
+              <div className="card">
+                <div className="cardHeader">
+                  <div className="icon blue">
+                    <Award size={20} />
+                  </div>
+                  <h2>Thông tin chuyên môn</h2>
+                </div>
 
-          <button 
-            onClick={handleSave}
-            className="w-full px-6 py-3 bg-accent hover:bg-accent/90 text-gray-900 rounded-lg font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
-          >
-            Lưu thay đổi
-          </button>
-        </div>
+                <div className="infoCards">
+                  <InfoCard
+                    icon={Award}
+                    title="Bằng cấp"
+                    content={`${doctorInfo?.education?.[0]?.degree || "Bác sĩ Đa khoa"} - ${doctorInfo?.education?.[0]?.school || "ĐH Y Dược"}`}
+                  />
+                  <InfoCard icon={Calendar} title="Năm tốt nghiệp" content={formData.graduationYear || "N/A"} />
+                  <InfoCard icon={Award} title="Chứng chỉ hành nghề" content={`Số ${formData.licenseNo || "N/A"}`} />
+                </div>
+              </div>
 
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6 pb-4 border-b-2 border-primary">
-            Thông tin chuyên môn
-          </h2>
+              {/* Security */}
+              <div className="card">
+                <div className="cardHeader">
+                  <div className="icon red">
+                    <Lock size={20} />
+                  </div>
+                  <h2>Bảo mật</h2>
+                </div>
 
-          <div className="space-y-6">
-            <div className="flex gap-4 p-4 bg-gray-50 rounded-lg">
-              <Award className="text-primary flex-shrink-0" size={20} />
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Bằng cấp</div>
-                <div className="font-semibold text-gray-900">
-                  {doctorInfo?.education?.[0]?.degree || "Bác sĩ Đa khoa"} - {doctorInfo?.education?.[0]?.school || "ĐH Y Dược"}
+                <div className="securitySection">
+                <PasswordField
+                  label="Mật khẩu hiện tại"
+                  placeholder="Nhập mật khẩu hiện tại"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => handlePasswordChange("currentPassword", e.target.value)}
+                  showPassword={showPassword}
+                  onToggle={() => setShowPassword(!showPassword)}
+                  error={passwordErrors.currentPassword}
+                />
+                <PasswordField
+                  label="Mật khẩu mới"
+                  placeholder="Nhập mật khẩu mới"
+                  value={passwordData.newPassword}
+                  onChange={(e) => handlePasswordChange("newPassword", e.target.value)}
+                  showPassword={showPassword}
+                  onToggle={() => setShowPassword(!showPassword)}
+                  error={passwordErrors.newPassword}
+                />
+                <PasswordField
+                  label="Xác nhận mật khẩu mới"
+                  placeholder="Nhập lại mật khẩu mới"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => handlePasswordChange("confirmPassword", e.target.value)}
+                  showPassword={showPassword}
+                  onToggle={() => setShowPassword(!showPassword)}
+                  error={passwordErrors.confirmPassword}
+                />
+
+                <button className="securityButton" onClick={handleChangePassword}>
+                  Đổi mật khẩu
+                </button>
                 </div>
               </div>
             </div>
-
-            <div className="flex gap-4 p-4 bg-gray-50 rounded-lg">
-              <Calendar className="text-primary flex-shrink-0" size={20} />
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Năm tốt nghiệp</div>
-                <div className="font-semibold text-gray-900">{formData.graduationYear || "N/A"}</div>
-              </div>
-            </div>
-
-            <div className="flex gap-4 p-4 bg-gray-50 rounded-lg">
-              <Award className="text-primary flex-shrink-0" size={20} />
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Chứng chỉ</div>
-                <div className="font-semibold text-gray-900">Chứng chỉ hành nghề số {formData.licenseNo || "N/A"}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6 pb-4 border-b-2 border-primary">Bảo mật</h2>
-
-          <div className="space-y-6 mb-8">
-            <div className="flex flex-col gap-2">
-              <label className="font-semibold text-gray-900 text-[15px]">Mật khẩu hiện tại</label>
-              <input
-                type="password"
-                placeholder="Nhập mật khẩu hiện tại"
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm transition-colors focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="font-semibold text-gray-900 text-[15px]">Mật khẩu mới</label>
-              <input
-                type="password"
-                placeholder="Nhập mật khẩu mới"
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm transition-colors focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="font-semibold text-gray-900 text-[15px]">Xác nhận mật khẩu mới</label>
-              <input
-                type="password"
-                placeholder="Nhập lại mật khẩu mới"
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm transition-colors focus:outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-
-          <button className="w-full px-6 py-3 bg-accent hover:bg-accent/90 text-gray-900 rounded-lg font-medium transition-all hover:-translate-y-0.5 hover:shadow-md">
-            Đổi mật khẩu
-          </button>
         </div>
       </div>
     </div>
   )
+}
+
+// Helper Components
+const FormField = ({ label, icon: Icon, type = "text", value, onChange }) => (
+  <div className="formGroup">
+    <label>{label}</label>
+    <div className="inputWrapper">
+      <Icon size={18} className="icon" />
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+      />
+    </div>
+  </div>
+)
+
+FormField.propTypes = {
+  label: PropTypes.string.isRequired,
+  icon: PropTypes.elementType.isRequired,
+  type: PropTypes.string,
+  value: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+}
+
+const InfoCard = ({ icon: Icon, title, content }) => (
+  <div className="infoCard">
+    <Icon className="icon" size={20} />
+    <div className="content">
+      <div className="title">{title}</div>
+      <div className="value">{content}</div>
+    </div>
+  </div>
+)
+
+InfoCard.propTypes = {
+  icon: PropTypes.elementType.isRequired,
+  title: PropTypes.string.isRequired,
+  content: PropTypes.string.isRequired,
+}
+
+const PasswordField = ({ label, placeholder, value, onChange, showPassword, onToggle, error }) => (
+  <div className="passwordField">
+    <label>{label}</label>
+    <div className={`inputWrapper ${error ? 'error' : ''}`}>
+      <Lock size={18} className="icon" />
+      <input
+        type={showPassword ? "text" : "password"}
+        placeholder={placeholder}
+        value={value || ""}
+        onChange={onChange}
+      />
+      <i
+        className={`bi ${
+          showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
+        } password-toggle`}
+        onClick={onToggle}
+      />
+    </div>
+    {error && <div className="error-text">{error}</div>}
+  </div>
+)
+
+PasswordField.propTypes = {
+  label: PropTypes.string.isRequired,
+  placeholder: PropTypes.string.isRequired,
+  value: PropTypes.string,
+  onChange: PropTypes.func.isRequired,
+  showPassword: PropTypes.bool.isRequired,
+  onToggle: PropTypes.func.isRequired,
+  error: PropTypes.string,
 }
 
 export default ProfileSettings

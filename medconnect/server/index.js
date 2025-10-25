@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 dotenv.config();
 import apiRouter from "./routes/api.router.js";
 import { initializeFirebase } from "./config/firebase.js";
+import SignalingServer from "./services/signalingServer.js";
 
 // Initialize Firebase Admin SDK (will exit process if config missing)
 initializeFirebase();
@@ -71,6 +72,9 @@ app.use((err, req, res, _next) => {
 
 /* ================ Start Server & Socket.IO ================ */
 const server = http.createServer(app);
+
+// Initialize Signaling Server for WebRTC
+const signalingServer = new SignalingServer(server);
 
 mongoose
   .connect(process.env.MONGODB_URL)

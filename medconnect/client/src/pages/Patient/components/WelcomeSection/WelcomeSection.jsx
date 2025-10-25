@@ -1,14 +1,45 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { useUserProfile } from "../../../../hooks/useUserProfile";
+import { api } from "../../../../lib/api";
 import { Calendar, Video, Search } from "lucide-react";
 import "./WelcomeSection.scss";
 
 export function WelcomeSection() {
   const { userProfile } = useUserProfile();
   const navigate = useNavigate();
+  const [todayAppointments, setTodayAppointments] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTodayAppointments();
+  }, []);
+
+  const fetchTodayAppointments = async () => {
+    try {
+      setLoading(true);
+      
+      // Get today's date range
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      
+      // Fetch appointments for today
+      const response = await api.get(`/api/patients/me/appointments?startDate=${startOfDay.toISOString()}&endDate=${endOfDay.toISOString()}`);
+      
+      if (response.success) {
+        const appointments = response.data.appointments || [];
+        setTodayAppointments(appointments.length);
+      }
+    } catch (error) {
+      console.error("Error fetching today's appointments:", error);
+      setTodayAppointments(0);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const currentHour = new Date().getHours();
   const greeting =
@@ -73,7 +104,12 @@ export function WelcomeSection() {
               lineHeight: 1.4,
             }}
           >
-            Hôm nay bạn có 2 lịch hẹn. Hãy chuẩn bị sẵn sàng cho buổi khám.
+            {loading 
+              ? "Đang tải thông tin lịch hẹn..." 
+              : todayAppointments > 0 
+                ? `Hôm nay bạn có ${todayAppointments} lịch hẹn. Hãy chuẩn bị sẵn sàng cho buổi khám.`
+                : "Hôm nay bạn chưa có lịch hẹn nào. Hãy đặt lịch khám để được chăm sóc tốt nhất."
+            }
           </p>
         </div>
 

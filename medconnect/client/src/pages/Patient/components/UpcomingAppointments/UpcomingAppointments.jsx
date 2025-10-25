@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Clock, MapPin, User } from "lucide-react";
 import {
   Card,
@@ -10,11 +11,14 @@ import { Button } from "../../../../components/ui/Button";
 import { Badge } from "../../../../components/ui/Badge";
 import { api } from "../../../../lib/api";
 import { message, Spin } from "antd";
+import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 import "./UpcomingAppointments.scss";
 
 const statusConfig = {
   confirmed: { label: "Đã xác nhận", variant: "default" },
   accepted: { label: "Đã chấp nhận", variant: "default" },
+  accept: { label: "Đã xác nhận", variant: "default" }, // Thêm mapping cho status "accept"
+  accecpt: { label: "Đã xác nhận", variant: "default" }, // Thêm mapping cho status "accecpt" (lỗi chính tả)
   pending_doctor: { label: "Chờ xác nhận", variant: "secondary" },
   in_progress: { label: "Đang khám", variant: "default" },
   done: { label: "Hoàn thành", variant: "default" },
@@ -25,6 +29,9 @@ const statusConfig = {
 export function UpcomingAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     fetchAppointments();
@@ -33,11 +40,17 @@ export function UpcomingAppointments() {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/patients/me/appointments?limit=5");
+      const response = await api.get("/api/patients/me/appointments?limit=50");
 
       if (response.success) {
+        // Filter only upcoming appointments with accepted and pending status
+        const upcomingAppointments = response.data.appointments.filter(
+          (appointment) =>
+            ["pending_doctor", "accepted"].includes(appointment.status)
+        );
+
         // Transform API data to match component format
-        const transformedAppointments = response.data.appointments.map(
+        const transformedAppointments = upcomingAppointments.map(
           (appointment) => ({
             id: appointment._id,
             doctor: `BS. ${appointment.doctorId.fullName}`,
@@ -78,6 +91,16 @@ export function UpcomingAppointments() {
     }
   };
 
+  const handleShowDetail = (appointmentId) => {
+    setSelectedAppointmentId(appointmentId);
+    setShowDetailModal(true);
+  };
+
+  const handleCloseDetail = () => {
+    setShowDetailModal(false);
+    setSelectedAppointmentId(null);
+  };
+
   if (loading) {
     return (
       <div
@@ -93,7 +116,10 @@ export function UpcomingAppointments() {
           minHeight: "200px",
         }}
       >
-        <Spin size="large" tip="Đang tải lịch hẹn..." />
+        <div className="flex items-center justify-center">
+          <Spin size="large" />
+          <span className="ml-2">Đang tải lịch hẹn...</span>
+        </div>
       </div>
     );
   }
@@ -141,6 +167,7 @@ export function UpcomingAppointments() {
             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             position: "relative",
           }}
+          onClick={() => navigate("/my-appointments")}
           onMouseOver={(e) => {
             e.target.style.backgroundColor = "#f1f5f9";
             e.target.style.transform = "translateY(-1px)";
@@ -249,12 +276,16 @@ export function UpcomingAppointments() {
                         fontWeight: "500",
                         color:
                           appointment.status === "confirmed" ||
-                          appointment.status === "accepted"
+                          appointment.status === "accepted" ||
+                          appointment.status === "accept" ||
+                          appointment.status === "accecpt"
                             ? "#ffffff"
                             : "#1e293b",
                         backgroundColor:
                           appointment.status === "confirmed" ||
-                          appointment.status === "accepted"
+                          appointment.status === "accepted" ||
+                          appointment.status === "accept" ||
+                          appointment.status === "accecpt"
                             ? "#3b82f6"
                             : "#f3f4f6",
                         padding: "0.125rem 0.5rem",
@@ -339,6 +370,39 @@ export function UpcomingAppointments() {
                   gap: "0.5rem",
                 }}
               >
+                {/* Video Call Button - Only show for accepted online appointments */}
+                {appointment.status === "accepted" && appointment.mode === "online" ? (
+                  <button
+                    style={{
+                      padding: "0.5rem 1rem",
+                      backgroundColor: "#10b981",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "0.375rem",
+                      fontSize: "0.75rem",
+                      fontWeight: "500",
+                      cursor: "pointer",
+                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                      position: "relative",
+                      overflow: "hidden",
+                      boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.backgroundColor = "#059669";
+                      e.target.style.transform = "translateY(-1px) scale(1.02)";
+                      e.target.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.backgroundColor = "#10b981";
+                      e.target.style.transform = "translateY(0) scale(1)";
+                      e.target.style.boxShadow = "0 2px 4px rgba(16, 185, 129, 0.2)";
+                    }}
+                    onClick={() => window.open(`/benh-nhan/video-call/${appointment.id}`, '_blank')}
+                  >
+                    📹 Video Call
+                  </button>
+                ) : null}
+                
                 <button
                   style={{
                     padding: "0.5rem 1rem",
@@ -372,6 +436,7 @@ export function UpcomingAppointments() {
                   onMouseUp={(e) => {
                     e.target.style.transform = "translateY(-1px) scale(1.02)";
                   }}
+                  onClick={() => handleShowDetail(appointment.id)}
                 >
                   Chi tiết
                 </button>
@@ -419,6 +484,13 @@ export function UpcomingAppointments() {
           ))
         )}
       </div>
+
+      {/* Appointment Detail Modal */}
+      <AppointmentDetailModal
+        visible={showDetailModal}
+        onClose={handleCloseDetail}
+        appointmentId={selectedAppointmentId}
+      />
     </div>
   );
 }

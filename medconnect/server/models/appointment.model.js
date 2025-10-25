@@ -94,6 +94,7 @@ AppointmentSchema.index({ patientId: 1, scheduledStart: 1 });
 AppointmentSchema.index({ status: 1, scheduledStart: 1 });
 AppointmentSchema.index({ mode: 1, scheduledStart: 1 });
 AppointmentSchema.index({ clinicId: 1, scheduledStart: 1 });
+
 // KHÓA SLOT 1-1 khi còn hiệu lực (slot không thể bị book hai lần, bất kể online/offline)
 AppointmentSchema.index(
   { slotId: 1 },

@@ -1,0 +1,181 @@
+.video-call-notification-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e8f4fd;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #bae6fd;
+}
+
+.notification-title {
+  margin: 0 !important;
+  color: #0369a1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-icon {
+  font-size: 20px;
+  color: #0284c7;
+}
+
+.upcoming-calls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.call-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e0f2fe;
+  transition: all 0.3s ease;
+}
+
+.call-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.call-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.doctor-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doctor-icon {
+  font-size: 16px;
+  color: #0284c7;
+}
+
+.doctor-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.specialty {
+  font-size: 12px;
+}
+
+.time-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.appointment-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.time-icon {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.time-until {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.call-actions {
+  display: flex;
+  align-items: center;
+}
+
+.join-call-button {
+  border-radius: 6px;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.join-call-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.join-call-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.notification-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #bae6fd;
+  text-align: center;
+}
+
+.view-all-button {
+  color: #0284c7;
+  font-weight: 500;
+}
+
+.view-all-button:hover {
+  color: #0369a1;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .call-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .call-info {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .call-actions {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .join-call-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .call-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .time-info {
+    align-self: flex-end;
+  }
+}

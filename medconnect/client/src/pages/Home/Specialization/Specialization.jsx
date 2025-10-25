@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import PropTypes from "prop-types";
 import {
   Row,
   Col,
@@ -167,6 +168,16 @@ const Specialization = () => {
     </Card>
   );
 
+  // PropTypes validation for SpecializationCard
+  SpecializationCard.propTypes = {
+    specialization: PropTypes.shape({
+      _id: PropTypes.string.isRequired,
+      name: PropTypes.string.isRequired,
+      avatar: PropTypes.string,
+      doctorCount: PropTypes.number,
+    }).isRequired,
+  };
+
   return (
     <div className="specialization-page">
       {/* Breadcrumb */}
@@ -242,13 +253,13 @@ const Specialization = () => {
                 style={{ margin: "50px 0" }}
               />
             ) : (
-              <Row gutter={[16, 16]}>
+              <div className="specialization-grid-container">
                 {filteredSpecializations.map((specialization) => (
-                  <Col xs={24} sm={12} md={8} lg={6} key={specialization._id}>
+                  <div key={specialization._id} className="specialization-grid-item">
                     <SpecializationCard specialization={specialization} />
-                  </Col>
+                  </div>
                 ))}
-              </Row>
+              </div>
             )}
           </div>
         </div>

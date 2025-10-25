@@ -8,6 +8,8 @@ import {
   getDoctorTimeSlots,
   bookAppointment,
   getPatientAppointments,
+  cancelPatientAppointment,
+  getAppointmentDetails,
 } from "../controllers/patientController.js";
 
 const router = express.Router();
@@ -22,7 +24,10 @@ router.put("/me/profile", authGuard, updatePatientProfile);
 router.get("/specializations", getSpecializations);
 
 // Get doctors by specialization
-router.get("/specializations/:specializationId/doctors", getDoctorsBySpecialization);
+router.get(
+  "/specializations/:specializationId/doctors",
+  getDoctorsBySpecialization
+);
 
 // Get available time slots for a doctor
 router.get("/doctors/:doctorId/time-slots", getDoctorTimeSlots);
@@ -32,5 +37,14 @@ router.post("/appointments", authGuard, bookAppointment);
 
 // Get patient's appointments
 router.get("/me/appointments", authGuard, getPatientAppointments);
+
+// Cancel patient appointment
+router.put(
+  "/me/appointments/:appointmentId/cancel",
+  authGuard,
+  cancelPatientAppointment
+);
+// Get appointment details by ID
+router.get("/me/appointments/:appointmentId", authGuard, getAppointmentDetails);
 
 export default router;

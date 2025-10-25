@@ -78,6 +78,24 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
     };
 
     fetchDoctorInfo();
+
+    // Listen for storage changes to refresh avatar
+    const handleStorageChange = () => {
+      fetchDoctorInfo();
+    };
+
+    // Listen for custom avatar update event
+    const handleAvatarUpdate = () => {
+      fetchDoctorInfo();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('avatarUpdated', handleAvatarUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -142,7 +160,15 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
         ) : (
           <div className="doctor-sidebar-profile" onClick={handleProfileClick}>
             <div className="doctor-sidebar-profile-avatar">
-              {(doctorInfo?.userId?.fullName || doctorInfo?.fullName || 'Bác sĩ').split(' ').map(n => n[0]).join('').toUpperCase()}
+              {doctorInfo?.avatarUrl ? (
+                <img 
+                  src={doctorInfo.avatarUrl} 
+                  alt={doctorInfo?.userId?.fullName || doctorInfo?.fullName || 'Bác sĩ'}
+                  className="doctor-sidebar-avatar-image"
+                />
+              ) : (
+                (doctorInfo?.userId?.fullName || doctorInfo?.fullName || 'Bác sĩ').split(' ').map(n => n[0]).join('').toUpperCase()
+              )}
             </div>
             <div className="doctor-sidebar-profile-info">
               <p className="doctor-sidebar-profile-name">

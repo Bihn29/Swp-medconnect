@@ -687,6 +687,45 @@ export async function createPrescription(req, res) {
 }
 
 /**
+ * Get doctor clinics
+ */
+export async function getDoctorClinics(req, res) {
+  try {
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Get doctor's default clinic and any other clinics they work at
+    const clinics = [];
+    
+    // Add default clinic if exists
+    if (doctor.clinicDefaultId) {
+      const defaultClinic = await Clinic.findById(doctor.clinicDefaultId);
+      if (defaultClinic) {
+        clinics.push(defaultClinic);
+      }
+    }
+
+    // For now, we'll just return the default clinic
+    // In the future, you might want to add a many-to-many relationship
+    // between doctors and clinics
+
+    return ok(res, { clinics });
+  } catch (error) {
+    console.error("Error fetching doctor clinics:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
  * Get doctor time slots
  */
 export async function getDoctorTimeSlots(req, res) {

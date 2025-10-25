@@ -23,26 +23,38 @@ import {
 import { usePatientAppointments } from "../../../hooks/usePatientAppointments";
 
 export function UpcomingAppointments() {
-  const { upcomingAppointments, loading, error, refreshAppointments } = usePatientAppointments();
+  const {
+    upcomingAppointments,
+    loading,
+    error,
+    refreshAppointments,
+    fetchAllAppointments,
+  } = usePatientAppointments();
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
+    return date.toLocaleDateString("vi-VN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     });
   };
 
   const formatTime = (startTime, endTime) => {
     const start = new Date(startTime);
     const end = new Date(endTime);
-    return `${start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
+    return `${start.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })} - ${end.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
   };
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'pending_doctor':
+      case "pending_doctor":
         return (
           <Badge
             variant="secondary"
@@ -51,7 +63,7 @@ export function UpcomingAppointments() {
             Chờ bác sĩ xác nhận
           </Badge>
         );
-      case 'accepted':
+      case "accepted":
         return (
           <Badge
             variant="default"
@@ -60,7 +72,7 @@ export function UpcomingAppointments() {
             Đã chấp nhận
           </Badge>
         );
-      case 'confirmed':
+      case "confirmed":
         return (
           <Badge
             variant="default"
@@ -69,7 +81,7 @@ export function UpcomingAppointments() {
             Đã xác nhận
           </Badge>
         );
-      case 'in_progress':
+      case "in_progress":
         return (
           <Badge
             variant="default"
@@ -78,8 +90,8 @@ export function UpcomingAppointments() {
             Đang diễn ra
           </Badge>
         );
-      case 'cancelled':
-      case 'auto_cancelled':
+      case "cancelled":
+      case "auto_cancelled":
         return (
           <Badge
             variant="secondary"
@@ -88,7 +100,7 @@ export function UpcomingAppointments() {
             Đã hủy
           </Badge>
         );
-      case 'rejected':
+      case "rejected":
         return (
           <Badge
             variant="secondary"
@@ -98,11 +110,7 @@ export function UpcomingAppointments() {
           </Badge>
         );
       default:
-        return (
-          <Badge variant="secondary">
-            {status}
-          </Badge>
-        );
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
@@ -110,11 +118,13 @@ export function UpcomingAppointments() {
     const now = new Date();
     const startTime = new Date(appointment.scheduledStart);
     const endTime = new Date(appointment.scheduledEnd);
-    
-    return appointment.mode === 'online' && 
-           appointment.status === 'confirmed' && 
-           now >= startTime && 
-           now <= endTime;
+
+    return (
+      appointment.mode === "online" &&
+      appointment.status === "accepted" &&
+      now >= startTime &&
+      now <= endTime
+    );
   };
 
   if (loading) {
@@ -126,7 +136,7 @@ export function UpcomingAppointments() {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8">
-          <LoadingOutlined style={{ fontSize: '24px' }} />
+          <LoadingOutlined style={{ fontSize: "24px" }} />
           <span className="ml-2">Đang tải dữ liệu...</span>
         </CardContent>
       </Card>
@@ -157,16 +167,39 @@ export function UpcomingAppointments() {
         <CardTitle className="text-xl font-semibold">
           Lịch hẹn sắp tới
         </CardTitle>
-        <Button variant="ghost" size="sm" className="text-primary">
-          Xem tất cả
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={refreshAppointments}
+            disabled={loading}
+          >
+            {loading ? "Đang tải..." : "Làm mới"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchAllAppointments}
+            className="text-orange-600"
+          >
+            Debug
+          </Button>
+          <Button variant="ghost" size="sm" className="text-primary">
+            Xem tất cả
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {upcomingAppointments.length === 0 ? (
           <div className="text-center py-8">
-            <CalendarOutlined style={{ fontSize: '48px', color: '#ccc' }} />
-            <p className="text-muted-foreground mt-4">Chưa có lịch hẹn sắp tới</p>
-            <Button className="mt-4" onClick={() => window.location.href = '/appointment'}>
+            <CalendarOutlined style={{ fontSize: "48px", color: "#ccc" }} />
+            <p className="text-muted-foreground mt-4">
+              Chưa có lịch hẹn sắp tới
+            </p>
+            <Button
+              className="mt-4"
+              onClick={() => (window.location.href = "/appointment")}
+            >
               Đặt lịch ngay
             </Button>
           </div>
@@ -182,7 +215,10 @@ export function UpcomingAppointments() {
                   alt={appointment.doctorId?.fullName}
                 />
                 <AvatarFallback className="bg-primary/10 text-primary">
-                  {appointment.doctorId?.fullName?.split(" ").pop()?.charAt(0) || "BS"}
+                  {appointment.doctorId?.fullName
+                    ?.split(" ")
+                    .pop()
+                    ?.charAt(0) || "BS"}
                 </AvatarFallback>
               </Avatar>
 
@@ -193,7 +229,8 @@ export function UpcomingAppointments() {
                       {appointment.doctorId?.fullName || "Bác sĩ"}
                     </h4>
                     <p className="text-sm text-muted-foreground">
-                      {appointment.doctorId?.specializationIds?.[0]?.name || "Chuyên khoa"}
+                      {appointment.doctorId?.specializationIds?.[0]?.name ||
+                        "Chuyên khoa"}
                     </p>
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -208,7 +245,12 @@ export function UpcomingAppointments() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <ClockCircleOutlined style={{ fontSize: "16px" }} />
-                    <span>{formatTime(appointment.scheduledStart, appointment.scheduledEnd)}</span>
+                    <span>
+                      {formatTime(
+                        appointment.scheduledStart,
+                        appointment.scheduledEnd
+                      )}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {appointment.mode === "online" ? (
@@ -217,8 +259,8 @@ export function UpcomingAppointments() {
                       <EnvironmentOutlined style={{ fontSize: "16px" }} />
                     )}
                     <span>
-                      {appointment.mode === "online" 
-                        ? "Video call" 
+                      {appointment.mode === "online"
+                        ? "Video call"
                         : appointment.clinicId?.name || "Phòng khám"}
                     </span>
                   </div>
@@ -233,14 +275,17 @@ export function UpcomingAppointments() {
 
                 <div className="flex flex-wrap gap-2 pt-2">
                   {canJoinVideoCall(appointment) && (
-                    <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                    >
                       <VideoCameraOutlined
                         style={{ fontSize: "16px", marginRight: "6px" }}
                       />
                       Tham gia ngay
                     </Button>
                   )}
-                  {appointment.status === 'pending_doctor' && (
+                  {appointment.status === "pending_doctor" && (
                     <Button size="sm" variant="outline" disabled>
                       <CalendarOutlined
                         style={{ fontSize: "16px", marginRight: "6px" }}
@@ -248,7 +293,7 @@ export function UpcomingAppointments() {
                       Dời lịch
                     </Button>
                   )}
-                  {(appointment.status === 'accepted' || appointment.status === 'confirmed') && (
+                  {appointment.status === "accepted" && (
                     <Button size="sm" variant="outline">
                       <CalendarOutlined
                         style={{ fontSize: "16px", marginRight: "6px" }}
@@ -256,7 +301,9 @@ export function UpcomingAppointments() {
                       Dời lịch
                     </Button>
                   )}
-                  {!['cancelled', 'auto_cancelled', 'rejected', 'done'].includes(appointment.status) && (
+                  {["pending_doctor", "accepted"].includes(
+                    appointment.status
+                  ) && (
                     <Button
                       size="sm"
                       variant="outline"
