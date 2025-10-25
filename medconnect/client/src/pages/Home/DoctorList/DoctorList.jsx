@@ -259,7 +259,7 @@ const DoctorList = () => {
       // If not logged in, redirect to login page
       navigate("/dang-nhap", {
         state: {
-          from: "/dat-lich-kham",
+          from: "/dat-lich/chon-thoi-gian",
           doctor: doctor,
           message: "Vui lòng đăng nhập để đặt lịch khám",
         },
@@ -267,10 +267,11 @@ const DoctorList = () => {
       return;
     }
 
-    // If logged in, navigate to appointment booking page with doctor data
-    navigate("/dat-lich-kham", {
+    // If logged in, navigate to time slot selection page with doctor data
+    navigate("/dat-lich/chon-thoi-gian", {
       state: {
         doctor: doctor,
+        specialization: doctor.specializationIds?.[0] || null,
       },
     });
   };

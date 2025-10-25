@@ -93,13 +93,26 @@ export default function Login() {
     const from = location.state?.from;
     const doctor = location.state?.doctor;
 
-    if (from === "/dat-lich" || from === "/dat-lich-kham") {
+    if (
+      from === "/dat-lich" ||
+      from === "/dat-lich-kham" ||
+      from === "/dat-lich/chon-thoi-gian"
+    ) {
       // If coming from appointment booking, redirect back with doctor data
-      navigate("/dat-lich-kham", {
-        state: {
-          doctor: doctor,
-        },
-      });
+      if (from === "/dat-lich/chon-thoi-gian") {
+        navigate("/dat-lich/chon-thoi-gian", {
+          state: {
+            doctor: doctor,
+            specialization: doctor?.specializationIds?.[0] || null,
+          },
+        });
+      } else {
+        navigate("/dat-lich-kham", {
+          state: {
+            doctor: doctor,
+          },
+        });
+      }
       return;
     }
 

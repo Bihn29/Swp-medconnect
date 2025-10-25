@@ -55,9 +55,13 @@ const TimeSlotSelection = () => {
   const [clinicsLoading, setClinicsLoading] = useState(false);
 
   useEffect(() => {
-    if (location.state?.doctor && location.state?.specialization) {
+    if (location.state?.doctor) {
       setDoctor(location.state.doctor);
-      setSpecialization(location.state.specialization);
+      // Use specialization from state or from doctor's first specialization
+      const spec =
+        location.state?.specialization ||
+        location.state?.doctor?.specializationIds?.[0];
+      setSpecialization(spec);
     } else {
       navigate("/dat-lich/chon-chuyen-khoa");
     }
