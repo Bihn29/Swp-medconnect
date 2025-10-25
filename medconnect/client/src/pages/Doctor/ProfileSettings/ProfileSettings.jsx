@@ -35,12 +35,18 @@ const ProfileSettings = () => {
       try {
         const doctor = await getDoctorProfileWithFallback()
         if (doctor) {
+          console.log("🔍 ProfileSettings - Doctor data:", doctor)
+          console.log("🔍 ProfileSettings - User data:", doctor.userId)
+          console.log("🔍 ProfileSettings - Doctor fullName:", doctor.fullName)
+          console.log("🔍 ProfileSettings - User fullName:", doctor.userId?.fullName)
+          console.log("🔍 ProfileSettings - Final name:", doctor.userId?.fullName || doctor.fullName)
+          
           setDoctorInfo(doctor)
           setFormData({
             fullName: doctor.userId?.fullName || doctor.fullName || "",
             email: doctor.userId?.email || "",
             phone: doctor.userId?.phone || "",
-            specialization: doctor.specializationIds?.[0]?.name || "",
+            specialization: doctor.specializationIds?.map(spec => spec.name).join(', ') || "",
             address: doctor.clinicDefaultId?.address || "",
             bio: doctor.bio || "",
             licenseNo: doctor.licenseNo || "",
@@ -69,8 +75,39 @@ const ProfileSettings = () => {
 
   const handleSave = async () => {
     try {
+      console.log("🔄 Sending data to API:", formData)
       const response = await updateDoctorProfile(formData)
+      console.log("✅ API Response:", response)
+      
       if (response) {
+        // Refresh doctor info after successful update
+        const updatedDoctor = await getDoctorProfileWithFallback()
+        console.log("🔄 Refreshed doctor data:", updatedDoctor)
+        console.log("🔄 User fullName:", updatedDoctor?.userId?.fullName)
+        console.log("🔄 Doctor fullName:", updatedDoctor?.fullName)
+        
+        if (updatedDoctor) {
+          setDoctorInfo(updatedDoctor)
+          setFormData({
+            fullName: updatedDoctor.userId?.fullName || updatedDoctor.fullName || "",
+            email: updatedDoctor.userId?.email || "",
+            phone: updatedDoctor.userId?.phone || "",
+            specialization: updatedDoctor.specializationIds?.map(spec => spec.name).join(', ') || "",
+            address: updatedDoctor.clinicDefaultId?.address || "",
+            bio: updatedDoctor.bio || "",
+            licenseNo: updatedDoctor.licenseNo || "",
+            graduationYear: updatedDoctor.education?.[0]?.year || "",
+            yearsExperience: updatedDoctor.yearsExperience || 0,
+            ratingAvg: updatedDoctor.ratingAvg || 0,
+            ratingCount: updatedDoctor.ratingCount || 0,
+          })
+        }
+        
+        // Dispatch custom event to notify other components
+        window.dispatchEvent(new CustomEvent('doctorProfileUpdated', { 
+          detail: { doctor: updatedDoctor } 
+        }))
+        
         alert("Thông tin đã được cập nhật thành công")
       } else {
         alert("Có lỗi xảy ra khi cập nhật thông tin")
@@ -197,7 +234,8 @@ const ProfileSettings = () => {
                     label="Họ và tên"
                     icon={User}
                     value={formData.fullName}
-                    onChange={(e) => handleInputChange("fullName", e.target.value)}
+                    disabled={true}
+                    onChange={() => {}}
                   />
                 </div>
                 <div className="formGroup">
@@ -205,7 +243,8 @@ const ProfileSettings = () => {
                     label="Chuyên khoa"
                     icon={Award}
                     value={formData.specialization}
-                    onChange={(e) => handleInputChange("specialization", e.target.value)}
+                    disabled={true}
+                    onChange={() => {}}
                   />
                 </div>
                 <div className="formGroup">
@@ -270,7 +309,7 @@ const ProfileSettings = () => {
                     title="Bằng cấp"
                     content={`${doctorInfo?.education?.[0]?.degree || "Bác sĩ Đa khoa"} - ${doctorInfo?.education?.[0]?.school || "ĐH Y Dược"}`}
                   />
-                  <InfoCard icon={Calendar} title="Năm tốt nghiệp" content={formData.graduationYear || "N/A"} />
+                  <InfoCard icon={Calendar} title="Năm kinh nghiệm" content={`${formData.yearsExperience || 0} năm`} />
                   <InfoCard icon={Award} title="Chứng chỉ hành nghề" content={`Số ${formData.licenseNo || "N/A"}`} />
                 </div>
               </div>
@@ -326,7 +365,7 @@ const ProfileSettings = () => {
 }
 
 // Helper Components
-const FormField = ({ label, icon: Icon, type = "text", value, onChange }) => (
+const FormField = ({ label, icon: Icon, type = "text", value, onChange, disabled = false }) => (
   <div className="formGroup">
     <label>{label}</label>
     <div className="inputWrapper">
@@ -335,6 +374,8 @@ const FormField = ({ label, icon: Icon, type = "text", value, onChange }) => (
         type={type}
         value={value}
         onChange={onChange}
+        disabled={disabled}
+        style={disabled ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
       />
     </div>
   </div>
@@ -346,6 +387,7 @@ FormField.propTypes = {
   type: PropTypes.string,
   value: PropTypes.string.isRequired,
   onChange: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
 }
 
 const InfoCard = ({ icon: Icon, title, content }) => (

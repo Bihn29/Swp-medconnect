@@ -56,7 +56,7 @@ const DoctorSelection = () => {
     } else {
       const filtered = doctors.filter(
         (doctor) =>
-          doctor.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (doctor.userId?.fullName || doctor.fullName).toLowerCase().includes(searchTerm.toLowerCase()) ||
           (doctor.bio &&
             doctor.bio.toLowerCase().includes(searchTerm.toLowerCase()))
       );
@@ -258,7 +258,7 @@ const DoctorSelection = () => {
 
                       <div className="doctor-info">
                         <Title level={4} className="doctor-name">
-                          {doctor.fullName}
+                          {doctor.userId?.fullName || doctor.fullName}
                         </Title>
 
                         <div className="doctor-specializations">
