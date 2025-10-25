@@ -4,6 +4,7 @@ import Doctor from "../models/doctor.model.js";
 import Specialization from "../models/specialization.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Appointment from "../models/appointment.model.js";
+import ConsultationSummary from "../models/consultationSummary.model.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
@@ -818,5 +819,140 @@ export async function getAppointmentDetails(req, res) {
       ERROR_CODES.SERVER_ERROR,
       "Failed to fetch appointment details"
     );
+  }
+}
+
+/**
+ * Get patient's consultation summaries (medical history)
+ */
+export async function getPatientConsultationSummaries(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    // Find patient by user ID
+    const patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Patient profile not found"
+      );
+    }
+
+    const { page = 1, limit = 20 } = req.query;
+
+    // Get consultation summaries for this patient
+    const consultationSummaries = await ConsultationSummary.find({
+      patientId: patient._id,
+      status: "final", // Only get finalized summaries
+    })
+      .populate({
+        path: "doctorId",
+        select: "fullName specializationIds avatarUrl",
+        populate: {
+          path: "specializationIds",
+          select: "name",
+        },
+      })
+      .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
+      .populate("clinicId", "name address")
+      .sort({ visitDate: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await ConsultationSummary.countDocuments({
+      patientId: patient._id,
+      status: "final",
+    });
+
+    // Format the response for frontend
+    const formattedSummaries = consultationSummaries.map((summary) => {
+      // Get primary diagnosis
+      const primaryDiagnosis =
+        summary.diagnoses && summary.diagnoses.length > 0
+          ? summary.diagnoses[0].name
+          : "Không có chẩn đoán";
+
+      // Format medications
+      const medicationsText =
+        summary.medications && summary.medications.length > 0
+          ? summary.medications
+              .map((med) => `${med.name} - ${med.dosage} - ${med.instruction}`)
+              .join(", ")
+          : "Không có đơn thuốc";
+
+      // Format documents (lab results + imaging results)
+      const documents = [];
+      if (summary.labResults && summary.labResults.length > 0) {
+        summary.labResults.forEach((lab) => {
+          documents.push({
+            name: `${lab.testName} - Kết quả xét nghiệm.pdf`,
+            type: "pdf",
+          });
+        });
+      }
+      if (summary.imagingResults && summary.imagingResults.length > 0) {
+        summary.imagingResults.forEach((img) => {
+          documents.push({
+            name: `${img.type} - Kết quả hình ảnh.pdf`,
+            type: "pdf",
+          });
+        });
+      }
+
+      return {
+        id: summary._id,
+        specialty:
+          summary.doctorId?.specializationIds?.[0]?.name || "Không xác định",
+        date: new Date(summary.visitDate).toLocaleDateString("vi-VN"),
+        doctor: `BS. ${summary.doctorId?.fullName || "Không xác định"}`,
+        diagnosis: primaryDiagnosis,
+        prescription: medicationsText,
+        documents: documents,
+        // Full details for modal
+        fullDetails: {
+          reasonForVisit: summary.reasonForVisit,
+          visitDate: summary.visitDate,
+          treatmentResult: summary.treatmentResult,
+          diagnoses: summary.diagnoses,
+          vitals: summary.vitals,
+          labResults: summary.labResults,
+          imagingResults: summary.imagingResults,
+          medications: summary.medications,
+          procedures: summary.procedures,
+          summaryText: summary.summaryText,
+          treatmentMethod: summary.treatmentMethod,
+          followUpInstruction: summary.followUpInstruction,
+          nextAppointmentDate: summary.nextAppointmentDate,
+          appointment: summary.appointmentId,
+          clinic: summary.clinicId,
+        },
+      };
+    });
+
+    return ok(res, {
+      consultationSummaries: formattedSummaries,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching patient consultation summaries:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }
