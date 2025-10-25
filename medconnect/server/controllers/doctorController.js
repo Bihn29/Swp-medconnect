@@ -69,6 +69,9 @@ export async function getCurrentDoctorProfile(req, res) {
     }
     
     console.log("👨‍⚕️ Found doctor:", doctor);
+    console.log("👨‍⚕️ Doctor fullName:", doctor.fullName);
+    console.log("👨‍⚕️ User fullName:", doctor.userId?.fullName);
+    console.log("👨‍⚕️ Final name:", doctor.userId?.fullName || doctor.fullName);
     return ok(res, { doctor });
   } catch (e) {
     console.error("❌ getCurrentDoctorProfile error:", e);
@@ -88,6 +91,8 @@ export async function updateDoctorProfile(req, res) {
 
     const {
       fullName,
+      email,
+      phone,
       licenseNo,
       yearsExperience,
       bio,
@@ -96,19 +101,34 @@ export async function updateDoctorProfile(req, res) {
       specializationIds,
     } = req.body;
 
-    const updateData = {};
-    if (fullName) updateData.fullName = fullName;
-    if (licenseNo) updateData.licenseNo = licenseNo;
+    // Update user basic info first (like in updatePatientProfile)
+    const userUpdate = {};
+    if (fullName) userUpdate.fullName = fullName;
+    if (email) userUpdate.email = email;
+    if (phone) userUpdate.phone = phone;
+
+    if (Object.keys(userUpdate).length > 0) {
+      console.log("🔄 Updating User table with:", userUpdate);
+      const updatedUser = await User.findByIdAndUpdate(appUserId, userUpdate, { new: true });
+      console.log("✅ User table updated:", updatedUser);
+    }
+
+    // Update doctor profile
+    const doctorUpdateData = {};
+    if (fullName) doctorUpdateData.fullName = fullName;
+    if (licenseNo) doctorUpdateData.licenseNo = licenseNo;
     if (yearsExperience !== undefined)
-      updateData.yearsExperience = yearsExperience;
-    if (bio) updateData.bio = bio;
-    if (avatarUrl) updateData.avatarUrl = avatarUrl;
-    if (clinicDefaultId) updateData.clinicDefaultId = clinicDefaultId;
-    if (specializationIds) updateData.specializationIds = specializationIds;
+      doctorUpdateData.yearsExperience = yearsExperience;
+    if (bio) doctorUpdateData.bio = bio;
+    if (avatarUrl) doctorUpdateData.avatarUrl = avatarUrl;
+    if (clinicDefaultId) doctorUpdateData.clinicDefaultId = clinicDefaultId;
+    if (specializationIds) doctorUpdateData.specializationIds = specializationIds;
+
+    console.log("🔄 Updating Doctor table with:", doctorUpdateData);
 
     const doctor = await Doctor.findOneAndUpdate(
       { userId: appUserId },
-      updateData,
+      doctorUpdateData,
       { new: true, runValidators: true }
     )
       .populate("userId", "fullName email phone")
@@ -118,6 +138,10 @@ export async function updateDoctorProfile(req, res) {
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
+
+    console.log("✅ Doctor table updated:", doctor);
+    console.log("✅ Final User fullName:", doctor.userId?.fullName);
+    console.log("✅ Final Doctor fullName:", doctor.fullName);
 
     return ok(res, { doctor });
   } catch (e) {
