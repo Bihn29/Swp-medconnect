@@ -47,7 +47,7 @@ const DoctorScheduleRuleSchema = new Schema(
 
     isActive: { type: Boolean, default: true, index: true },
   },
-  { timestamps: true, versionKey: false, collection: "doctor_schedule_rules" }
+  { timestamps: true, versionKey: false, collection: "Doctor_schedule_rules" }
 );
 
 // Validate

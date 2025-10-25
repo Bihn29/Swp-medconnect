@@ -426,6 +426,55 @@ export async function updateAppointmentStatus(
   return r.json();
 }
 
+// Doctor time slot functions
+export async function getDoctorTimeSlots(params = {}) {
+  console.log("🔍 getDoctorTimeSlots params:", params);
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      searchParams.append(key, value);
+    }
+  });
+  const url = `${BASE}/api/doctors/me/time-slots?${searchParams}`;
+  console.log("🔍 getDoctorTimeSlots URL:", url);
+  const r = await fetch(url, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function autoGenerateTimeSlots() {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/auto-generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({}),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Schedule rules functions
+export async function getDoctorScheduleRules() {
+  const r = await fetch(`${BASE}/api/doctors/me/schedule-rules`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function updateDoctorScheduleRules(scheduleRules) {
+  const r = await fetch(`${BASE}/api/doctors/me/schedule-rules`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ scheduleRules }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 
 
 // Consultation and prescription functions
@@ -570,74 +619,7 @@ export async function markAllNotificationsAsRead() {
   return r.json();
 }
 
-// Time slot management functions
-export async function getDoctorTimeSlots(params = {}) {
-  const searchParams = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      searchParams.append(key, value);
-    }
-  });
 
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots?${searchParams}`, {
-    credentials: "include",
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-export async function createTimeSlot(slotData) {
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(slotData),
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-export async function updateTimeSlot(slotId, slotData) {
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots/${slotId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(slotData),
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-export async function deleteTimeSlot(slotId) {
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots/${slotId}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-export async function blockTimeSlot(blockData) {
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots/block`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(blockData),
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-export async function autoGenerateTimeSlots(days = 30) {
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots/auto-generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ days }),
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
 
 // Review functions
 export async function getDoctorReviews(params = {}) {
@@ -736,22 +718,25 @@ export async function getDoctorProfileWithFallback() {
       return doctor;
     }
   } catch (error) {
+    console.log("🔍 Primary doctor profile failed:", error.message);
     // Primary endpoint failed, trying fallback
   }
 
   try {
-    // Fallback: find by userId from patient profile (same as useUserProfile)
-    const patientProfile = await getCurrentPatientProfile();
-    const userId = patientProfile?.data?.user?._id || patientProfile?.user?._id;
+    // Fallback: try to get user info and find doctor by userId
+    const userResponse = await getCurrentUser();
+    const userId = userResponse?.data?.user?._id || userResponse?.user?._id;
     
     if (userId) {
+      console.log("🔍 Fallback - Found userId:", userId);
       const found = await findDoctorByUserId(userId);
       if (found) {
+        console.log("🔍 Fallback - Found doctor:", found.fullName);
         return found;
       }
     }
   } catch (error) {
-    // Fallback failed
+    console.log("🔍 Fallback failed:", error.message);
   }
 
   return null;
@@ -1000,10 +985,7 @@ const apiObject = {
 
   // Time slot management functions
   getDoctorTimeSlots,
-  createTimeSlot,
-  updateTimeSlot,
-  deleteTimeSlot,
-  blockTimeSlot,
+  autoGenerateTimeSlots,
 
   // Review functions
   getDoctorReviews,

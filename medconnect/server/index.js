@@ -77,15 +77,16 @@ const server = http.createServer(app);
 const signalingServer = new SignalingServer(server);
 
 mongoose
-  .connect(process.env.MONGODB_URL)
+  .connect(process.env.MONGODB_URL || "mongodb://localhost:27017/MedConnect")
   .then(() => {
     console.log("✅ Kết nối đến MongoDB thành công");
   })
   .catch((err) => {
     console.error("❌ Lỗi kết nối đến MongoDB:", err.message);
+    console.log("⚠️ Server sẽ tiếp tục chạy nhưng có thể có lỗi database");
   });
 
-const PORT = process.env.PORT || 9999;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   const domain = `http://localhost:${PORT}`;
   console.log(`🚀 Server đang chạy tại: ${domain}`);

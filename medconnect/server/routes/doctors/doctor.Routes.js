@@ -11,32 +11,29 @@ import {
   getConsultationRecords,
   createConsultationSummary,
   createPrescription,
-  getDoctorTimeSlots,
-  createTimeSlot,
-  updateTimeSlot,
-  deleteTimeSlot,
-  blockTimeSlot,
   getDoctorReviews,
   respondToReview,
-  getDoctorAvailableTimeSlots,
-  createTestTimeSlots,
+  getDoctorClinics,
+  debugAuth,
+  getDoctorTimeSlots,
   autoGenerateTimeSlots,
-  getDoctorClinics
+  getDoctorScheduleRules,
+  updateDoctorScheduleRules,
 } from "../../controllers/doctorController.js";
 
 const router = express.Router();
 
 // Public routes
 router.get("/", getAllDoctors); // Get all doctors for search/listing
-router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
-router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
-router.get("/:doctorId/clinics", getDoctorClinics); // Get doctor clinics
-router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
 
-// Protected routes (require authentication) - MUST COME BEFORE /:doctorId routes
+// Public doctor routes
+router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
+router.get("/:doctorId/clinics", getDoctorClinics); // Get doctor clinics
+
+// Protected routes (require authentication)
 router.use(authGuard);
 
-// Current doctor routes (must come before /:doctorId routes)
+// Current doctor routes
 router.get("/me", getCurrentDoctorProfile); // Get basic doctor info
 router.get("/me/profile", getCurrentDoctorProfile);
 router.put("/me/profile", updateDoctorProfile);
@@ -47,22 +44,19 @@ router.get("/me/consultation-records", getConsultationRecords);
 router.post("/me/consultation-summaries", createConsultationSummary);
 router.post("/me/prescriptions", createPrescription);
 
-// Time slot management routes
+// Time slot routes
 router.get("/me/time-slots", getDoctorTimeSlots);
-router.post("/me/time-slots", createTimeSlot);
-router.put("/me/time-slots/:slotId", updateTimeSlot);
-router.delete("/me/time-slots/:slotId", deleteTimeSlot);
-router.post("/me/time-slots/block", blockTimeSlot);
 router.post("/me/time-slots/auto-generate", autoGenerateTimeSlots);
+
+// Schedule rules routes
+router.get("/me/schedule-rules", getDoctorScheduleRules);
+router.put("/me/schedule-rules", updateDoctorScheduleRules);
+
+// Debug route
+router.get("/me/debug-auth", debugAuth);
 
 // Review routes
 router.get("/me/reviews", getDoctorReviews);
 router.post("/me/reviews/:reviewId/respond", respondToReview);
-
-// Public doctor profile routes (now protected because after authGuard, but that's the issue!)
-// We need to handle these differently
-router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
-router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
-router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
 
 export default router;

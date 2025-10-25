@@ -9,6 +9,7 @@ const { Schema, model } = mongoose;
 const UserSchema = new Schema(
   {
     email: { type: String, required: true, unique: true, index: true, lowercase: true, trim: true },
+    firebaseUID: { type: String, unique: true, sparse: true, trim: true },
     passwordHash: {
       type: String,
       select: false,

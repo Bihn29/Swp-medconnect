@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { auth } from "../lib/firebase";
 import { 
   getCurrentDoctorProfile, 
   updateDoctorProfile, 
@@ -9,10 +10,6 @@ import {
   createConsultationSummary,
   createPrescription,
   getDoctorTimeSlots,
-  createTimeSlot,
-  updateTimeSlot,
-  deleteTimeSlot,
-  blockTimeSlot,
   autoGenerateTimeSlots,
   getNotifications,
   markNotificationAsRead,
@@ -25,11 +22,41 @@ export function useDoctor() {
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [authUser, setAuthUser] = useState(null);
+
+  // Listen to authentication changes
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      console.log("🔍 Auth state changed in useDoctor:", user?.uid);
+      setAuthUser(user);
+      
+      // If user changed, clear current data and refetch
+      if (user) {
+        setDoctor(null);
+        setError(null);
+      } else {
+        setDoctor(null);
+        setError(null);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const fetchDoctorProfile = useCallback(async () => {
+    // Don't fetch if no authenticated user
+    if (!authUser) {
+      console.log("🔍 No authenticated user, skipping doctor profile fetch");
+      setDoctor(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
+      console.log("🔍 Fetching doctor profile for user:", authUser.uid);
       const response = await getCurrentDoctorProfile();
       setDoctor(response.doctor);
     } catch (err) {
@@ -38,7 +65,7 @@ export function useDoctor() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authUser?.uid]);
 
   const updateProfile = useCallback(async (profileData) => {
     try {
@@ -53,8 +80,14 @@ export function useDoctor() {
   }, []);
 
   useEffect(() => {
-    fetchDoctorProfile();
-  }, [fetchDoctorProfile]);
+    // Only fetch if we have an authenticated user
+    if (authUser) {
+      console.log("🔍 AuthUser available, fetching doctor profile...");
+      fetchDoctorProfile();
+    } else {
+      console.log("🔍 No authUser, skipping doctor profile fetch");
+    }
+  }, [fetchDoctorProfile, authUser]);
 
   return {
     doctor,
@@ -216,72 +249,100 @@ export function useDoctorTimeSlots(params = {}) {
   const [timeSlots, setTimeSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [authUser, setAuthUser] = useState(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Listen to authentication changes
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setAuthUser(user);
+      
+      // Only clear data if user logs out, not when user changes
+      if (!user) {
+        setTimeSlots([]);
+        setError(null);
+        setLoading(false);
+        setHasInitialized(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const fetchTimeSlots = useCallback(async () => {
+    // Don't fetch if no authenticated user
+    if (!authUser) {
+      setTimeSlots([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
+      
       const response = await getDoctorTimeSlots(params);
-      setTimeSlots(response.timeSlots || []);
+      console.log("🔍 useDoctorTimeSlots - Raw response:", response);
+      
+      // Handle different response formats with more robust extraction
+      let slots = [];
+      
+      // Direct extraction from response structure
+      if (response?.data?.slots && Array.isArray(response.data.slots)) {
+        slots = response.data.slots;
+      } else if (response?.slots && Array.isArray(response.slots)) {
+        slots = response.slots;
+      } else if (response?.timeSlots && Array.isArray(response.timeSlots)) {
+        slots = response.timeSlots;
+      } else if (response?.data && Array.isArray(response.data)) {
+        slots = response.data;
+      } else if (Array.isArray(response)) {
+        slots = response;
+      }
+      
+      console.log("🔍 useDoctorTimeSlots - Extracted slots:", slots);
+      
+      // Validate and filter slots data
+      if (slots.length > 0) {
+        console.log("🔍 useDoctorTimeSlots - First slot:", slots[0]);
+        const validSlots = slots.filter(slot => {
+          const isValid = slot && 
+            (slot._id || slot.id) && 
+            slot.startAt && 
+            slot.endAt && 
+            slot.status &&
+            Object.keys(slot).length > 0; // Ensure slot is not empty object
+          
+          if (!isValid) {
+            console.log("🔍 useDoctorTimeSlots - Invalid slot:", slot);
+          }
+          
+          return isValid;
+        });
+        
+        console.log("🔍 useDoctorTimeSlots - Valid slots:", validSlots.length);
+        
+        if (validSlots.length > 0) {
+          setTimeSlots(validSlots);
+        } else {
+          setTimeSlots([]);
+        }
+      } else {
+        console.log("🔍 useDoctorTimeSlots - No slots found");
+        setTimeSlots([]);
+      }
     } catch (err) {
       setError(err.message);
-      console.error("Failed to fetch time slots:", err);
+      setTimeSlots([]);
     } finally {
       setLoading(false);
     }
-  }, [JSON.stringify(params)]);
+  }, [params.startDate, params.endDate, authUser?.uid]); // Simplified dependencies
 
-  const createNewTimeSlot = useCallback(async (slotData) => {
+  const autoGenerateSlots = useCallback(async () => {
     try {
       setError(null);
-      const response = await createTimeSlot(slotData);
-      await fetchTimeSlots(); // Refresh the list
-      return response.timeSlot;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }, [fetchTimeSlots]);
-
-  const updateExistingTimeSlot = useCallback(async (slotId, slotData) => {
-    try {
-      setError(null);
-      const response = await updateTimeSlot(slotId, slotData);
-      await fetchTimeSlots(); // Refresh the list
-      return response.timeSlot;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }, [fetchTimeSlots]);
-
-  const removeTimeSlot = useCallback(async (slotId) => {
-    try {
-      setError(null);
-      await deleteTimeSlot(slotId);
-      await fetchTimeSlots(); // Refresh the list
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }, [fetchTimeSlots]);
-
-  const blockTime = useCallback(async (blockData) => {
-    try {
-      setError(null);
-      const response = await blockTimeSlot(blockData);
-      await fetchTimeSlots(); // Refresh the list
-      return response.blockedSlot;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }, [fetchTimeSlots]);
-
-  const autoGenerateSlots = useCallback(async (days = 30) => {
-    try {
-      setError(null);
-      const response = await autoGenerateTimeSlots(days);
+      const response = await autoGenerateTimeSlots();
       await fetchTimeSlots(); // Refresh the list
       return response;
     } catch (err) {
@@ -290,19 +351,29 @@ export function useDoctorTimeSlots(params = {}) {
     }
   }, [fetchTimeSlots]);
 
+
   useEffect(() => {
-    fetchTimeSlots();
-  }, [fetchTimeSlots]);
+    // Only fetch if we have an authenticated user and haven't initialized yet
+    if (authUser && !hasInitialized) {
+      fetchTimeSlots();
+      setHasInitialized(true);
+    } else if (!authUser) {
+      setHasInitialized(false);
+    }
+  }, [authUser?.uid, hasInitialized]);
+
+  // Separate effect to handle date parameter changes
+  useEffect(() => {
+    if (authUser && hasInitialized && (params.startDate || params.endDate)) {
+      fetchTimeSlots();
+    }
+  }, [params.startDate, params.endDate, authUser?.uid, hasInitialized]);
 
   return {
     timeSlots,
     loading,
     error,
     refetch: fetchTimeSlots,
-    createTimeSlot: createNewTimeSlot,
-    updateTimeSlot: updateExistingTimeSlot,
-    deleteTimeSlot: removeTimeSlot,
-    blockTimeSlot: blockTime,
     autoGenerateTimeSlots: autoGenerateSlots
   };
 }

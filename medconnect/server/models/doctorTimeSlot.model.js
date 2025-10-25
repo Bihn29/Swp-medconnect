@@ -28,7 +28,7 @@ const DoctorTimeSlotSchema = new Schema(
     // chống double-book khi đặt
     version: { type: Number, default: 0 },
   },
-  { timestamps: true, versionKey: false, collection: "doctor_time_slots" }
+  { timestamps: true, versionKey: false, collection: "Doctor_time_slots" }
 );
 
 DoctorTimeSlotSchema.pre("validate", function (next) {

@@ -30,8 +30,23 @@ export async function getCurrentPatientProfile(req, res) {
       return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
     }
 
-    // Find patient profile
-    const patient = await Patient.findOne({ userId: appUserId }).lean();
+    // Find patient profile, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId }).lean();
+    
+    if (!patient) {
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient.toObject();
+      console.log("Created patient profile:", patient._id);
+    }
 
     // Combine user and patient data
     const profileData = {
@@ -46,31 +61,29 @@ export async function getCurrentPatientProfile(req, res) {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
-      profile: patient
-        ? {
-            _id: patient._id,
-            fullName: patient.fullName,
-            dob: patient.dob,
-            gender: patient.gender,
-            nationalId: patient.nationalId,
-            phone: patient.phone,
-            address: patient.address,
-            wardCode: patient.wardCode,
-            districtCode: patient.districtCode,
-            provinceCode: patient.provinceCode,
-            bloodType: patient.bloodType,
-            allergyNotes: patient.allergyNotes,
-            relationshipToOwner: patient.relationshipToOwner,
-            createdAt: patient.createdAt,
-            updatedAt: patient.updatedAt,
-            isComplete: !!(
-              patient.fullName &&
-              patient.dob &&
-              patient.gender &&
-              patient.phone
-            ),
-          }
-        : null,
+      profile: {
+        _id: patient._id,
+        fullName: patient.fullName,
+        dob: patient.dob,
+        gender: patient.gender,
+        nationalId: patient.nationalId,
+        phone: patient.phone,
+        address: patient.address,
+        wardCode: patient.wardCode,
+        districtCode: patient.districtCode,
+        provinceCode: patient.provinceCode,
+        bloodType: patient.bloodType,
+        allergyNotes: patient.allergyNotes,
+        relationshipToOwner: patient.relationshipToOwner,
+        createdAt: patient.createdAt,
+        updatedAt: patient.updatedAt,
+        isComplete: !!(
+          patient.fullName &&
+          patient.dob &&
+          patient.gender &&
+          patient.phone
+        ),
+      },
     };
 
     return ok(res, profileData);
@@ -301,12 +314,23 @@ export async function bookAppointment(req, res) {
     // Get or create patient profile
     let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found. Please complete your profile first."
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const user = await User.findById(appUserId);
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+      
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     // Verify the time slot exists and is available
@@ -407,15 +431,26 @@ export async function getPatientAppointments(req, res) {
       );
     }
 
-    // Find patient by user ID
-    const patient = await Patient.findOne({ userId: appUserId });
+    // Find patient by user ID, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found"
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const user = await User.findById(appUserId);
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+      
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     const { status, page = 1, limit = 50 } = req.query;
@@ -495,15 +530,26 @@ export async function cancelPatientAppointment(req, res) {
     const { appointmentId } = req.params;
     const { cancelReason } = req.body;
 
-    // Find patient by user ID
-    const patient = await Patient.findOne({ userId: appUserId });
+    // Find patient by user ID, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found"
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const user = await User.findById(appUserId);
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+      
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     // Find appointment belonging to this patient
