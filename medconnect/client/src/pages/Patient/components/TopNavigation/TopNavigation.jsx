@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../../../components/ui/Button";
 import { Badge } from "../../../../components/ui/Badge";
-import { Menu, Calendar, Bell, User, Stethoscope } from "lucide-react";
+import { Menu, Calendar, User, Stethoscope } from "lucide-react";
 import "./TopNavigation.scss";
 
 export function TopNavigation() {
@@ -59,13 +59,6 @@ export function TopNavigation() {
           <Button variant="outline" className="book-appointment-btn">
             <Calendar className="btn-icon" />
             Đặt lịch
-          </Button>
-
-          <Button variant="ghost" size="icon" className="notification-btn">
-            <Bell className="notification-icon" />
-            <Badge variant="destructive" className="notification-badge">
-              3
-            </Badge>
           </Button>
 
           <Button variant="ghost" size="icon" className="profile-btn">
