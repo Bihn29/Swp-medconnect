@@ -167,9 +167,74 @@
   color: #991b1b;
 }
 
-/* Medical History Section */
-.medical-history-section {
+/* History Section with Tabs */
+.history-section {
   margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 2rem;
+}
+
+.tab-navigation {
+  display: flex;
+  gap: 0.5rem;
+  background: #f8fafc;
+  padding: 0.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+}
+
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: #6b7280;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tab-button:hover {
+  background: #f1f5f9;
+  color: #374151;
+}
+
+.tab-button.active {
+  background: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+}
+
+.tab-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.tab-content {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .history-list {
@@ -272,9 +337,12 @@
   white-space: nowrap;
 }
 
-.view-details-button:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+.view-details-button:hover,
+.view-details-button:active,
+.view-details-button.active {
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #3b82f6;
 }
 
 .view-icon {
@@ -358,6 +426,23 @@
   color: #3b82f6;
 }
 
+/* Consultation History Styles */
+.consultation-card {
+  border-left: 4px solid #3b82f6;
+}
+
+.consultation-type {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .health-profile-container {
@@ -422,6 +507,25 @@
 
   .view-details-button {
     align-self: flex-start;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .tab-navigation {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .tab-button {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    padding: 0.625rem 1rem;
+    font-size: 0.8rem;
   }
 }
 
