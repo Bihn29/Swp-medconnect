@@ -4,6 +4,8 @@ import Doctor from "../models/doctor.model.js";
 import Specialization from "../models/specialization.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Appointment from "../models/appointment.model.js";
+import ConsultationSummary from "../models/consultationSummary.model.js";
+import ConsultationAdvice from "../models/consultationAdvice.model.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
@@ -52,14 +54,39 @@ export async function getCurrentPatientProfile(req, res) {
             fullName: patient.fullName,
             dob: patient.dob,
             gender: patient.gender,
-            nationalId: patient.nationalId,
+            ethnicity: patient.ethnicity,
+            nationality: patient.nationality,
+            occupation: patient.occupation,
+            citizenId: patient.citizenId,
             phone: patient.phone,
+            email: patient.email,
             address: patient.address,
+            houseNumber: patient.houseNumber,
+            // Bảo hiểm y tế
+            insuranceNumber: patient.insuranceNumber,
+            primaryClinic: patient.primaryClinic,
+            insuranceValidFrom: patient.insuranceValidFrom,
+            insuranceValidTo: patient.insuranceValidTo,
+            // Người đại diện
+            representativeName: patient.representativeName,
+            representativeCitizenId: patient.representativeCitizenId,
+            representativeRelation: patient.representativeRelation,
+            representativePhone: patient.representativePhone,
+            // Liên hệ khẩn cấp
+            emergencyContactName: patient.emergencyContactName,
+            emergencyContactPhone: patient.emergencyContactPhone,
+            // Thông tin y tế
+            bloodType: patient.bloodType,
+            allergyNotes: patient.allergyNotes,
+            medicalHistory: patient.medicalHistory,
+            vaccinationHistory: patient.vaccinationHistory,
+            // Ghi chú
+            notes: patient.notes,
+            // Legacy fields
+            nationalId: patient.nationalId,
             wardCode: patient.wardCode,
             districtCode: patient.districtCode,
             provinceCode: patient.provinceCode,
-            bloodType: patient.bloodType,
-            allergyNotes: patient.allergyNotes,
             relationshipToOwner: patient.relationshipToOwner,
             createdAt: patient.createdAt,
             updatedAt: patient.updatedAt,
@@ -99,6 +126,159 @@ export async function updatePatientProfile(req, res) {
 
     const updateData = req.body;
 
+    // Server-side validation
+    const validationErrors = {};
+
+    // Validate required fields
+    if (updateData.fullName && updateData.fullName.trim().length < 2) {
+      validationErrors.fullName = "Họ và tên phải có ít nhất 2 ký tự";
+    }
+
+    // Validate email format
+    if (
+      updateData.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updateData.email)
+    ) {
+      validationErrors.email = "Email không đúng định dạng";
+    }
+
+    // Validate phone format
+    if (
+      updateData.phone &&
+      !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(updateData.phone.replace(/\s/g, ""))
+    ) {
+      validationErrors.phone = "Số điện thoại không đúng định dạng";
+    }
+
+    // Validate date of birth
+    if (updateData.dob) {
+      const birthDate = new Date(updateData.dob);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+
+      if (birthDate > today) {
+        validationErrors.dob = "Ngày sinh không thể là tương lai";
+      } else if (age > 120) {
+        validationErrors.dob = "Tuổi không hợp lệ";
+      }
+    }
+
+    // Validate insurance dates
+    if (updateData.insuranceValidFrom && updateData.insuranceValidTo) {
+      const fromDate = new Date(updateData.insuranceValidFrom);
+      const toDate = new Date(updateData.insuranceValidTo);
+
+      if (fromDate >= toDate) {
+        validationErrors.insuranceValidTo =
+          "Ngày hết hạn phải sau ngày có hiệu lực";
+      }
+    }
+
+    // Validate citizen ID format
+    if (updateData.citizenId && !/^[0-9]{9,12}$/.test(updateData.citizenId)) {
+      validationErrors.citizenId = "CCCD/CMND phải có 9-12 chữ số";
+    }
+
+    // Validate representative citizen ID
+    if (
+      updateData.representativeCitizenId &&
+      !/^[0-9]{9,12}$/.test(updateData.representativeCitizenId)
+    ) {
+      validationErrors.representativeCitizenId =
+        "CCCD/CMND người đại diện phải có 9-12 chữ số";
+    }
+
+    // Validate phone numbers
+    if (
+      updateData.representativePhone &&
+      !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(
+        updateData.representativePhone.replace(/\s/g, "")
+      )
+    ) {
+      validationErrors.representativePhone =
+        "Số điện thoại người đại diện không đúng định dạng";
+    }
+
+    if (
+      updateData.emergencyContactPhone &&
+      !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(
+        updateData.emergencyContactPhone.replace(/\s/g, "")
+      )
+    ) {
+      validationErrors.emergencyContactPhone =
+        "Số điện thoại liên hệ khẩn cấp không đúng định dạng";
+    }
+
+    // Validate text length
+    if (updateData.allergyNotes && updateData.allergyNotes.length > 500) {
+      validationErrors.allergyNotes = "Ghi chú dị ứng không được quá 500 ký tự";
+    }
+
+    if (updateData.notes && updateData.notes.length > 1000) {
+      validationErrors.notes = "Ghi chú không được quá 1000 ký tự";
+    }
+
+    // Validate insurance number format
+    if (
+      updateData.insuranceNumber &&
+      !/^[0-9]{10,15}$/.test(updateData.insuranceNumber.replace(/\s/g, ""))
+    ) {
+      validationErrors.insuranceNumber = "Số thẻ BHYT phải có 10-15 chữ số";
+    }
+
+    // Validate primary clinic name
+    if (updateData.primaryClinic) {
+      if (updateData.primaryClinic.trim().length < 3) {
+        validationErrors.primaryClinic =
+          "Tên cơ sở y tế phải có ít nhất 3 ký tự";
+      } else if (updateData.primaryClinic.length > 200) {
+        validationErrors.primaryClinic =
+          "Tên cơ sở y tế không được quá 200 ký tự";
+      } else if (!/^[a-zA-ZÀ-ỹ\s\d\-.,()]+$/.test(updateData.primaryClinic)) {
+        validationErrors.primaryClinic =
+          "Tên cơ sở y tế chỉ được chứa chữ cái, số và ký tự đặc biệt cơ bản";
+      }
+    }
+
+    // Validate representative name
+    if (updateData.representativeName) {
+      if (updateData.representativeName.trim().length < 2) {
+        validationErrors.representativeName =
+          "Họ tên người đại diện phải có ít nhất 2 ký tự";
+      } else if (updateData.representativeName.length > 100) {
+        validationErrors.representativeName =
+          "Họ tên người đại diện không được quá 100 ký tự";
+      } else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(updateData.representativeName)) {
+        validationErrors.representativeName =
+          "Họ tên chỉ được chứa chữ cái và khoảng trắng";
+      }
+    }
+
+    // Validate emergency contact name
+    if (updateData.emergencyContactName) {
+      if (updateData.emergencyContactName.trim().length < 2) {
+        validationErrors.emergencyContactName =
+          "Họ tên người liên hệ khẩn cấp phải có ít nhất 2 ký tự";
+      } else if (updateData.emergencyContactName.length > 100) {
+        validationErrors.emergencyContactName =
+          "Họ tên người liên hệ khẩn cấp không được quá 100 ký tự";
+      } else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(updateData.emergencyContactName)) {
+        validationErrors.emergencyContactName =
+          "Họ tên chỉ được chứa chữ cái và khoảng trắng";
+      }
+    }
+
+    // Return validation errors if any
+    if (Object.keys(validationErrors).length > 0) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.VALIDATION_ERROR,
+        "Dữ liệu không hợp lệ",
+        validationErrors
+      );
+    }
+
     // Update user basic info
     const userUpdate = {};
     if (updateData.fullName) userUpdate.fullName = updateData.fullName;
@@ -114,14 +294,34 @@ export async function updatePatientProfile(req, res) {
       fullName: updateData.fullName,
       dob: updateData.dob,
       gender: updateData.gender,
-      nationalId: updateData.nationalId,
+      ethnicity: updateData.ethnicity,
+      nationality: updateData.nationality,
+      occupation: updateData.occupation,
+      citizenId: updateData.citizenId,
       phone: updateData.phone,
+      email: updateData.email,
       address: updateData.address,
-      wardCode: updateData.wardCode,
-      districtCode: updateData.districtCode,
-      provinceCode: updateData.provinceCode,
+      houseNumber: updateData.houseNumber,
+      // Bảo hiểm y tế
+      insuranceNumber: updateData.insuranceNumber,
+      primaryClinic: updateData.primaryClinic,
+      insuranceValidFrom: updateData.insuranceValidFrom,
+      insuranceValidTo: updateData.insuranceValidTo,
+      // Người đại diện
+      representativeName: updateData.representativeName,
+      representativeCitizenId: updateData.representativeCitizenId,
+      representativeRelation: updateData.representativeRelation,
+      representativePhone: updateData.representativePhone,
+      // Liên hệ khẩn cấp
+      emergencyContactName: updateData.emergencyContactName,
+      emergencyContactPhone: updateData.emergencyContactPhone,
+      // Thông tin y tế
       bloodType: updateData.bloodType,
       allergyNotes: updateData.allergyNotes,
+      medicalHistory: updateData.medicalHistory,
+      vaccinationHistory: updateData.vaccinationHistory,
+      // Ghi chú
+      notes: updateData.notes,
     };
 
     const patient = await Patient.findOneAndUpdate(
@@ -620,5 +820,269 @@ export async function getAppointmentDetails(req, res) {
       ERROR_CODES.SERVER_ERROR,
       "Failed to fetch appointment details"
     );
+  }
+}
+
+/**
+ * Get patient's consultation summaries (medical history)
+ */
+export async function getPatientConsultationSummaries(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    // Find patient by user ID
+    const patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Patient profile not found"
+      );
+    }
+
+    const { page = 1, limit = 20 } = req.query;
+
+    // Get consultation summaries for this patient
+    const consultationSummaries = await ConsultationSummary.find({
+      patientId: patient._id,
+      status: "final", // Only get finalized summaries
+    })
+      .populate({
+        path: "doctorId",
+        select: "fullName specializationIds avatarUrl",
+        populate: {
+          path: "specializationIds",
+          select: "name",
+        },
+      })
+      .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
+      .populate("clinicId", "name address")
+      .sort({ visitDate: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await ConsultationSummary.countDocuments({
+      patientId: patient._id,
+      status: "final",
+    });
+
+    // Format the response for frontend
+    const formattedSummaries = consultationSummaries.map((summary) => {
+      // Get primary diagnosis
+      const primaryDiagnosis =
+        summary.diagnoses && summary.diagnoses.length > 0
+          ? summary.diagnoses[0].name
+          : "Không có chẩn đoán";
+
+      // Format medications
+      const medicationsText =
+        summary.medications && summary.medications.length > 0
+          ? summary.medications
+              .map((med) => `${med.name} - ${med.dosage} - ${med.instruction}`)
+              .join(", ")
+          : "Không có đơn thuốc";
+
+      // Format documents (lab results + imaging results)
+      const documents = [];
+      if (summary.labResults && summary.labResults.length > 0) {
+        summary.labResults.forEach((lab) => {
+          documents.push({
+            name: `${lab.testName} - Kết quả xét nghiệm.pdf`,
+            type: "pdf",
+          });
+        });
+      }
+      if (summary.imagingResults && summary.imagingResults.length > 0) {
+        summary.imagingResults.forEach((img) => {
+          documents.push({
+            name: `${img.type} - Kết quả hình ảnh.pdf`,
+            type: "pdf",
+          });
+        });
+      }
+
+      return {
+        id: summary._id,
+        specialty:
+          summary.doctorId?.specializationIds?.[0]?.name || "Không xác định",
+        date: new Date(summary.visitDate).toLocaleDateString("vi-VN"),
+        doctor: `BS. ${summary.doctorId?.fullName || "Không xác định"}`,
+        diagnosis: primaryDiagnosis,
+        prescription: medicationsText,
+        documents: documents,
+        // Full details for modal
+        fullDetails: {
+          reasonForVisit: summary.reasonForVisit,
+          visitDate: summary.visitDate,
+          treatmentResult: summary.treatmentResult,
+          diagnoses: summary.diagnoses,
+          vitals: summary.vitals,
+          labResults: summary.labResults,
+          imagingResults: summary.imagingResults,
+          medications: summary.medications,
+          procedures: summary.procedures,
+          summaryText: summary.summaryText,
+          treatmentMethod: summary.treatmentMethod,
+          followUpInstruction: summary.followUpInstruction,
+          nextAppointmentDate: summary.nextAppointmentDate,
+          appointment: summary.appointmentId,
+          clinic: summary.clinicId,
+        },
+      };
+    });
+
+    return ok(res, {
+      consultationSummaries: formattedSummaries,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching patient consultation summaries:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Get patient's consultation advice (consultation history)
+ */
+export async function getPatientConsultationAdvice(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    // Find patient by user ID
+    const patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Patient profile not found"
+      );
+    }
+
+    const { page = 1, limit = 20 } = req.query;
+
+    // Get consultation advice for this patient
+    const consultationAdvice = await ConsultationAdvice.find({
+      patientId: patient._id,
+    })
+      .populate({
+        path: "doctorId",
+        select: "fullName specializationIds avatarUrl",
+        populate: {
+          path: "specializationIds",
+          select: "name",
+        },
+      })
+      .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
+      .populate("clinicId", "name address")
+      .sort({ startedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await ConsultationAdvice.countDocuments({
+      patientId: patient._id,
+    });
+
+    // Format the response for frontend
+    const formattedAdvice = consultationAdvice.map((advice) => {
+      // Get primary diagnosis
+      const primaryDiagnosis =
+        advice.diagnoses && advice.diagnoses.length > 0
+          ? advice.diagnoses[0].name
+          : "Không có chẩn đoán";
+
+      // Format medications
+      const medicationsText =
+        advice.medications && advice.medications.length > 0
+          ? advice.medications
+              .map((med) => `${med.name} - ${med.dosage} - ${med.instruction}`)
+              .join(", ")
+          : "Không có đơn thuốc";
+
+      // Format documents
+      const documents = [];
+      if (advice.attachmentUrl) {
+        documents.push({
+          name: `Tài liệu tư vấn.pdf`,
+          type: "pdf",
+        });
+      }
+
+      // Format duration
+      const duration = advice.durationMinutes
+        ? `${advice.durationMinutes} phút`
+        : "Không xác định";
+
+      return {
+        id: advice._id,
+        type: advice.mode === "online" ? "Video Call" : "Chat",
+        date: new Date(advice.startedAt).toLocaleDateString("vi-VN"),
+        doctor: `BS. ${advice.doctorId?.fullName || "Không xác định"}`,
+        specialty:
+          advice.doctorId?.specializationIds?.[0]?.name || "Không xác định",
+        duration: duration,
+        topic:
+          advice.summary.substring(0, 100) +
+          (advice.summary.length > 100 ? "..." : ""),
+        summary: advice.summary,
+        documents: documents,
+        // Full details for modal
+        fullDetails: {
+          adviceType: advice.adviceType,
+          summary: advice.summary,
+          startedAt: advice.startedAt,
+          endedAt: advice.endedAt,
+          durationMinutes: advice.durationMinutes,
+          diagnoses: advice.diagnoses,
+          medications: advice.medications,
+          attachmentUrl: advice.attachmentUrl,
+          notes: advice.notes,
+          appointment: advice.appointmentId,
+          clinic: advice.clinicId,
+          doctor: advice.doctorId,
+        },
+      };
+    });
+
+    return ok(res, {
+      consultationAdvice: formattedAdvice,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching patient consultation advice:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }

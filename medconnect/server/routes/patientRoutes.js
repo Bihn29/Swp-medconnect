@@ -10,6 +10,8 @@ import {
   getPatientAppointments,
   cancelPatientAppointment,
   getAppointmentDetails,
+  getPatientConsultationSummaries,
+  getPatientConsultationAdvice,
 } from "../controllers/patientController.js";
 
 const router = express.Router();
@@ -46,5 +48,15 @@ router.put(
 );
 // Get appointment details by ID
 router.get("/me/appointments/:appointmentId", authGuard, getAppointmentDetails);
+
+// Get patient's consultation summaries (medical history)
+router.get(
+  "/me/consultation-summaries",
+  authGuard,
+  getPatientConsultationSummaries
+);
+
+// Get patient's consultation advice (consultation history)
+router.get("/me/consultation-advice", authGuard, getPatientConsultationAdvice);
 
 export default router;
