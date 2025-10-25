@@ -50,15 +50,19 @@ export const privateRoutes = (
   <>
     {/* ==================== PATIENT DASHBOARD (NO DEFAULT LAYOUT) ==================== */}
     {/* Patient dashboard with custom layout (no default header/footer) */}
-    
+
     <Route element={<AuthMiddleware />}>
       <Route element={<PatientMiddleware />}>
         <Route path="/benh-nhan" element={<PatientDashboard />} />
         <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
-        <Route path="/benh-nhan/video-call/:appointmentId" element={<PatientVideoCallPage />} />
+        <Route
+          path="/benh-nhan/video-call/:appointmentId"
+          element={<PatientVideoCallPage />}
+        />
         <Route path="/search-doctors" element={<PatientDashboard />} />
         <Route path="/my-appointments" element={<PatientDashboard />} />
         <Route path="/tu-van-truc-tuyen" element={<PatientDashboard />} />
+        <Route path="/medical-records" element={<PatientDashboard />} />
       </Route>
     </Route>
 
@@ -68,9 +72,12 @@ export const privateRoutes = (
       <Route element={<DoctorMiddleware />}>
         {/* Main doctor dashboard */}
         <Route path="/bac-si" element={<DoctorDashboard />} />
-        
+
         {/* Video Call Routes */}
-        <Route path="/bac-si/video-call/:appointmentId" element={<DoctorVideoCallPage />} />
+        <Route
+          path="/bac-si/video-call/:appointmentId"
+          element={<DoctorVideoCallPage />}
+        />
 
         {/* ==================== APPOINTMENT MANAGEMENT ==================== */}
         {/* Doctor appointment management routes */}
@@ -125,17 +132,17 @@ export const privateRoutes = (
       </Route>
     </Route>
 
-        {/* ==================== ADMIN ROUTES ==================== */}
-        {/* Admin routes with admin middleware protection */}
-        <Route element={<AdminMiddleware />}>
-          <Route element={<AdminLayout />}>
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/verify-doctors" element={<VerifyDoctors />} />
-            <Route path="/admin/users" element={<UserManagement />} />
-            <Route path="/admin/specializations" element={<Specializations />} />
-            <Route path="/admin/appointments" element={<AppointmentManagement />} />
-          </Route>
-        </Route>
+    {/* ==================== ADMIN ROUTES ==================== */}
+    {/* Admin routes with admin middleware protection */}
+    <Route element={<AdminMiddleware />}>
+      <Route element={<AdminLayout />}>
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/verify-doctors" element={<VerifyDoctors />} />
+        <Route path="/admin/users" element={<UserManagement />} />
+        <Route path="/admin/specializations" element={<Specializations />} />
+        <Route path="/admin/appointments" element={<AppointmentManagement />} />
+      </Route>
+    </Route>
   </>
 );

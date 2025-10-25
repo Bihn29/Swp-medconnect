@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Modal, Form, Input, message, Row, Col, Spin, Alert } from 'antd';
+import { Card, Button, Modal, Form, Input, message, Row, Col, Spin, Alert, Upload } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
@@ -11,7 +11,9 @@ import {
   SoundOutlined,
   EyeOutlined,
   UserOutlined,
-  TeamOutlined
+  TeamOutlined,
+  UploadOutlined,
+  PictureOutlined
 } from '@ant-design/icons';
 import { getAdminSpecializations, addSpecialization, updateSpecialization, deleteSpecialization, getDoctorsBySpecialization } from '../../lib/api';
 import './Specializations.scss';
@@ -27,6 +29,8 @@ const Specializations = () => {
   const [specializations, setSpecializations] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [form] = Form.useForm();
+  const [fileList, setFileList] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchSpecializations();
@@ -46,17 +50,23 @@ const Specializations = () => {
   };
 
   const handleAddSpecialization = () => {
+    console.log('Opening add specialization modal');
     setEditingSpecialization(null);
     form.resetFields();
+    setFileList([]);
     setIsModalVisible(true);
   };
 
   const handleEditSpecialization = (specialization) => {
+    console.log('Opening edit specialization modal for:', specialization.name);
     setEditingSpecialization(specialization);
     form.setFieldsValue({
       name: specialization.name,
-      color: specialization.color
+      description: specialization.description || ''
     });
+    
+    // Always start with empty file list for new upload
+    setFileList([]);
     setIsModalVisible(true);
   };
 
@@ -75,23 +85,105 @@ const Specializations = () => {
     try {
       const values = await form.validateFields();
       
+      // Handle avatar upload
+      let avatarUrl = null;
+      if (fileList.length > 0 && fileList[0].originFileObj) {
+        console.log('Converting file to base64...');
+        setUploading(true);
+        try {
+          // Convert file to base64 with compression
+          avatarUrl = await convertFileToBase64(fileList[0].originFileObj);
+          console.log('Avatar converted to base64:', avatarUrl ? 'Success' : 'Failed');
+          console.log('Compressed image size:', avatarUrl ? Math.round(avatarUrl.length / 1024) + 'KB' : 'N/A');
+        } catch (error) {
+          console.error('Error converting image:', error);
+          message.error('Lỗi khi xử lý ảnh');
+          setUploading(false);
+          return;
+        }
+      } else if (fileList.length > 0 && fileList[0].url) {
+        // Use existing URL if editing
+        avatarUrl = fileList[0].url;
+        console.log('Using existing avatar URL:', avatarUrl);
+      }
+      
+      const formData = {
+        ...values,
+        avatar: avatarUrl
+      };
+      
+      console.log('Submitting form data:', { ...formData, avatar: avatarUrl ? 'Base64 data present' : 'No avatar' });
+      
       if (editingSpecialization) {
         // Edit existing specialization
-        await updateSpecialization(editingSpecialization.id, values);
+        await updateSpecialization(editingSpecialization.id, formData);
         message.success('Đã cập nhật chuyên khoa thành công');
       } else {
         // Add new specialization
-        await addSpecialization(values);
+        await addSpecialization(formData);
         message.success('Đã thêm chuyên khoa thành công');
       }
       
       setIsModalVisible(false);
       form.resetFields();
+      setFileList([]);
       fetchSpecializations(); // Refresh data
     } catch (err) {
       console.error('Error saving specialization:', err);
-      message.error('Có lỗi xảy ra');
+      if (err.message && err.message.includes('request entity too large')) {
+        message.error('Ảnh quá lớn, vui lòng chọn ảnh nhỏ hơn');
+      } else {
+        message.error('Có lỗi xảy ra');
+      }
+    } finally {
+      setUploading(false);
     }
+  };
+
+  // Convert file to base64 with compression
+  const convertFileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      // Create a canvas to compress the image
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Set maximum dimensions
+        const maxWidth = 200;
+        const maxHeight = 200;
+        
+        // Calculate new dimensions maintaining aspect ratio
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+        
+        // Set canvas dimensions
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress image
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to base64 with compression (0.8 quality)
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        resolve(compressedDataUrl);
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
   };
 
   const handleSpecializationClick = async (specialization) => {
@@ -112,6 +204,51 @@ const Specializations = () => {
   const handleModalCancel = () => {
     setIsModalVisible(false);
     form.resetFields();
+    setFileList([]);
+  };
+
+  // Upload configuration
+  const uploadProps = {
+    name: 'file',
+    listType: 'picture-card',
+    fileList: fileList,
+    accept: 'image/*',
+    beforeUpload: (file) => {
+      console.log('File selected:', file.name, file.size);
+      const isImage = file.type.startsWith('image/');
+      if (!isImage) {
+        message.error('Chỉ được upload file ảnh!');
+        return false;
+      }
+      const isLt5M = file.size / 1024 / 1024 < 5; // Increased to 5MB since we compress
+      if (!isLt5M) {
+        message.error('Kích thước ảnh phải nhỏ hơn 5MB!');
+        return false;
+      }
+      return true;
+    },
+    onChange: ({ fileList: newFileList }) => {
+      console.log('File list changed:', newFileList);
+      setFileList(newFileList);
+    },
+    onRemove: () => {
+      console.log('File removed');
+      setFileList([]);
+    },
+    maxCount: 1,
+    showUploadList: {
+      showPreviewIcon: true,
+      showRemoveIcon: true,
+      showDownloadIcon: false,
+    },
+    customRequest: ({ file, onSuccess }) => {
+      console.log('Custom request triggered for:', file.name);
+      // Handle the file immediately without actual upload
+      setTimeout(() => {
+        onSuccess("ok");
+      }, 0);
+    },
+    disabled: uploading,
   };
 
   const getIconForSpecialization = (name, color) => {
@@ -210,10 +347,21 @@ const Specializations = () => {
             <Card className="specialization-card" hoverable onClick={() => handleSpecializationClick(specialization)}>
               <div className="card-content">
                 <div className="specialization-icon">
-                  {getIconForSpecialization(specialization.name, specialization.color)}
+                  {specialization.avatar ? (
+                    <img 
+                      src={specialization.avatar} 
+                      alt={specialization.name}
+                      className="specialization-avatar"
+                    />
+                  ) : (
+                    getIconForSpecialization(specialization.name, specialization.color)
+                  )}
                 </div>
                 <div className="specialization-info">
                   <h3>{specialization.name}</h3>
+                  {specialization.description && (
+                    <p className="specialization-description">{specialization.description}</p>
+                  )}
                   <div className="doctor-count">
                     <UserOutlined />
                     <span>{specialization.doctorCount || 0} bác sĩ</span>
@@ -257,6 +405,8 @@ const Specializations = () => {
         okText="Lưu"
         cancelText="Hủy"
         className="specialization-modal"
+        width={600}
+        confirmLoading={uploading}
       >
         <Form
           form={form}
@@ -275,12 +425,43 @@ const Specializations = () => {
           </Form.Item>
 
           <Form.Item
-            name="color"
-            label="Màu sắc"
-            rules={[{ required: true, message: 'Vui lòng chọn màu sắc' }]}
+            name="description"
+            label="Mô tả"
+            rules={[
+              { required: true, message: 'Vui lòng nhập mô tả chuyên khoa' },
+              { min: 10, message: 'Mô tả phải có ít nhất 10 ký tự' }
+            ]}
           >
-            <Input type="color" />
+            <Input.TextArea 
+              placeholder="Nhập mô tả chi tiết về chuyên khoa"
+              rows={4}
+              showCount
+              maxLength={500}
+            />
           </Form.Item>
+
+          <Form.Item
+            name="avatar"
+            label="Ảnh đại diện"
+            valuePropName="fileList"
+            getValueFromEvent={(e) => {
+              if (Array.isArray(e)) {
+                return e;
+              }
+              return e && e.fileList;
+            }}
+          >
+            <Upload 
+              {...uploadProps}
+              key={`upload-${editingSpecialization?.id || 'new'}`}
+            >
+              <div>
+                <PictureOutlined />
+                <div style={{ marginTop: 8 }}>Upload ảnh</div>
+              </div>
+            </Upload>
+          </Form.Item>
+
         </Form>
       </Modal>
 

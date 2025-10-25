@@ -31,8 +31,16 @@ adminRouter.get('/dashboard/stats', async (req, res) => {
       createdAt: { $gte: currentMonth }
     });
     
-    // Revenue calculation based on appointments
-    const revenue = Math.floor(monthlyAppointments * 0.15); // 150k VND per appointment average
+    // Revenue calculation based on appointments - get actual revenue from database
+    const revenueAppointments = await Appointment.find({
+      createdAt: { $gte: currentMonth },
+      status: 'done' // Only count completed appointments
+    });
+    
+    // Calculate actual revenue from completed appointments
+    const revenue = revenueAppointments.reduce((total, appointment) => {
+      return total + (appointment.fee || 0); // Use actual fee from appointment
+    }, 0);
     
     const stats = {
       totalUsers,
@@ -126,15 +134,15 @@ function getTimeAgo(date) {
 // Dashboard system status
 adminRouter.get('/dashboard/system-status', async (req, res) => {
   try {
-    // Get real system metrics
+    // Get real system metrics - use same logic as dashboard stats
     const activeUsers = await User.countDocuments({ status: 'active' });
     const totalDoctors = await Doctor.countDocuments({ isActive: true });
-    const pendingVerifications = await LicenseVerification.countDocuments({ status: 'pending' });
+    const pendingDoctors = await Doctor.countDocuments({ isVerified: false }); // Use same logic as dashboard stats
     
     const systemStatus = [
       { label: 'Người dùng hoạt động', value: activeUsers.toString(), status: 'success' },
       { label: 'Bác sĩ đang hoạt động', value: totalDoctors.toString(), status: 'success' },
-      { label: 'Chờ xác minh', value: pendingVerifications.toString(), status: 'success' },
+      { label: 'Chờ xác minh', value: pendingDoctors.toString(), status: 'success' },
       { label: 'Uptime', value: '99.9%', status: 'success' }
     ];
     
@@ -479,6 +487,111 @@ adminRouter.post('/users/:id/activate', async (req, res) => {
   }
 });
 
+// Get user details
+adminRouter.get('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await User.findById(id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tải thông tin người dùng'
+    });
+  }
+});
+
+// Update user
+adminRouter.put('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Remove password from update data if present
+    delete updateData.password;
+    
+    const user = await User.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Cập nhật thông tin người dùng thành công',
+      data: user
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi cập nhật thông tin người dùng'
+    });
+  }
+});
+
+// Change user password
+adminRouter.put('/users/:id/password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+    
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu không được để trống'
+      });
+    }
+    
+    const user = await User.findById(id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+    
+    // Hash the new password
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.default.hash(password, 10);
+    
+    user.password = hashedPassword;
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: 'Đổi mật khẩu thành công'
+    });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi đổi mật khẩu'
+    });
+  }
+});
+
 // Delete user
 adminRouter.delete('/users/:id', async (req, res) => {
   try {
@@ -565,7 +678,7 @@ function getColorForSpecialization(name) {
 // Add specialization
 adminRouter.post('/specializations', async (req, res) => {
   try {
-    const { name, color } = req.body;
+    const { name, description, avatar } = req.body;
     
     // Check if specialization already exists
     const existingSpec = await Specialization.findOne({ name });
@@ -578,8 +691,8 @@ adminRouter.post('/specializations', async (req, res) => {
     
     const specialization = new Specialization({
       name,
-      description: `Chuyên khoa ${name}`,
-      avatar: null
+      description: description || `Chuyên khoa ${name}`,
+      avatar: avatar || null
     });
     
     await specialization.save();
@@ -590,8 +703,10 @@ adminRouter.post('/specializations', async (req, res) => {
       data: {
         id: specialization._id,
         name: specialization.name,
-        color: color || getColorForSpecialization(name),
-        doctorCount: 0
+        description: specialization.description,
+        color: getColorForSpecialization(name),
+        doctorCount: 0,
+        avatar: specialization.avatar
       }
     });
   } catch (error) {
@@ -607,11 +722,15 @@ adminRouter.post('/specializations', async (req, res) => {
 adminRouter.put('/specializations/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, color } = req.body;
+    const { name, description, avatar } = req.body;
     
     const specialization = await Specialization.findByIdAndUpdate(
       id,
-      { name },
+      { 
+        name,
+        description: description || `Chuyên khoa ${name}`,
+        avatar: avatar || null
+      },
       { new: true }
     );
     
@@ -624,7 +743,14 @@ adminRouter.put('/specializations/:id', async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Đã cập nhật chuyên khoa thành công'
+      message: 'Đã cập nhật chuyên khoa thành công',
+      data: {
+        id: specialization._id,
+        name: specialization.name,
+        description: specialization.description,
+        color: getColorForSpecialization(name),
+        avatar: specialization.avatar
+      }
     });
   } catch (error) {
     console.error('Error updating specialization:', error);
