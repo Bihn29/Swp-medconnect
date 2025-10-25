@@ -25,6 +25,8 @@ const { Title, Paragraph } = Typography;
 const Homepage = () => {
   const navigate = useNavigate();
   const [specializations, setSpecializations] = useState([]);
+  const [featuredDoctors, setFeaturedDoctors] = useState([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
 
   const SampleNextArrow = (props) => {
     const { onClick } = props;
@@ -91,17 +93,11 @@ const Homepage = () => {
       link: "/danh-sach-bac-si",
     },
     {
-      icon: <HomeOutlined style={{ fontSize: "48px", color: "#45c3d2" }} />,
-      title: "Khám tại nhà",
-      description: "Dịch vụ y tế chuyên nghiệp đến tận nhà - An toàn, tiện lợi",
-      link: "/kham-tai-nha",
-    },
-    {
       icon: <CalendarOutlined style={{ fontSize: "48px", color: "#45c3d2" }} />,
       title: "Đặt lịch trực tuyến",
       description:
         "Đặt lịch khám trực tiếp hoặc tư vấn video call một cách dễ dàng",
-      link: "/booking",
+      link: "/dat-lich",
     },
     {
       icon: <SafetyOutlined style={{ fontSize: "48px", color: "#45c3d2" }} />,
@@ -152,17 +148,32 @@ const Homepage = () => {
   useEffect(() => {
     const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
     let mounted = true;
-    (async () => {
+
+    const fetchData = async () => {
       try {
-        const res = await fetch(`${apiBase}/api/specializations`);
-        const json = await res.json();
+        // Fetch specializations
+        const specRes = await fetch(`${apiBase}/api/specializations`);
+        const specJson = await specRes.json();
         if (!mounted) return;
-        if (json.success) setSpecializations(json.data || []);
-        else console.error("API error", json);
+        if (specJson.success) setSpecializations(specJson.data || []);
+        else console.error("Specializations API error", specJson);
+
+        // Fetch featured doctors
+        const doctorsRes = await fetch(
+          `${apiBase}/api/doctors?limit=5&verified=true`
+        );
+        const doctorsJson = await doctorsRes.json();
+        if (!mounted) return;
+        if (doctorsJson.success)
+          setFeaturedDoctors(doctorsJson.data.doctors || []);
+        else console.error("Doctors API error", doctorsJson);
+        setDoctorsLoading(false);
       } catch (err) {
-        console.error("Fetch specializations failed:", err);
+        console.error("Fetch data failed:", err);
       }
-    })();
+    };
+
+    fetchData();
     return () => {
       mounted = false;
     };
@@ -664,29 +675,62 @@ const Homepage = () => {
           >
             Tại sao chọn MedConnect?
           </Title>
-          <Row gutter={[32, 32]}>
+          <Row gutter={[32, 32]} justify="center">
             {features.map((feature, index) => (
-              <Col xs={24} sm={12} lg={6} key={index}>
+              <Col xs={24} sm={12} lg={8} key={index}>
                 <Link to={feature.link} style={{ textDecoration: "none" }}>
                   <Card
                     hoverable
-                    variant="plain" // was border: none
+                    variant="outlined"
                     style={{
                       textAlign: "center",
                       height: "100%",
-                      borderRadius: "12px",
+                      borderRadius: "16px",
                       boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+                      border: "1px solid #f0f0f0",
+                      transition: "all 0.3s ease",
                     }}
-                    styles={{ body: { padding: "40px 20px" } }} // bodyStyle -> styles.body
+                    styles={{
+                      body: {
+                        padding: "40px 24px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        height: "100%",
+                      },
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-5px)";
+                      e.currentTarget.style.boxShadow =
+                        "0 8px 30px rgba(0, 0, 0, 0.12)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow =
+                        "0 4px 20px rgba(0, 0, 0, 0.08)";
+                    }}
                   >
-                    <div style={{ marginBottom: "20px" }}>{feature.icon}</div>
+                    <div style={{ marginBottom: "24px" }}>{feature.icon}</div>
                     <Title
-                      level={4}
-                      style={{ marginBottom: "16px", color: "#333" }}
+                      level={3}
+                      style={{
+                        marginBottom: "16px",
+                        color: "#262626",
+                        fontSize: "1.25rem",
+                        fontWeight: 600,
+                      }}
                     >
                       {feature.title}
                     </Title>
-                    <Paragraph style={{ color: "#666", margin: 0 }}>
+                    <Paragraph
+                      style={{
+                        color: "#666",
+                        margin: 0,
+                        fontSize: "1rem",
+                        lineHeight: "1.6",
+                      }}
+                    >
                       {feature.description}
                     </Paragraph>
                   </Card>
@@ -724,283 +768,122 @@ const Homepage = () => {
             </Link>
           </Row>
 
-          <Slider
-            {...{
-              dots: false,
-              infinite: true,
-              slidesToShow: 4,
-              slidesToScroll: 1,
-              arrows: true,
-              autoplay: true,
-              autoplaySpeed: 5000,
-              centerMode: false,
-              variableWidth: false,
-              nextArrow: <SampleNextArrow />,
-              prevArrow: <SamplePrevArrow />,
-              responsive: [
-                {
-                  breakpoint: 992,
-                  settings: { slidesToShow: 2, slidesToScroll: 1 },
-                },
-                {
-                  breakpoint: 576,
-                  settings: { slidesToShow: 1, slidesToScroll: 1 },
-                },
-              ],
-            }}
-          >
-            {[
-              {
-                id: "doctor1",
-                name: 'Gói Khám "Bác Sĩ Khuyến Cáo" (DC2)',
-                specialty: "Khám tổng quát, Cơ bản, Nam, Nữ",
-                image:
-                  "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095118-goi-kham-bac-si-khuyen-cao.jpg",
-              },
-              {
-                id: "doctor2",
-                name: "Phó Giáo sư, Tiến sĩ, Bác sĩ Nguyễn Thị Hoài An",
-                specialty: "Tai Mũi Họng, Nhi khoa",
-                image:
-                  "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095154-ps-nguyen-thi-hoai-an.jpg",
-              },
-              {
-                id: "doctor3",
-                name: "Bác sĩ Chuyên khoa II Võ Văn Mẫn",
-                specialty: "Cơ Xương Khớp, Chấn thương chỉnh hình",
-                image:
-                  "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095214-bs-vo-van-man.jpg",
-              },
-              {
-                id: "doctor4",
-                name: "Phó Giáo sư, Tiến sĩ Kiều Đình Hùng",
-                specialty: "Thần kinh, Cột sống, Ngoại thần kinh",
-                image:
-                  "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095247-pgs-kieu-dinh-hung.jpg",
-              },
-              {
-                id: "doctor5",
-                name: "Phó Giáo sư, Tiến sĩ, Bác sĩ Nguyễn Văn A",
-                specialty: "Tim mạch, Nội tổng quát",
-                image:
-                  "https://cdn.bookingcare.vn/fr/w384/2023/08/10/095300-bs-nguyen-van-a.jpg",
-              },
-            ].map((doctor, index) => (
-              <div key={index} className="doctor-card">
-                <Card
-                  hoverable
-                  variant="plain"
-                  style={{
-                    borderRadius: "16px",
-                    textAlign: "center",
-                    background: "#ffffff",
-                    boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
-                    height: "380px", // ✅ đảm bảo chiều cao bằng nhau
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "flex-start",
-                    alignItems: "center",
-                    transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                  }}
-                  styles={{
-                    body: {
-                      padding: "20px",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      height: "100%",
-                    },
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.transform = "translateY(-5px)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.transform = "translateY(0)")
-                  }
-                >
-                  <img
-                    src={doctor.image}
-                    alt={doctor.name}
-                    style={{
-                      width: "160px",
-                      height: "160px",
-                      objectFit: "cover",
-                      borderRadius: "50%",
-                      marginBottom: "16px",
-                    }}
-                  />
-                  <Title
-                    level={4}
-                    style={{
-                      fontSize: "1.05rem",
-                      fontWeight: 600,
-                      color: "#222",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    {doctor.name}
-                  </Title>
-                  <Paragraph
-                    style={{
-                      fontSize: "0.95rem",
-                      color: "#666",
-                      margin: 0,
-                    }}
-                  >
-                    {doctor.specialty}
-                  </Paragraph>
-                </Card>
+          {doctorsLoading ? (
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
+              <div style={{ fontSize: "18px", color: "#666" }}>
+                Đang tải danh sách bác sĩ...
               </div>
-            ))}
-          </Slider>
-        </div>
-      </section>
-
-      {/* Telemedicine Section */}
-      <section style={{ padding: "60px 0 40px 0", background: "#f9fafb" }}>
-        <div className="container">
-          <Row
-            justify="space-between"
-            align="middle"
-            style={{ marginBottom: "40px" }}
-          >
-            <Title level={2} style={{ margin: 0 }}>
-              Khám từ xa
-            </Title>
-            <Link
-              to="/kham-tai-nha"
-              style={{
-                background: "#c8f3f3",
-                padding: "8px 20px",
-                borderRadius: "12px",
-                color: "#007f7f",
-                fontWeight: 500,
-                textDecoration: "none",
-                fontSize: "20px",
+            </div>
+          ) : (
+            <Slider
+              {...{
+                dots: false,
+                infinite: true,
+                slidesToShow: 4,
+                slidesToScroll: 1,
+                arrows: true,
+                autoplay: true,
+                autoplaySpeed: 5000,
+                centerMode: false,
+                variableWidth: false,
+                nextArrow: <SampleNextArrow />,
+                prevArrow: <SamplePrevArrow />,
+                responsive: [
+                  {
+                    breakpoint: 992,
+                    settings: { slidesToShow: 2, slidesToScroll: 1 },
+                  },
+                  {
+                    breakpoint: 576,
+                    settings: { slidesToShow: 1, slidesToScroll: 1 },
+                  },
+                ],
               }}
             >
-              Xem thêm
-            </Link>
-          </Row>
-
-          <Slider
-            {...{
-              dots: false,
-              infinite: true,
-              slidesToShow: 3,
-              slidesToScroll: 1,
-              arrows: true,
-              autoplay: true,
-              autoplaySpeed: 4500,
-              nextArrow: <SampleNextArrow />,
-              prevArrow: <SamplePrevArrow />,
-              responsive: [
-                {
-                  breakpoint: 992,
-                  settings: { slidesToShow: 2, slidesToScroll: 1 },
-                },
-                {
-                  breakpoint: 576,
-                  settings: { slidesToShow: 1, slidesToScroll: 1 },
-                },
-              ],
-            }}
-          >
-            {[
-              {
-                id: "psychology",
-                title: "Tư vấn, trị liệu Tâm lý từ xa",
-                image:
-                  "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/150951-tamly.png",
-              },
-              {
-                id: "mental",
-                title: "Sức khỏe tâm thần từ xa",
-                image:
-                  "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151029-tamthan.png",
-              },
-              {
-                id: "dermatology",
-                title: "Bác sĩ Da liễu từ xa",
-                image:
-                  "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151046-dalieu.png",
-              },
-              {
-                id: "pediatric",
-                title: "Bác sĩ Nhi khoa từ xa",
-                image:
-                  "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151101-nhikhoa.png",
-              },
-              {
-                id: "internal",
-                title: "Khám Nội tổng quát từ xa",
-                image:
-                  "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/151115-noitongquat.png",
-              },
-            ].map((service, index) => (
-              <div
-                key={index}
-                className="telemedicine-card"
-                style={{ padding: "0 12px" }}
-              >
-                <Card
-                  hoverable
-                  onClick={() => navigate(`/telemedicine/${service.id}`)}
-                  variant="outlined"
-                  style={{
-                    borderRadius: "16px",
-                    textAlign: "center",
-                    background: "#ffffff",
-                    boxShadow: "0 3px 12px rgba(0,0,0,0.06)",
-                    height: "330px",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "flex-start",
-                    alignItems: "center",
-                    transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                  }}
-                  styles={{
-                    body: {
-                      padding: "24px",
+              {featuredDoctors.map((doctor, index) => (
+                <div key={index} className="doctor-card">
+                  <Card
+                    hoverable
+                    onClick={() =>
+                      navigate(`/dat-lich/chon-thoi-gian`, {
+                        state: {
+                          doctor: doctor,
+                          specialization: doctor.specializationIds?.[0] || null,
+                        },
+                      })
+                    }
+                    variant="plain"
+                    style={{
+                      borderRadius: "16px",
+                      textAlign: "center",
+                      background: "#ffffff",
+                      boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
+                      height: "280px", // ✅ Giảm chiều cao từ 380px xuống 280px
                       display: "flex",
                       flexDirection: "column",
-                      justifyContent: "center",
+                      justifyContent: "flex-start",
                       alignItems: "center",
-                    },
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.transform = "translateY(-5px)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.transform = "translateY(0)")
-                  }
-                >
-                  <img
-                    src={service.image}
-                    alt={service.title}
-                    style={{
-                      width: "200px",
-                      height: "160px",
-                      objectFit: "contain",
-                      marginBottom: "16px",
+                      transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                      cursor: "pointer",
                     }}
-                  />
-                  <Title
-                    level={4}
-                    style={{
-                      fontSize: "1.05rem",
-                      fontWeight: 600,
-                      color: "#222",
-                      marginBottom: "8px",
+                    styles={{
+                      body: {
+                        padding: "20px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        height: "100%",
+                      },
                     }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.transform = "translateY(-5px)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.transform = "translateY(0)")
+                    }
                   >
-                    {service.title}
-                  </Title>
-                </Card>
-              </div>
-            ))}
-          </Slider>
+                    <img
+                      src={doctor.avatarUrl || "/default-avatar.png"}
+                      alt={doctor.fullName}
+                      style={{
+                        width: "120px",
+                        height: "120px",
+                        objectFit: "cover",
+                        borderRadius: "50%",
+                        marginBottom: "12px",
+                      }}
+                    />
+                    <Title
+                      level={4}
+                      style={{
+                        fontSize: "1.05rem",
+                        fontWeight: 600,
+                        color: "#222",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      {doctor.fullName}
+                    </Title>
+                    <Paragraph
+                      style={{
+                        fontSize: "0.95rem",
+                        color: "#666",
+                        margin: 0,
+                      }}
+                    >
+                      {doctor.specializationIds &&
+                      doctor.specializationIds.length > 0
+                        ? doctor.specializationIds
+                            .map((spec) => spec.name)
+                            .join(", ")
+                        : "Chuyên khoa"}
+                    </Paragraph>
+                  </Card>
+                </div>
+              ))}
+            </Slider>
+          )}
         </div>
       </section>
     </div>

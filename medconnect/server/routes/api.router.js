@@ -38,7 +38,6 @@ console.log("[router] mounted /api/video-calls");
 
 // Test routes (for development)
 
-
 // Admin routes
 apiRouter.use("/admin", adminRouter);
 console.log("[router] mounted /api/admin");
