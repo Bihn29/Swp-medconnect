@@ -183,10 +183,7 @@ const Header = () => {
     }
   }, [location.pathname]);
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));
-    return () => unsubscribe();
-  }, []);
+  // Removed redundant useEffect - user is already managed by useAuth hook
 
   // Load patient's upcoming appointments when on patient page and logged in
   useEffect(() => {

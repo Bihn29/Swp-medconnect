@@ -998,17 +998,119 @@ export async function getDoctorTimeSlots(req, res) {
       });
     }
 
-    const serializedSlots = timeSlots.map(slot => ({
-      ...slot,
-      _id: slot._id.toString(),
-      doctorId: slot.doctorId.toString(),
-      startAt: slot.startAt,
-      endAt: slot.endAt,
-      status: slot.status
-    }));
+    // Import Appointment and Patient models
+    const Appointment = (await import("../models/appointment.model.js")).default;
+    const Patient = (await import("../models/patient.model.js")).default;
+    
+    // Get slot IDs to fetch appointments
+    const slotIds = timeSlots.map(slot => slot._id);
+    
+    // Fetch appointments for these slots
+    const appointments = await Appointment.find({ slotId: { $in: slotIds } })
+      .populate({
+        path: 'patientId',
+        select: 'fullName',
+        model: 'Patient'
+      })
+      .lean();
+    
+    // Create a map of slotId -> appointment
+    const appointmentMap = {};
+    appointments.forEach(appointment => {
+      // Handle both populated patientId object and ObjectId
+      let patientName = 'Bệnh nhân';
+      if (appointment.patientId) {
+        if (typeof appointment.patientId === 'object' && appointment.patientId.fullName) {
+          patientName = appointment.patientId.fullName;
+        } else if (typeof appointment.patientId === 'string') {
+          // If it's still an ObjectId string, fetch the patient
+          // For now, use a fallback
+          patientName = 'Bệnh nhân';
+        }
+      }
+      
+      // Convert slotId to string for consistent lookup
+      const slotIdKey = appointment.slotId.toString();
+      appointmentMap[slotIdKey] = {
+        patientName: patientName,
+        reason: appointment.reason || null,
+        appointmentStatus: appointment.status || 'booked', // Include appointment status
+        mode: appointment.mode || 'offline' // Include mode (online/offline)
+      };
+      
+      console.log("🔍 Mapping appointment:", {
+        slotId: slotIdKey,
+        appointmentId: appointment._id,
+        patientName: patientName,
+        appointmentStatus: appointment.status,
+        mode: appointment.mode,
+        hasPatient: !!appointment.patientId
+      });
+    });
+    
+    console.log("🔍 Found appointments:", appointments.length);
+    console.log("🔍 Appointment map keys:", Object.keys(appointmentMap));
+    if (appointments.length > 0) {
+      console.log("🔍 Sample appointment:", {
+        _id: appointments[0]._id,
+        slotId: appointments[0].slotId?.toString(),
+        patientId: appointments[0].patientId,
+        reason: appointments[0].reason
+      });
+    }
+
+    const serializedSlots = timeSlots.map(slot => {
+      const slotIdStr = slot._id.toString();
+      const appointment = appointmentMap[slotIdStr];
+      
+      // Map appointment status to display status
+      let displayStatus = slot.status;
+      if (appointment) {
+        // Map appointment statuses to display statuses
+        const statusMap = {
+          'pending_doctor': 'pending',
+          'accepted': 'confirmed',
+          'in_progress': 'in_progress',
+          'cancelled': 'cancelled',
+          'done': 'completed',
+          'rejected': 'cancelled',
+          'no_show': 'cancelled'
+        };
+        displayStatus = statusMap[appointment.appointmentStatus] || slot.status;
+      }
+      
+      console.log("🔍 Serializing slot:", {
+        slotId: slotIdStr,
+        hasAppointment: !!appointment,
+        patientName: appointment?.patientName || 'null',
+        appointmentStatus: appointment?.appointmentStatus,
+        displayStatus: displayStatus
+      });
+      
+      return {
+        ...slot,
+        _id: slot._id.toString(),
+        doctorId: slot.doctorId.toString(),
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        status: displayStatus, // Use mapped status instead of slot.status
+        patientName: appointment?.patientName || null,
+        reason: appointment?.reason || null,
+        mode: appointment?.mode || null
+      };
+    });
 
     console.log("🔍 Serialized slots count:", serializedSlots.length);
-    console.log("🔍 Sample serialized slot:", serializedSlots[0]);
+    const bookedSlots = serializedSlots.filter(s => s.status === 'booked');
+    console.log("🔍 Booked slots count:", bookedSlots.length);
+    if (bookedSlots.length > 0) {
+      console.log("🔍 Sample booked slot:", {
+        slotId: bookedSlots[0]._id,
+        status: bookedSlots[0].status,
+        patientName: bookedSlots[0].patientName,
+        reason: bookedSlots[0].reason
+      });
+    }
 
     return ok(res, {
       slots: serializedSlots,

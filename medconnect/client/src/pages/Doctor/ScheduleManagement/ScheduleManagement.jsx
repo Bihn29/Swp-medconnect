@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Clock, Send, ChevronLeft, ChevronRight, Plus, Search, Calendar, Filter, RefreshCw, Phone, PhoneOff, User, MessageSquare } from "lucide-react";
+import { Clock, Send, ChevronLeft, ChevronRight, Plus, Search, Calendar, Filter, RefreshCw, Phone, User, MessageSquare } from "lucide-react";
 import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
@@ -15,7 +15,6 @@ export default function ScheduleManagement() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [timeSlots, setTimeSlots] = useState([]);
-  const [isOnline, setIsOnline] = useState(true); // Trạng thái online/offline của doctor
   
   // Leave request states
   const [showLeaveRequest, setShowLeaveRequest] = useState(false);
@@ -196,61 +195,42 @@ export default function ScheduleManagement() {
     }
   };
 
-  // Memoized time slots list
+  // Extract unique times from actual slots in database
   const timeSlotsList = React.useMemo(() => {
-    const times = [];
+    const timesSet = new Set();
     
-    // Morning slots: 7:00 - 11:40 (20-minute intervals)
-    for (let hour = 7; hour <= 11; hour++) {
-      for (let minute = 0; minute < 60; minute += 20) {
-        // Skip if it's past 11:40
-        if (hour === 11 && minute > 40) break;
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        times.push(timeString);
-      }
-    }
+    // Extract unique times from loaded slots
+    timeSlots.forEach(slot => {
+      const slotTime = new Date(slot.startAt).toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      timesSet.add(slotTime);
+    });
     
-    // Afternoon slots: 13:00 - 16:40 (20-minute intervals)
-    for (let hour = 13; hour <= 16; hour++) {
-      for (let minute = 0; minute < 60; minute += 20) {
-        // Skip if it's past 16:40
-        if (hour === 16 && minute > 40) break;
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        times.push(timeString);
-      }
-    }
+    // Convert to array and sort
+    const times = Array.from(timesSet).sort();
     
-    console.log("🔍 Generated time slots:", times);
+    console.log("🔍 Extracted unique times from database:", times);
     return times;
-  }, []);
+  }, [timeSlots]);
 
-  // Processed slots for display - tạo map cho tất cả giờ làm việc
+  // Processed slots for display - chỉ hiển thị slot thực sự có trong database
   const processedSlots = React.useMemo(() => {
     const slotsMap = {};
-    const weekDays = getWeekDays();
     
     console.log("🔍 Processing slots:", timeSlots);
     console.log("🔍 Time slots list:", timeSlotsList);
     
-    // Tạo map cho tất cả ngày trong tuần với tất cả giờ làm việc
-    weekDays.forEach(day => {
-      slotsMap[day.fullDate] = {};
-      // Tạo slot trống cho tất cả giờ làm việc
-      timeSlotsList.forEach(time => {
-        slotsMap[day.fullDate][time] = {
-          status: 'available',
-          isEmpty: true
-        };
-      });
-    });
-    
-    // Thêm slot thật vào map (ghi đè slot trống)
+    // Chỉ thêm slot thật từ database vào map
     timeSlots.forEach(slot => {
       console.log("🔍 Processing slot:", {
         id: slot._id,
         startAt: slot.startAt,
         status: slot.status,
-        patientName: slot.patientName
+        patientName: slot.patientName,
+        hasPatientName: !!slot.patientName
       });
       
       const slotDate = new Date(slot.startAt).toISOString().split('T')[0];
@@ -260,25 +240,41 @@ export default function ScheduleManagement() {
         hour12: false
       });
       
+      // Khởi tạo map cho ngày nếu chưa có
+      if (!slotsMap[slotDate]) {
+        slotsMap[slotDate] = {};
+      }
+      
       console.log("🔍 Slot mapping:", {
         slotDate,
         slotTime,
         existsInMap: !!(slotsMap[slotDate] && slotsMap[slotDate][slotTime])
       });
       
-      if (slotsMap[slotDate] && slotsMap[slotDate][slotTime]) {
-        slotsMap[slotDate][slotTime] = {
-          id: slot._id,
-          startAt: slot.startAt,
-          endAt: slot.endAt,
-          status: slot.status,
-          patientName: slot.patientName || null,
-          reason: slot.reason || null,
-          isEmpty: false
-        };
-        console.log("🔍 Slot mapped successfully");
-      } else {
-        console.log("🔍 Slot not mapped - date/time not found in slotsMap");
+      // Thêm slot vào map
+      const mappedSlot = {
+        id: slot._id,
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        status: slot.status,
+        patientName: slot.patientName || null,
+        reason: slot.reason || null,
+        mode: slot.mode || null,
+        isEmpty: false
+      };
+      
+      slotsMap[slotDate][slotTime] = mappedSlot;
+      
+      // Log for booked slots
+      if (slot.status === 'booked' || slot.status === 'pending' || slot.status === 'confirmed' || slot.status === 'completed' || slot.status === 'in_progress') {
+        console.log("✅ Booked slot mapped:", {
+          slotId: slot._id,
+          date: slotDate,
+          time: slotTime,
+          patientName: mappedSlot.patientName,
+          mode: mappedSlot.mode,
+          status: mappedSlot.status
+        });
       }
     });
     
@@ -302,6 +298,7 @@ export default function ScheduleManagement() {
       case 'available': return '#f3f4f6'; // Màu xám nhạt cho slot trống
       case 'pending': return '#fbbf24'; // Màu vàng cho chờ duyệt
       case 'confirmed': return '#10b981'; // Màu xanh lá cho đã xác nhận
+      case 'in_progress': return '#3b82f6'; // Màu xanh dương cho đang diễn ra
       case 'cancelled': return '#ef4444'; // Màu đỏ cho đã hủy
       case 'completed': return '#3b82f6'; // Màu xanh dương cho hoàn thành
       case 'booked': return '#10b981'; // Màu xanh lá cho đã đặt (tương tự confirmed)
@@ -315,6 +312,7 @@ export default function ScheduleManagement() {
       case 'available': return 'Trống';
       case 'pending': return 'Chờ duyệt';
       case 'confirmed': return 'Đã xác nhận';
+      case 'in_progress': return 'Đang diễn ra';
       case 'cancelled': return 'Đã hủy';
       case 'completed': return 'Hoàn thành';
       case 'booked': return 'Đã đặt';
@@ -327,6 +325,7 @@ export default function ScheduleManagement() {
     switch (status) {
       case 'pending': return '#fbbf24'; // Chấm vàng
       case 'confirmed': return '#10b981'; // Chấm xanh lá
+      case 'in_progress': return '#3b82f6'; // Chấm xanh dương
       case 'cancelled': return '#ef4444'; // Chấm đỏ
       case 'completed': return '#3b82f6'; // Chấm xanh dương
       case 'booked': return '#10b981'; // Chấm xanh lá cho đã đặt
@@ -358,19 +357,9 @@ export default function ScheduleManagement() {
 
   // Hàm xử lý gọi video
   const handleVideoCall = (slot) => {
-    if (!isOnline) {
-      alert("Bạn đang offline. Vui lòng chuyển sang trạng thái online để thực hiện cuộc gọi.");
-      return;
-    }
-    
     console.log("Starting video call for slot:", slot);
     // TODO: Implement video call logic here
     alert(`Bắt đầu cuộc gọi với ${slot.patientName} lúc ${new Date(slot.startAt).toLocaleTimeString('vi-VN')}`);
-  };
-
-  // Hàm toggle trạng thái online/offline
-  const toggleOnlineStatus = () => {
-    setIsOnline(!isOnline);
   };
 
 
@@ -441,13 +430,6 @@ export default function ScheduleManagement() {
           
           <div className="action-buttons">
             <Button 
-              onClick={toggleOnlineStatus}
-              className={`status-toggle-btn ${isOnline ? 'online' : 'offline'}`}
-            >
-              {isOnline ? <Phone size={16} /> : <PhoneOff size={16} />}
-              {isOnline ? 'Online' : 'Offline'}
-            </Button>
-            <Button 
               onClick={handleGenerateSlots}
               className="auto-generate-btn"
               disabled={generating}
@@ -483,7 +465,27 @@ export default function ScheduleManagement() {
             <p>Đang tải lịch làm việc...</p>
           </div>
         )}
-        <div className="schedule-grid">
+        
+        {/* Hiển thị thông báo khi không có slot nào trong tuần */}
+        {!loading && timeSlotsList.length === 0 && (
+          <div className="no-slots-message">
+            <div className="empty-state">
+              <Calendar size={64} className="empty-icon" />
+              <h3>Chưa có slot nào trong tuần này</h3>
+              <p>Bấm nút "Tạo slot tự động" để tạo lịch làm việc cho tuần này</p>
+              <Button 
+                onClick={handleGenerateSlots}
+                className="auto-generate-btn"
+                disabled={generating}
+                size="lg"
+              >
+                🚀 Tạo slot tự động ngay
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        {timeSlotsList.length > 0 && <div className="schedule-grid">
           <div className="grid-header">
             <div className="time-column">Giờ</div>
             {daysWithSlots.map((day, index) => (
@@ -536,6 +538,18 @@ export default function ScheduleManagement() {
                   {daysWithSlots.map((day, dayIndex) => {
                     const slot = processedSlots[day.fullDate]?.[time];
                     
+                    // Chỉ hiển thị nếu có slot trong database
+                    if (!slot) {
+                      return (
+                        <div 
+                          key={`${dayIndex}-${timeIndex}`} 
+                          className="slot-cell empty"
+                        >
+                          <div className="slot-content"></div>
+                        </div>
+                      );
+                    }
+                    
                     return (
                       <div 
                         key={`${dayIndex}-${timeIndex}`} 
@@ -543,54 +557,42 @@ export default function ScheduleManagement() {
                         onClick={() => slot && slot.status === 'available' && handleSlotClick(slot)}
                       >
                       <div className="slot-content">
-                        {slot && slot.status === 'available' ? (
+                        {slot.status === 'available' ? (
                           <div className="slot-status" style={{ backgroundColor: getStatusColor(slot.status) }}>
                             {getStatusText(slot.status)}
                           </div>
-                        ) : slot && slot.status !== 'available' ? (
+                        ) : (
                           <div className={`booked-slot ${slot.status}`}>
                             <div className="slot-header">
                               <div className="status-dot" style={{ backgroundColor: getStatusDotColor(slot.status) }}></div>
                               <span className="status-text">{getStatusText(slot.status)}</span>
+                              {slot.mode && (
+                                <span className={`mode-badge ${slot.mode}`}>
+                                  {slot.mode === 'online' ? 'Online' : 'Offline'}
+                                </span>
+                              )}
                             </div>
                             <div className="slot-info">
                               <div className="patient-info">
-                                <User size={12} />
+                                <User size={15} />
                                 <span className="patient-name">{slot.patientName || 'Bệnh nhân'}</span>
                               </div>
-                              {slot.reason && (
-                                <div className="reason-info">
-                                  <MessageSquare size={10} />
-                                  <span className="reason-text">{slot.reason}</span>
-                                </div>
-                              )}
                             </div>
-                            {(slot.status === 'confirmed' || slot.status === 'completed' || slot.status === 'booked') && (
+                            {(slot.status === 'confirmed' || slot.status === 'booked' || slot.status === 'in_progress') && slot.mode === 'online' && (
                               <div className="slot-actions">
-                                {isOnline ? (
-                                  <Button
-                                    size="sm"
-                                    className="call-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleVideoCall(slot);
-                                    }}
-                                  >
-                                    <Phone size={12} />
-                                    Gọi
-                                  </Button>
-                                ) : (
-                                  <div className="offline-indicator">
-                                    <PhoneOff size={12} />
-                                    <span>Offline</span>
-                                  </div>
-                                )}
+                                <Button
+                                  size="sm"
+                                  className="call-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVideoCall(slot);
+                                  }}
+                                >
+                                  <Phone size={13} />
+                                  Gọi
+                                </Button>
                               </div>
                             )}
-                          </div>
-                        ) : (
-                          <div className="empty-slot">
-                            <span className="empty-text">Trống</span>
                           </div>
                         )}
                       </div>
@@ -603,7 +605,7 @@ export default function ScheduleManagement() {
             })}
           </div>
           
-        </div>
+        </div>}
       </div>
 
       {/* Leave Request Dialog */}
