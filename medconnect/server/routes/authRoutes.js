@@ -1,5 +1,6 @@
 import express from "express";
 import { authGuard } from "../middleware/auth.js";
+import upload from "../middleware/upload.js";
 import {
   loginPassword,
   googleLogin,
@@ -22,7 +23,7 @@ const router = express.Router();
 router.post("/login-password", loginPassword);
 router.post("/google-login", googleLogin);
 router.post("/register", register);
-router.post("/register-doctor", registerDoctor);
+router.post("/register-doctor", upload.single('license'), registerDoctor);
 router.post("/google-register", googleRegister);
 router.post("/session", createSession);
 router.get("/me", authGuard, getCurrentUser);

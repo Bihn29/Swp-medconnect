@@ -58,7 +58,7 @@ export async function loginPassword(req, res) {
 
     if (user.status === "pending") {
       if (user.role === "doctor") {
-        return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản bác sĩ của bạn đang chờ admin phê duyệt. Vui lòng đợi thông báo từ email.");
+        return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản này đang chờ xác nhận");
       } else {
         return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản của bạn đang chờ kích hoạt. Vui lòng đợi thông báo từ email.");
       }
@@ -188,12 +188,16 @@ export async function registerDoctor(req, res) {
       phone,
       password,
       specialty,
-      licenseNumber,
-      licenseImage,
     } = req.body || {};
 
-    if (!fullName || !email || !phone || !password || !specialty || !licenseNumber) {
+    if (!fullName || !email || !phone || !password || !specialty) {
       return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing required fields");
+    }
+    
+    // Get uploaded file info
+    const licenseFile = req.file;
+    if (!licenseFile) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "License image is required");
     }
 
     // Validate email format
@@ -243,18 +247,7 @@ export async function registerDoctor(req, res) {
       );
     }
 
-    // Check if license number already exists
-    const existingDoctor = await Doctor.findOne({
-      licenseNo: licenseNumber,
-    }).lean();
-    if (existingDoctor) {
-      return fail(
-        res,
-        409,
-        ERROR_CODES.CONFLICT,
-        "License number already exists"
-      );
-    }
+    // Note: License number check removed since we're storing file path, not unique number
 
     // Hash password
     const hashedPassword = await hashPassword(password);
@@ -277,7 +270,7 @@ export async function registerDoctor(req, res) {
     await Doctor.create({
       userId: userDoc._id,
       fullName: fullName.trim(),
-      licenseNo: licenseNumber,
+      licenseNo: licenseFile.filename, // Store uploaded file name
       isVerified: false, // Cần admin phê duyệt
       isActive: false, // Chưa được kích hoạt
       bio: "",
