@@ -8,6 +8,571 @@ import { getDoctorAppointmentsWithFallback, updateAppointmentStatus } from "../.
 // Dialog components không tồn tại, sẽ sử dụng HTML elements thay thế
 import "./AppointmentList.scss"
 
+// Consultation Summary Form Component (for offline appointments)
+function ConsultationSummaryForm({ appointment, onClose, onSubmit }) {
+  const [formData, setFormData] = useState({
+    reasonForVisit: appointment?.notes || appointment?.reason || "",
+    visitDate: new Date().toISOString().split('T')[0],
+    treatmentResult: "improved",
+    diagnoses: [{ name: "", icd10: "" }],
+    vitals: {
+      height: "",
+      weight: "",
+      bloodPressure: "",
+      heartRate: "",
+      temperature: ""
+    },
+    labResults: [{ testName: "", result: "", referenceRange: "" }],
+    imagingResults: [{ type: "", conclusion: "", imageUrl: "" }],
+    medications: [{ name: "", dosage: "", route: "", quantity: "", instruction: "" }],
+    procedures: [{ name: "", description: "" }],
+    summaryText: "",
+    treatmentMethod: "",
+    followUpInstruction: "",
+    nextAppointmentDate: ""
+  });
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleArrayFieldChange = (field, index, subField, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: prev[field].map((item, i) => 
+        i === index ? { ...item, [subField]: value } : item
+      )
+    }));
+  };
+
+  const addArrayItem = (field) => {
+    const template = {
+      diagnoses: { name: "", icd10: "" },
+      labResults: { testName: "", result: "", referenceRange: "" },
+      imagingResults: { type: "", conclusion: "", imageUrl: "" },
+      medications: { name: "", dosage: "", route: "", quantity: "", instruction: "" },
+      procedures: { name: "", description: "" }
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      [field]: [...prev[field], template[field]]
+    }));
+  };
+
+  const removeArrayItem = (field, index) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: prev[field].filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit({
+      appointmentId: appointment._id,
+      patientId: appointment.patientId?._id || appointment.patient?._id,
+      doctorId: appointment.doctorId?._id || appointment.doctor?._id,
+      clinicId: appointment.clinicId?._id || appointment.clinic?._id,
+      ...formData,
+      visitDate: new Date(formData.visitDate),
+      nextAppointmentDate: formData.nextAppointmentDate ? new Date(formData.nextAppointmentDate) : null,
+      createdBy: appointment.doctorId?._id || appointment.doctor?._id
+    });
+  };
+
+  return (
+    <div className="consultation-form-overlay" onClick={onClose}>
+      <div className="consultation-form" onClick={(e) => e.stopPropagation()}>
+        <div className="consultation-form-header">
+          <h3>Hồ sơ khám bệnh - {appointment?.patientId?.fullName || appointment?.patient?.fullName}</h3>
+          <button className="consultation-form-close" onClick={onClose}>×</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="consultation-form-content">
+          {/* Patient Info */}
+          <div className="form-section">
+            <h4>Thông tin bệnh nhân</h4>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Tên bệnh nhân</label>
+                <Input 
+                  value={appointment?.patientId?.fullName || appointment?.patient?.fullName || ""} 
+                  disabled 
+                />
+              </div>
+              <div className="form-group">
+                <label>Số điện thoại</label>
+                <Input 
+                  value={appointment?.patientId?.phone || appointment?.patient?.phone || ""} 
+                  disabled 
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Email</label>
+                <Input 
+                  value={appointment?.patientId?.email || appointment?.patient?.email || ""} 
+                  disabled 
+                />
+              </div>
+              <div className="form-group">
+                <label>Ngày sinh</label>
+                <Input 
+                  value={appointment?.patientId?.dob ? new Date(appointment.patientId.dob).toLocaleDateString('vi-VN') : ""} 
+                  disabled 
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Visit Info */}
+          <div className="form-section">
+            <h4>Thông tin khám</h4>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Lý do khám *</label>
+                <textarea
+                  value={formData.reasonForVisit}
+                  onChange={(e) => handleInputChange('reasonForVisit', e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Ngày khám</label>
+                <Input
+                  type="date"
+                  value={formData.visitDate}
+                  onChange={(e) => handleInputChange('visitDate', e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Kết quả điều trị</label>
+                <select
+                  value={formData.treatmentResult}
+                  onChange={(e) => handleInputChange('treatmentResult', e.target.value)}
+                >
+                  <option value="recovered">Khỏi bệnh</option>
+                  <option value="improved">Cải thiện</option>
+                  <option value="unchanged">Không thay đổi</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Diagnoses */}
+          <div className="form-section">
+            <h4>Chẩn đoán</h4>
+            {formData.diagnoses.map((diagnosis, index) => (
+              <div key={index} className="form-row">
+                <div className="form-group">
+                  <label>Tên chẩn đoán</label>
+                  <Input
+                    value={diagnosis.name}
+                    onChange={(e) => handleArrayFieldChange('diagnoses', index, 'name', e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Mã ICD-10</label>
+                  <Input
+                    value={diagnosis.icd10}
+                    onChange={(e) => handleArrayFieldChange('diagnoses', index, 'icd10', e.target.value)}
+                  />
+                </div>
+                <Button type="button" onClick={() => removeArrayItem('diagnoses', index)}>Xóa</Button>
+              </div>
+            ))}
+            <Button type="button" onClick={() => addArrayItem('diagnoses')}>Thêm chẩn đoán</Button>
+          </div>
+
+          {/* Vitals */}
+          <div className="form-section">
+            <h4>Chỉ số sinh tồn</h4>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Chiều cao (cm)</label>
+                <Input
+                  type="number"
+                  value={formData.vitals.height}
+                  onChange={(e) => handleInputChange('vitals', { ...formData.vitals, height: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Cân nặng (kg)</label>
+                <Input
+                  type="number"
+                  value={formData.vitals.weight}
+                  onChange={(e) => handleInputChange('vitals', { ...formData.vitals, weight: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Huyết áp</label>
+                <Input
+                  value={formData.vitals.bloodPressure}
+                  onChange={(e) => handleInputChange('vitals', { ...formData.vitals, bloodPressure: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Nhịp tim (bpm)</label>
+                <Input
+                  type="number"
+                  value={formData.vitals.heartRate}
+                  onChange={(e) => handleInputChange('vitals', { ...formData.vitals, heartRate: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Nhiệt độ (°C)</label>
+                <Input
+                  type="number"
+                  value={formData.vitals.temperature}
+                  onChange={(e) => handleInputChange('vitals', { ...formData.vitals, temperature: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Medications */}
+          <div className="form-section">
+            <h4>Đơn thuốc</h4>
+            {formData.medications.map((medication, index) => (
+              <div key={index} className="medication-item">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Tên thuốc</label>
+                    <Input
+                      value={medication.name}
+                      onChange={(e) => handleArrayFieldChange('medications', index, 'name', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Liều lượng</label>
+                    <Input
+                      value={medication.dosage}
+                      onChange={(e) => handleArrayFieldChange('medications', index, 'dosage', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Đường dùng</label>
+                    <Input
+                      value={medication.route}
+                      onChange={(e) => handleArrayFieldChange('medications', index, 'route', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Số lượng</label>
+                    <Input
+                      type="number"
+                      value={medication.quantity}
+                      onChange={(e) => handleArrayFieldChange('medications', index, 'quantity', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Hướng dẫn sử dụng</label>
+                  <textarea
+                    value={medication.instruction}
+                    onChange={(e) => handleArrayFieldChange('medications', index, 'instruction', e.target.value)}
+                  />
+                </div>
+                <Button type="button" onClick={() => removeArrayItem('medications', index)}>Xóa thuốc</Button>
+              </div>
+            ))}
+            <Button type="button" onClick={() => addArrayItem('medications')}>Thêm thuốc</Button>
+          </div>
+
+          {/* Summary */}
+          <div className="form-section">
+            <h4>Tóm tắt và hướng dẫn</h4>
+            <div className="form-group">
+              <label>Tóm tắt khám</label>
+              <textarea
+                value={formData.summaryText}
+                onChange={(e) => handleInputChange('summaryText', e.target.value)}
+                rows={4}
+              />
+            </div>
+            <div className="form-group">
+              <label>Phương pháp điều trị</label>
+              <textarea
+                value={formData.treatmentMethod}
+                onChange={(e) => handleInputChange('treatmentMethod', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="form-group">
+              <label>Hướng dẫn theo dõi</label>
+              <textarea
+                value={formData.followUpInstruction}
+                onChange={(e) => handleInputChange('followUpInstruction', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="form-group">
+              <label>Lịch hẹn tiếp theo</label>
+              <Input
+                type="date"
+                value={formData.nextAppointmentDate}
+                onChange={(e) => handleInputChange('nextAppointmentDate', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="form-actions">
+            <Button type="button" variant="outline" onClick={onClose}>Hủy</Button>
+            <Button type="submit">Xác nhận</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Consultation Advice Form Component (for online appointments)
+function ConsultationAdviceForm({ appointment, onClose, onSubmit }) {
+  const [formData, setFormData] = useState({
+    videoUrl: "",
+    appointmentDate: appointment?.scheduledStart ? new Date(appointment.scheduledStart).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    diagnoses: [{ name: "", icd10: "" }],
+    medications: [{ name: "", dosage: "", route: "", quantity: "", instruction: "" }],
+    attachmentUrl: "",
+    notes: ""
+  });
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleArrayFieldChange = (field, index, subField, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: prev[field].map((item, i) => 
+        i === index ? { ...item, [subField]: value } : item
+      )
+    }));
+  };
+
+  const addArrayItem = (field) => {
+    const template = {
+      diagnoses: { name: "", icd10: "" },
+      medications: { name: "", dosage: "", route: "", quantity: "", instruction: "" }
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      [field]: [...prev[field], template[field]]
+    }));
+  };
+
+  const removeArrayItem = (field, index) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: prev[field].filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit({
+      appointmentId: appointment._id,
+      patientId: appointment.patientId?._id || appointment.patient?._id,
+      doctorId: appointment.doctorId?._id || appointment.doctor?._id,
+      clinicId: appointment.clinicId?._id || appointment.clinic?._id,
+      ...formData,
+      appointmentDate: new Date(formData.appointmentDate),
+      createdBy: appointment.doctorId?._id || appointment.doctor?._id
+    });
+  };
+
+  return (
+    <div className="consultation-form-overlay" onClick={onClose}>
+      <div className="consultation-form" onClick={(e) => e.stopPropagation()}>
+        <div className="consultation-form-header">
+          <h3>Tư vấn trực tuyến - {appointment?.patientId?.fullName || appointment?.patient?.fullName}</h3>
+          <button className="consultation-form-close" onClick={onClose}>×</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="consultation-form-content">
+          {/* Patient Info */}
+          <div className="form-section">
+            <h4>Thông tin bệnh nhân</h4>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Tên bệnh nhân</label>
+                <Input 
+                  value={appointment?.patientId?.fullName || appointment?.patient?.fullName || ""} 
+                  disabled 
+                />
+              </div>
+              <div className="form-group">
+                <label>Số điện thoại</label>
+                <Input 
+                  value={appointment?.patientId?.phone || appointment?.patient?.phone || ""} 
+                  disabled 
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Email</label>
+                <Input 
+                  value={appointment?.patientId?.email || appointment?.patient?.email || ""} 
+                  disabled 
+                />
+              </div>
+              <div className="form-group">
+                <label>Ngày sinh</label>
+                <Input 
+                  value={appointment?.patientId?.dob ? new Date(appointment.patientId.dob).toLocaleDateString('vi-VN') : ""} 
+                  disabled 
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Consultation Info */}
+          <div className="form-section">
+            <h4>Thông tin tư vấn</h4>
+            <div className="form-row">
+              <div className="form-group">
+                <label>URL Video tư vấn</label>
+                <Input
+                  value={formData.videoUrl}
+                  onChange={(e) => handleInputChange('videoUrl', e.target.value)}
+                  placeholder="Nhập URL video buổi tư vấn"
+                />
+              </div>
+              <div className="form-group">
+                <label>Ngày giờ slot khám</label>
+                <Input
+                  type="date"
+                  value={formData.appointmentDate}
+                  onChange={(e) => handleInputChange('appointmentDate', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Diagnoses */}
+          <div className="form-section">
+            <h4>Chẩn đoán tham khảo</h4>
+            {formData.diagnoses.map((diagnosis, index) => (
+              <div key={index} className="form-row">
+                <div className="form-group">
+                  <label>Tên chẩn đoán</label>
+                  <Input
+                    value={diagnosis.name}
+                    onChange={(e) => handleArrayFieldChange('diagnoses', index, 'name', e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Mã ICD-10</label>
+                  <Input
+                    value={diagnosis.icd10}
+                    onChange={(e) => handleArrayFieldChange('diagnoses', index, 'icd10', e.target.value)}
+                  />
+                </div>
+                <Button type="button" onClick={() => removeArrayItem('diagnoses', index)}>Xóa</Button>
+              </div>
+            ))}
+            <Button type="button" onClick={() => addArrayItem('diagnoses')}>Thêm chẩn đoán</Button>
+          </div>
+
+          {/* Medications */}
+          <div className="form-section">
+            <h4>Đơn thuốc (tùy chọn)</h4>
+            {formData.medications.map((medication, index) => (
+              <div key={index} className="medication-item">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Tên thuốc</label>
+                    <Input
+                      value={medication.name}
+                      onChange={(e) => handleArrayFieldChange('medications', index, 'name', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Liều lượng</label>
+                    <Input
+                      value={medication.dosage}
+                      onChange={(e) => handleArrayFieldChange('medications', index, 'dosage', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Đường dùng</label>
+                    <Input
+                      value={medication.route}
+                      onChange={(e) => handleArrayFieldChange('medications', index, 'route', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Số lượng</label>
+                    <Input
+                      type="number"
+                      value={medication.quantity}
+                      onChange={(e) => handleArrayFieldChange('medications', index, 'quantity', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Hướng dẫn sử dụng</label>
+                  <textarea
+                    value={medication.instruction}
+                    onChange={(e) => handleArrayFieldChange('medications', index, 'instruction', e.target.value)}
+                  />
+                </div>
+                <Button type="button" onClick={() => removeArrayItem('medications', index)}>Xóa thuốc</Button>
+              </div>
+            ))}
+            <Button type="button" onClick={() => addArrayItem('medications')}>Thêm thuốc</Button>
+          </div>
+
+          {/* Additional Info */}
+          <div className="form-section">
+            <h4>Thông tin bổ sung</h4>
+            <div className="form-group">
+              <label>File đính kèm (URL)</label>
+              <Input
+                value={formData.attachmentUrl}
+                onChange={(e) => handleInputChange('attachmentUrl', e.target.value)}
+                placeholder="Nhập URL file đính kèm (PDF, ảnh hướng dẫn)"
+              />
+            </div>
+            <div className="form-group">
+              <label>Ghi chú</label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => handleInputChange('notes', e.target.value)}
+                rows={4}
+                placeholder="Nhập ghi chú về buổi tư vấn..."
+              />
+            </div>
+          </div>
+
+          <div className="form-actions">
+            <Button type="button" variant="outline" onClick={onClose}>Hủy</Button>
+            <Button type="submit">Xác nhận</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function AppointmentList() {
   const [appointments, setAppointments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -17,6 +582,8 @@ export default function AppointmentList() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [updatingAppointments, setUpdatingAppointments] = useState(new Set())
   const [searchTerm, setSearchTerm] = useState("")
+  const [isConsultationFormOpen, setIsConsultationFormOpen] = useState(false)
+  const [consultationFormType, setConsultationFormType] = useState(null) // 'summary' or 'advice'
 
   // Fetch appointments from API
   useEffect(() => {
@@ -216,21 +783,55 @@ export default function AppointmentList() {
   }
 
   const handleComplete = async (appointment) => {
+    // Determine form type based on appointment mode
+    const formType = appointment.mode === 'online' ? 'advice' : 'summary';
+    
+    // Set the appointment and form type
+    setSelectedAppointment(appointment);
+    setConsultationFormType(formType);
+    setIsConsultationFormOpen(true);
+  }
+
+  const handleConsultationSubmit = async (formData) => {
     try {
-      await updateAppointmentStatus(appointment._id, 'done');
+      // Determine API endpoint based on form type
+      const endpoint = consultationFormType === 'summary' 
+        ? '/api/doctors/consultation-summary' 
+        : '/api/doctors/consultation-advice';
       
-      // Cập nhật trạng thái ngay lập tức trong UI
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save consultation data');
+      }
+
+      // Update appointment status to 'done'
+      await updateAppointmentStatus(selectedAppointment._id, 'done');
+      
+      // Update UI
       setAppointments(prevAppointments => 
         prevAppointments.map(apt => 
-          apt._id === appointment._id 
+          apt._id === selectedAppointment._id 
             ? { ...apt, status: 'done' }
             : apt
         )
       );
+
+      // Close form
+      setIsConsultationFormOpen(false);
+      setSelectedAppointment(null);
+      setConsultationFormType(null);
+
+      alert(`Đã hoàn thành và lưu hồ sơ khám cho ${selectedAppointment.patientId?.fullName || selectedAppointment.patient?.fullName || 'bệnh nhân'}`);
       
-      alert(`Đã hoàn thành khám cho ${appointment.patientId?.fullName || appointment.patient?.fullName || 'bệnh nhân'}`);
-      
-      // Refresh appointments list để đảm bảo đồng bộ
+      // Refresh appointments list
       setTimeout(async () => {
         try {
           const updatedAppointments = await getDoctorAppointmentsWithFallback();
@@ -238,11 +839,11 @@ export default function AppointmentList() {
             setAppointments(updatedAppointments.data.appointments);
           }
         } catch (error) {
-          // Silent error handling
+          console.error('Error refreshing appointments:', error);
         }
       }, 1000);
     } catch (error) {
-      alert('Có lỗi xảy ra khi hoàn thành khám: ' + error.message);
+      alert('Có lỗi xảy ra khi lưu hồ sơ khám: ' + error.message);
     }
   }
 
@@ -664,6 +1265,31 @@ export default function AppointmentList() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Consultation Forms */}
+      {isConsultationFormOpen && consultationFormType === 'summary' && (
+        <ConsultationSummaryForm
+          appointment={selectedAppointment}
+          onClose={() => {
+            setIsConsultationFormOpen(false);
+            setSelectedAppointment(null);
+            setConsultationFormType(null);
+          }}
+          onSubmit={handleConsultationSubmit}
+        />
+      )}
+
+      {isConsultationFormOpen && consultationFormType === 'advice' && (
+        <ConsultationAdviceForm
+          appointment={selectedAppointment}
+          onClose={() => {
+            setIsConsultationFormOpen(false);
+            setSelectedAppointment(null);
+            setConsultationFormType(null);
+          }}
+          onSubmit={handleConsultationSubmit}
+        />
       )}
     </Card>
   )

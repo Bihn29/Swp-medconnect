@@ -19,20 +19,13 @@ const ConsultationAdviceSchema = new Schema(
     clinicId: { type: Schema.Types.ObjectId, ref: "Clinic" },
 
     // 🧭 Hình thức buổi tư vấn (thường là online)
-    mode: { type: String, enum: ["online", "offline"], default: "online" },
+    mode: { type: String, enum: ["online"], default: "online" },
 
-    // 🧩 Phân loại tư vấn
-    adviceType: {
-      type: String,
-      enum: ["general", "follow_up", "second_opinion"],
-      default: "general",
-    },
+    // 📹 URL video buổi tư vấn
+    videoUrl: { type: String, trim: true },
 
-    // 🩺 Nội dung buổi tư vấn
-    summary: { type: String, trim: true, required: true },
-    startedAt: { type: Date, default: Date.now },
-    endedAt: Date,
-    durationMinutes: Number,
+    // 📅 Ngày giờ slot khám
+    appointmentDate: { type: Date, required: true },
 
     // 💊 Cho phép kê thuốc (tùy chọn)
     medications: [
