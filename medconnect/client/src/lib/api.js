@@ -899,6 +899,40 @@ export async function deleteUser(userId) {
   return r.json();
 }
 
+export async function getUserDetails(userId) {
+  const r = await fetch(`${BASE}/api/admin/users/${userId}`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function updateUser(userId, userData) {
+  const r = await fetch(`${BASE}/api/admin/users/${userId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(userData),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function changeUserPassword(userId, newPassword) {
+  const r = await fetch(`${BASE}/api/admin/users/${userId}/password`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ password: newPassword }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export async function getAdminSpecializations() {
   const r = await fetch(`${BASE}/api/admin/specializations`, {
     credentials: "include",

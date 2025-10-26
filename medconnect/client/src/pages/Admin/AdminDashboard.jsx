@@ -63,14 +63,16 @@ const AdminDashboard = () => {
       changeValue: "",
       icon: <UserOutlined />,
       color: "#1890ff",
+      gradient: "linear-gradient(135deg, #1890ff 0%, #40a9ff 100%)",
     },
     {
       title: "Bác sĩ đã xác minh",
       value: statsData.verifiedDoctors,
       change: `${statsData.pendingDoctors} đang chờ xác minh`,
-      changeValue: `+${statsData.pendingDoctors}`,
+      changeValue: statsData.pendingDoctors > 0 ? `+${statsData.pendingDoctors}` : "",
       icon: <SafetyCertificateOutlined />,
       color: "#52c41a",
+      gradient: "linear-gradient(135deg, #52c41a 0%, #73d13d 100%)",
     },
     {
       title: "Lịch hẹn tháng này",
@@ -79,14 +81,16 @@ const AdminDashboard = () => {
       changeValue: "",
       icon: <CalendarOutlined />,
       color: "#722ed1",
+      gradient: "linear-gradient(135deg, #722ed1 0%, #9254de 100%)",
     },
     {
       title: "Doanh thu",
-      value: `${statsData.revenue}M`,
+      value: `${statsData.revenue.toLocaleString()} VNĐ`,
       change: "Doanh thu từ lịch hẹn",
       changeValue: "",
       icon: <DollarOutlined />,
       color: "#fa8c16",
+      gradient: "linear-gradient(135deg, #fa8c16 0%, #ffa940 100%)",
     },
   ];
 
@@ -133,8 +137,16 @@ const AdminDashboard = () => {
       <Row gutter={[24, 24]} className="stats-row">
         {statsCards.map((stat, index) => (
           <Col xs={24} sm={12} lg={6} key={index}>
-            <Card className="stat-card">
-              <div className="stat-icon" style={{ color: stat.color }}>
+            <Card 
+              className="stat-card"
+              style={{ 
+                background: stat.gradient,
+                border: 'none',
+                borderRadius: '16px',
+                overflow: 'hidden'
+              }}
+            >
+              <div className="stat-icon" style={{ color: '#ffffff' }}>
                 {stat.icon}
               </div>
               <div className="stat-content">
@@ -142,7 +154,9 @@ const AdminDashboard = () => {
                 <div className="stat-value">{stat.value}</div>
                 <div className="stat-change">{stat.change}</div>
               </div>
-              <div className="stat-change-value">{stat.changeValue}</div>
+              {stat.changeValue && (
+                <div className="stat-change-value">{stat.changeValue}</div>
+              )}
             </Card>
           </Col>
         ))}

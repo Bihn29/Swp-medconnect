@@ -24,17 +24,42 @@
     margin-bottom: 24px;
     align-items: center;
 
-    .search-input {
+    .search-input-group {
+      display: flex;
+      gap: 8px;
       flex: 1;
-      max-width: 400px;
+      max-width: 500px;
+      align-items: center;
 
-      .ant-input {
+      .search-input {
+        flex: 1;
+
+        .ant-input {
+          border-radius: 8px;
+          border: 1px solid #d9d9d9;
+
+          &:focus {
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+          }
+        }
+      }
+
+      .search-button {
         border-radius: 8px;
-        border: 1px solid #d9d9d9;
+        height: 32px;
+        padding: 0 16px;
+        font-weight: 500;
+        white-space: nowrap;
+        min-width: 100px;
 
-        &:focus {
-          border-color: #1890ff;
-          box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        &:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+        }
+
+        &:active {
+          transform: translateY(0);
         }
       }
     }
@@ -158,6 +183,50 @@
   }
 }
 
+// Modal styles
+.user-detail-modal {
+  .user-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+
+    .user-info {
+      h2 {
+        margin: 0 0 12px 0;
+        font-size: 24px;
+        font-weight: 700;
+        color: #262626;
+      }
+
+      .user-tags {
+        display: flex;
+        gap: 8px;
+
+        .ant-tag {
+          border-radius: 12px;
+          padding: 4px 12px;
+          font-size: 12px;
+          font-weight: 500;
+          border: none;
+        }
+      }
+    }
+  }
+
+  .ant-descriptions {
+    .ant-descriptions-item-label {
+      font-weight: 600;
+      color: #595959;
+      background: #fafafa;
+    }
+
+    .ant-descriptions-item-content {
+      color: #262626;
+    }
+  }
+}
+
 // Responsive
 @media (max-width: 768px) {
   .user-management {
@@ -165,8 +234,19 @@
       flex-direction: column;
       align-items: stretch;
 
-      .search-input {
+      .search-input-group {
         max-width: none;
+        flex-direction: column;
+        gap: 12px;
+
+        .search-input {
+          width: 100%;
+        }
+
+        .search-button {
+          width: 100%;
+          height: 40px;
+        }
       }
 
       .role-select {

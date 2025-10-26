@@ -426,7 +426,7 @@ export default function Login() {
           )}
 
           <div className="password-group">
-            <div className="input-group">
+            <div className={`input-group ${!passwordValid && !passwordError ? 'no-validation-icon' : ''}`}>
               <input
                 className={`login-input ${
                   passwordError
@@ -456,16 +456,8 @@ export default function Login() {
                 className={`bi ${
                   showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
                 } password-toggle`}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowPassword(!showPassword);
-                }}
-                onMouseUp={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                style={{ border: 'none', background: 'none', outline: 'none' }}
+                onClick={() => setShowPassword(!showPassword)}
+                style={{ cursor: 'pointer', zIndex: 10 }}
               />
             </div>
           </div>
