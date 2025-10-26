@@ -7,7 +7,4 @@ export { default as PatientVideoCallPage } from '../../pages/Patient/VideoCallPa
 export { default as DoctorVideoCallPage } from '../../pages/Doctor/DoctorVideoCallPage';
 
 // VideoCall Service
-export { default as webrtcService } from '../../services/webrtcService';
-
-// VideoCall Config
-export { default as WEBRTC_CONFIG } from '../../config/webrtcConfig';
+export { default as jitsiService } from '../../services/jitsiService';

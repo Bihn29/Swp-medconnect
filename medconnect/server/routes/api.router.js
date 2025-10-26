@@ -10,6 +10,7 @@ import videoCallRouter from "./videoCallRoutes.js";
 import adminRouter from "./admin/admin.routes.js";
 
 import { getAllAppointments } from "../controllers/doctorController.js";
+import { getAppointmentBySlotId } from "../controllers/appointmentController.js";
 
 // Health check endpoint
 apiRouter.get("/health", (req, res) => {
@@ -35,6 +36,7 @@ console.log("[router] mounted /api/doctors");
 
 // Appointments routes (public for fallback)
 apiRouter.get("/appointments", getAllAppointments);
+apiRouter.get("/appointments/slot/:slotId", getAppointmentBySlotId);
 console.log("[router] mounted /api/appointments");
 
 // Notification routes

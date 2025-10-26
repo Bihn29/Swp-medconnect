@@ -1,46 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Card, Space, Typography, message, Modal, Spin } from 'antd';
+import { Card, Typography, message, Modal, Spin } from 'antd';
 import {
-  VideoCameraOutlined,
-  VideoCameraAddOutlined,
-  AudioOutlined,
-  AudioMutedOutlined,
-  PhoneOutlined,
-  PhoneFilled,
   UserOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons';
-import webrtcService from '../../services/webrtcService';
+import jitsiService from '../../services/jitsiService';
 import './VideoCall.css';
 
 const { Title, Text } = Typography;
 
 const VideoCall = ({ 
   roomId, 
-  isInitiator = false, 
   onCallEnd, 
   appointmentId,
   doctorInfo,
-  patientInfo 
+  patientInfo,
+  userName
 }) => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [callStatus, setCallStatus] = useState('connecting');
   const [showEndCallModal, setShowEndCallModal] = useState(false);
   
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+  const jitsiContainerRef = useRef(null);
+  const containerId = 'jitsi-container';
 
   useEffect(() => {
     initializeCall();
     
     return () => {
       // Cleanup on unmount
-      webrtcService.endCall();
+      if (jitsiService.isInitialized()) {
+        jitsiService.endCall();
+      }
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]);
 
   const initializeCall = async () => {
     try {
@@ -48,53 +42,42 @@ const VideoCall = ({
       setCallStatus('connecting');
 
       // Set up callbacks
-      webrtcService.setCallbacks({
-        onLocalStream: (stream) => {
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = stream;
-          }
-          setIsVideoEnabled(webrtcService.isVideoEnabled());
-          setIsAudioEnabled(webrtcService.isAudioEnabled());
-        },
-        onRemoteStream: (stream) => {
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = stream;
-          }
+      jitsiService.setCallbacks({
+        onConferenceJoined: () => {
+          console.log('Conference joined');
           setCallStatus('connected');
-          setIsConnected(true);
           setIsLoading(false);
         },
-        onCallEnded: () => {
+        onParticipantJoined: (event) => {
+          console.log('Participant joined:', event);
+        },
+        onParticipantLeft: (event) => {
+          console.log('Participant left:', event);
+        },
+        onAudioMuteStatusChanged: (isMuted) => {
+          console.log('Audio muted:', isMuted);
+        },
+        onVideoMuteStatusChanged: (isMuted) => {
+          console.log('Video muted:', isMuted);
+        },
+        onReadyToClose: () => {
+          console.log('Ready to close');
           setCallStatus('ended');
-          setIsConnected(false);
-          setIsLoading(false);
           onCallEnd?.();
         },
         onError: (error) => {
-          console.error('WebRTC Error:', error);
+          console.error('Jitsi Error:', error);
           message.error('Có lỗi xảy ra trong cuộc gọi video');
           setCallStatus('error');
           setIsLoading(false);
-        },
-        onConnectionStateChange: (state) => {
-          if (state === 'connected') {
-            setCallStatus('connected');
-            setIsConnected(true);
-            setIsLoading(false);
-          } else if (state === 'disconnected') {
-            setCallStatus('disconnected');
-            setIsConnected(false);
-          }
         }
       });
 
-      // Initialize WebRTC
-      const success = await webrtcService.initialize(roomId, isInitiator);
-      if (success) {
-        await webrtcService.startCall();
-      } else {
-        throw new Error('Failed to initialize WebRTC');
-      }
+      // Initialize Jitsi Meet
+      await jitsiService.initialize(containerId, roomId, {
+        displayName: userName || 'Người dùng',
+        email: ''
+      });
 
     } catch (error) {
       console.error('Failed to initialize call:', error);
@@ -104,22 +87,14 @@ const VideoCall = ({
     }
   };
 
-  const toggleVideo = () => {
-    const enabled = webrtcService.toggleVideo();
-    setIsVideoEnabled(enabled);
-  };
-
-  const toggleAudio = () => {
-    const enabled = webrtcService.toggleAudio();
-    setIsAudioEnabled(enabled);
-  };
-
   const handleEndCall = () => {
     setShowEndCallModal(true);
   };
 
   const confirmEndCall = () => {
-    webrtcService.endCall();
+    if (jitsiService.isInitialized()) {
+      jitsiService.endCall();
+    }
     setShowEndCallModal(false);
     onCallEnd?.();
   };
@@ -156,120 +131,28 @@ const VideoCall = ({
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="video-call-loading">
-        <Card className="loading-card">
-          <div className="loading-content">
-            <Spin size="large" />
-            <Title level={4}>Đang khởi tạo cuộc gọi video...</Title>
-            <Text type="secondary">{getStatusText()}</Text>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="video-call-container">
-      <Card className="video-call-card">
-        {/* Header */}
-        <div className="video-call-header">
-          <div className="call-info">
-            <Title level={4} className="call-title">
-              Cuộc gọi video khám bệnh
-            </Title>
-            <div className="status-indicator">
-              <div 
-                className="status-dot" 
-                style={{ backgroundColor: getStatusColor() }}
-              />
-              <Text className="status-text">{getStatusText()}</Text>
-            </div>
-          </div>
-          
-          <div className="participant-info">
-            <div className="participant">
-              <UserOutlined className="participant-icon" />
-              <div className="participant-details">
-                <Text strong>{isInitiator ? patientInfo?.name : doctorInfo?.name}</Text>
-                <Text type="secondary" className="participant-role">
-                  {isInitiator ? 'Bệnh nhân' : 'Bác sĩ'}
-                </Text>
+      {/* Jitsi Meet will render inside this container */}
+      <div className="jitsi-wrapper">
+        <div 
+          id={containerId} 
+          ref={jitsiContainerRef}
+          style={{ width: '100%', height: '100vh' }}
+        />
+        
+        {isLoading && (
+          <div className="video-call-loading-overlay">
+            <Card className="loading-card">
+              <div className="loading-content">
+                <Spin size="large" />
+                <Title level={4}>Đang khởi tạo cuộc gọi video...</Title>
+                <Text type="secondary">{getStatusText()}</Text>
               </div>
-            </div>
+            </Card>
           </div>
-        </div>
-
-        {/* Video Area */}
-        <div className="video-area">
-          {/* Remote Video */}
-          <div className="remote-video-container">
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="remote-video"
-              style={{ display: isConnected ? 'block' : 'none' }}
-            />
-            {!isConnected && (
-              <div className="no-video-placeholder">
-                <UserOutlined className="placeholder-icon" />
-                <Text type="secondary">Đang chờ kết nối...</Text>
-              </div>
-            )}
-          </div>
-
-          {/* Local Video */}
-          <div className="local-video-container">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="local-video"
-            />
-            {!isVideoEnabled && (
-              <div className="video-disabled-overlay">
-                <VideoCameraOutlined className="disabled-icon" />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="video-controls">
-          <Space size="large">
-            <Button
-              type={isVideoEnabled ? "primary" : "default"}
-              shape="circle"
-              size="large"
-              icon={isVideoEnabled ? <VideoCameraOutlined /> : <VideoCameraAddOutlined />}
-              onClick={toggleVideo}
-              className="control-button"
-            />
-            
-            <Button
-              type={isAudioEnabled ? "primary" : "default"}
-              shape="circle"
-              size="large"
-              icon={isAudioEnabled ? <AudioOutlined /> : <AudioMutedOutlined />}
-              onClick={toggleAudio}
-              className="control-button"
-            />
-            
-            <Button
-              type="primary"
-              danger
-              shape="circle"
-              size="large"
-              icon={<PhoneFilled />}
-              onClick={handleEndCall}
-              className="control-button end-call-button"
-            />
-          </Space>
-        </div>
-      </Card>
+        )}
+      </div>
 
       {/* End Call Confirmation Modal */}
       <Modal

@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import VideoCall from './VideoCall';
 import VideoCallAPI from '../../services/videoCallAPI';
+import { api } from '../../lib/api';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -108,18 +109,14 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient' }) => {
   const canStartCall = () => {
     if (!appointmentInfo) return false;
     
-    // Check if appointment is accepted
+    // Check if appointment is accepted - CHO PHÉP GỌI BẤT CỨ KHI NÀO SAU KHI ACCEPTED
     if (appointmentInfo.status !== 'accepted') {
       return false;
     }
     
-    // Check if it's the right time (within 15 minutes of scheduled time)
-    const now = new Date();
-    const scheduledStart = new Date(appointmentInfo.scheduledStart);
-    const timeDiff = Math.abs(now - scheduledStart);
-    const fifteenMinutes = 15 * 60 * 1000;
-    
-    return timeDiff <= fifteenMinutes;
+    // BỎ CHECK THỜI GIAN - Cho phép gọi bất cứ lúc nào
+    // Chỉ cần appointment đã được accepted là gọi được
+    return true;
   };
 
   const getCallStatusText = () => {
@@ -162,14 +159,18 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient' }) => {
   }
 
   if (isInCall && videoCallData) {
+    const userName = userRole === 'patient' 
+      ? appointmentInfo?.patientId?.name 
+      : appointmentInfo?.doctorId?.name;
+    
     return (
       <VideoCall
         roomId={videoCallData.roomId}
-        isInitiator={userRole === 'patient'}
         onCallEnd={endVideoCall}
         appointmentId={appointmentId}
         doctorInfo={appointmentInfo?.doctorId}
         patientInfo={appointmentInfo?.patientId}
+        userName={userName}
       />
     );
   }
@@ -251,7 +252,7 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient' }) => {
 
           {!canStartCall() && (
             <Text type="secondary" className="warning-text">
-              Cuộc gọi chỉ có thể bắt đầu khi lịch hẹn đã được chấp nhận và trong thời gian cho phép
+              Cuộc gọi chỉ có thể bắt đầu khi lịch hẹn đã được chấp nhận
             </Text>
           )}
         </div>

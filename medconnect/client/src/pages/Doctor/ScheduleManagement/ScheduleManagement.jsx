@@ -230,7 +230,8 @@ export default function ScheduleManagement() {
         startAt: slot.startAt,
         status: slot.status,
         patientName: slot.patientName,
-        hasPatientName: !!slot.patientName
+        hasPatientName: !!slot.patientName,
+        appointmentId: slot.appointmentId || 'NULL - CHƯA CÓ APPOINTMENTID' // Debug appointmentId
       });
       
       const slotDate = new Date(slot.startAt).toISOString().split('T')[0];
@@ -355,11 +356,31 @@ export default function ScheduleManagement() {
     loadTimeSlots();
   };
 
-  // Hàm xử lý gọi video
-  const handleVideoCall = (slot) => {
-    console.log("Starting video call for slot:", slot);
-    // TODO: Implement video call logic here
-    alert(`Bắt đầu cuộc gọi với ${slot.patientName} lúc ${new Date(slot.startAt).toLocaleTimeString('vi-VN')}`);
+  // Hàm xử lý gọi video - LUÔN FETCH appointmentId từ API
+  const handleVideoCall = async (slot) => {
+    console.log("🔍 Starting video call for slot:", slot);
+    
+    try {
+      // Fetch appointment by slotId from API
+      const { api } = await import("../../../lib/api");
+      console.log("🔍 Fetching appointment for slotId:", slot.id);
+      
+      const response = await api.get(`/appointments/slot/${slot.id}`);
+      
+      if (response.success && response.data && response.data.appointmentId) {
+        const appointmentId = response.data.appointmentId;
+        console.log("✅ Found appointment ID:", appointmentId);
+        
+        // Navigate to video call page
+        window.location.href = `/bac-si/video-call/${appointmentId}`;
+      } else {
+        console.error("❌ No appointment found in response:", response);
+        alert(`Không tìm thấy lịch hẹn cho slot này. Slot: ${slot.id}, Patient: ${slot.patientName}`);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching appointment:", error);
+      alert(`Lỗi khi tìm lịch hẹn: ${error.message}`);
+    }
   };
 
 

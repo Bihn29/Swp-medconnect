@@ -1016,7 +1016,14 @@ export async function getDoctorTimeSlots(req, res) {
     
     // Create a map of slotId -> appointment
     const appointmentMap = {};
+    console.log("🔍 START Mapping appointments, total:", appointments.length);
     appointments.forEach(appointment => {
+      console.log("🔍 Processing appointment:", {
+        _id: appointment._id?.toString(),
+        slotId: appointment.slotId?.toString(),
+        status: appointment.status,
+        mode: appointment.mode
+      });
       // Handle both populated patientId object and ObjectId
       let patientName = 'Bệnh nhân';
       if (appointment.patientId) {
@@ -1031,22 +1038,24 @@ export async function getDoctorTimeSlots(req, res) {
       
       // Convert slotId to string for consistent lookup
       const slotIdKey = appointment.slotId.toString();
+      const appointmentIdStr = appointment._id?.toString();
+      
+      console.log("🔍 STORING in map:", {
+        slotIdKey: slotIdKey,
+        appointmentId: appointmentIdStr,
+        patientName: patientName
+      });
+      
       appointmentMap[slotIdKey] = {
+        appointmentId: appointmentIdStr, // Add appointmentId
         patientName: patientName,
         reason: appointment.reason || null,
         appointmentStatus: appointment.status || 'booked', // Include appointment status
         mode: appointment.mode || 'offline' // Include mode (online/offline)
       };
-      
-      console.log("🔍 Mapping appointment:", {
-        slotId: slotIdKey,
-        appointmentId: appointment._id,
-        patientName: patientName,
-        appointmentStatus: appointment.status,
-        mode: appointment.mode,
-        hasPatient: !!appointment.patientId
-      });
     });
+    
+    console.log("🔍 COMPLETED mapping, appointmentMap:", Object.keys(appointmentMap).length, "entries");
     
     console.log("🔍 Found appointments:", appointments.length);
     console.log("🔍 Appointment map keys:", Object.keys(appointmentMap));
@@ -1084,7 +1093,9 @@ export async function getDoctorTimeSlots(req, res) {
         hasAppointment: !!appointment,
         patientName: appointment?.patientName || 'null',
         appointmentStatus: appointment?.appointmentStatus,
-        displayStatus: displayStatus
+        displayStatus: displayStatus,
+        appointmentId: appointment?.appointmentId || 'null',
+        fullAppointment: appointment
       });
       
       return {
@@ -1096,7 +1107,8 @@ export async function getDoctorTimeSlots(req, res) {
         status: displayStatus, // Use mapped status instead of slot.status
         patientName: appointment?.patientName || null,
         reason: appointment?.reason || null,
-        mode: appointment?.mode || null
+        mode: appointment?.mode || null,
+        appointmentId: appointment?.appointmentId || null // Add appointmentId to slot - FROM appointmentMap
       };
     });
 

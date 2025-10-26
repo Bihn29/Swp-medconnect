@@ -16,8 +16,8 @@ const VideoCallSchema = new Schema(
     },
     provider: { 
       type: String, 
-      enum: ["webrtc", "zego", "agora"], 
-      default: "webrtc",
+      enum: ["jitsi", "webrtc", "zego", "agora"], 
+      default: "jitsi",
       required: true 
     },
     roomId: { 

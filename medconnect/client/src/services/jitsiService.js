@@ -1,0 +1,181 @@
+/**
+ * Jitsi Meet Service
+ * Handles video call functionality using Jitsi Meet
+ */
+
+class JitsiService {
+  constructor() {
+    this.api = null;
+    this.domain = import.meta.env.VITE_JITSI_DOMAIN || 'meet.jit.si';
+    this.options = {
+      roomName: null,
+      width: '100%',
+      height: '100%',
+      parentNode: null,
+      configOverwrite: {
+        startAudioMuted: false,
+        startVideoMuted: false,
+        enableLayerSuspension: true,
+        disableThirdPartyRequests: true,
+        toolbarButtons: ['microphone', 'camera', 'hangup', 'settings'],
+      },
+      interfaceConfigOverwrite: {
+        DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+        DISABLE_PRESENCE_STATUS: false,
+        TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'settings'],
+      },
+      userInfo: {
+        displayName: '',
+        email: ''
+      },
+      onload: this.onJitsiLoad.bind(this),
+    };
+  }
+
+  // Initialize Jitsi Meet
+  initialize(containerId, roomName, userInfo = {}) {
+    return new Promise((resolve, reject) => {
+      try {
+        // Wait for container to be available
+        const checkContainer = () => {
+          const container = document.getElementById(containerId);
+          if (!container) {
+            console.warn(`Container ${containerId} not found, retrying...`);
+            setTimeout(checkContainer, 100);
+            return;
+          }
+
+          // Load Jitsi Meet external API
+          if (!window.JitsiMeetExternalAPI) {
+            const script = document.createElement('script');
+            script.src = `https://${this.domain}/external_api.js`;
+            script.async = true;
+            script.onload = () => {
+              this.api = new window.JitsiMeetExternalAPI(this.domain, {
+                ...this.options,
+                roomName: roomName,
+                parentNode: container,
+                userInfo: {
+                  displayName: userInfo.displayName || '',
+                  email: userInfo.email || ''
+                }
+              });
+              this.setupEventListeners();
+              resolve(this.api);
+            };
+            script.onerror = () => {
+              reject(new Error('Failed to load Jitsi Meet API'));
+            };
+            document.body.appendChild(script);
+          } else {
+            this.api = new window.JitsiMeetExternalAPI(this.domain, {
+              ...this.options,
+              roomName: roomName,
+              parentNode: container,
+              userInfo: {
+                displayName: userInfo.displayName || '',
+                email: userInfo.email || ''
+              }
+            });
+            this.setupEventListeners();
+            resolve(this.api);
+          }
+        };
+
+        checkContainer();
+      } catch (error) {
+        console.error('Failed to initialize Jitsi Meet:', error);
+        reject(error);
+      }
+    });
+  }
+
+  // Setup event listeners
+  setupEventListeners() {
+    if (!this.api) return;
+
+    this.api.addEventListener('videoConferenceJoined', () => {
+      console.log('Joined video conference');
+      this.onConferenceJoined?.();
+    });
+
+    this.api.addEventListener('participantJoined', (event) => {
+      console.log('Participant joined:', event);
+      this.onParticipantJoined?.(event);
+    });
+
+    this.api.addEventListener('participantLeft', (event) => {
+      console.log('Participant left:', event);
+      this.onParticipantLeft?.(event);
+    });
+
+    this.api.addEventListener('audioMuteStatusChanged', (event) => {
+      console.log('Audio mute status changed:', event);
+      this.onAudioMuteStatusChanged?.(event.muted);
+    });
+
+    this.api.addEventListener('videoMuteStatusChanged', (event) => {
+      console.log('Video mute status changed:', event);
+      this.onVideoMuteStatusChanged?.(event.muted);
+    });
+
+    this.api.addEventListener('readyToClose', () => {
+      console.log('Ready to close');
+      this.onReadyToClose?.();
+    });
+
+    this.api.addEventListener('errorOccurred', (error) => {
+      console.error('Jitsi error:', error);
+      this.onError?.(error);
+    });
+  }
+
+  // On Jitsi load
+  onJitsiLoad() {
+    console.log('Jitsi Meet loaded');
+  }
+
+  // Toggle audio
+  toggleAudio() {
+    if (this.api) {
+      this.api.executeCommand('toggleAudio');
+    }
+  }
+
+  // Toggle video
+  toggleVideo() {
+    if (this.api) {
+      this.api.executeCommand('toggleVideo');
+    }
+  }
+
+  // End call
+  endCall() {
+    if (this.api) {
+      this.api.dispose();
+      this.api = null;
+    }
+  }
+
+  // Set callbacks
+  setCallbacks(callbacks) {
+    this.onConferenceJoined = callbacks.onConferenceJoined;
+    this.onParticipantJoined = callbacks.onParticipantJoined;
+    this.onParticipantLeft = callbacks.onParticipantLeft;
+    this.onAudioMuteStatusChanged = callbacks.onAudioMuteStatusChanged;
+    this.onVideoMuteStatusChanged = callbacks.onVideoMuteStatusChanged;
+    this.onReadyToClose = callbacks.onReadyToClose;
+    this.onError = callbacks.onError;
+  }
+
+  // Check if API is initialized
+  isInitialized() {
+    return this.api !== null;
+  }
+}
+
+// Create singleton instance
+const jitsiService = new JitsiService();
+
+export default jitsiService;
+

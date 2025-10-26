@@ -1,7 +1,6 @@
 import express from 'express';
 import VideoCall from '../models/videoCall.model.js';
 import Appointment from '../models/appointment.model.js';
-import SignalingServer from '../services/signalingServer.js';
 
 const router = express.Router();
 
@@ -45,10 +44,10 @@ router.post('/create-room', async (req, res) => {
     }
 
     // Create video call room
-    const roomId = `room_${appointmentId}_${Date.now()}`;
+    const roomId = `MedConnect_${appointmentId}_${Date.now()}`;
     const videoCall = new VideoCall({
       appointmentId,
-      provider: 'webrtc',
+      provider: 'jitsi',
       roomId,
       status: 'created'
     });
