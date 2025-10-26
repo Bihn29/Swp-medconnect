@@ -328,11 +328,21 @@ export default function Register() {
                 placeholder="Nhập mật khẩu"
                 autoComplete="new-password"
               />
-              <i
+              <button
+                type="button"
                 className={`bi ${
                   showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
                 } password-toggle`}
-                onClick={() => setShowPassword(!showPassword)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowPassword(!showPassword);
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                style={{ border: 'none', background: 'none', outline: 'none' }}
               />
             </div>
             {errors.password && (
@@ -355,11 +365,21 @@ export default function Register() {
                 placeholder="Xác nhận mật khẩu"
                 autoComplete="new-password"
               />
-              <i
+              <button
+                type="button"
                 className={`bi ${
                   showConfirmPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
                 } password-toggle`}
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowConfirmPassword(!showConfirmPassword);
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                style={{ border: 'none', background: 'none', outline: 'none' }}
               />
             </div>
             {errors.confirmPassword && (

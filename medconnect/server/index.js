@@ -44,6 +44,7 @@ app.options("*", cors(corsOptions));
 
 // app.use(morgan("dev"));
 app.use("/uploads", express.static("../client/public/uploads"));
+app.use("/server-uploads", express.static("uploads"));
 app.use(cookieParser());
 
 // router
