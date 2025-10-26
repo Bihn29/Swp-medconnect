@@ -19,7 +19,7 @@ const ConsultationAdviceSchema = new Schema(
     clinicId: { type: Schema.Types.ObjectId, ref: "Clinic" },
 
     // 🧭 Hình thức buổi tư vấn (thường là online)
-    mode: { type: String, enum: ["online", "offline"], default: "online" },
+    mode: { type: String, enum: ["online"], default: "online" },
 
     // 🧩 Phân loại tư vấn
     adviceType: {

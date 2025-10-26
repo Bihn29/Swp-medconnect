@@ -15,6 +15,7 @@ import {
   VideoIcon,
 } from "lucide-react";
 import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
+import ReviewModal from "../ReviewModal/ReviewModal";
 
 const STATUS = {
   confirmed: { label: "Đã xác nhận", tone: "#1d4ed8", text: "#ffffff" },
@@ -30,6 +31,9 @@ export function MyAppointments() {
   const [activeTab, setActiveTab] = useState("upcoming");
   const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedAppointmentForReview, setSelectedAppointmentForReview] =
+    useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -142,6 +146,21 @@ export function MyAppointments() {
   const handleCloseDetail = () => {
     setShowDetailModal(false);
     setSelectedAppointmentId(null);
+  };
+
+  const handleShowReview = (appointment) => {
+    setSelectedAppointmentForReview(appointment);
+    setShowReviewModal(true);
+  };
+
+  const handleCloseReview = () => {
+    setShowReviewModal(false);
+    setSelectedAppointmentForReview(null);
+  };
+
+  const handleReviewSubmitted = () => {
+    // Có thể thêm logic cập nhật UI sau khi đánh giá thành công
+    message.success("Cảm ơn bạn đã đánh giá!");
   };
 
   if (loading) {
@@ -360,11 +379,19 @@ export function MyAppointments() {
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {a.status === "done" ? (
-                  // Appointments đã hoàn thành chỉ có nút nhắn tin
-                  <Button variant="secondary">
-                    <MessageCircle size={16} style={{ marginRight: 6 }} /> Nhắn
-                    tin
-                  </Button>
+                  // Appointments đã hoàn thành có nút nhắn tin và đánh giá
+                  <>
+                    <Button variant="secondary">
+                      <MessageCircle size={16} style={{ marginRight: 6 }} />{" "}
+                      Nhắn tin
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleShowReview(a)}
+                    >
+                      ⭐ Đánh giá
+                    </Button>
+                  </>
                 ) : a.status === "cancelled" ? (
                   // Appointments đã hủy không có nút action
                   <span style={{ color: "#6b7280", fontSize: "14px" }}>
@@ -436,6 +463,14 @@ export function MyAppointments() {
         visible={showDetailModal}
         onClose={handleCloseDetail}
         appointmentId={selectedAppointmentId}
+      />
+
+      {/* Review Modal */}
+      <ReviewModal
+        visible={showReviewModal}
+        onClose={handleCloseReview}
+        appointment={selectedAppointmentForReview}
+        onReviewSubmitted={handleReviewSubmitted}
       />
     </div>
   );

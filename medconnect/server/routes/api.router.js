@@ -6,9 +6,9 @@ import notificationRouter from "./notificationRoutes.js";
 import specializationRouter from "./specializations/specialization.route.js";
 import patientRouter from "./patientRoutes.js";
 import usersRouter from "./users/user.route.js";
-import videoCallRouter from "./videoCallRoutes.js";
 import adminRouter from "./admin/admin.routes.js";
 import clinicRouter from "./clinicRoutes.js";
+import reviewRouter from "./reviewRoutes.js";
 import { getAllAppointments } from "../controllers/doctorController.js";
 
 // Auth routes (register, login, forgot/reset password, etc.)
@@ -32,10 +32,6 @@ console.log("[router] mounted /api/appointments");
 apiRouter.use("/notifications", notificationRouter);
 console.log("[router] mounted /api/notifications");
 
-// Video Call routes
-apiRouter.use("/video-calls", videoCallRouter);
-console.log("[router] mounted /api/video-calls");
-
 // Test routes (for development)
 
 // Admin routes
@@ -45,6 +41,10 @@ console.log("[router] mounted /api/admin");
 // Clinic routes
 apiRouter.use("/clinics", clinicRouter);
 console.log("[router] mounted /api/clinics");
+
+// Review routes
+apiRouter.use("/reviews", reviewRouter);
+console.log("[router] mounted /api/reviews");
 
 //admin
 // apiRouter.use("/doctor", adminRouter);

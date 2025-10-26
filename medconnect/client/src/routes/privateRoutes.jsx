@@ -15,7 +15,6 @@ import Profile from "../pages/Auth/Profile";
 // Patient Components
 import PatientDashboard from "../pages/Patient/PatientDashboard";
 import PatientSettings from "../pages/Patient/PatientSettings.jsx";
-import PatientVideoCallPage from "../pages/Patient/VideoCallPage";
 import AppointmentBooking from "../pages/Appointment/AppointmentBooking";
 import AppointmentBookingHome from "../pages/Appointment/AppointmentBookingHome";
 import SpecializationSelection from "../pages/Appointment/SpecializationSelection";
@@ -24,7 +23,6 @@ import TimeSlotSelection from "../pages/Appointment/TimeSlotSelection";
 
 // Doctor Components
 import DoctorDashboard from "../pages/Doctor/DoctorDashboard/DoctorDashboard";
-import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage";
 import AppointmentList from "../pages/Doctor/AppointmentList/AppointmentList";
 import AppointmentDetail from "../pages/Doctor/AppointmentDetail/AppointmentDetail";
 import CalendarView from "../pages/Doctor/Calendar/CalendarView";
@@ -55,10 +53,6 @@ export const privateRoutes = (
       <Route element={<PatientMiddleware />}>
         <Route path="/benh-nhan" element={<PatientDashboard />} />
         <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
-        <Route
-          path="/benh-nhan/video-call/:appointmentId"
-          element={<PatientVideoCallPage />}
-        />
         <Route path="/search-doctors" element={<PatientDashboard />} />
         <Route path="/my-appointments" element={<PatientDashboard />} />
         <Route path="/tu-van-truc-tuyen" element={<PatientDashboard />} />
@@ -72,12 +66,6 @@ export const privateRoutes = (
       <Route element={<DoctorMiddleware />}>
         {/* Main doctor dashboard */}
         <Route path="/bac-si" element={<DoctorDashboard />} />
-
-        {/* Video Call Routes */}
-        <Route
-          path="/bac-si/video-call/:appointmentId"
-          element={<DoctorVideoCallPage />}
-        />
 
         {/* ==================== APPOINTMENT MANAGEMENT ==================== */}
         {/* Doctor appointment management routes */}

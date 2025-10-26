@@ -400,7 +400,7 @@ export function DoctorSearch() {
                 {/* Doctor Content */}
                 <div className="doctor-content">
                   {/* Doctor Avatar */}
-                  <div className="doctor-avatar">
+                  <div>
                     {doctor.avatarUrl ? (
                       <img
                         src={doctor.avatarUrl}

@@ -27,6 +27,7 @@ import {
   ArrowLeftOutlined,
   SearchOutlined,
   FilterOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
 import { api } from "../../../lib/api";
@@ -69,7 +70,7 @@ const DoctorReviews = () => {
         setReviews(response.data.reviews || []);
         setTotalReviews(response.data.pagination?.total || 0);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("❌ Error fetching data:", error);
         message.error("Không thể tải thông tin");
       } finally {
         setLoading(false);
@@ -102,18 +103,18 @@ const DoctorReviews = () => {
 
   const getBreadcrumbItems = () => {
     const items = [
-      { title: "Trang chủ", href: "/" },
-      { title: "Danh sách bác sĩ", href: "/danh-sach-bac-si" },
+      { label: "Trang chủ", path: "/", icon: <HomeOutlined /> },
+      { label: "Bác sĩ", path: "/danh-sach-bac-si" },
     ];
 
     if (doctor) {
       items.push({
-        title: doctor.fullName,
-        href: `/bac-si/${doctor._id}`,
+        label: doctor.fullName,
+        path: `/bac-si/${doctor._id}`,
       });
     }
 
-    items.push({ title: "Đánh giá" });
+    items.push({ label: "Review" });
 
     return items;
   };
@@ -348,7 +349,7 @@ const DoctorReviews = () => {
                               icon={<UserOutlined />}
                             />
                             <div className="reviewer-details">
-                              <Text strong>
+                              <Text strong className="reviewer-name">
                                 {review.patient?.fullName || "Bệnh nhân"}
                               </Text>
                               <Text type="secondary" className="review-date">
@@ -363,7 +364,9 @@ const DoctorReviews = () => {
 
                         {review.comment && (
                           <div className="review-comment">
-                            <Paragraph>{review.comment}</Paragraph>
+                            <Paragraph className="review-comment">
+                              {review.comment}
+                            </Paragraph>
                           </div>
                         )}
 

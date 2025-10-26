@@ -32,8 +32,7 @@
 }
 
 .doctor-avatar {
-  border: 4px solid #45c3d2;
-  box-shadow: 0 4px 12px rgba(69, 195, 210, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .doctor-info {
@@ -224,7 +223,23 @@
 }
 
 .review-date {
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.review-comment {
+  line-height: 1.5;
+  margin: 0;
+}
+
+.review-comment .ant-typography-paragraph {
+  font-size: 16px;
+  margin-bottom: 0 !important;
+}
+
+.reviewer-name {
+  font-size: 16px;
+  line-height: 1.4;
 }
 
 .review-rating .ant-rate {
@@ -374,5 +389,15 @@
   .reviews-filters .ant-input-search,
   .reviews-filters .ant-select {
     width: 100% !important;
+  }
+
+  .comment-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .comment-preview-item {
+    padding: 12px;
   }
 }

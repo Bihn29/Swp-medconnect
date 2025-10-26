@@ -16,7 +16,6 @@ import { MyAppointments } from "./components/MyAppointments/MyAppointments";
 import { OnlineConsultation } from "./components/OnlineConsultation/OnlineConsultation";
 import { HealthProfile } from "./components/HealthProfile/HealthProfile";
 import "./PatientDashboard.scss";
-import VideoCallNotification from "./components/VideoCallNotification/VideoCallNotification";
 
 /**
  * PatientDashboard Component
@@ -100,9 +99,6 @@ export default function PatientDashboard() {
             <div className="space-y-6">
               <WelcomeSection />
               <StatsCards />
-
-              {/* Video Call Notification */}
-              <VideoCallNotification />
 
               <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2 space-y-6">

@@ -33,22 +33,18 @@ const ReviewSchema = new Schema(
     // Nhận xét định tính
     comment: { type: String, trim: true },
 
-    // Các trường mở rộng (optional)
-    tags: [{ type: String, trim: true }], // Ví dụ: ["professional", "friendly", "knowledgeable"]
-    isAnonymous: { type: Boolean, default: false },
-
     // Phản hồi từ bác sĩ (optional)
     doctorResponse: { type: String, trim: true },
     doctorResponseAt: { type: Date },
 
     // Hỗ trợ thống kê (optional)
-    helpfulCount: { type: Number, default: 0, min: 0 },
+    
     verified: { type: Boolean, default: true }, // đánh giá xác thực từ lịch hẹn thật
   },
   {
     timestamps: true, // tạo createdAt, updatedAt
     versionKey: false,
-    collection: "reviews", // nên viết thường để đồng bộ với MongoDB Compass
+    collection: "Reviews", // Khớp với collection thực tế trong MongoDB
   }
 );
 

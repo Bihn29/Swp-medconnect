@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Doctor from "../models/doctor.model.js";
 import User from "../models/user.model.js";
 import Patient from "../models/patient.model.js";
@@ -1132,7 +1133,7 @@ export async function getPublicDoctorReviews(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
     }
 
-    const filter = { doctorId };
+    const filter = { doctorId: new mongoose.Types.ObjectId(doctorId) };
 
     if (rating && rating !== "all") {
       filter.rating = parseInt(rating);
@@ -1172,7 +1173,7 @@ export async function getPublicDoctorReviews(req, res) {
 
     // Calculate rating statistics
     const ratingStats = await Review.aggregate([
-      { $match: { doctorId } },
+      { $match: { doctorId: new mongoose.Types.ObjectId(doctorId) } },
       {
         $group: {
           _id: null,
