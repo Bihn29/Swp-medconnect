@@ -27,7 +27,7 @@ export default function OfflineConsultationPage() {
     },
     labResults: [{ testName: "", result: "" }],
     imagingResults: [],
-    medications: [{ name: "", instruction: "", quantity: "" }],
+    medications: [{ name: "", instruction: "", quantity: "", notes: "" }],
     procedures: [],
     summaryText: "",
     treatmentMethod: "",
@@ -615,6 +615,22 @@ export default function OfflineConsultationPage() {
                           }
                         />
                       </div>
+                      <div className="form-group">
+                        <label>Ghi chú</label>
+                        <Input
+                          type="text"
+                          placeholder="VD: Uống sau khi ăn, tránh ánh sáng..."
+                          value={medication.notes}
+                          onChange={(e) =>
+                            handleArrayChange(
+                              "medications",
+                              index,
+                              "notes",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -625,6 +641,7 @@ export default function OfflineConsultationPage() {
                       name: "",
                       instruction: "",
                       quantity: "",
+                      notes: "",
                     })
                   }
                   className="btn-add"

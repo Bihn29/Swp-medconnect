@@ -626,10 +626,12 @@ export function HealthProfile() {
                         <p>{selectedSummary.fullDetails.treatmentMethod}</p>
                       </div>
                     )}
-                    {selectedSummary.fullDetails.followUpInstruction && (
+                    {selectedSummary.fullDetails.followUpInstructions && (
                       <div className="follow-up">
                         <strong>Hướng dẫn theo dõi:</strong>
-                        <p>{selectedSummary.fullDetails.followUpInstruction}</p>
+                        <p>
+                          {selectedSummary.fullDetails.followUpInstructions}
+                        </p>
                       </div>
                     )}
                     {selectedSummary.fullDetails.nextAppointmentDate && (

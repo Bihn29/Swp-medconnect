@@ -214,7 +214,12 @@ const SearchPage = () => {
               <Col flex="auto">
                 <div className="item-content">
                   <Title level={4} style={{ margin: 0 }}>
-                    {item.fullName}
+                    {(() => {
+                      const fullName = item.fullName;
+                      return fullName?.startsWith("BS.")
+                        ? fullName
+                        : `BS. ${fullName}`;
+                    })()}
                   </Title>
                   <Space direction="vertical" size="small">
                     <Tag color="blue">

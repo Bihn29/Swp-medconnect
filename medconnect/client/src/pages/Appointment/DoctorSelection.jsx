@@ -56,7 +56,9 @@ const DoctorSelection = () => {
     } else {
       const filtered = doctors.filter(
         (doctor) =>
-          (doctor.userId?.fullName || doctor.fullName).toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (doctor.userId?.fullName || doctor.fullName)
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
           (doctor.bio &&
             doctor.bio.toLowerCase().includes(searchTerm.toLowerCase()))
       );
@@ -72,7 +74,7 @@ const DoctorSelection = () => {
       const mockDoctors = [
         {
           _id: "1",
-          fullName: "BS. Đặng Thị Hương",
+          fullName: "Đặng Thị Hương",
           avatarUrl: null,
           yearsExperience: 27,
           bio: "Bác sĩ Đặng Thị Hương chuyên về Da liễu.",
@@ -82,7 +84,7 @@ const DoctorSelection = () => {
         },
         {
           _id: "2",
-          fullName: "BS. Tạ Thu Thảo",
+          fullName: "Tạ Thu Thảo",
           avatarUrl: null,
           yearsExperience: 28,
           bio: "Bác sĩ Tạ Thu Thảo chuyên về Da liễu.",
@@ -258,7 +260,13 @@ const DoctorSelection = () => {
 
                       <div className="doctor-info">
                         <Title level={4} className="doctor-name">
-                          {doctor.userId?.fullName || doctor.fullName}
+                          {(() => {
+                            const fullName =
+                              doctor.userId?.fullName || doctor.fullName;
+                            return fullName?.startsWith("BS.")
+                              ? fullName
+                              : `BS. ${fullName}`;
+                          })()}
                         </Title>
 
                         <div className="doctor-specializations">
@@ -323,7 +331,6 @@ const DoctorSelection = () => {
           </Card>
         </div>
       </div>
-
     </div>
   );
 };

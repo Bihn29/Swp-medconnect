@@ -355,7 +355,12 @@ const DoctorList = () => {
         <Col flex="auto">
           <div className="doctor-info">
             <Title level={4} style={{ margin: "0 0 8px 0", color: "#1890ff" }}>
-              {doctor.userId?.fullName || doctor.fullName}
+              {(() => {
+                const fullName = doctor.userId?.fullName || doctor.fullName;
+                return fullName?.startsWith("BS.")
+                  ? fullName
+                  : `BS. ${fullName}`;
+              })()}
             </Title>
             <Text
               strong

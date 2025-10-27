@@ -119,7 +119,9 @@ export async function updateDoctorProfile(req, res) {
 
     if (Object.keys(userUpdate).length > 0) {
       console.log("🔄 Updating User table with:", userUpdate);
-      const updatedUser = await User.findByIdAndUpdate(appUserId, userUpdate, { new: true });
+      const updatedUser = await User.findByIdAndUpdate(appUserId, userUpdate, {
+        new: true,
+      });
       console.log("✅ User table updated:", updatedUser);
     }
 
@@ -132,7 +134,8 @@ export async function updateDoctorProfile(req, res) {
     if (bio) doctorUpdateData.bio = bio;
     if (avatarUrl) doctorUpdateData.avatarUrl = avatarUrl;
     if (clinicDefaultId) doctorUpdateData.clinicDefaultId = clinicDefaultId;
-    if (specializationIds) doctorUpdateData.specializationIds = specializationIds;
+    if (specializationIds)
+      doctorUpdateData.specializationIds = specializationIds;
 
     console.log("🔄 Updating Doctor table with:", doctorUpdateData);
 
@@ -735,24 +738,33 @@ export async function createConsultationSummary(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const { appointmentId, summaryText, reasonForVisit, visitDate, treatmentResult, 
-      consultationCategory, diagnoses, vitals, labResults, imagingResults, medications, 
-      procedures, treatmentMethod, nextAppointmentDate } = req.body;
+    const {
+      appointmentId,
+      summaryText,
+      reasonForVisit,
+      visitDate,
+      treatmentResult,
+      consultationCategory,
+      diagnoses,
+      vitals,
+      labResults,
+      imagingResults,
+      medications,
+      procedures,
+      treatmentMethod,
+      nextAppointmentDate,
+      followUpInstructions,
+    } = req.body;
 
     if (!appointmentId) {
-      return fail(
-        res,
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        "Missing appointmentId"
-      );
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing appointmentId");
     }
 
     // Check if appointment belongs to this doctor
     const appointment = await Appointment.findOne({
       _id: appointmentId,
       doctorId: doctor._id,
-    }).populate('patientId clinicId');
+    }).populate("patientId clinicId");
 
     if (!appointment) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
@@ -765,22 +777,31 @@ export async function createConsultationSummary(req, res) {
       clinicId: appointment.clinicId?._id,
       appointmentDate: appointment.scheduledStart,
       createdBy: doctor._id,
-    }
+    };
 
     // Add optional fields if provided
-    if (summaryText) summaryData.summaryText = summaryText
-    if (reasonForVisit) summaryData.reasonForVisit = reasonForVisit
-    if (visitDate) summaryData.visitDate = new Date(visitDate)
-    if (treatmentResult) summaryData.treatmentResult = treatmentResult
-    if (consultationCategory) summaryData.consultationCategory = consultationCategory
-    if (diagnoses && Array.isArray(diagnoses)) summaryData.diagnoses = diagnoses
-    if (vitals && typeof vitals === 'object') summaryData.vitals = vitals
-    if (labResults && Array.isArray(labResults)) summaryData.labResults = labResults
-    if (imagingResults && Array.isArray(imagingResults)) summaryData.imagingResults = imagingResults
-    if (medications && Array.isArray(medications)) summaryData.medications = medications
-    if (procedures && Array.isArray(procedures)) summaryData.procedures = procedures
-    if (treatmentMethod) summaryData.treatmentMethod = treatmentMethod
-    if (nextAppointmentDate) summaryData.nextAppointmentDate = new Date(nextAppointmentDate)
+    if (summaryText) summaryData.summaryText = summaryText;
+    if (reasonForVisit) summaryData.reasonForVisit = reasonForVisit;
+    if (visitDate) summaryData.visitDate = new Date(visitDate);
+    if (treatmentResult) summaryData.treatmentResult = treatmentResult;
+    if (consultationCategory)
+      summaryData.consultationCategory = consultationCategory;
+    if (diagnoses && Array.isArray(diagnoses))
+      summaryData.diagnoses = diagnoses;
+    if (vitals && typeof vitals === "object") summaryData.vitals = vitals;
+    if (labResults && Array.isArray(labResults))
+      summaryData.labResults = labResults;
+    if (imagingResults && Array.isArray(imagingResults))
+      summaryData.imagingResults = imagingResults;
+    if (medications && Array.isArray(medications))
+      summaryData.medications = medications;
+    if (procedures && Array.isArray(procedures))
+      summaryData.procedures = procedures;
+    if (treatmentMethod) summaryData.treatmentMethod = treatmentMethod;
+    if (nextAppointmentDate)
+      summaryData.nextAppointmentDate = new Date(nextAppointmentDate);
+    if (followUpInstructions)
+      summaryData.followUpInstructions = followUpInstructions;
 
     const summary = await ConsultationSummary.create(summaryData);
 
@@ -806,7 +827,8 @@ export async function createConsultationAdvice(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const { appointmentId, notes, attachmentUrl, diagnoses, medications } = req.body;
+    const { appointmentId, notes, attachmentUrl, diagnoses, medications } =
+      req.body;
 
     if (!appointmentId || !notes) {
       return fail(
@@ -821,15 +843,22 @@ export async function createConsultationAdvice(req, res) {
     const appointment = await Appointment.findOne({
       _id: appointmentId,
       doctorId: doctor._id,
-      mode: 'online'
-    }).populate('patientId clinicId');
+      mode: "online",
+    }).populate("patientId clinicId");
 
     if (!appointment) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found or not online");
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Appointment not found or not online"
+      );
     }
 
     // Import ConsultationAdvice model
-    const ConsultationAdvice = (await import('../models/consultationAdvice.model.js')).default;
+    const ConsultationAdvice = (
+      await import("../models/consultationAdvice.model.js")
+    ).default;
 
     const adviceData = {
       appointmentId,
@@ -837,14 +866,14 @@ export async function createConsultationAdvice(req, res) {
       doctorId: doctor._id,
       clinicId: appointment.clinicId?._id,
       appointmentDate: appointment.scheduledStart,
-      mode: 'online',
+      mode: "online",
       notes: notes,
-      createdBy: doctor._id
-    }
+      createdBy: doctor._id,
+    };
 
-    if (attachmentUrl) adviceData.attachmentUrl = attachmentUrl
-    if (diagnoses) adviceData.diagnoses = diagnoses
-    if (medications) adviceData.medications = medications
+    if (attachmentUrl) adviceData.attachmentUrl = attachmentUrl;
+    if (diagnoses) adviceData.diagnoses = diagnoses;
+    if (medications) adviceData.medications = medications;
 
     const advice = await ConsultationAdvice.create(adviceData);
 
@@ -1535,17 +1564,16 @@ export async function uploadConsultationFile(req, res) {
     // Construct the URL for the uploaded file
     const fileUrl = `/server-uploads/consultations/${req.file.filename}`;
 
-    return ok(res, { 
+    return ok(res, {
       message: "File uploaded successfully",
       url: fileUrl,
-      filename: req.file.filename
+      filename: req.file.filename,
     });
   } catch (e) {
     console.error("❌ uploadConsultationFile error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
-
 
 /**
  * Get all appointments (public endpoint for fallback)

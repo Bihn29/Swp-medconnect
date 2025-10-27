@@ -732,7 +732,12 @@ const HospitalVisit = () => {
                         marginBottom: "8px",
                       }}
                     >
-                      {doctor.fullName}
+                      {(() => {
+                        const fullName = doctor.fullName;
+                        return fullName?.startsWith("BS.")
+                          ? fullName
+                          : `BS. ${fullName}`;
+                      })()}
                     </Title>
                     <Paragraph
                       style={{

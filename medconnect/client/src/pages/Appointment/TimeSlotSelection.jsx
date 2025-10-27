@@ -51,8 +51,8 @@ const TimeSlotSelection = () => {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [selectedMode, setSelectedMode] = useState("online");
   const [showBookingForm, setShowBookingForm] = useState(false);
-  const [clinics, setClinics] = useState([]);
-  const [clinicsLoading, setClinicsLoading] = useState(false);
+  const [defaultClinic, setDefaultClinic] = useState(null);
+  const [clinicLoading, setClinicLoading] = useState(false);
 
   useEffect(() => {
     if (location.state?.doctor) {
@@ -75,7 +75,7 @@ const TimeSlotSelection = () => {
 
   useEffect(() => {
     if (doctor) {
-      fetchDoctorClinics();
+      fetchDefaultClinic();
     }
   }, [doctor]);
 
@@ -104,22 +104,27 @@ const TimeSlotSelection = () => {
     }
   };
 
-  const fetchDoctorClinics = async () => {
+  const fetchDefaultClinic = async () => {
     try {
-      setClinicsLoading(true);
+      setClinicLoading(true);
       const response = await api.get(`/api/doctors/${doctor._id}/clinics`);
 
-      if (response.success) {
-        setClinics(response.data.clinics);
+      if (
+        response.success &&
+        response.data.clinics &&
+        response.data.clinics.length > 0
+      ) {
+        // Lấy phòng khám đầu tiên làm phòng khám mặc định
+        setDefaultClinic(response.data.clinics[0]);
       } else {
         console.error("Error fetching clinics:", response.message);
-        setClinics([]);
+        setDefaultClinic(null);
       }
     } catch (error) {
-      console.error("Error fetching doctor clinics:", error);
-      setClinics([]);
+      console.error("Error fetching clinics:", error);
+      setDefaultClinic(null);
     } finally {
-      setClinicsLoading(false);
+      setClinicLoading(false);
     }
   };
 
@@ -163,8 +168,8 @@ const TimeSlotSelection = () => {
       };
 
       // Add clinicId for offline appointments
-      if (selectedMode === "offline") {
-        appointmentData.clinicId = values.clinicId;
+      if (selectedMode === "offline" && defaultClinic) {
+        appointmentData.clinicId = defaultClinic._id;
       }
 
       const response = await api.post(
@@ -243,7 +248,13 @@ const TimeSlotSelection = () => {
               path: "/dat-lich/chon-bac-si",
             },
             {
-              label: doctor?.fullName || "Bác sĩ",
+              label:
+                (() => {
+                  const fullName = doctor?.userId?.fullName || doctor?.fullName;
+                  return fullName?.startsWith("BS.")
+                    ? fullName
+                    : `BS. ${fullName}`;
+                })() || "Bác sĩ",
             },
           ]}
         />
@@ -255,7 +266,7 @@ const TimeSlotSelection = () => {
               {/* Doctor Profile */}
               <Card className="doctor-profile-card">
                 <div className="doctor-profile-content">
-                  <div className="doctor-avatar">
+                  <div>
                     <img
                       src={doctor.avatarUrl || "/default-avatar.png"}
                       alt={doctor.userId?.fullName || doctor.fullName}
@@ -263,12 +274,28 @@ const TimeSlotSelection = () => {
                     />
                   </div>
                   <div className="doctor-info">
-                    <Title level={3}>{doctor.userId?.fullName || doctor.fullName}</Title>
+                    <Title level={3}>
+                      {(() => {
+                        const fullName =
+                          doctor.userId?.fullName || doctor.fullName;
+                        return fullName?.startsWith("BS.")
+                          ? fullName
+                          : `BS. ${fullName}`;
+                      })()}
+                    </Title>
                     <div className="doctor-specializations">
                       <Tag color="blue">
                         {getSpecializationNames(doctor.specializationIds)}
                       </Tag>
                     </div>
+                    {doctor.yearsExperience && (
+                      <div className="doctor-experience">
+                        <Text type="secondary">
+                          <UserOutlined style={{ marginRight: 4 }} />
+                          {doctor.yearsExperience} năm kinh nghiệm
+                        </Text>
+                      </div>
+                    )}
                     {doctor.bio && (
                       <Paragraph className="doctor-bio">{doctor.bio}</Paragraph>
                     )}
@@ -388,27 +415,33 @@ const TimeSlotSelection = () => {
                     </Form.Item>
 
                     {selectedMode === "offline" && (
-                      <Form.Item
-                        name="clinicId"
-                        label="Chọn phòng khám"
-                        rules={[
-                          {
-                            required: true,
-                            message: "Vui lòng chọn phòng khám!",
-                          },
-                        ]}
-                      >
-                        <Select
-                          placeholder="Chọn phòng khám"
-                          loading={clinicsLoading}
-                          disabled={clinicsLoading}
-                        >
-                          {clinics.map((clinic) => (
-                            <Option key={clinic._id} value={clinic._id}>
-                              {clinic.name} - {clinic.address}
-                            </Option>
-                          ))}
-                        </Select>
+                      <Form.Item label="Phòng khám">
+                        {clinicLoading ? (
+                          <div style={{ padding: "8px 0" }}>
+                            <Spin size="small" /> Đang tải thông tin phòng
+                            khám...
+                          </div>
+                        ) : defaultClinic ? (
+                          <div className="clinic-info-display">
+                            <div className="clinic-name">
+                              <EnvironmentOutlined style={{ marginRight: 8 }} />
+                              <strong>{defaultClinic.name}</strong>
+                            </div>
+                            <div className="clinic-address">
+                              {defaultClinic.address}
+                            </div>
+                            {defaultClinic.phone && (
+                              <div className="clinic-phone">
+                                <PhoneOutlined style={{ marginRight: 8 }} />
+                                {defaultClinic.phone}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <Text type="secondary">
+                            Không có thông tin phòng khám
+                          </Text>
+                        )}
                       </Form.Item>
                     )}
 
@@ -462,7 +495,15 @@ const TimeSlotSelection = () => {
 
                 <div className="summary-item">
                   <Text strong>Bác sĩ:</Text>
-                  <Text>{doctor.userId?.fullName || doctor.fullName}</Text>
+                  <Text>
+                    {(() => {
+                      const fullName =
+                        doctor.userId?.fullName || doctor.fullName;
+                      return fullName?.startsWith("BS.")
+                        ? fullName
+                        : `BS. ${fullName}`;
+                    })()}
+                  </Text>
                 </div>
 
                 <div className="summary-item">
@@ -497,6 +538,18 @@ const TimeSlotSelection = () => {
                   </div>
                 )}
 
+                {selectedMode === "offline" && defaultClinic && (
+                  <div className="summary-item">
+                    <Text strong>Phòng khám:</Text>
+                    <div>
+                      <div>{defaultClinic.name}</div>
+                      <Text type="secondary" style={{ fontSize: "12px" }}>
+                        {defaultClinic.address}
+                      </Text>
+                    </div>
+                  </div>
+                )}
+
                 {/* TODO: Comment out payment info for now */}
                 {/* <Divider />
                 <div className="payment-info">
@@ -520,9 +573,7 @@ const TimeSlotSelection = () => {
               <Card className="help-card">
                 <Title level={4}>Lưu ý</Title>
                 <ul>
-                  <li>
-                    Lịch hẹn sẽ được đặt với trạng thái "Chờ bác sĩ xác nhận"
-                  </li>
+                  <li>Lịch hẹn sẽ được đặt với trạng thái "Chờ xác nhận"</li>
                   <li>Bác sĩ sẽ xác nhận lịch hẹn trong vòng 12 giờ</li>
                   <li>Bạn sẽ nhận được thông báo khi bác sĩ xác nhận</li>
                   <li>Có thể hủy lịch hẹn trước khi bác sĩ xác nhận</li>

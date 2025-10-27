@@ -213,7 +213,12 @@ export function UpcomingAppointments() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-semibold text-foreground">
-                      {appointment.doctorId?.fullName || "Bác sĩ"}
+                      {(() => {
+                        const fullName = appointment.doctorId?.fullName;
+                        return fullName?.startsWith("BS.")
+                          ? fullName
+                          : `BS. ${fullName}`;
+                      })() || "Bác sĩ"}
                     </h4>
                     <p className="text-sm text-muted-foreground">
                       {appointment.doctorId?.specializationIds?.[0]?.name ||

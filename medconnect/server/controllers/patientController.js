@@ -938,7 +938,7 @@ export async function getPatientConsultationSummaries(req, res) {
           procedures: summary.procedures,
           summaryText: summary.summaryText,
           treatmentMethod: summary.treatmentMethod,
-          followUpInstruction: summary.followUpInstruction,
+          followUpInstructions: summary.followUpInstructions,
           nextAppointmentDate: summary.nextAppointmentDate,
           appointment: summary.appointmentId,
           clinic: summary.clinicId,

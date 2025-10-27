@@ -98,6 +98,21 @@
   align-self: flex-start !important;
 }
 
+.doctor-experience {
+  margin: 6px 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  align-self: flex-start !important;
+  width: 100% !important;
+}
+
+.doctor-experience .anticon {
+  color: #1890ff;
+}
+
 .doctor-bio {
   margin: 6px 0 !important;
   color: #8c8c8c;
@@ -410,6 +425,36 @@
     position: static;
     margin-top: 24px;
   }
+}
+
+/* Clinic Info Display */
+.clinic-info-display {
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.clinic-name {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #1890ff;
+}
+
+.clinic-address {
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.clinic-phone {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: #666;
 }
 
 @media (max-width: 576px) {
