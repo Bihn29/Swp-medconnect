@@ -178,7 +178,7 @@ export async function getDoctorAppointments(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const { status, date, page = 1, limit = 10 } = req.query;
+    const { status, date, page = 1, limit = 1000 } = req.query;
     const skip = (page - 1) * limit;
 
     const filter = { doctorId: doctor._id };
@@ -191,12 +191,25 @@ export async function getDoctorAppointments(req, res) {
     }
 
     const appointments = await Appointment.find(filter)
-      .populate("patientId", "fullName dob gender phone")
+      .populate({
+        path: "patientId",
+        select: "fullName dob gender phone email",
+        populate: {
+          path: "userId",
+          select: "email phone"
+        }
+      })
       .populate("slotId")
       .sort({ scheduledStart: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
+
+    console.log("📋 Found appointments:", appointments.length);
+    if (appointments.length > 0) {
+      console.log("📋 First appointment mode:", appointments[0].mode);
+      console.log("📋 All appointment modes:", appointments.map(apt => apt.mode));
+    }
 
     const total = await Appointment.countDocuments(filter);
 
@@ -663,18 +676,18 @@ export async function createConsultationSummary(req, res) {
     }
 
     // Add optional fields if provided
-    if (summaryText) summaryData.summaryText = summaryText
-    if (reasonForVisit) summaryData.reasonForVisit = reasonForVisit
+    if (summaryText !== undefined) summaryData.summaryText = summaryText
+    if (reasonForVisit !== undefined) summaryData.reasonForVisit = reasonForVisit
     if (visitDate) summaryData.visitDate = new Date(visitDate)
-    if (treatmentResult) summaryData.treatmentResult = treatmentResult
-    if (consultationCategory) summaryData.consultationCategory = consultationCategory
+    if (treatmentResult !== undefined) summaryData.treatmentResult = treatmentResult
+    if (consultationCategory !== undefined) summaryData.consultationCategory = consultationCategory
     if (diagnoses && Array.isArray(diagnoses)) summaryData.diagnoses = diagnoses
     if (vitals && typeof vitals === 'object') summaryData.vitals = vitals
     if (labResults && Array.isArray(labResults)) summaryData.labResults = labResults
     if (imagingResults && Array.isArray(imagingResults)) summaryData.imagingResults = imagingResults
     if (medications && Array.isArray(medications)) summaryData.medications = medications
     if (procedures && Array.isArray(procedures)) summaryData.procedures = procedures
-    if (treatmentMethod) summaryData.treatmentMethod = treatmentMethod
+    if (treatmentMethod !== undefined) summaryData.treatmentMethod = treatmentMethod
     if (nextAppointmentDate) summaryData.nextAppointmentDate = new Date(nextAppointmentDate)
 
     const summary = await ConsultationSummary.create(summaryData);
@@ -1255,7 +1268,14 @@ export async function getAllAppointments(req, res) {
     const skip = (page - 1) * limit;
 
     const appointments = await Appointment.find({})
-      .populate('patientId', 'fullName dob gender phone')
+      .populate({
+        path: 'patientId',
+        select: 'fullName dob gender phone email',
+        populate: {
+          path: 'userId',
+          select: 'email phone'
+        }
+      })
       .populate('doctorId', 'fullName licenseNo')
       .populate('slotId')
       .sort({ scheduledStart: -1 })
