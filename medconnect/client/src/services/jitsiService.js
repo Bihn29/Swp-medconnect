@@ -15,14 +15,9 @@ class JitsiService {
       configOverwrite: {
         startAudioMuted: false,
         startVideoMuted: false,
-        enableLayerSuspension: true,
-        disableThirdPartyRequests: true,
-        toolbarButtons: ['microphone', 'camera', 'hangup', 'settings'],
       },
       interfaceConfigOverwrite: {
         DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
-        DISABLE_PRESENCE_STATUS: false,
-        TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'settings'],
       },
       userInfo: {
         displayName: '',
@@ -55,6 +50,8 @@ class JitsiService {
                 ...this.options,
                 roomName: roomName,
                 parentNode: container,
+                configOverwrite: this.options.configOverwrite,
+                interfaceConfigOverwrite: this.options.interfaceConfigOverwrite,
                 userInfo: {
                   displayName: userInfo.displayName || '',
                   email: userInfo.email || ''
@@ -72,6 +69,8 @@ class JitsiService {
               ...this.options,
               roomName: roomName,
               parentNode: container,
+              configOverwrite: this.options.configOverwrite,
+              interfaceConfigOverwrite: this.options.interfaceConfigOverwrite,
               userInfo: {
                 displayName: userInfo.displayName || '',
                 email: userInfo.email || ''
@@ -121,6 +120,12 @@ class JitsiService {
 
     this.api.addEventListener('readyToClose', () => {
       console.log('Ready to close');
+      this.onReadyToClose?.();
+    });
+
+    // Listen for conference left event - khi bấm hangup
+    this.api.addEventListener('videoConferenceLeft', () => {
+      console.log('Conference left');
       this.onReadyToClose?.();
     });
 
