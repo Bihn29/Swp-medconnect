@@ -1,5 +1,6 @@
 import express from "express";
 import { authGuard } from "../../middleware/auth.js";
+import { uploadConsultation } from "../../middleware/upload.js";
 import {
   getDoctorProfile,
   getCurrentDoctorProfile,
@@ -9,8 +10,6 @@ import {
   updateAppointmentStatus,
   getAllDoctors,
   getConsultationRecords,
-  getDoctorConsultationSummaries,
-  getDoctorConsultationAdvice,
   createConsultationSummary,
   createConsultationAdvice,
   createPrescription,
@@ -23,7 +22,8 @@ import {
   respondToReview,
   getDoctorAvailableTimeSlots,
   createTestTimeSlots,
-  getDoctorClinics
+  getDoctorClinics,
+  uploadConsultationFile
 } from "../../controllers/doctorController.js";
 
 const router = express.Router();
@@ -46,11 +46,10 @@ router.get("/me/appointments", getDoctorAppointments);
 router.get("/me/dashboard/stats", getDoctorDashboardStats);
 router.put("/me/appointments/:appointmentId/status", updateAppointmentStatus);
 router.get("/me/consultation-records", getConsultationRecords);
-router.get("/me/consultation-summaries", getDoctorConsultationSummaries);
-router.get("/me/consultation-advice", getDoctorConsultationAdvice);
 router.post("/me/consultation-summaries", createConsultationSummary);
 router.post("/me/consultation-advice", createConsultationAdvice);
 router.post("/me/prescriptions", createPrescription);
+router.post("/me/upload-consultation-file", uploadConsultation.single('file'), uploadConsultationFile);
 
 // Time slot management routes
 router.get("/me/time-slots", getDoctorTimeSlots);
@@ -64,9 +63,8 @@ router.get("/me/reviews", getDoctorReviews);
 router.post("/me/reviews/:reviewId/respond", respondToReview);
 
 // Public doctor profile routes (must come after /me routes)
-// Note: These routes are already defined above in the public routes section
-// router.get("/:doctorId", getDoctorProfile); // This is already defined at line 32
-// router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // This is already defined at line 33
-// router.post("/:doctorId/create-test-slots", createTestTimeSlots); // This is already defined at line 35
+router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
+router.get("/:doctorId/time-slots", getDoctorAvailableTimeSlots); // Get available time slots for a doctor
+router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
 
 export default router;

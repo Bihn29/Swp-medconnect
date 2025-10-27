@@ -5,7 +5,6 @@ import Appointment from "../models/appointment.model.js";
 import Specialization from "../models/specialization.model.js";
 import Clinic from "../models/clinic.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
-import ConsultationAdvice from "../models/consultationAdvice.model.js";
 import Prescription from "../models/prescription.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Review from "../models/review.model.js";
@@ -528,20 +527,27 @@ export async function getConsultationRecords(req, res) {
   try {
     console.log("🔍 getConsultationRecords - req.user:", req.user);
     
-    // Use email-based authentication instead of Firebase UID
-    const userEmail = req.user?.email;
-    if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    // Firebase user object has uid, not app_user_id
+    const firebaseUid = req.user?.uid;
+    if (!firebaseUid) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
     }
 
-    // Find user directly by email (simplified approach)
-    const user = await User.findOne({ email: userEmail }).lean();
-    if (!user) {
-      console.log("❌ User not found by email:", userEmail);
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
-    }
+    // First, find the AuthProvider document by Firebase UID
+    const authProvider = await AuthProvider.findOne({ 
+      providerUid: firebaseUid,
+      provider: 'local'
+    }).lean();
     
-    console.log("👤 Found user by email:", user);
+    if (!authProvider) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Auth provider not found");
+    }
+
+    // Then find the User document by userId from auth provider
+    const user = await User.findById(authProvider.userId).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found in database");
+    }
 
     // Then find the Doctor document by userId
     const doctor = await Doctor.findOne({ userId: user._id });
@@ -565,37 +571,21 @@ export async function getConsultationRecords(req, res) {
       .limit(parseInt(limit))
       .lean();
 
-    console.log("📋 Found appointments:", appointments.length);
-
     // Get consultation summaries for these appointments
     const appointmentIds = appointments.map((apt) => apt._id);
     const summaries = await ConsultationSummary.find({
       appointmentId: { $in: appointmentIds },
     }).lean();
-    
-    console.log("📝 Found summaries:", summaries.length);
-
-    // Get consultation advice for these appointments
-    const consultationAdvice = await ConsultationAdvice.find({
-      appointmentId: { $in: appointmentIds },
-    }).lean();
-    
-    console.log("💬 Found consultation advice:", consultationAdvice.length);
 
     // Get prescriptions for these appointments
     const prescriptions = await Prescription.find({
       appointmentId: { $in: appointmentIds },
     }).lean();
-    
-    console.log("💊 Found prescriptions:", prescriptions.length);
 
     // Combine data
     const records = appointments.map((appointment) => {
       const summary = summaries.find(
         (s) => s.appointmentId.toString() === appointment._id.toString()
-      );
-      const advice = consultationAdvice.find(
-        (a) => a.appointmentId.toString() === appointment._id.toString()
       );
       const prescription = prescriptions.find(
         (p) => p.appointmentId.toString() === appointment._id.toString()
@@ -604,7 +594,6 @@ export async function getConsultationRecords(req, res) {
       return {
         ...appointment,
         summary: summary?.summaryText || null,
-        consultationAdvice: advice || null,
         prescription: prescription || null,
       };
     });
@@ -631,80 +620,41 @@ export async function getConsultationRecords(req, res) {
  */
 export async function createConsultationSummary(req, res) {
   try {
-    // Use email-based authentication
-    const userEmail = req.user?.email;
-    if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    const appUserId = req.user?.app_user_id;
+    if (!appUserId) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
     }
 
-    const user = await User.findOne({ email: userEmail }).lean();
-    if (!user) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found");
-    }
-
-    const doctor = await Doctor.findOne({ userId: user._id });
+    const doctor = await Doctor.findOne({ userId: appUserId });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const {
-      appointmentId,
-      reasonForVisit,
-      visitDate,
-      treatmentResult,
-      diagnoses,
-      vitals,
-      labResults,
-      imagingResults,
-      medications,
-      procedures,
-      summaryText,
-      treatmentMethod,
-      followUpInstruction,
-      nextAppointmentDate,
-    } = req.body;
+    const { appointmentId, summaryText } = req.body;
 
-    if (!appointmentId) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing appointmentId");
+    if (!appointmentId || !summaryText) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Missing appointmentId or summaryText"
+      );
     }
 
     // Check if appointment belongs to this doctor
     const appointment = await Appointment.findOne({
       _id: appointmentId,
       doctorId: doctor._id,
-    }).populate("patientId clinicId");
+    });
 
     if (!appointment) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
     }
 
-    // Check if consultation summary already exists for this appointment
-    const existingSummary = await ConsultationSummary.findOne({ appointmentId });
-    if (existingSummary) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Consultation summary already exists for this appointment");
-    }
-
     const summary = await ConsultationSummary.create({
-      appointmentId: appointment._id,
-      patientId: appointment.patientId._id,
-      doctorId: doctor._id,
-      clinicId: appointment.clinicId ? appointment.clinicId._id : undefined,
-      visitType: "offline",
-      reasonForVisit,
-      visitDate: visitDate || new Date(),
-      treatmentResult: treatmentResult || "improved",
-      diagnoses: diagnoses || [],
-      vitals: vitals || {},
-      labResults: labResults || [],
-      imagingResults: imagingResults || [],
-      medications: medications || [],
-      procedures: procedures || [],
-      summaryText: summaryText || "",
-      treatmentMethod: treatmentMethod || "",
-      followUpInstruction: followUpInstruction || "",
-      nextAppointmentDate,
+      appointmentId,
+      summaryText,
       createdBy: doctor._id,
-      status: "final",
     });
 
     return ok(res, { summary });
@@ -715,77 +665,61 @@ export async function createConsultationSummary(req, res) {
 }
 
 /**
- * Create consultation advice (for online consultations)
+ * Create consultation advice (for online appointments)
  */
 export async function createConsultationAdvice(req, res) {
   try {
-    // Use email-based authentication
-    const userEmail = req.user?.email;
-    if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    const appUserId = req.user?.app_user_id;
+    if (!appUserId) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
     }
 
-    const user = await User.findOne({ email: userEmail }).lean();
-    if (!user) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found");
-    }
-
-    const doctor = await Doctor.findOne({ userId: user._id });
+    const doctor = await Doctor.findOne({ userId: appUserId });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const {
-      appointmentId,
-      mode,
-      adviceType,
-      summary,
-      startedAt,
-      endedAt,
-      durationMinutes,
-      medications,
-      diagnoses,
-      attachmentUrl,
-      notes,
-    } = req.body;
+    const { appointmentId, notes, attachmentUrl, diagnoses, medications } = req.body;
 
-    if (!appointmentId || !summary) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing appointmentId or summary");
+    if (!appointmentId || !notes) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Missing appointmentId or notes"
+      );
     }
 
-    // Check if appointment belongs to this doctor
+    // Check if appointment belongs to this doctor and is online
     const appointment = await Appointment.findOne({
       _id: appointmentId,
       doctorId: doctor._id,
-    }).populate("patientId clinicId");
+      mode: 'online'
+    }).populate('patientId clinicId');
 
     if (!appointment) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found or not online");
     }
 
-    // Check if consultation advice already exists for this appointment
-    const existingAdvice = await ConsultationAdvice.findOne({ appointmentId });
-    if (existingAdvice) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Consultation advice already exists for this appointment");
-    }
+    // Import ConsultationAdvice model
+    const ConsultationAdvice = (await import('../models/consultationAdvice.model.js')).default;
 
-    const advice = await ConsultationAdvice.create({
-      appointmentId: appointment._id,
+    const adviceData = {
+      appointmentId,
       patientId: appointment.patientId._id,
       doctorId: doctor._id,
-      clinicId: appointment.clinicId ? appointment.clinicId._id : undefined,
-      mode: mode || appointment.mode || "online",
-      adviceType: adviceType || "general",
-      summary,
-      startedAt: startedAt || new Date(),
-      endedAt,
-      durationMinutes,
-      medications: medications || [],
-      diagnoses: diagnoses || [],
-      attachmentUrl,
-      notes,
-      createdBy: doctor._id,
-    });
+      clinicId: appointment.clinicId?._id,
+      appointmentDate: appointment.scheduledStart,
+      mode: 'online',
+      notes: notes,
+      createdBy: doctor._id
+    }
+
+    if (attachmentUrl) adviceData.attachmentUrl = attachmentUrl
+    if (diagnoses) adviceData.diagnoses = diagnoses
+    if (medications) adviceData.medications = medications
+
+    const advice = await ConsultationAdvice.create(adviceData);
 
     return ok(res, { advice });
   } catch (e) {
@@ -1264,6 +1198,28 @@ export async function createTestTimeSlots(req, res) {
   }
 }
 
+/**
+ * Upload consultation attachment file
+ */
+export async function uploadConsultationFile(req, res) {
+  try {
+    if (!req.file) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "No file uploaded");
+    }
+
+    // Construct the URL for the uploaded file
+    const fileUrl = `/server-uploads/consultations/${req.file.filename}`;
+
+    return ok(res, { 
+      message: "File uploaded successfully",
+      url: fileUrl,
+      filename: req.file.filename
+    });
+  } catch (e) {
+    console.error("❌ uploadConsultationFile error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
 
 
 /**
@@ -1302,222 +1258,3 @@ export async function getAllAppointments(req, res) {
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
   }
 }
-/**
- * Get doctor's consultation summaries (medical records)
- */
-export async function getDoctorConsultationSummaries(req, res) {
-  try {
-    console.log("🔍 getDoctorConsultationSummaries - req.user:", req.user);
-    
-    // Use email-based authentication instead of Firebase UID
-    const userEmail = req.user?.email;
-    if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
-    }
-
-    // Find user directly by email (simplified approach)
-    const user = await User.findOne({ email: userEmail }).lean();
-    if (!user) {
-      console.log("❌ User not found by email:", userEmail);
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
-    }
-    
-    console.log("👤 Found user by email:", user);
-
-    // Then find the Doctor document by userId
-    const doctor = await Doctor.findOne({ userId: user._id });
-    if (!doctor) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
-    }
-
-    const { page = 1, limit = 20 } = req.query;
-
-    // Get consultation summaries created by this doctor
-    const consultationSummaries = await ConsultationSummary.find({
-      doctorId: doctor._id,
-      status: "final",
-    })
-      .populate({
-        path: "patientId",
-        select: "fullName dob gender phone",
-      })
-      .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
-      .populate("clinicId", "name address")
-      .sort({ visitDate: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .lean();
-
-    const total = await ConsultationSummary.countDocuments({
-      doctorId: doctor._id,
-      status: "final",
-    });
-
-    // Format the response for frontend
-    const formattedSummaries = consultationSummaries.map((summary) => {
-      // Get primary diagnosis
-      const primaryDiagnosis =
-        summary.diagnoses && summary.diagnoses.length > 0
-          ? summary.diagnoses[0].name
-          : "Không có chẩn đoán";
-
-      // Format medications
-      const medicationsText =
-        summary.medications && summary.medications.length > 0
-          ? summary.medications
-              .map((med) => `${med.name} - ${med.dosage} - ${med.instruction}`)
-              .join(", ")
-          : "Không có đơn thuốc";
-
-      return {
-        id: summary._id,
-        patientName: summary.patientId?.fullName || "Không xác định",
-        patientInfo: {
-          dob: summary.patientId?.dob,
-          gender: summary.patientId?.gender,
-          phone: summary.patientId?.phone,
-        },
-        visitDate: summary.visitDate,
-        reasonForVisit: summary.reasonForVisit,
-        treatmentResult: summary.treatmentResult,
-        diagnosis: primaryDiagnosis,
-        prescription: medicationsText,
-        vitals: summary.vitals,
-        labResults: summary.labResults,
-        imagingResults: summary.imagingResults,
-        procedures: summary.procedures,
-        summaryText: summary.summaryText,
-        treatmentMethod: summary.treatmentMethod,
-        followUpInstruction: summary.followUpInstruction,
-        nextAppointmentDate: summary.nextAppointmentDate,
-        appointment: summary.appointmentId,
-        clinic: summary.clinicId,
-        signedByDoctor: summary.signedByDoctor,
-      };
-    });
-
-    return ok(res, {
-      consultationSummaries: formattedSummaries,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching doctor consultation summaries:", error);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
-  }
-}
-
-/**
- * Get doctor's consultation advice (online consultations)
- */
-export async function getDoctorConsultationAdvice(req, res) {
-  try {
-    console.log("🔍 getDoctorConsultationAdvice - req.user:", req.user);
-    
-    // Use email-based authentication instead of Firebase UID
-    const userEmail = req.user?.email;
-    if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
-    }
-
-    // Find user directly by email (simplified approach)
-    const user = await User.findOne({ email: userEmail }).lean();
-    if (!user) {
-      console.log("❌ User not found by email:", userEmail);
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
-    }
-    
-    console.log("👤 Found user by email:", user);
-
-    // Then find the Doctor document by userId
-    const doctor = await Doctor.findOne({ userId: user._id });
-    if (!doctor) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
-    }
-
-    const { page = 1, limit = 20 } = req.query;
-
-    // Get consultation advice created by this doctor
-    const consultationAdvice = await ConsultationAdvice.find({
-      doctorId: doctor._id,
-    })
-      .populate({
-        path: "patientId",
-        select: "fullName dob gender phone",
-      })
-      .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
-      .populate("clinicId", "name address")
-      .sort({ startedAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .lean();
-
-    const total = await ConsultationAdvice.countDocuments({
-      doctorId: doctor._id,
-    });
-
-    // Format the response for frontend
-    const formattedAdvice = consultationAdvice.map((advice) => {
-      // Get primary diagnosis
-      const primaryDiagnosis =
-        advice.diagnoses && advice.diagnoses.length > 0
-          ? advice.diagnoses[0].name
-          : "Không có chẩn đoán";
-
-      // Format medications
-      const medicationsText =
-        advice.medications && advice.medications.length > 0
-          ? advice.medications
-              .map((med) => `${med.name} - ${med.dosage} - ${med.instruction}`)
-              .join(", ")
-          : "Không có đơn thuốc";
-
-      // Format duration
-      const duration = advice.durationMinutes
-        ? `${advice.durationMinutes} phút`
-        : "Không xác định";
-
-      return {
-        id: advice._id,
-        patientName: advice.patientId?.fullName || "Không xác định",
-        patientInfo: {
-          dob: advice.patientId?.dob,
-          gender: advice.patientId?.gender,
-          phone: advice.patientId?.phone,
-        },
-        type: advice.mode === "online" ? "Video Call" : "Chat",
-        date: new Date(advice.startedAt).toLocaleDateString("vi-VN"),
-        startedAt: advice.startedAt,
-        endedAt: advice.endedAt,
-        duration: duration,
-        adviceType: advice.adviceType,
-        summary: advice.summary,
-        diagnosis: primaryDiagnosis,
-        prescription: medicationsText,
-        attachmentUrl: advice.attachmentUrl,
-        notes: advice.notes,
-        appointment: advice.appointmentId,
-        clinic: advice.clinicId,
-      };
-    });
-
-    return ok(res, {
-      consultationAdvice: formattedAdvice,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching doctor consultation advice:", error);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
-  }
-}
-
-

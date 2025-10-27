@@ -33,6 +33,8 @@ import ProfileSettings from "../pages/Doctor/ProfileSettings/ProfileSettings";
 import ScheduleManagement from "../pages/Doctor/ScheduleManagement/ScheduleManagement";
 import Notifications from "../pages/Doctor/Notifications/Notifications";
 import Feedback from "../pages/Doctor/Feedback/Feedback";
+import OfflineConsultationPage from "../pages/Doctor/OfflineConsultationPage/OfflineConsultationPage";
+import OnlineConsultationPage from "../pages/Doctor/OnlineConsultationPage/OnlineConsultationPage";
 
 // Admin Components
 import AdminDashboard from "../pages/Admin/AdminDashboard";
@@ -83,6 +85,8 @@ export const privateRoutes = (
         {/* Doctor appointment management routes */}
         <Route path="/bac-si/lich-hen" element={<AppointmentList />} />
         <Route path="/bac-si/lich-hen/:id" element={<AppointmentDetail />} />
+        <Route path="/bac-si/kham-truc-tiep/:appointmentId" element={<OfflineConsultationPage />} />
+        <Route path="/bac-si/tu-van-truc-tuyen/:appointmentId" element={<OnlineConsultationPage />} />
 
         {/* ==================== SCHEDULE MANAGEMENT ==================== */}
         {/* Doctor schedule and calendar routes */}

@@ -36,11 +36,10 @@ const ConsultationSummarySchema = new Schema(
       default: "improved",
     },
 
-    // 💬 Chẩn đoán (theo ICD10 nếu có)
+    // 💬 Chẩn đoán
     diagnoses: [
       {
         name: String,
-        icd10: String,
       },
     ],
 
@@ -77,10 +76,8 @@ const ConsultationSummarySchema = new Schema(
     medications: [
       {
         name: String,
-        dosage: String,
         route: String,
         quantity: Number,
-        instruction: String,
       },
     ],
 

@@ -21,8 +21,7 @@ const ConsultationAdviceSchema = new Schema(
     // 🧭 Hình thức buổi tư vấn (thường là online)
     mode: { type: String, enum: ["online"], default: "online" },
 
-    // 📹 URL video buổi tư vấn
-    videoUrl: { type: String, trim: true },
+
 
     // 📅 Ngày giờ slot khám
     appointmentDate: { type: Date, required: true },
@@ -31,10 +30,8 @@ const ConsultationAdviceSchema = new Schema(
     medications: [
       {
         name: String,
-        dosage: String,
         route: String,
         quantity: Number,
-        instruction: String,
       },
     ],
 
@@ -42,7 +39,6 @@ const ConsultationAdviceSchema = new Schema(
     diagnoses: [
       {
         name: String,
-        icd10: String,
       },
     ],
 
