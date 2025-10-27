@@ -1,1 +1,60 @@
- 
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import Sidebar from "../../pages/Doctor/Sidebar/Sidebar";
+import "./DoctorLayout.scss";
+
+export default function DoctorLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [activeMenu, setActiveMenu] = useState("dashboard");
+
+  // Update activeMenu based on current route
+  useEffect(() => {
+    const path = location.pathname;
+    if (path === "/bac-si" || path === "/bac-si/") {
+      setActiveMenu("dashboard");
+    } else if (path === "/bac-si/quan-ly-lich") {
+      setActiveMenu("schedule");
+    } else if (path.startsWith("/bac-si/lich-hen")) {
+      setActiveMenu("appointments");
+    } else if (path === "/bac-si/ho-so-kham") {
+      setActiveMenu("medical-history");
+    } else if (path === "/bac-si/thong-bao") {
+      setActiveMenu("notifications");
+    } else if (path === "/bac-si/danh-gia") {
+      setActiveMenu("reviews");
+    } else if (path === "/bac-si/cai-dat") {
+      setActiveMenu("settings");
+    }
+  }, [location.pathname]);
+
+  const handleMenuChange = (menuId) => {
+    setActiveMenu(menuId);
+    
+    // Navigate to appropriate route based on menu selection
+    if (menuId === "dashboard") {
+      navigate("/bac-si");
+    } else if (menuId === "schedule") {
+      navigate("/bac-si/quan-ly-lich");
+    } else if (menuId === "appointments") {
+      navigate("/bac-si/lich-hen");
+    } else if (menuId === "medical-history") {
+      navigate("/bac-si/ho-so-kham");
+    } else if (menuId === "notifications") {
+      navigate("/bac-si/thong-bao");
+    } else if (menuId === "reviews") {
+      navigate("/bac-si/danh-gia");
+    } else if (menuId === "settings") {
+      navigate("/bac-si/cai-dat");
+    }
+  };
+
+  return (
+    <div className="doctor-layout-container">
+      <Sidebar activeMenu={activeMenu} onMenuChange={handleMenuChange} />
+      <main className="doctor-layout-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+} 

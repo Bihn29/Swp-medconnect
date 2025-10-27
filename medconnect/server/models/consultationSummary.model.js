@@ -76,7 +76,7 @@ const ConsultationSummarySchema = new Schema(
     medications: [
       {
         name: String,
-        route: String,
+        instruction: String,
         quantity: Number,
       },
     ],

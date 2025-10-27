@@ -18,6 +18,8 @@ export default function AppointmentList() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [updatingAppointments, setUpdatingAppointments] = useState(new Set())
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   // Fetch appointments from API
   useEffect(() => {
@@ -47,6 +49,17 @@ export default function AppointmentList() {
     appointment.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     appointment.reason?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedAppointments = filteredAppointments.slice(startIndex, endIndex)
+
+  // Reset to page 1 when search term changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
 
 
@@ -303,7 +316,7 @@ export default function AppointmentList() {
                   </td>
                 </tr>
               ) : (
-                filteredAppointments.map((apt) => (
+                paginatedAppointments.map((apt) => (
                   <tr key={apt._id} className="appointment-list-row">
                     <td className="appointment-list-td appointment-list-patient">
                       <span 
@@ -391,6 +404,29 @@ export default function AppointmentList() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {filteredAppointments.length > 0 && (
+          <div className="appointment-list-pagination">
+            <button 
+              className="pagination-btn"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              Trước
+            </button>
+            <span className="pagination-info">
+              Trang {currentPage} / {totalPages} ({filteredAppointments.length} lịch hẹn)
+            </span>
+            <button 
+              className="pagination-btn"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Sau
+            </button>
+          </div>
+        )}
       </CardContent>
 
       {/* Appointment Detail Dialog */}

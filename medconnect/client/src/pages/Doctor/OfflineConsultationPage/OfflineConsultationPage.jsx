@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { getDoctorAppointmentsWithFallback } from "../../../lib/api"
-import Sidebar from "../Sidebar/Sidebar"
 import { Button } from "../../../components/ui/Button"
 import { Input } from "../../../components/ui/Input"
 import "./OfflineConsultationPage.scss"
@@ -158,7 +157,6 @@ export default function OfflineConsultationPage() {
   if (loading) {
     return (
       <div className="offline-consultation-page-container">
-        <Sidebar activeMenu="appointments" onMenuChange={() => {}} />
         <div className="loading-container">
           <div className="loading-spinner"></div>
           <p>Đang tải...</p>
@@ -173,7 +171,6 @@ export default function OfflineConsultationPage() {
 
   return (
     <div className="offline-consultation-page-container">
-      <Sidebar activeMenu="appointments" onMenuChange={() => {}} />
       <div className="offline-consultation-page-content">
         <div className="consultation-page-header">
           <div className="header-content">
@@ -272,7 +269,6 @@ export default function OfflineConsultationPage() {
                     </div>
                   </div>
                 ))}
-                <Button type="button" onClick={() => addArrayItem("diagnoses", { name: "" })} className="btn-add">+ Thêm chẩn đoán</Button>
               </div>
             )}
 
@@ -294,20 +290,18 @@ export default function OfflineConsultationPage() {
                         <label>Tên thuốc *</label>
                         <Input type="text" value={medication.name} onChange={(e) => handleArrayChange("medications", index, "name", e.target.value)} />
                       </div>
-                      <div className="section-row">
-                        <div className="form-group">
-                          <label>Số lượng</label>
-                          <Input type="text" value={medication.quantity} onChange={(e) => handleArrayChange("medications", index, "quantity", e.target.value)} />
-                        </div>
-                        <div className="form-group">
-                          <label>Đường dùng</label>
-                          <Input type="text" value={medication.route} onChange={(e) => handleArrayChange("medications", index, "route", e.target.value)} />
-                        </div>
+                      <div className="form-group">
+                        <label>Số lượng</label>
+                        <Input type="text" value={medication.quantity} onChange={(e) => handleArrayChange("medications", index, "quantity", e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label>Cách dùng</label>
+                        <Input type="text" placeholder="VD: Uống 2 viên/lần, 2 lần/ngày..." value={medication.instruction} onChange={(e) => handleArrayChange("medications", index, "instruction", e.target.value)} />
                       </div>
                     </div>
                   </div>
                 ))}
-                <Button type="button" onClick={() => addArrayItem("medications", { name: "", route: "", quantity: "" })} className="btn-add">+ Thêm thuốc</Button>
+                <Button type="button" onClick={() => addArrayItem("medications", { name: "", instruction: "", quantity: "" })} className="btn-add">+ Thêm thuốc</Button>
               </div>
             )}
 

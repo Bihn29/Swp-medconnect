@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { getDoctorAppointmentsWithFallback } from "../../../lib/api"
-import Sidebar from "../Sidebar/Sidebar"
 import { Button } from "../../../components/ui/Button"
 import { Input } from "../../../components/ui/Input"
 import "./OnlineConsultationPage.scss"
@@ -16,7 +15,7 @@ export default function OnlineConsultationPage() {
     notes: "",
     attachmentUrl: "",
     diagnoses: [{ name: "" }],
-    medications: [{ name: "", route: "", quantity: "" }]
+    medications: [{ name: "", instruction: "", quantity: "" }]
   })
 
   useEffect(() => {
@@ -154,7 +153,6 @@ export default function OnlineConsultationPage() {
   if (loading) {
     return (
       <div className="online-consultation-page-container">
-        <Sidebar activeMenu="appointments" onMenuChange={() => {}} />
         <div className="loading-container">
           <div className="loading-spinner"></div>
           <p>Đang tải...</p>
@@ -169,7 +167,6 @@ export default function OnlineConsultationPage() {
 
   return (
     <div className="online-consultation-page-container">
-      <Sidebar activeMenu="appointments" onMenuChange={() => {}} />
       <div className="online-consultation-page-content">
         <div className="consultation-page-header">
           <div className="header-content">
@@ -221,24 +218,23 @@ export default function OnlineConsultationPage() {
 
             {/* Diagnosis Section - Show by default */}
             <div className="form-section">
-              <h3 className="section-title">🔍 Chẩn Đoán</h3>
+              <h3 className="section-title">🔍 Chẩn Đoán sơ bộ</h3>
               {formData.diagnoses.map((diagnosis, index) => (
                 <div key={index} className="array-item">
                   <div className="item-header">
-                    <span className="item-number">Chẩn đoán #{index + 1}</span>
+                    <span className="item-number">Chẩn đoán </span>
                     {formData.diagnoses.length > 1 && (
                       <button type="button" className="btn-remove" onClick={() => removeArrayItem("diagnoses", index)}>✕</button>
                     )}
                   </div>
                   <div className="item-content">
                     <div className="form-group">
-                      <label>Tên chẩn đoán *</label>
+                      
                       <Input type="text" placeholder="VD: Viêm phế quản cấp" value={diagnosis.name} onChange={(e) => handleArrayChange("diagnoses", index, "name", e.target.value)} />
                     </div>
                   </div>
                 </div>
               ))}
-              <Button type="button" onClick={() => addArrayItem("diagnoses", { name: "" })} className="btn-add">+ Thêm chẩn đoán</Button>
             </div>
 
             {/* Medications Section - Show by default */}
@@ -257,20 +253,18 @@ export default function OnlineConsultationPage() {
                       <label>Tên thuốc *</label>
                       <Input type="text" placeholder="VD: Paracetamol" value={medication.name} onChange={(e) => handleArrayChange("medications", index, "name", e.target.value)} />
                     </div>
-                    <div className="section-row">
-                      <div className="form-group">
-                        <label>Số lượng</label>
-                        <Input type="text" placeholder="VD: 30 viên" value={medication.quantity} onChange={(e) => handleArrayChange("medications", index, "quantity", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>Đường dùng</label>
-                        <Input type="text" placeholder="VD: Uống, Tiêm..." value={medication.route} onChange={(e) => handleArrayChange("medications", index, "route", e.target.value)} />
-                      </div>
+                    <div className="form-group">
+                      <label>Số lượng</label>
+                      <Input type="text" placeholder="VD: 30 viên" value={medication.quantity} onChange={(e) => handleArrayChange("medications", index, "quantity", e.target.value)} />
+                    </div>
+                    <div className="form-group">
+                      <label>Liều dùng</label>
+                      <Input type="text" placeholder="VD: Uống 2 viên/lần, 2 lần/ngày..." value={medication.instruction} onChange={(e) => handleArrayChange("medications", index, "instruction", e.target.value)} />
                     </div>
                   </div>
                 </div>
               ))}
-              <Button type="button" onClick={() => addArrayItem("medications", { name: "", route: "", quantity: "" })} className="btn-add">+ Thêm thuốc</Button>
+              <Button type="button" onClick={() => addArrayItem("medications", { name: "", instruction: "", quantity: "" })} className="btn-add">+ Thêm thuốc</Button>
             </div>
 
             {/* File Upload Section */}
@@ -284,7 +278,7 @@ export default function OnlineConsultationPage() {
                     name="file-attachment"
                     onChange={handleFileUpload}
                     disabled={uploadingFile}
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    accept=".pdf,.doc,.jpg,.png"
                     className="file-input"
                   />
                   <label htmlFor="file-attachment" className="file-upload-label">
