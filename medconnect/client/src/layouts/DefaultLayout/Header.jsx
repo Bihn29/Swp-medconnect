@@ -12,6 +12,7 @@ import {
   CalendarOutlined,
 } from "@ant-design/icons";
 import { Avatar, Dropdown, Badge, Button, Space, Input } from "antd";
+import { NotificationCenter } from "../../components/NotificationCenter/NotificationCenter";
 import "./Header.scss";
 
 const Header = () => {
@@ -380,36 +381,10 @@ const Header = () => {
             )}
           </div>
 
-          {/* Bell notification for appointments */}
+          {/* Notification Center */}
           {user && !isDoctorDashboard && (
             <div className="patient-header-controls" style={{ marginLeft: 12 }}>
-              <Dropdown
-                menu={{ items: apptMenuItems }}
-                placement="bottomRight"
-                trigger={["click"]}
-              >
-                <Button
-                  type="text"
-                  shape="circle"
-                  size="large"
-                  style={{
-                    width: 48,
-                    height: 48,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                  icon={
-                    <BellOutlined
-                      style={{
-                        fontSize: 24,
-                        color: "var(--primary-color, #12c2e9)",
-                      }}
-                    />
-                  }
-                  aria-label="Thông báo lịch hẹn"
-                />
-              </Dropdown>
+              <NotificationCenter />
             </div>
           )}
 
@@ -444,20 +419,23 @@ const Header = () => {
                   },
                   { type: "divider", key: "d1" },
                   // Only show profile and dashboard for non-admin users
-                  ...(userProfile?.role !== 'admin' && userProfile?.role !== 'ADMIN' ? [
-                    {
-                      key: "profile",
-                      label: (
-                        <div style={{ minWidth: 220 }}>
-                          <div style={{ fontWeight: 700 }}>Hồ sơ</div>
-                          <div style={{ fontSize: 12, color: "#666" }}>
-                            Xem và chỉnh sửa thông tin cá nhân
-                          </div>
-                        </div>
-                      ),
-                    },
-                    { key: "dashboard", label: "Trang cá nhân" },
-                  ] : []),
+                  ...(userProfile?.role !== "admin" &&
+                  userProfile?.role !== "ADMIN"
+                    ? [
+                        {
+                          key: "profile",
+                          label: (
+                            <div style={{ minWidth: 220 }}>
+                              <div style={{ fontWeight: 700 }}>Hồ sơ</div>
+                              <div style={{ fontSize: 12, color: "#666" }}>
+                                Xem và chỉnh sửa thông tin cá nhân
+                              </div>
+                            </div>
+                          ),
+                        },
+                        { key: "dashboard", label: "Trang cá nhân" },
+                      ]
+                    : []),
                   // Admin Dashboard link - only show for admin users
                   ...(userProfile?.role === "admin" ||
                   userProfile?.role === "ADMIN"

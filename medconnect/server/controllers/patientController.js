@@ -6,8 +6,115 @@ import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Appointment from "../models/appointment.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
 import ConsultationAdvice from "../models/consultationAdvice.model.js";
+import {
+  createBookingNotification,
+  createAppointmentNotification,
+} from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
+
+/**
+ * Cancel appointment by patient
+ */
+export async function cancelAppointment(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    const { appointmentId } = req.params;
+    const { cancelReason } = req.body;
+
+    // Find patient
+    const patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Patient profile not found"
+      );
+    }
+
+    // Find appointment
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      patientId: patient._id,
+    });
+
+    if (!appointment) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Appointment not found or does not belong to this patient"
+      );
+    }
+
+    // Check if appointment can be cancelled
+    if (!["pending_doctor", "accepted"].includes(appointment.status)) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Appointment cannot be cancelled in current status"
+      );
+    }
+
+    // Update appointment status
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      {
+        status: "cancelled",
+        cancelledAt: new Date(),
+        cancelledBy: appUserId,
+        cancelReason: cancelReason || "Cancelled by patient",
+      },
+      { new: true }
+    )
+      .populate("patientId", "fullName phone")
+      .populate("doctorId", "fullName")
+      .populate("slotId", "startAt endAt")
+      .lean();
+
+    // Free up the time slot
+    await DoctorTimeSlot.findByIdAndUpdate(appointment.slotId, {
+      status: "available",
+    });
+
+    // Create notification for doctor about cancellation
+    try {
+      await createAppointmentNotification(appointmentId, "cancelled", {
+        cancelReason: cancelReason || "Cancelled by patient",
+      });
+      console.log(
+        `✅ Cancellation notification created for appointment ${appointmentId}`
+      );
+    } catch (notificationError) {
+      console.error(
+        "❌ Error creating cancellation notification:",
+        notificationError
+      );
+      // Don't fail the main request if notification fails
+    }
+
+    return ok(res, {
+      message: "Appointment cancelled successfully",
+      appointment: updatedAppointment,
+    });
+  } catch (error) {
+    console.error("Error cancelling appointment:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
 
 /**
  * Get current patient profile with full information
@@ -561,6 +668,20 @@ export async function bookAppointment(req, res) {
 
     // Update time slot status to booked
     await DoctorTimeSlot.findByIdAndUpdate(slotId, { status: "booked" });
+
+    // Create notification for doctor about new appointment
+    try {
+      await createBookingNotification(appointment._id);
+      console.log(
+        `✅ Booking notification created for appointment ${appointment._id}`
+      );
+    } catch (notificationError) {
+      console.error(
+        "❌ Error creating booking notification:",
+        notificationError
+      );
+      // Don't fail the main request if notification fails
+    }
 
     // Populate appointment data for response
     const populatedAppointment = await Appointment.findById(appointment._id)

@@ -10,6 +10,7 @@ import Prescription from "../models/prescription.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Review from "../models/review.model.js";
 import AuthProvider from "../models/auth_providers.model.js";
+import { createAppointmentNotification } from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
@@ -414,6 +415,28 @@ export async function updateAppointmentStatus(req, res) {
     )
       .populate("patientId", "fullName dob gender phone")
       .populate("slotId");
+
+    // Create notification for status change
+    try {
+      const additionalData = {};
+      if (status === "rejected" && cancelReason) {
+        additionalData.rejectReason = cancelReason;
+      } else if (status === "cancelled" && cancelReason) {
+        additionalData.cancelReason = cancelReason;
+      }
+
+      await createAppointmentNotification(
+        appointmentId,
+        status,
+        additionalData
+      );
+      console.log(
+        `✅ Notification created for appointment ${appointmentId} status: ${status}`
+      );
+    } catch (notificationError) {
+      console.error("❌ Error creating notification:", notificationError);
+      // Don't fail the main request if notification fails
+    }
 
     return ok(res, {
       message: "Appointment status updated successfully",
