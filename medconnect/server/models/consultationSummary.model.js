@@ -21,13 +21,7 @@ const ConsultationSummarySchema = new Schema(
     // 🩺 Hình thức khám luôn là "offline"
     visitType: { type: String, enum: ["offline"], default: "offline" },
 
-    // 🧭 Phân loại buổi khám
-    consultationCategory: {
-      type: String,
-      enum: ["examination", "follow_up"],
-      default: "examination",
-    },
-
+   
     reasonForVisit: String, // Lý do khám
     visitDate: { type: Date, default: Date.now },
     treatmentResult: {
@@ -57,7 +51,6 @@ const ConsultationSummarySchema = new Schema(
       {
         testName: String,
         result: String,
-        referenceRange: String,
         performedAt: Date,
       },
     ],
@@ -77,23 +70,15 @@ const ConsultationSummarySchema = new Schema(
       {
         name: String,
         instruction: String,
-        quantity: Number,
+        quantity: String,
       },
     ],
 
-    // 🧰 Thủ thuật
-    procedures: [
-      {
-        name: String,
-        description: String,
-        performedAt: Date,
-      },
-    ],
+   
 
     // 📋 Tóm tắt và hướng dẫn
     summaryText: String,
     treatmentMethod: String,
-    followUpInstruction: String,
     nextAppointmentDate: Date,
 
     // 👨‍⚕️ Thông tin bác sĩ

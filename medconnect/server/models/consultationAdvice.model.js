@@ -31,7 +31,7 @@ const ConsultationAdviceSchema = new Schema(
       {
         name: String,
         instruction: String,
-        quantity: Number,
+        quantity: String,
       },
     ],
 

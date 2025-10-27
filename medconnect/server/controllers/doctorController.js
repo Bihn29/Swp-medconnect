@@ -630,14 +630,16 @@ export async function createConsultationSummary(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const { appointmentId, summaryText } = req.body;
+    const { appointmentId, summaryText, reasonForVisit, visitDate, treatmentResult, 
+      consultationCategory, diagnoses, vitals, labResults, imagingResults, medications, 
+      procedures, treatmentMethod, nextAppointmentDate } = req.body;
 
-    if (!appointmentId || !summaryText) {
+    if (!appointmentId) {
       return fail(
         res,
         400,
         ERROR_CODES.BAD_REQUEST,
-        "Missing appointmentId or summaryText"
+        "Missing appointmentId"
       );
     }
 
@@ -645,17 +647,37 @@ export async function createConsultationSummary(req, res) {
     const appointment = await Appointment.findOne({
       _id: appointmentId,
       doctorId: doctor._id,
-    });
+    }).populate('patientId clinicId');
 
     if (!appointment) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
     }
 
-    const summary = await ConsultationSummary.create({
+    const summaryData = {
       appointmentId,
-      summaryText,
+      patientId: appointment.patientId._id,
+      doctorId: doctor._id,
+      clinicId: appointment.clinicId?._id,
+      appointmentDate: appointment.scheduledStart,
       createdBy: doctor._id,
-    });
+    }
+
+    // Add optional fields if provided
+    if (summaryText) summaryData.summaryText = summaryText
+    if (reasonForVisit) summaryData.reasonForVisit = reasonForVisit
+    if (visitDate) summaryData.visitDate = new Date(visitDate)
+    if (treatmentResult) summaryData.treatmentResult = treatmentResult
+    if (consultationCategory) summaryData.consultationCategory = consultationCategory
+    if (diagnoses && Array.isArray(diagnoses)) summaryData.diagnoses = diagnoses
+    if (vitals && typeof vitals === 'object') summaryData.vitals = vitals
+    if (labResults && Array.isArray(labResults)) summaryData.labResults = labResults
+    if (imagingResults && Array.isArray(imagingResults)) summaryData.imagingResults = imagingResults
+    if (medications && Array.isArray(medications)) summaryData.medications = medications
+    if (procedures && Array.isArray(procedures)) summaryData.procedures = procedures
+    if (treatmentMethod) summaryData.treatmentMethod = treatmentMethod
+    if (nextAppointmentDate) summaryData.nextAppointmentDate = new Date(nextAppointmentDate)
+
+    const summary = await ConsultationSummary.create(summaryData);
 
     return ok(res, { summary });
   } catch (e) {

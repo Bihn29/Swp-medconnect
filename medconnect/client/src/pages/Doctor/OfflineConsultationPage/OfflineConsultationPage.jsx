@@ -11,12 +11,13 @@ export default function OfflineConsultationPage() {
   const [appointment, setAppointment] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("vitals")
+  const [uploadingFile, setUploadingFile] = useState(false)
   const [formData, setFormData] = useState({
     reasonForVisit: "",
     visitDate: new Date().toISOString().split("T")[0],
     treatmentResult: "improved",
     consultationCategory: "examination",
-    diagnoses: [],
+    diagnoses: [{ name: "" }],
     vitals: {
       height: "",
       weight: "",
@@ -24,13 +25,12 @@ export default function OfflineConsultationPage() {
       heartRate: "",
       temperature: "",
     },
-    labResults: [],
+    labResults: [{ testName: "", result: "" }],
     imagingResults: [],
-    medications: [],
+    medications: [{ name: "", instruction: "", quantity: "" }],
     procedures: [],
     summaryText: "",
     treatmentMethod: "",
-    followUpInstruction: "",
     nextAppointmentDate: "",
   })
 
@@ -95,10 +95,46 @@ export default function OfflineConsultationPage() {
   }
 
   const removeArrayItem = (arrayName, index) => {
+    if (arrayName === "diagnoses" && formData[arrayName].length === 1) {
+      return // Không cho phép xóa chẩn đoán cuối cùng
+    }
     setFormData({
       ...formData,
       [arrayName]: formData[arrayName].filter((_, i) => i !== index),
     })
+  }
+
+  const handleFileUpload = async (e, index) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    setUploadingFile(true)
+    try {
+      const formDataObj = new FormData()
+      formDataObj.append('file', file)
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/doctors/me/upload-consultation-file`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formDataObj
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.data?.url) {
+          const newImagingResults = [...formData.imagingResults]
+          newImagingResults[index].imageUrl = data.data.url
+          setFormData({ ...formData, imagingResults: newImagingResults })
+          alert('Tải file lên thành công!')
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error)
+      alert('Có lỗi xảy ra khi upload file')
+    } finally {
+      setUploadingFile(false)
+      e.target.value = ''
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -106,24 +142,23 @@ export default function OfflineConsultationPage() {
 
     const submitData = {
       appointmentId: appointment._id,
-      summaryText: formData.summaryText || undefined,
-      reasonForVisit: formData.reasonForVisit || undefined,
+      summaryText: formData.summaryText,
+      reasonForVisit: formData.reasonForVisit,
       visitDate: formData.visitDate ? new Date(formData.visitDate) : undefined,
-      treatmentResult: formData.treatmentResult || undefined,
-      consultationCategory: formData.consultationCategory || undefined,
-      diagnoses: formData.diagnoses.length > 0 ? formData.diagnoses : undefined,
-      vitals: Object.keys(formData.vitals).length > 0 ? formData.vitals : undefined,
-      labResults: formData.labResults.length > 0 ? formData.labResults : undefined,
-      imagingResults: formData.imagingResults.length > 0 ? formData.imagingResults : undefined,
-      medications: formData.medications.length > 0 ? formData.medications : undefined,
-      procedures: formData.procedures.length > 0 ? formData.procedures : undefined,
-      treatmentMethod: formData.treatmentMethod || undefined,
-      followUpInstruction: formData.followUpInstruction || undefined,
+      treatmentResult: formData.treatmentResult,
+      consultationCategory: formData.consultationCategory,
+      diagnoses: formData.diagnoses.filter(d => d.name && d.name.trim()),
+      vitals: formData.vitals,
+      labResults: formData.labResults.filter(l => l.testName || l.result),
+      imagingResults: formData.imagingResults,
+      medications: formData.medications.filter(m => m.name),
+      procedures: formData.procedures,
+      treatmentMethod: formData.treatmentMethod,
       nextAppointmentDate: formData.nextAppointmentDate ? new Date(formData.nextAppointmentDate) : undefined,
     }
 
     try {
-      const response = await fetch('/api/doctors/me/consultation-summaries', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/doctors/me/consultation-summaries`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -133,11 +168,17 @@ export default function OfflineConsultationPage() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Failed to submit consultation')
+        let errorMessage = 'Failed to submit consultation'
+        try {
+          const error = await response.json()
+          errorMessage = error.message || errorMessage
+        } catch (e) {
+          errorMessage = `Server error: ${response.status}`
+        }
+        throw new Error(errorMessage)
       }
 
-      await fetch(`/api/doctors/me/appointments/${appointmentId}/status`, {
+      await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/doctors/me/appointments/${appointmentId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -190,7 +231,7 @@ export default function OfflineConsultationPage() {
             <button type="button" className={`tab-btn ${activeTab === "vitals" ? "active" : ""}`} onClick={() => setActiveTab("vitals")}>📊 Chỉ số</button>
             <button type="button" className={`tab-btn ${activeTab === "diagnosis" ? "active" : ""}`} onClick={() => setActiveTab("diagnosis")}>🔍 Chẩn đoán</button>
             <button type="button" className={`tab-btn ${activeTab === "tests" ? "active" : ""}`} onClick={() => setActiveTab("tests")}>🧪 Xét nghiệm</button>
-            <button type="button" className={`tab-btn ${activeTab === "treatment" ? "active" : ""}`} onClick={() => setActiveTab("treatment")}>💊 Điều trị</button>
+            <button type="button" className={`tab-btn ${activeTab === "treatment" ? "active" : ""}`} onClick={() => setActiveTab("treatment")}>💊 Đơn Thuốc</button>
             <button type="button" className={`tab-btn ${activeTab === "summary" ? "active" : ""}`} onClick={() => setActiveTab("summary")}>📝 Tóm tắt</button>
           </div>
 
@@ -226,23 +267,23 @@ export default function OfflineConsultationPage() {
                 <div className="vitals-grid">
                   <div className="form-group">
                     <label>Chiều cao (cm)</label>
-                    <Input type="number" value={formData.vitals.height} onChange={(e) => handleVitalChange("height", e.target.value)} />
+                    <Input type="number" placeholder="VD: 170" value={formData.vitals.height} onChange={(e) => handleVitalChange("height", e.target.value)} />
                   </div>
                   <div className="form-group">
                     <label>Cân nặng (kg)</label>
-                    <Input type="number" value={formData.vitals.weight} onChange={(e) => handleVitalChange("weight", e.target.value)} />
+                    <Input type="number" placeholder="VD: 70" value={formData.vitals.weight} onChange={(e) => handleVitalChange("weight", e.target.value)} />
                   </div>
                   <div className="form-group">
                     <label>Huyết áp (mmHg)</label>
-                    <Input type="text" value={formData.vitals.bloodPressure} onChange={(e) => handleVitalChange("bloodPressure", e.target.value)} />
+                    <Input type="text" placeholder="VD: 120/80" value={formData.vitals.bloodPressure} onChange={(e) => handleVitalChange("bloodPressure", e.target.value)} />
                   </div>
                   <div className="form-group">
                     <label>Nhịp tim (bpm)</label>
-                    <Input type="number" value={formData.vitals.heartRate} onChange={(e) => handleVitalChange("heartRate", e.target.value)} />
+                    <Input type="number" placeholder="VD: 72" value={formData.vitals.heartRate} onChange={(e) => handleVitalChange("heartRate", e.target.value)} />
                   </div>
                   <div className="form-group">
                     <label>Nhiệt độ (°C)</label>
-                    <Input type="number" step="0.1" value={formData.vitals.temperature} onChange={(e) => handleVitalChange("temperature", e.target.value)} />
+                    <Input type="number" step="0.1" placeholder="VD: 36.5" value={formData.vitals.temperature} onChange={(e) => handleVitalChange("temperature", e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -251,24 +292,68 @@ export default function OfflineConsultationPage() {
             {/* Diagnosis Tab */}
             {activeTab === "diagnosis" && (
               <div className="form-section">
-                <h3 className="section-title">🔍 Chẩn Đoán Lâm Sàng</h3>
-                {formData.diagnoses.length === 0 && <p className="no-data">Chưa có chẩn đoán nào</p>}
+                <h3 className="section-title">🔍 Chẩn Đoán Sơ Bộ</h3>
                 {formData.diagnoses.map((diagnosis, index) => (
                   <div key={index} className="array-item">
                     <div className="item-header">
-                      <span className="item-number">#{index + 1}</span>
-                      {formData.diagnoses.length >= 1 && (
+                      <span className="item-number">Chẩn đoán</span>
+                      {formData.diagnoses.length > 1 && (
                         <button type="button" className="btn-remove" onClick={() => removeArrayItem("diagnoses", index)}>✕</button>
                       )}
                     </div>
                     <div className="item-content">
                       <div className="form-group">
-                        <label>Tên chẩn đoán *</label>
-                        <Input type="text" value={diagnosis.name} onChange={(e) => handleArrayChange("diagnoses", index, "name", e.target.value)} />
+                        <Input type="text" placeholder="Chuẩn đoán...." value={diagnosis.name} onChange={(e) => handleArrayChange("diagnoses", index, "name", e.target.value)} />
                       </div>
                     </div>
                   </div>
                 ))}
+
+                <h3 className="section-title" style={{ marginTop: "2rem" }}>Hình ảnh chẩn đoán (nếu có)</h3>
+                {formData.imagingResults.map((imaging, index) => (
+                  <div key={index} className="array-item">
+                    <div className="item-header">
+                      <span className="item-number">Hình ảnh #{index + 1}</span>
+                      {formData.imagingResults.length > 1 && (
+                        <button type="button" className="btn-remove" onClick={() => removeArrayItem("imagingResults", index)}>✕</button>
+                      )}
+                    </div>
+                    <div className="item-content">
+                      <div className="form-group">
+                        <label>Loại hình ảnh</label>
+                        <Input type="text" placeholder="VD: X-ray, CT, MRI..." value={imaging.type} onChange={(e) => handleArrayChange("imagingResults", index, "type", e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label>Kết luận</label>
+                        <Input type="text" placeholder="VD: Không thấy tổn thương..." value={imaging.conclusion} onChange={(e) => handleArrayChange("imagingResults", index, "conclusion", e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label>File ảnh</label>
+                        <div className="file-upload-group">
+                          <input
+                            type="file"
+                            id={`imaging-file-${index}`}
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            onChange={(e) => handleFileUpload(e, index)}
+                            disabled={uploadingFile}
+                            className="file-input"
+                          />
+                          <label htmlFor={`imaging-file-${index}`} className="file-upload-label">
+                            <i className="bi bi-cloud-upload"></i>
+                            <span>
+                              {imaging.imageUrl
+                                ? "✓ File đã được chọn"
+                                : uploadingFile
+                                ? "Đang tải lên..."
+                                : "Chọn file hình ảnh (JPG, PNG, PDF - Tối đa 10MB)"}
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" onClick={() => addArrayItem("imagingResults", { type: "", conclusion: "", imageUrl: "" })} className="btn-add">+ Thêm hình ảnh</Button>
               </div>
             )}
 
@@ -276,32 +361,60 @@ export default function OfflineConsultationPage() {
             {activeTab === "treatment" && (
               <div className="form-section">
                 <h3 className="section-title">💊 Đơn Thuốc</h3>
-                {formData.medications.length === 0 && <p className="no-data">Chưa có thuốc nào</p>}
                 {formData.medications.map((medication, index) => (
                   <div key={index} className="array-item">
                     <div className="item-header">
                       <span className="item-number">Thuốc #{index + 1}</span>
-                      {formData.medications.length >= 1 && (
+                      {formData.medications.length > 1 && (
                         <button type="button" className="btn-remove" onClick={() => removeArrayItem("medications", index)}>✕</button>
                       )}
                     </div>
                     <div className="item-content">
                       <div className="form-group">
                         <label>Tên thuốc *</label>
-                        <Input type="text" value={medication.name} onChange={(e) => handleArrayChange("medications", index, "name", e.target.value)} />
+                        <Input type="text" placeholder="VD: Paracetamol" value={medication.name} onChange={(e) => handleArrayChange("medications", index, "name", e.target.value)} />
                       </div>
                       <div className="form-group">
                         <label>Số lượng</label>
-                        <Input type="text" value={medication.quantity} onChange={(e) => handleArrayChange("medications", index, "quantity", e.target.value)} />
+                        <Input type="text" placeholder="VD: 30 viên" value={medication.quantity} onChange={(e) => handleArrayChange("medications", index, "quantity", e.target.value)} />
                       </div>
                       <div className="form-group">
-                        <label>Cách dùng</label>
+                        <label>Liều dùng</label>
                         <Input type="text" placeholder="VD: Uống 2 viên/lần, 2 lần/ngày..." value={medication.instruction} onChange={(e) => handleArrayChange("medications", index, "instruction", e.target.value)} />
                       </div>
                     </div>
                   </div>
                 ))}
                 <Button type="button" onClick={() => addArrayItem("medications", { name: "", instruction: "", quantity: "" })} className="btn-add">+ Thêm thuốc</Button>
+              </div>
+            )}
+
+            {/* Tests Tab */}
+            {activeTab === "tests" && (
+              <div className="form-section">
+                <h3 className="section-title">🧪 Xét Nghiệm</h3>
+                {formData.labResults.length === 0 && <p className="no-data">Chưa có xét nghiệm nào</p>}
+                {formData.labResults.map((lab, index) => (
+                  <div key={index} className="array-item">
+                    <div className="item-header">
+                      <span className="item-number">Xét nghiệm #{index + 1}</span>
+                      {formData.labResults.length > 1 && (
+                        <button type="button" className="btn-remove" onClick={() => removeArrayItem("labResults", index)}>✕</button>
+                      )}
+                    </div>
+                    <div className="item-content">
+                      <div className="form-group">
+                        <label>Tên xét nghiệm</label>
+                        <Input type="text" placeholder="VD: Tổng phân tích tế bào máu" value={lab.testName} onChange={(e) => handleArrayChange("labResults", index, "testName", e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label>Kết quả</label>
+                        <Input type="text"  value={lab.result} onChange={(e) => handleArrayChange("labResults", index, "result", e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" onClick={() => addArrayItem("labResults", { testName: "", result: "" })} className="btn-add">+ Thêm xét nghiệm</Button>
               </div>
             )}
 
@@ -317,10 +430,7 @@ export default function OfflineConsultationPage() {
                   <label>Phương pháp điều trị</label>
                   <textarea className="form-textarea" rows="4" value={formData.treatmentMethod} onChange={(e) => handleFieldChange("treatmentMethod", e.target.value)} />
                 </div>
-                <div className="form-group">
-                  <label>Hướng dẫn tái khám</label>
-                  <textarea className="form-textarea" rows="4" value={formData.followUpInstruction} onChange={(e) => handleFieldChange("followUpInstruction", e.target.value)} />
-                </div>
+               
                 <div className="form-group">
                   <label>Ngày tái khám</label>
                   <Input type="date" value={formData.nextAppointmentDate} onChange={(e) => handleFieldChange("nextAppointmentDate", e.target.value)} />

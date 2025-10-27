@@ -81,7 +81,7 @@ export default function OnlineConsultationPage() {
       const formDataObj = new FormData()
       formDataObj.append('file', file)
 
-      const response = await fetch('/api/doctors/me/upload-consultation-file', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/doctors/me/upload-consultation-file`, {
         method: 'POST',
         credentials: 'include',
         body: formDataObj
@@ -119,7 +119,7 @@ export default function OnlineConsultationPage() {
     }
 
     try {
-      const response = await fetch('/api/doctors/me/consultation-advice', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/doctors/me/consultation-advice`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -133,7 +133,7 @@ export default function OnlineConsultationPage() {
         throw new Error(error.message || 'Failed to submit consultation')
       }
 
-      await fetch(`/api/doctors/me/appointments/${appointmentId}/status`, {
+      await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/doctors/me/appointments/${appointmentId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
