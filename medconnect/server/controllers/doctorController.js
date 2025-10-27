@@ -647,6 +647,11 @@ export async function createConsultationSummary(req, res) {
       consultationCategory, diagnoses, vitals, labResults, imagingResults, medications, 
       procedures, treatmentMethod, nextAppointmentDate } = req.body;
 
+    // Debug logging
+    console.log("🔍 Received imagingResults:", JSON.stringify(imagingResults, null, 2));
+    console.log("🔍 Type of imagingResults:", typeof imagingResults);
+    console.log("🔍 Is array:", Array.isArray(imagingResults));
+
     if (!appointmentId) {
       return fail(
         res,
@@ -684,17 +689,58 @@ export async function createConsultationSummary(req, res) {
     if (diagnoses && Array.isArray(diagnoses)) summaryData.diagnoses = diagnoses
     if (vitals && typeof vitals === 'object') summaryData.vitals = vitals
     if (labResults && Array.isArray(labResults)) summaryData.labResults = labResults
-    if (imagingResults && Array.isArray(imagingResults)) summaryData.imagingResults = imagingResults
+    if (imagingResults && Array.isArray(imagingResults)) {
+      // Filter out empty imaging results and ensure proper structure
+      summaryData.imagingResults = imagingResults.filter(img => 
+        img && img.imageUrl
+      ).map(img => {
+        // Ensure all fields are properly formatted
+        const processedImg = {
+          type: String(img.type || ''),
+          conclusion: String(img.conclusion || ''),
+          imageUrl: String(img.imageUrl || ''),
+          performedAt: img.performedAt ? new Date(img.performedAt) : new Date()
+        };
+        
+        console.log("🔍 Processing individual imaging result:", processedImg);
+        return processedImg;
+      });
+      console.log("🔍 Processed imagingResults:", JSON.stringify(summaryData.imagingResults, null, 2));
+    } else if (imagingResults) {
+      console.log("⚠️ imagingResults is not an array:", typeof imagingResults, imagingResults);
+    }
     if (medications && Array.isArray(medications)) summaryData.medications = medications
     if (procedures && Array.isArray(procedures)) summaryData.procedures = procedures
     if (treatmentMethod !== undefined) summaryData.treatmentMethod = treatmentMethod
     if (nextAppointmentDate) summaryData.nextAppointmentDate = new Date(nextAppointmentDate)
 
+    console.log("🔍 Final summaryData before save:", JSON.stringify(summaryData, null, 2));
+
+    // Validate the data before saving
+    if (summaryData.imagingResults && summaryData.imagingResults.length > 0) {
+      console.log("🔍 Validating imagingResults before save...");
+      summaryData.imagingResults.forEach((img, index) => {
+        console.log(`🔍 Imaging result ${index}:`, {
+          type: typeof img.type,
+          conclusion: typeof img.conclusion,
+          imageUrl: typeof img.imageUrl,
+          performedAt: typeof img.performedAt,
+          isDate: img.performedAt instanceof Date
+        });
+      });
+    }
+
     const summary = await ConsultationSummary.create(summaryData);
 
+    console.log("✅ Successfully created consultation summary:", summary._id);
     return ok(res, { summary });
   } catch (e) {
     console.error("❌ createConsultationSummary error:", e);
+    console.error("❌ Error details:", {
+      message: e.message,
+      name: e.name,
+      stack: e.stack
+    });
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }

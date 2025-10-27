@@ -14,6 +14,9 @@ export default function OnlineConsultationPage() {
   const [formData, setFormData] = useState({
     notes: "",
     attachmentUrl: "",
+    attachmentFileName: "",
+    attachmentFileSize: "",
+    attachmentFileType: "",
     diagnoses: [{ name: "" }],
     medications: [{ name: "", instruction: "", quantity: "" }]
   })
@@ -76,6 +79,21 @@ export default function OnlineConsultationPage() {
     const file = e.target.files[0]
     if (!file) return
 
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    if (!allowedTypes.includes(file.type)) {
+      alert('Chỉ được upload file ảnh (JPG, PNG, WebP), PDF hoặc DOC!')
+      e.target.value = ''
+      return
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Kích thước file không được vượt quá 10MB!')
+      e.target.value = ''
+      return
+    }
+
     setUploadingFile(true)
     try {
       const formDataObj = new FormData()
@@ -90,21 +108,38 @@ export default function OnlineConsultationPage() {
       if (response.ok) {
         const data = await response.json()
         if (data.success && data.data?.url) {
-          setFormData({ ...formData, attachmentUrl: data.data.url })
+          setFormData({ 
+            ...formData, 
+            attachmentUrl: data.data.url,
+            attachmentFileName: file.name,
+            attachmentFileSize: file.size,
+            attachmentFileType: file.type
+          })
           alert('Tải file lên thành công!')
         } else {
-          alert('Upload file thất bại: ' + (data.message || 'Unknown error'))
+          alert('Có lỗi xảy ra khi lưu file')
         }
       } else {
         const errorData = await response.json()
-        alert('Upload file thất bại: ' + (errorData.message || 'Unknown error'))
+        alert(`Lỗi upload: ${errorData.message || 'Không thể upload file'}`)
       }
     } catch (error) {
       console.error('Error uploading file:', error)
-      alert('Có lỗi xảy ra khi upload file: ' + error.message)
+      alert('Có lỗi xảy ra khi upload file')
     } finally {
       setUploadingFile(false)
+      e.target.value = ''
     }
+  }
+
+  const handleRemoveFile = () => {
+    setFormData({ 
+      ...formData, 
+      attachmentUrl: '',
+      attachmentFileName: '',
+      attachmentFileSize: '',
+      attachmentFileType: ''
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -278,7 +313,7 @@ export default function OnlineConsultationPage() {
                     name="file-attachment"
                     onChange={handleFileUpload}
                     disabled={uploadingFile}
-                    accept=".pdf,.doc,.jpg,.png"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
                     className="file-input"
                   />
                   <label htmlFor="file-attachment" className="file-upload-label">
@@ -288,10 +323,65 @@ export default function OnlineConsultationPage() {
                         ? "✓ File đã được chọn"
                         : uploadingFile
                         ? "Đang tải lên..."
-                        : "Chọn file để đính kèm (PDF, DOC, DOCX, JPG, PNG - Tối đa 10MB)"}
+                        : "Chọn file để đính kèm (PDF, DOC, DOCX, JPG, PNG, WebP - Tối đa 10MB)"}
                     </span>
                   </label>
                 </div>
+                
+                {/* Hiển thị file đã upload */}
+                {formData.attachmentUrl && (
+                  <div className="uploaded-file-preview">
+                    <div className="file-info">
+                      <div className="file-details">
+                        <i className="bi bi-file-earmark-image"></i>
+                        <div className="file-text">
+                          <div className="file-name">{formData.attachmentFileName || 'File đã upload'}</div>
+                          <div className="file-size">
+                            {formData.attachmentFileSize ? `${(formData.attachmentFileSize / 1024 / 1024).toFixed(2)} MB` : ''}
+                          </div>
+                        </div>
+                      </div>
+                      <button 
+                        type="button" 
+                        className="btn-remove-file"
+                        onClick={handleRemoveFile}
+                        title="Xóa file"
+                      >
+                        <i className="bi bi-x-circle"></i>
+                      </button>
+                    </div>
+                    
+                    {/* Hiển thị preview hình ảnh */}
+                    {formData.attachmentFileType && formData.attachmentFileType.startsWith('image/') && (
+                      <div className="image-preview">
+                        <img 
+                          src={`${import.meta.env.VITE_API_URL || "http://localhost:3000"}${formData.attachmentUrl}`}
+                          alt="Preview"
+                          onError={(e) => {
+                            e.target.style.display = 'none'
+                            e.target.nextSibling.style.display = 'block'
+                          }}
+                        />
+                        <div className="image-error" style={{display: 'none'}}>
+                          <i className="bi bi-image"></i>
+                          <span>Không thể hiển thị hình ảnh</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Hiển thị PDF/DOC icon */}
+                    {(formData.attachmentFileType === 'application/pdf' || 
+                      formData.attachmentFileType === 'application/msword' || 
+                      formData.attachmentFileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') && (
+                      <div className="document-preview">
+                        <i className="bi bi-file-earmark-pdf"></i>
+                        <span>
+                          {formData.attachmentFileType === 'application/pdf' ? 'File PDF' : 'File DOC'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
