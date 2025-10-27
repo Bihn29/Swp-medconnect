@@ -8,6 +8,7 @@ import { PatientHeader } from "./components/PatientHeader/PatientHeader";
 import { WelcomeSection } from "./components/WelcomeSection/WelcomeSection";
 import { StatsCards } from "./components/StatsCards/StatsCards";
 import { UpcomingAppointments } from "./components/UpcomingAppointments/UpcomingAppointments";
+import { CurrentConsultation } from "./components/CurrentConsultation/CurrentConsultation";
 import { AppointmentCalendar } from "./components/AppointmentCalendar/AppointmentCalendar";
 import { QuickActions } from "./components/QuickActions/QuickActions";
 import { Settings } from "./components/Settings/Settings";
@@ -100,6 +101,9 @@ export default function PatientDashboard() {
               
               {/* Video Call Notification */}
               <VideoCallNotification />
+              
+              {/* Current Consultation */}
+              <CurrentConsultation />
               
               <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2 space-y-6">

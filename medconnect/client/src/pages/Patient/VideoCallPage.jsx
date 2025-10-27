@@ -21,8 +21,13 @@ const VideoCallPage = () => {
   const fetchAppointment = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/appointments/${appointmentId}`);
-      setAppointment(response.data);
+      const response = await api.get(`/api/patients/me/appointments/${appointmentId}`);
+      
+      if (response.success) {
+        setAppointment(response.data);
+      } else {
+        throw new Error(response.message || 'Failed to fetch appointment');
+      }
     } catch (error) {
       console.error('Error fetching appointment:', error);
       message.error('Không thể tải thông tin lịch hẹn');

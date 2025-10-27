@@ -44,6 +44,7 @@ export function UpcomingAppointments() {
 
       if (response.success) {
         // Filter only upcoming appointments with accepted and pending status
+        // Exclude in_progress as they are shown in CurrentConsultation component
         const upcomingAppointments = response.data.appointments.filter(
           (appointment) =>
             ["pending_doctor", "accepted"].includes(appointment.status)

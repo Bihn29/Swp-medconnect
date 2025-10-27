@@ -25,6 +25,7 @@ const VideoCall = ({
   const containerId = 'jitsi-container';
 
   useEffect(() => {
+    console.log('🎥 VideoCall useEffect triggered with roomId:', roomId);
     initializeCall();
     
     return () => {
@@ -38,6 +39,7 @@ const VideoCall = ({
 
   const initializeCall = async () => {
     try {
+      console.log('🎥 initializeCall started with roomId:', roomId);
       setIsLoading(true);
       setCallStatus('connecting');
 

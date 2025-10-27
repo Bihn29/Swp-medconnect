@@ -12,11 +12,9 @@ const DoctorVideoCallPage = () => {
   const hasJoinedConference = useRef(false);
 
   useEffect(() => {
-    // Tạo room ID ngẫu nhiên để tránh membersOnly mode
-    // Sử dụng appointmentId + random string để tạo room mới mỗi lần
-    const randomString = Math.random().toString(36).substring(7);
-    const roomId = `medconnect-${appointmentId}-${randomString}`;
-    console.log('Initializing Jitsi Meet with room:', roomId);
+    // Use FIXED roomId to ensure doctor and patient join the SAME room
+    const roomId = `room_medconnect_${appointmentId}`;
+    console.log('🎥 Doctor Initializing Jitsi Meet with FIXED room:', roomId);
     
     initializeJitsiCall(roomId);
 

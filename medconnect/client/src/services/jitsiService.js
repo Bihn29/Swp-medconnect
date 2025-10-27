@@ -29,11 +29,18 @@ class JitsiService {
 
   // Initialize Jitsi Meet
   initialize(containerId, roomName, userInfo = {}) {
+    console.log('🎥 JitsiService.initialize called with:', {
+      containerId,
+      roomName,
+      userInfo
+    });
+    
     return new Promise((resolve, reject) => {
       try {
         // Wait for container to be available
         const checkContainer = () => {
           const container = document.getElementById(containerId);
+          console.log('🎥 Container found:', containerId, container);
           if (!container) {
             console.warn(`Container ${containerId} not found, retrying...`);
             setTimeout(checkContainer, 100);
@@ -46,6 +53,7 @@ class JitsiService {
             script.src = `https://${this.domain}/external_api.js`;
             script.async = true;
             script.onload = () => {
+              console.log('🎥 Creating Jitsi API for room:', roomName);
               this.api = new window.JitsiMeetExternalAPI(this.domain, {
                 ...this.options,
                 roomName: roomName,
@@ -57,6 +65,7 @@ class JitsiService {
                   email: userInfo.email || ''
                 }
               });
+              console.log('✅ Jitsi API created, room:', roomName);
               this.setupEventListeners();
               resolve(this.api);
             };
@@ -65,6 +74,7 @@ class JitsiService {
             };
             document.body.appendChild(script);
           } else {
+            console.log('🎥 Creating Jitsi API (external API already loaded) for room:', roomName);
             this.api = new window.JitsiMeetExternalAPI(this.domain, {
               ...this.options,
               roomName: roomName,
@@ -76,6 +86,7 @@ class JitsiService {
                 email: userInfo.email || ''
               }
             });
+            console.log('✅ Jitsi API created, room:', roomName);
             this.setupEventListeners();
             resolve(this.api);
           }

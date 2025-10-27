@@ -5,6 +5,7 @@ import {
   getCurrentDoctorProfile,
   updateDoctorProfile,
   getDoctorAppointments,
+  getDoctorAppointmentDetail,
   getDoctorDashboardStats,
   updateAppointmentStatus,
   getAllDoctors,
@@ -38,6 +39,7 @@ router.get("/me", getCurrentDoctorProfile); // Get basic doctor info
 router.get("/me/profile", getCurrentDoctorProfile);
 router.put("/me/profile", updateDoctorProfile);
 router.get("/me/appointments", getDoctorAppointments);
+router.get("/me/appointments/:appointmentId", getDoctorAppointmentDetail);
 router.get("/me/dashboard/stats", getDoctorDashboardStats);
 router.put("/me/appointments/:appointmentId/status", updateAppointmentStatus);
 router.get("/me/consultation-records", getConsultationRecords);

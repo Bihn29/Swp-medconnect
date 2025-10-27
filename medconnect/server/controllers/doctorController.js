@@ -281,6 +281,68 @@ export async function getDoctorDashboardStats(req, res) {
 }
 
 /**
+ * Get appointment detail by ID
+ */
+export async function getDoctorAppointmentDetail(req, res) {
+  try {
+    console.log("🔍 getDoctorAppointmentDetail - req.user:", req.user);
+    
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+    
+    const { appointmentId } = req.params;
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      doctorId: doctor._id,
+    })
+      .populate({
+        path: "patientId",
+        select: "fullName dob gender phone"
+      })
+      .populate({
+        path: "doctorId",
+        select: "fullName specializationIds phone avatarUrl",
+        populate: {
+          path: "specializationIds",
+          select: "name",
+        },
+      })
+      .populate("clinicId", "name address")
+      .populate("slotId", "startAt endAt")
+      .lean();
+
+    if (!appointment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found or does not belong to this doctor");
+    }
+
+    console.log("✅ Doctor appointment detail fetched:", {
+      appointmentId: appointment._id,
+      status: appointment.status,
+      hasPatient: !!appointment.patientId,
+      patientName: appointment.patientId?.fullName
+    });
+
+    return ok(res, appointment);
+  } catch (e) {
+    console.error("❌ getDoctorAppointmentDetail error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
  * Update appointment status
  */
 export async function updateAppointmentStatus(req, res) {
@@ -304,14 +366,29 @@ export async function updateAppointmentStatus(req, res) {
     const { appointmentId } = req.params;
     const { status, cancelReason } = req.body;
 
+    console.log("🔍 updateAppointmentStatus - Request params:", {
+      appointmentId,
+      status,
+      cancelReason
+    });
+
     const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
+    console.log("✅ updateAppointmentStatus - Doctor found:", doctor._id);
+
     const appointment = await Appointment.findOne({
       _id: appointmentId,
       doctorId: doctor._id,
+    });
+    
+    console.log("🔍 updateAppointmentStatus - Appointment lookup result:", {
+      found: !!appointment,
+      currentStatus: appointment?.status,
+      appointmentId,
+      doctorId: doctor._id
     });
 
     if (!appointment) {
@@ -1105,6 +1182,7 @@ export async function getDoctorTimeSlots(req, res) {
         startAt: slot.startAt,
         endAt: slot.endAt,
         status: displayStatus, // Use mapped status instead of slot.status
+        displayStatus: displayStatus, // Keep displayStatus for reference
         patientName: appointment?.patientName || null,
         reason: appointment?.reason || null,
         mode: appointment?.mode || null,
