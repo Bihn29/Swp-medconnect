@@ -2,6 +2,7 @@ import { Route } from "react-router-dom";
 
 // Layouts
 import DefaultLayout from "../layouts/DefaultLayout/DefaultLayout";
+import DoctorLayout from "../layouts/DoctorLayout/DoctorLayout";
 
 // Middlewares
 import AuthMiddleware from "../middlewares/AuthMiddleware";
@@ -33,6 +34,8 @@ import ProfileSettings from "../pages/Doctor/ProfileSettings/ProfileSettings";
 import ScheduleManagement from "../pages/Doctor/ScheduleManagement/ScheduleManagement";
 import Notifications from "../pages/Doctor/Notifications/Notifications";
 import Feedback from "../pages/Doctor/Feedback/Feedback";
+import OfflineConsultationPage from "../pages/Doctor/OfflineConsultationPage/OfflineConsultationPage";
+import OnlineConsultationPage from "../pages/Doctor/OnlineConsultationPage/OnlineConsultationPage";
 
 // Admin Components
 import AdminDashboard from "../pages/Admin/AdminDashboard";
@@ -66,41 +69,45 @@ export const privateRoutes = (
       </Route>
     </Route>
 
-    {/* ==================== DOCTOR ROUTES (NO DEFAULT LAYOUT) ==================== */}
-    {/* Doctor routes with custom layout (no default header/footer) */}
+    {/* ==================== DOCTOR ROUTES (WITH DOCTOR LAYOUT) ==================== */}
+    {/* Doctor routes with DoctorLayout (includes Sidebar) */}
     <Route element={<AuthMiddleware />}>
       <Route element={<DoctorMiddleware />}>
-        {/* Main doctor dashboard */}
-        <Route path="/bac-si" element={<DoctorDashboard />} />
+        <Route element={<DoctorLayout />}>
+          {/* Main doctor dashboard */}
+          <Route path="/bac-si" element={<DoctorDashboard />} />
 
-        {/* Video Call Routes */}
-        <Route
-          path="/bac-si/video-call/:appointmentId"
-          element={<DoctorVideoCallPage />}
-        />
+          {/* Video Call Routes */}
+          <Route
+            path="/bac-si/video-call/:appointmentId"
+            element={<DoctorVideoCallPage />}
+          />
 
-        {/* ==================== APPOINTMENT MANAGEMENT ==================== */}
-        {/* Doctor appointment management routes */}
-        <Route path="/bac-si/lich-hen" element={<AppointmentList />} />
-        <Route path="/bac-si/lich-hen/:id" element={<AppointmentDetail />} />
+          {/* ==================== APPOINTMENT MANAGEMENT ==================== */}
+          {/* Doctor appointment management routes */}
+          <Route path="/bac-si/lich-hen" element={<AppointmentList />} />
+          <Route path="/bac-si/lich-hen/:id" element={<AppointmentDetail />} />
+          <Route path="/bac-si/kham-truc-tiep/:appointmentId" element={<OfflineConsultationPage />} />
+          <Route path="/bac-si/tu-van-truc-tuyen/:appointmentId" element={<OnlineConsultationPage />} />
 
-        {/* ==================== SCHEDULE MANAGEMENT ==================== */}
-        {/* Doctor schedule and calendar routes */}
-        <Route path="/bac-si/lich-lam-viec" element={<CalendarView />} />
-        <Route path="/bac-si/quan-ly-lich" element={<ScheduleManagement />} />
+          {/* ==================== SCHEDULE MANAGEMENT ==================== */}
+          {/* Doctor schedule and calendar routes */}
+          <Route path="/bac-si/lich-lam-viec" element={<CalendarView />} />
+          <Route path="/bac-si/quan-ly-lich" element={<ScheduleManagement />} />
 
-        {/* ==================== MEDICAL RECORDS ==================== */}
-        {/* Doctor medical records and consultation routes */}
-        <Route path="/bac-si/ho-so-kham" element={<ConsultationRecords />} />
+          {/* ==================== MEDICAL RECORDS ==================== */}
+          {/* Doctor medical records and consultation routes */}
+          <Route path="/bac-si/ho-so-kham" element={<ConsultationRecords />} />
 
-        {/* ==================== SETTINGS & PROFILE ==================== */}
-        {/* Doctor settings and profile management */}
-        <Route path="/bac-si/cai-dat" element={<ProfileSettings />} />
+          {/* ==================== SETTINGS & PROFILE ==================== */}
+          {/* Doctor settings and profile management */}
+          <Route path="/bac-si/cai-dat" element={<ProfileSettings />} />
 
-        {/* ==================== NOTIFICATIONS & FEEDBACK ==================== */}
-        {/* Doctor notifications and feedback routes */}
-        <Route path="/bac-si/thong-bao" element={<Notifications />} />
-        <Route path="/bac-si/danh-gia" element={<Feedback />} />
+          {/* ==================== NOTIFICATIONS & FEEDBACK ==================== */}
+          {/* Doctor notifications and feedback routes */}
+          <Route path="/bac-si/thong-bao" element={<Notifications />} />
+          <Route path="/bac-si/danh-gia" element={<Feedback />} />
+        </Route>
       </Route>
     </Route>
 

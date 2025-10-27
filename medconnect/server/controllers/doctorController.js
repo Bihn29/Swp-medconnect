@@ -630,14 +630,16 @@ export async function createConsultationSummary(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const { appointmentId, summaryText } = req.body;
+    const { appointmentId, summaryText, reasonForVisit, visitDate, treatmentResult, 
+      consultationCategory, diagnoses, vitals, labResults, imagingResults, medications, 
+      procedures, treatmentMethod, nextAppointmentDate } = req.body;
 
-    if (!appointmentId || !summaryText) {
+    if (!appointmentId) {
       return fail(
         res,
         400,
         ERROR_CODES.BAD_REQUEST,
-        "Missing appointmentId or summaryText"
+        "Missing appointmentId"
       );
     }
 
@@ -645,21 +647,105 @@ export async function createConsultationSummary(req, res) {
     const appointment = await Appointment.findOne({
       _id: appointmentId,
       doctorId: doctor._id,
-    });
+    }).populate('patientId clinicId');
 
     if (!appointment) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
     }
 
-    const summary = await ConsultationSummary.create({
+    const summaryData = {
       appointmentId,
-      summaryText,
+      patientId: appointment.patientId._id,
+      doctorId: doctor._id,
+      clinicId: appointment.clinicId?._id,
+      appointmentDate: appointment.scheduledStart,
       createdBy: doctor._id,
-    });
+    }
+
+    // Add optional fields if provided
+    if (summaryText) summaryData.summaryText = summaryText
+    if (reasonForVisit) summaryData.reasonForVisit = reasonForVisit
+    if (visitDate) summaryData.visitDate = new Date(visitDate)
+    if (treatmentResult) summaryData.treatmentResult = treatmentResult
+    if (consultationCategory) summaryData.consultationCategory = consultationCategory
+    if (diagnoses && Array.isArray(diagnoses)) summaryData.diagnoses = diagnoses
+    if (vitals && typeof vitals === 'object') summaryData.vitals = vitals
+    if (labResults && Array.isArray(labResults)) summaryData.labResults = labResults
+    if (imagingResults && Array.isArray(imagingResults)) summaryData.imagingResults = imagingResults
+    if (medications && Array.isArray(medications)) summaryData.medications = medications
+    if (procedures && Array.isArray(procedures)) summaryData.procedures = procedures
+    if (treatmentMethod) summaryData.treatmentMethod = treatmentMethod
+    if (nextAppointmentDate) summaryData.nextAppointmentDate = new Date(nextAppointmentDate)
+
+    const summary = await ConsultationSummary.create(summaryData);
 
     return ok(res, { summary });
   } catch (e) {
     console.error("❌ createConsultationSummary error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Create consultation advice (for online appointments)
+ */
+export async function createConsultationAdvice(req, res) {
+  try {
+    const appUserId = req.user?.app_user_id;
+    if (!appUserId) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
+    }
+
+    const doctor = await Doctor.findOne({ userId: appUserId });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const { appointmentId, notes, attachmentUrl, diagnoses, medications } = req.body;
+
+    if (!appointmentId || !notes) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Missing appointmentId or notes"
+      );
+    }
+
+    // Check if appointment belongs to this doctor and is online
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      doctorId: doctor._id,
+      mode: 'online'
+    }).populate('patientId clinicId');
+
+    if (!appointment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found or not online");
+    }
+
+    // Import ConsultationAdvice model
+    const ConsultationAdvice = (await import('../models/consultationAdvice.model.js')).default;
+
+    const adviceData = {
+      appointmentId,
+      patientId: appointment.patientId._id,
+      doctorId: doctor._id,
+      clinicId: appointment.clinicId?._id,
+      appointmentDate: appointment.scheduledStart,
+      mode: 'online',
+      notes: notes,
+      createdBy: doctor._id
+    }
+
+    if (attachmentUrl) adviceData.attachmentUrl = attachmentUrl
+    if (diagnoses) adviceData.diagnoses = diagnoses
+    if (medications) adviceData.medications = medications
+
+    const advice = await ConsultationAdvice.create(adviceData);
+
+    return ok(res, { advice });
+  } catch (e) {
+    console.error("❌ createConsultationAdvice error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
@@ -1134,6 +1220,28 @@ export async function createTestTimeSlots(req, res) {
   }
 }
 
+/**
+ * Upload consultation attachment file
+ */
+export async function uploadConsultationFile(req, res) {
+  try {
+    if (!req.file) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "No file uploaded");
+    }
+
+    // Construct the URL for the uploaded file
+    const fileUrl = `/server-uploads/consultations/${req.file.filename}`;
+
+    return ok(res, { 
+      message: "File uploaded successfully",
+      url: fileUrl,
+      filename: req.file.filename
+    });
+  } catch (e) {
+    console.error("❌ uploadConsultationFile error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
 
 
 /**

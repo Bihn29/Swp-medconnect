@@ -548,6 +548,45 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
 .appointment-list-content {
   padding: 1.5rem;
   background: $white;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+.appointment-list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-top: 1px solid $gray-200;
+  
+  .pagination-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid $gray-300;
+    background: $white;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover:not(:disabled) {
+      background: $primary-teal-light;
+      border-color: $primary-teal;
+      color: $primary-teal;
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+  
+  .pagination-info {
+    font-size: 0.9rem;
+    color: $gray-600;
+  }
 }
 
 .appointment-list-table-wrapper {
