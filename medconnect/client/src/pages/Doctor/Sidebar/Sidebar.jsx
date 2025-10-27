@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
-import { 
-  LayoutDashboard, 
-  Calendar, 
-  Clock, 
-  FileText, 
-  Users, 
-  Settings, 
-  Bell, 
+import {
+  LayoutDashboard,
+  Calendar,
+  Clock,
+  FileText,
+  Users,
+  Settings,
+  Bell,
   MessageSquare,
   Stethoscope,
   LogOut,
-  Plus
+  Plus,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { clearUserData } from "../../../utils/clearUserData";
@@ -49,6 +49,12 @@ const menuItems = [
     id: "notifications",
   },
   {
+    label: "Yêu cầu dời lịch",
+    subtitle: "Quản lý dời lịch",
+    icon: Calendar,
+    id: "reschedule-requests",
+  },
+  {
     label: "Đánh giá",
     subtitle: "Phản hồi bệnh nhân",
     icon: MessageSquare,
@@ -66,17 +72,20 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
       try {
         const doctor = await getDoctorProfileWithFallback();
         if (doctor) {
-          console.log("🔍 Sidebar - Doctor data:", doctor)
-          console.log("🔍 Sidebar - User data:", doctor.userId)
-          console.log("🔍 Sidebar - Doctor fullName:", doctor.fullName)
-          console.log("🔍 Sidebar - User fullName:", doctor.userId?.fullName)
-          console.log("🔍 Sidebar - Final name:", doctor.userId?.fullName || doctor.fullName)
+          console.log("🔍 Sidebar - Doctor data:", doctor);
+          console.log("🔍 Sidebar - User data:", doctor.userId);
+          console.log("🔍 Sidebar - Doctor fullName:", doctor.fullName);
+          console.log("🔍 Sidebar - User fullName:", doctor.userId?.fullName);
+          console.log(
+            "🔍 Sidebar - Final name:",
+            doctor.userId?.fullName || doctor.fullName
+          );
           setDoctorInfo(doctor);
         } else {
-          console.error('No doctor found');
+          console.error("No doctor found");
         }
       } catch (error) {
-        console.error('Error fetching doctor info:', error);
+        console.error("Error fetching doctor info:", error);
       } finally {
         setLoading(false);
       }
@@ -103,14 +112,17 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('avatarUpdated', handleAvatarUpdate);
-    window.addEventListener('doctorProfileUpdated', handleDoctorProfileUpdate);
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("avatarUpdated", handleAvatarUpdate);
+    window.addEventListener("doctorProfileUpdated", handleDoctorProfileUpdate);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('avatarUpdated', handleAvatarUpdate);
-      window.removeEventListener('doctorProfileUpdated', handleDoctorProfileUpdate);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("avatarUpdated", handleAvatarUpdate);
+      window.removeEventListener(
+        "doctorProfileUpdated",
+        handleDoctorProfileUpdate
+      );
     };
   }, []);
 
@@ -149,17 +161,21 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
           const isActive = activeMenu === item.id;
 
           return (
-                  <button
-                    key={item.id}
-                    onClick={() => onMenuChange(item.id)}
-                    className={`doctor-sidebar-nav-item ${isActive ? "doctor-sidebar-nav-item--active" : ""}`}
-                  >
-                    <Icon className="doctor-sidebar-nav-icon" />
-                    <div className="doctor-sidebar-nav-text">
-                      <span className="doctor-sidebar-nav-label">{item.label}</span>
-                      <span className="doctor-sidebar-nav-subtitle">{item.subtitle}</span>
-                    </div>
-                  </button>
+            <button
+              key={item.id}
+              onClick={() => onMenuChange(item.id)}
+              className={`doctor-sidebar-nav-item ${
+                isActive ? "doctor-sidebar-nav-item--active" : ""
+              }`}
+            >
+              <Icon className="doctor-sidebar-nav-icon" />
+              <div className="doctor-sidebar-nav-text">
+                <span className="doctor-sidebar-nav-label">{item.label}</span>
+                <span className="doctor-sidebar-nav-subtitle">
+                  {item.subtitle}
+                </span>
+              </div>
+            </button>
           );
         })}
       </nav>
@@ -177,27 +193,41 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
           <div className="doctor-sidebar-profile" onClick={handleProfileClick}>
             <div className="doctor-sidebar-profile-avatar">
               {doctorInfo?.avatarUrl ? (
-                <img 
-                  src={doctorInfo.avatarUrl} 
-                  alt={doctorInfo?.userId?.fullName || doctorInfo?.fullName || 'Bác sĩ'}
+                <img
+                  src={doctorInfo.avatarUrl}
+                  alt={
+                    doctorInfo?.userId?.fullName ||
+                    doctorInfo?.fullName ||
+                    "Bác sĩ"
+                  }
                   className="doctor-sidebar-avatar-image"
                 />
               ) : (
-                (doctorInfo?.userId?.fullName || doctorInfo?.fullName || 'Bác sĩ').split(' ').map(n => n[0]).join('').toUpperCase()
+                (
+                  doctorInfo?.userId?.fullName ||
+                  doctorInfo?.fullName ||
+                  "Bác sĩ"
+                )
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
               )}
             </div>
             <div className="doctor-sidebar-profile-info">
               <p className="doctor-sidebar-profile-name">
-                {doctorInfo?.userId?.fullName || doctorInfo?.fullName || 'Bác sĩ'}
+                {doctorInfo?.userId?.fullName ||
+                  doctorInfo?.fullName ||
+                  "Bác sĩ"}
               </p>
               <p className="doctor-sidebar-profile-specialty">
-                {doctorInfo?.specializationIds?.[0]?.name || 'Bác sĩ'}
+                {doctorInfo?.specializationIds?.[0]?.name || "Bác sĩ"}
               </p>
             </div>
           </div>
         )}
-        
-        <button 
+
+        <button
           onClick={handleLogout}
           className="doctor-sidebar-logout"
           title="Đăng xuất"

@@ -162,6 +162,55 @@ export async function createAppointmentNotification(
         }
         break;
 
+      case "reschedule_requested":
+        // Notify doctor about reschedule request
+        if (doctorUser) {
+          notifications.push({
+            userId: doctorUser._id,
+            type: "appointment",
+            title: "Có yêu cầu dời lịch",
+            message: `Bệnh nhân ${patientName} yêu cầu dời lịch từ ${additionalData.originalDateTime} đến ${additionalData.newDateTime}. Lý do: ${additionalData.reason}`,
+            priority: "high",
+            relatedId: appointmentId,
+            relatedType: "reschedule_request",
+            metadata: {
+              appointmentId,
+              patientName,
+              originalDateTime: additionalData.originalDateTime,
+              newDateTime: additionalData.newDateTime,
+              reason: additionalData.reason,
+              status: "pending",
+              ...additionalData,
+            },
+          });
+        }
+        break;
+
+      case "reschedule_rejected":
+        // Notify patient about reschedule rejection
+        if (patientUser) {
+          notifications.push({
+            userId: patientUser._id,
+            type: "appointment",
+            title: "Yêu cầu dời lịch bị từ chối",
+            message: `Yêu cầu dời lịch khám với BS. ${doctorName} đã bị từ chối. ${
+              additionalData.reviewNotes || ""
+            }`,
+            priority: "medium",
+            relatedId: appointmentId,
+            relatedType: "reschedule_request",
+            metadata: {
+              appointmentId,
+              doctorName,
+              reason: additionalData.reason,
+              reviewNotes: additionalData.reviewNotes,
+              status: "rejected",
+              ...additionalData,
+            },
+          });
+        }
+        break;
+
       case "reminder":
         // Send reminder notification (24 hours before)
         if (patientUser) {

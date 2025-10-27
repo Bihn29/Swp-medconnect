@@ -13,6 +13,7 @@ import { api } from "../../../../lib/api";
 import { message, Spin } from "antd";
 import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 import "./UpcomingAppointments.scss";
+import { RescheduleButton } from "../../../../components/RescheduleButton/RescheduleButton";
 
 const statusConfig = {
   confirmed: { label: "Đã xác nhận", variant: "default" },
@@ -453,47 +454,25 @@ export function UpcomingAppointments() {
                 >
                   Chi tiết
                 </button>
-                <button
-                  style={{
-                    padding: "0.5rem 1rem",
-                    backgroundColor: "#ffffff",
-                    color: "#374151",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "0.375rem",
-                    fontSize: "0.75rem",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                    position: "relative",
-                    overflow: "hidden",
-                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                    width: "100%", // Fixed width
-                    minWidth: "120px", // Minimum width
-                  }}
-                  onMouseOver={(e) => {
-                    e.target.style.backgroundColor = "#fef2f2";
-                    e.target.style.transform = "translateY(-1px) scale(1.02)";
-                    e.target.style.boxShadow =
-                      "0 4px 12px rgba(239, 68, 68, 0.2)";
-                    e.target.style.borderColor = "#ef4444";
-                    e.target.style.color = "#ef4444";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.backgroundColor = "#ffffff";
-                    e.target.style.transform = "translateY(0) scale(1)";
-                    e.target.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)";
-                    e.target.style.borderColor = "#d1d5db";
-                    e.target.style.color = "#374151";
-                  }}
-                  onMouseDown={(e) => {
-                    e.target.style.transform = "translateY(0) scale(0.98)";
-                  }}
-                  onMouseUp={(e) => {
-                    e.target.style.transform = "translateY(-1px) scale(1.02)";
-                  }}
-                >
-                  Hủy
-                </button>
+
+                {/* Reschedule Button */}
+                <div style={{ width: "100%", minWidth: "120px" }}>
+                  <RescheduleButton
+                    appointment={{
+                      _id: appointment.id,
+                      scheduledStart:
+                        appointment.scheduledStart ||
+                        new Date(appointment.date + " " + appointment.time),
+                      status: appointment.status,
+                      doctorId: { fullName: appointment.doctor },
+                      mode: appointment.mode || "offline",
+                    }}
+                    onSuccess={() => {
+                      // Refresh appointments after successful reschedule request
+                      fetchAppointments();
+                    }}
+                  />
+                </div>
               </div>
             </div>
           ))

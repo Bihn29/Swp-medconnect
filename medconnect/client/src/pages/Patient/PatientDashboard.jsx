@@ -15,6 +15,7 @@ import { DoctorSearch } from "./components/DoctorSearch/DoctorSearch";
 import { MyAppointments } from "./components/MyAppointments/MyAppointments";
 import { OnlineConsultation } from "./components/OnlineConsultation/OnlineConsultation";
 import { HealthProfile } from "./components/HealthProfile/HealthProfile";
+import { Notifications } from "./components/Notifications/Notifications";
 import "./PatientDashboard.scss";
 
 /**
@@ -90,6 +91,8 @@ export default function PatientDashboard() {
         return <OnlineConsultation />;
       case "/medical-records":
         return <HealthProfile />;
+      case "/thong-bao":
+        return <Notifications />;
       case "/benh-nhan/cai-dat":
         return <Settings />;
       default:

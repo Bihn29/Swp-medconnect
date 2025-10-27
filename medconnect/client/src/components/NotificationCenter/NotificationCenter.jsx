@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Bell,
   X,
@@ -16,12 +17,15 @@ export function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Fetch notifications
+  // Fetch notifications (limited for dropdown)
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/notifications");
+      // Limit to 5 most recent notifications for dropdown
+      const response = await api.get("/api/notifications?limit=5");
 
       if (response.success) {
         setNotifications(response.data.notifications);
@@ -77,6 +81,16 @@ export function NotificationCenter() {
       }
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
+    }
+  };
+
+  const handleViewAllNotifications = () => {
+    setIsOpen(false);
+    // Navigate to notifications page based on current location
+    if (location.pathname.startsWith("/bac-si")) {
+      navigate("/bac-si/thong-bao");
+    } else {
+      navigate("/thong-bao");
     }
   };
 
@@ -202,7 +216,12 @@ export function NotificationCenter() {
 
           {notifications.length > 0 && (
             <div className="notification-footer">
-              <button className="view-all-btn">Xem tất cả thông báo</button>
+              <button
+                className="view-all-btn"
+                onClick={handleViewAllNotifications}
+              >
+                Xem tất cả thông báo
+              </button>
             </div>
           )}
         </div>

@@ -5,6 +5,13 @@
   overflow: hidden;
 }
 
+.doctor-layout-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .doctor-layout-content {
   flex: 1;
   display: flex;
@@ -13,4 +20,4 @@
   background: #f3f4f6;
   position: relative;
   z-index: 1;
-} 
+}

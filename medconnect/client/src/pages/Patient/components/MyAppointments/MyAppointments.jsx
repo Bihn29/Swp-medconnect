@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 import ReviewModal from "../ReviewModal/ReviewModal";
+import { RescheduleButton } from "../../../../components/RescheduleButton/RescheduleButton";
 
 const STATUS = {
   confirmed: { label: "Đã xác nhận", tone: "#1d4ed8", text: "#ffffff" },
@@ -439,6 +440,27 @@ export function MyAppointments() {
                     >
                       Chi tiết
                     </Button>
+
+                    {/* Reschedule button - show for accepted and pending appointments */}
+                    <RescheduleButton
+                      appointment={a}
+                      onSuccess={() => {
+                        // Refresh appointments after successful reschedule request
+                        const load = async () => {
+                          try {
+                            const res = await api.get(
+                              "/api/patients/me/appointments?limit=20"
+                            );
+                            if (res.success) {
+                              setAppointments(res.data.appointments || []);
+                            }
+                          } catch (e) {
+                            console.error("Error refreshing appointments:", e);
+                          }
+                        };
+                        load();
+                      }}
+                    />
 
                     {/* Cancel button - only show for pending appointments */}
                     {a.status === "pending_doctor" && (

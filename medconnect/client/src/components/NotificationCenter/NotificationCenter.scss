@@ -111,7 +111,7 @@
     }
 
     .notification-list {
-      max-height: 400px;
+      max-height: 320px; // Reduced for 5 notifications max
       overflow-y: auto;
 
       .loading-state {

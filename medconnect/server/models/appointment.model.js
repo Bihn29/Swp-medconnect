@@ -34,7 +34,7 @@ const AppointmentSchema = new Schema(
     },
 
     scheduledStart: { type: Date, required: true },
-    scheduledEnd:   { type: Date, required: true },
+    scheduledEnd: { type: Date, required: true },
 
     status: {
       type: String,
@@ -46,6 +46,7 @@ const AppointmentSchema = new Schema(
         "cancelled",
         "done",
         "no_show",
+        "rescheduled",
       ],
       default: "pending_doctor",
     },
@@ -55,7 +56,13 @@ const AppointmentSchema = new Schema(
     cancelledAt: Date,
     cancelledBy: { type: Schema.Types.ObjectId, ref: "User" },
     cancelReason: String,
+
+    // Reschedule fields
     rescheduledFromId: { type: Schema.Types.ObjectId, ref: "Appointment" },
+    rescheduledToId: { type: Schema.Types.ObjectId, ref: "Appointment" },
+    rescheduleReason: String,
+    rescheduledBy: { type: Schema.Types.ObjectId, ref: "User" },
+    rescheduledAt: Date,
 
     // Tracking thao tác bác sĩ
     acceptedBy: { type: Schema.Types.ObjectId, ref: "Doctor" },
@@ -80,7 +87,10 @@ AppointmentSchema.pre("validate", function (next) {
     this.scheduledEnd &&
     this.scheduledStart >= this.scheduledEnd
   ) {
-    this.invalidate("scheduledEnd", "scheduledEnd must be after scheduledStart");
+    this.invalidate(
+      "scheduledEnd",
+      "scheduledEnd must be after scheduledStart"
+    );
   }
   if (this.isNew && this.scheduledStart && this.scheduledStart < new Date()) {
     this.invalidate("scheduledStart", "scheduledStart must be in the future");
