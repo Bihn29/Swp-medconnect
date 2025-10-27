@@ -66,6 +66,11 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
       try {
         const doctor = await getDoctorProfileWithFallback();
         if (doctor) {
+          console.log("🔍 Sidebar - Doctor data:", doctor)
+          console.log("🔍 Sidebar - User data:", doctor.userId)
+          console.log("🔍 Sidebar - Doctor fullName:", doctor.fullName)
+          console.log("🔍 Sidebar - User fullName:", doctor.userId?.fullName)
+          console.log("🔍 Sidebar - Final name:", doctor.userId?.fullName || doctor.fullName)
           setDoctorInfo(doctor);
         } else {
           console.error('No doctor found');
@@ -89,12 +94,23 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
       fetchDoctorInfo();
     };
 
+    // Listen for doctor profile update event
+    const handleDoctorProfileUpdate = (event) => {
+      if (event.detail?.doctor) {
+        setDoctorInfo(event.detail.doctor);
+      } else {
+        fetchDoctorInfo();
+      }
+    };
+
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('avatarUpdated', handleAvatarUpdate);
+    window.addEventListener('doctorProfileUpdated', handleDoctorProfileUpdate);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('avatarUpdated', handleAvatarUpdate);
+      window.removeEventListener('doctorProfileUpdated', handleDoctorProfileUpdate);
     };
   }, []);
 

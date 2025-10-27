@@ -569,9 +569,10 @@ export function HealthProfile() {
                                   <strong>{med.name}</strong>
                                 </div>
                                 <div className="med-details">
-                                  <span>Liều lượng: {med.dosage}</span>
-                                  <span>Đường dùng: {med.route}</span>
                                   <span>Số lượng: {med.quantity}</span>
+                                  {med.notes && (
+                                    <span>Ghi chú: {med.notes}</span>
+                                  )}
                                 </div>
                                 <div className="med-instruction">
                                   <strong>Hướng dẫn:</strong> {med.instruction}
@@ -737,9 +738,10 @@ export function HealthProfile() {
                                   <strong>{med.name}</strong>
                                 </div>
                                 <div className="med-details">
-                                  <span>Liều lượng: {med.dosage}</span>
-                                  <span>Đường dùng: {med.route}</span>
                                   <span>Số lượng: {med.quantity}</span>
+                                  {med.notes && (
+                                    <span>Ghi chú: {med.notes}</span>
+                                  )}
                                 </div>
                                 <div className="med-instruction">
                                   <strong>Hướng dẫn:</strong> {med.instruction}

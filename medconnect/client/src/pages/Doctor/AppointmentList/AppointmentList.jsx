@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/Card"
 import { Button } from "../../../components/ui/Button"
 import { Badge } from "../../../components/ui/Badge"
 import { CheckCircle, XCircle, Clock, Search } from "lucide-react"
 import { Input } from "../../../components/ui/Input"
 import { getDoctorAppointmentsWithFallback, updateAppointmentStatus } from "../../../lib/api"
-// Dialog components không tồn tại, sẽ sử dụng HTML elements thay thế
 import "./AppointmentList.scss"
 
 export default function AppointmentList() {
+  const navigate = useNavigate()
   const [appointments, setAppointments] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedAppointment, setSelectedAppointment] = useState(null)
@@ -17,6 +18,8 @@ export default function AppointmentList() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [updatingAppointments, setUpdatingAppointments] = useState(new Set())
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   // Fetch appointments from API
   useEffect(() => {
@@ -46,6 +49,17 @@ export default function AppointmentList() {
     appointment.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     appointment.reason?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedAppointments = filteredAppointments.slice(startIndex, endIndex)
+
+  // Reset to page 1 when search term changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
 
 
@@ -215,34 +229,16 @@ export default function AppointmentList() {
     }
   }
 
-  const handleComplete = async (appointment) => {
-    try {
-      await updateAppointmentStatus(appointment._id, 'done');
-      
-      // Cập nhật trạng thái ngay lập tức trong UI
-      setAppointments(prevAppointments => 
-        prevAppointments.map(apt => 
-          apt._id === appointment._id 
-            ? { ...apt, status: 'done' }
-            : apt
-        )
-      );
-      
-      alert(`Đã hoàn thành khám cho ${appointment.patientId?.fullName || appointment.patient?.fullName || 'bệnh nhân'}`);
-      
-      // Refresh appointments list để đảm bảo đồng bộ
-      setTimeout(async () => {
-        try {
-          const updatedAppointments = await getDoctorAppointmentsWithFallback();
-          if (updatedAppointments.success && updatedAppointments.data?.appointments) {
-            setAppointments(updatedAppointments.data.appointments);
-          }
-        } catch (error) {
-          // Silent error handling
-        }
-      }, 1000);
-    } catch (error) {
-      alert('Có lỗi xảy ra khi hoàn thành khám: ' + error.message);
+  const handleComplete = (appointment) => {
+    console.log('handleComplete called with appointment:', appointment)
+    console.log('Appointment mode:', appointment?.mode)
+    console.log('Appointment status:', appointment?.status)
+    
+    // Navigate to the appropriate consultation page based on mode
+    if (appointment?.mode === 'offline') {
+      navigate(`/bac-si/kham-truc-tiep/${appointment._id}`)
+    } else {
+      navigate(`/bac-si/tu-van-truc-tuyen/${appointment._id}`)
     }
   }
 
@@ -320,7 +316,7 @@ export default function AppointmentList() {
                   </td>
                 </tr>
               ) : (
-                filteredAppointments.map((apt) => (
+                paginatedAppointments.map((apt) => (
                   <tr key={apt._id} className="appointment-list-row">
                     <td className="appointment-list-td appointment-list-patient">
                       <span 
@@ -408,6 +404,29 @@ export default function AppointmentList() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {filteredAppointments.length > 0 && (
+          <div className="appointment-list-pagination">
+            <button 
+              className="pagination-btn"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              Trước
+            </button>
+            <span className="pagination-info">
+              Trang {currentPage} / {totalPages} ({filteredAppointments.length} lịch hẹn)
+            </span>
+            <button 
+              className="pagination-btn"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Sau
+            </button>
+          </div>
+        )}
       </CardContent>
 
       {/* Appointment Detail Dialog */}
@@ -665,6 +684,8 @@ export default function AppointmentList() {
           </div>
         </div>
       )}
+
+
     </Card>
   )
 }

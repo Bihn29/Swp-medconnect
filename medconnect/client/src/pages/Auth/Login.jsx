@@ -151,7 +151,7 @@ export default function Login() {
       }
       if (r.status === 401)
         throw new Error("Email/SĐT hoặc mật khẩu không đúng");
-      throw new Error(data?.error || "Không đăng nhập được");
+      throw new Error(data?.message || data?.error || "Không đăng nhập được");
     }
 
     const token = data?.customToken ?? data?.data?.customToken;
@@ -269,7 +269,18 @@ export default function Login() {
       await passwordLogin(identifier, password);
     } catch (err) {
       console.error("Login error:", err);
-      setGeneralError(err?.message || "Không đăng nhập được");
+      // Handle both string and object error messages
+      let errorMessage = "Không đăng nhập được";
+      if (typeof err?.message === 'string') {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.data?.message) {
+        errorMessage = err.data.message;
+      }
+      setGeneralError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -340,7 +351,18 @@ export default function Login() {
       try {
         await signOut(auth);
       } catch (err) {
-        setGeneralError(err?.message || "Lỗi đăng nhập Google");
+        // Handle both string and object error messages
+        let errorMessage = "Lỗi đăng nhập Google";
+        if (typeof err?.message === 'string') {
+          errorMessage = err.message;
+        } else if (typeof err === 'string') {
+          errorMessage = err;
+        } else if (err?.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err?.data?.message) {
+          errorMessage = err.data.message;
+        }
+        setGeneralError(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -417,7 +439,7 @@ export default function Login() {
           )}
 
           <div className="password-group">
-            <div className="input-group">
+            <div className={`input-group ${!passwordValid && !passwordError ? 'no-validation-icon' : ''}`}>
               <input
                 className={`login-input ${
                   passwordError
@@ -442,11 +464,13 @@ export default function Login() {
               {passwordError && (
                 <i className="bi bi-exclamation-circle-fill input-error-icon" />
               )}
-              <i
+              <button
+                type="button"
                 className={`bi ${
                   showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
                 } password-toggle`}
                 onClick={() => setShowPassword(!showPassword)}
+                style={{ cursor: 'pointer', zIndex: 10 }}
               />
             </div>
           </div>

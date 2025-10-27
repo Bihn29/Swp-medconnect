@@ -890,7 +890,10 @@ export async function getPatientConsultationSummaries(req, res) {
       const medicationsText =
         summary.medications && summary.medications.length > 0
           ? summary.medications
-              .map((med) => `${med.name} - ${med.dosage} - ${med.instruction}`)
+              .map(
+                (med) =>
+                  `${med.name} - ${med.quantity || "N/A"} - ${med.instruction}`
+              )
               .join(", ")
           : "Không có đơn thuốc";
 
@@ -1023,7 +1026,10 @@ export async function getPatientConsultationAdvice(req, res) {
       const medicationsText =
         advice.medications && advice.medications.length > 0
           ? advice.medications
-              .map((med) => `${med.name} - ${med.dosage} - ${med.instruction}`)
+              .map(
+                (med) =>
+                  `${med.name} - ${med.quantity || "N/A"} - ${med.instruction}`
+              )
               .join(", ")
           : "Không có đơn thuốc";
 

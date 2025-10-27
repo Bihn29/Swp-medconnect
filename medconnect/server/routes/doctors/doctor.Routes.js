@@ -1,5 +1,6 @@
 import express from "express";
 import { authGuard } from "../../middleware/auth.js";
+import { uploadConsultation } from "../../middleware/upload.js";
 import {
   getDoctorProfile,
   getCurrentDoctorProfile,
@@ -10,6 +11,7 @@ import {
   getAllDoctors,
   getConsultationRecords,
   createConsultationSummary,
+  createConsultationAdvice,
   createPrescription,
   getDoctorTimeSlots,
   createTimeSlot,
@@ -26,6 +28,7 @@ import {
   getSearchDoctors,
   getSearchSpecializations,
   getSearchClinics,
+  uploadConsultationFile
 } from "../../controllers/doctorController.js";
 
 const router = express.Router();
@@ -54,7 +57,9 @@ router.get("/me/dashboard/stats", getDoctorDashboardStats);
 router.put("/me/appointments/:appointmentId/status", updateAppointmentStatus);
 router.get("/me/consultation-records", getConsultationRecords);
 router.post("/me/consultation-summaries", createConsultationSummary);
+router.post("/me/consultation-advice", createConsultationAdvice);
 router.post("/me/prescriptions", createPrescription);
+router.post("/me/upload-consultation-file", uploadConsultation.single('file'), uploadConsultationFile);
 
 // Time slot management routes
 router.get("/me/time-slots", getDoctorTimeSlots);

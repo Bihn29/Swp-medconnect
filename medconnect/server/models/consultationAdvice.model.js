@@ -21,27 +21,17 @@ const ConsultationAdviceSchema = new Schema(
     // 🧭 Hình thức buổi tư vấn (thường là online)
     mode: { type: String, enum: ["online"], default: "online" },
 
-    // 🧩 Phân loại tư vấn
-    adviceType: {
-      type: String,
-      enum: ["general", "follow_up", "second_opinion"],
-      default: "general",
-    },
 
-    // 🩺 Nội dung buổi tư vấn
-    summary: { type: String, trim: true, required: true },
-    startedAt: { type: Date, default: Date.now },
-    endedAt: Date,
-    durationMinutes: Number,
+
+    // 📅 Ngày giờ slot khám
+    appointmentDate: { type: Date, required: true },
 
     // 💊 Cho phép kê thuốc (tùy chọn)
     medications: [
       {
         name: String,
-        dosage: String,
-        route: String,
-        quantity: Number,
         instruction: String,
+        quantity: String,
       },
     ],
 
@@ -49,7 +39,6 @@ const ConsultationAdviceSchema = new Schema(
     diagnoses: [
       {
         name: String,
-        icd10: String,
       },
     ],
 

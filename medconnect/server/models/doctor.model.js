@@ -16,7 +16,7 @@ const DoctorSchema = new Schema(
     },
     
     fullName: { type: String, required: true, trim: true },
-    licenseNo: { type: String, unique: true, sparse: true },
+    licenseNo: { type: String }, // Store license image file path/URL
     yearsExperience: { type: Number, min: 0, default: 0 },
     bio: { type: String, trim: true },
     avatarUrl: { type: String },

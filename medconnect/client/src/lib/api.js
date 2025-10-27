@@ -73,9 +73,8 @@ export async function updateCurrentPatientProfile(profileData) {
 export async function registerDoctor(doctorData) {
   const r = await fetch(`${BASE}/api/auth/register-doctor`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify(doctorData),
+    body: doctorData, // FormData will set Content-Type automatically
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -462,12 +461,59 @@ export async function getConsultationRecords(params = {}) {
   return r.json();
 }
 
+export async function getDoctorConsultationSummaries(params = {}) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      searchParams.append(key, value);
+    }
+  });
+
+  const r = await fetch(
+    `${BASE}/api/doctors/me/consultation-summaries?${searchParams}`,
+    {
+      credentials: "include",
+    }
+  );
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getDoctorConsultationAdvice(params = {}) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      searchParams.append(key, value);
+    }
+  });
+
+  const r = await fetch(
+    `${BASE}/api/doctors/me/consultation-advice?${searchParams}`,
+    {
+      credentials: "include",
+    }
+  );
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export async function createConsultationSummary(summaryData) {
   const r = await fetch(`${BASE}/api/doctors/me/consultation-summaries`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify(summaryData),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function createConsultationAdvice(adviceData) {
+  const r = await fetch(`${BASE}/api/doctors/me/consultation-advice`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(adviceData),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -846,6 +892,40 @@ export async function deleteUser(userId) {
   return r.json();
 }
 
+export async function getUserDetails(userId) {
+  const r = await fetch(`${BASE}/api/admin/users/${userId}`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function updateUser(userId, userData) {
+  const r = await fetch(`${BASE}/api/admin/users/${userId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(userData),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function changeUserPassword(userId, newPassword) {
+  const r = await fetch(`${BASE}/api/admin/users/${userId}/password`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ password: newPassword }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export async function getAdminSpecializations() {
   const r = await fetch(`${BASE}/api/admin/specializations`, {
     credentials: "include",
@@ -966,6 +1046,8 @@ const apiObject = {
 
   // Consultation and prescription functions
   getConsultationRecords,
+  getDoctorConsultationSummaries,
+  getDoctorConsultationAdvice,
   createConsultationSummary,
   createPrescription,
 

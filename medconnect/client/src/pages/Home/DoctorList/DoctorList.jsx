@@ -355,7 +355,7 @@ const DoctorList = () => {
         <Col flex="auto">
           <div className="doctor-info">
             <Title level={4} style={{ margin: "0 0 8px 0", color: "#1890ff" }}>
-              {doctor.fullName}
+              {doctor.userId?.fullName || doctor.fullName}
             </Title>
             <Text
               strong

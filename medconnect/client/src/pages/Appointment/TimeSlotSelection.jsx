@@ -258,12 +258,12 @@ const TimeSlotSelection = () => {
                   <div className="doctor-avatar">
                     <img
                       src={doctor.avatarUrl || "/default-avatar.png"}
-                      alt={doctor.fullName}
+                      alt={doctor.userId?.fullName || doctor.fullName}
                       className="avatar-image"
                     />
                   </div>
                   <div className="doctor-info">
-                    <Title level={3}>{doctor.fullName}</Title>
+                    <Title level={3}>{doctor.userId?.fullName || doctor.fullName}</Title>
                     <div className="doctor-specializations">
                       <Tag color="blue">
                         {getSpecializationNames(doctor.specializationIds)}
@@ -462,7 +462,7 @@ const TimeSlotSelection = () => {
 
                 <div className="summary-item">
                   <Text strong>Bác sĩ:</Text>
-                  <Text>{doctor.fullName}</Text>
+                  <Text>{doctor.userId?.fullName || doctor.fullName}</Text>
                 </div>
 
                 <div className="summary-item">

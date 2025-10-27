@@ -443,18 +443,21 @@ const Header = () => {
                     disabled: true,
                   },
                   { type: "divider", key: "d1" },
-                  {
-                    key: "profile",
-                    label: (
-                      <div style={{ minWidth: 220 }}>
-                        <div style={{ fontWeight: 700 }}>Hồ sơ</div>
-                        <div style={{ fontSize: 12, color: "#666" }}>
-                          Xem và chỉnh sửa thông tin cá nhân
+                  // Only show profile and dashboard for non-admin users
+                  ...(userProfile?.role !== 'admin' && userProfile?.role !== 'ADMIN' ? [
+                    {
+                      key: "profile",
+                      label: (
+                        <div style={{ minWidth: 220 }}>
+                          <div style={{ fontWeight: 700 }}>Hồ sơ</div>
+                          <div style={{ fontSize: 12, color: "#666" }}>
+                            Xem và chỉnh sửa thông tin cá nhân
+                          </div>
                         </div>
-                      </div>
-                    ),
-                  },
-                  { key: "dashboard", label: "Trang cá nhân" },
+                      ),
+                    },
+                    { key: "dashboard", label: "Trang cá nhân" },
+                  ] : []),
                   // Admin Dashboard link - only show for admin users
                   ...(userProfile?.role === "admin" ||
                   userProfile?.role === "ADMIN"

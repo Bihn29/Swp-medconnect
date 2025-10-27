@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { registerDoctor } from "../../lib/api.js";
 import "./DoctorRegister.scss";
 
 export default function DoctorRegister() {
-  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -13,15 +12,13 @@ export default function DoctorRegister() {
     password: "",
     confirmPassword: "",
     specialty: "",
-    licenseNumber: "",
-    licenseImage: null,
+    license: null,
   });
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
 
@@ -105,25 +102,20 @@ export default function DoctorRegister() {
       newErrors.specialty = "Vui lòng chọn chuyên khoa.";
     }
 
-    // Validate license number
-    if (!formData.licenseNumber.trim()) {
-      newErrors.licenseNumber = "Vui lòng nhập số chứng chỉ hành nghề.";
-    }
-
     // Validate license image
-    if (!formData.licenseImage) {
-      newErrors.licenseImage = "Vui lòng upload ảnh chứng chỉ hành nghề.";
+    if (!formData.license) {
+      newErrors.license = "Vui lòng upload ảnh chứng chỉ hành nghề.";
     } else {
       // Check file size (max 5MB)
       const maxSize = 5 * 1024 * 1024; // 5MB
-      if (formData.licenseImage.size > maxSize) {
-        newErrors.licenseImage = "Kích thước ảnh không được vượt quá 5MB.";
+      if (formData.license.size > maxSize) {
+        newErrors.license = "Kích thước ảnh không được vượt quá 5MB.";
       }
       
       // Check file type
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-      if (!allowedTypes.includes(formData.licenseImage.type)) {
-        newErrors.licenseImage = "Chỉ chấp nhận file ảnh (JPG, PNG, WebP).";
+      if (!allowedTypes.includes(formData.license.type)) {
+        newErrors.license = "Chỉ chấp nhận file ảnh (JPG, PNG, WebP).";
       }
     }
 
@@ -163,21 +155,21 @@ export default function DoctorRegister() {
       setLoading(true);
       
       // Prepare form data for API
-      const doctorData = {
-        fullName: formData.fullName,
-        email: formData.email,
-        phone: toE164(formData.phone),
-        password: formData.password,
-        specialty: formData.specialty,
-        licenseNumber: formData.licenseNumber,
-        licenseImage: formData.licenseImage, // Note: In production, you'd need to handle file upload
-      };
+      const formDataToSend = new FormData();
+      formDataToSend.append('fullName', formData.fullName);
+      formDataToSend.append('email', formData.email);
+      formDataToSend.append('phone', toE164(formData.phone));
+      formDataToSend.append('password', formData.password);
+      formDataToSend.append('specialty', formData.specialty);
+      if (formData.license) {
+        formDataToSend.append('license', formData.license);
+      }
       
       // Call API to register doctor
-      const response = await registerDoctor(doctorData);
+      await registerDoctor(formDataToSend);
       
-      // Show success message from API response
-      setSuccessMessage(response.message || "Đăng ký thành công!");
+      // Show success message
+      alert("Đăng ký thành công! Vui lòng đợi hệ thống xác nhận tài khoản của bạn.");
 
       // Reset form after 5 seconds
       setTimeout(() => {
@@ -188,12 +180,10 @@ export default function DoctorRegister() {
           password: "",
           confirmPassword: "",
           specialty: "",
-          licenseNumber: "",
-          licenseImage: null,
+          license: null,
         });
         setAcceptedTerms(false);
         setAcceptedPrivacy(false);
-        setSuccessMessage("");
       }, 5000);
 
     } catch (err) {
@@ -219,20 +209,6 @@ export default function DoctorRegister() {
     }
   };
 
-  if (successMessage) {
-    return (
-      <div className="doctor-register-wrap">
-        <div className="success-container">
-          <div className="success-icon">✅</div>
-          <h2 className="success-title">Đăng ký thành công!</h2>
-          <p className="success-message">{successMessage}</p>
-          <Link to="/dang-nhap" className="btn btn-primary">
-            Đăng nhập
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="doctor-register-wrap">
@@ -309,11 +285,21 @@ export default function DoctorRegister() {
                 placeholder="Nhập mật khẩu"
                 autoComplete="new-password"
               />
-              <i
+              <button
+                type="button"
                 className={`bi ${
                   showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
                 } password-toggle`}
-                onClick={() => setShowPassword(!showPassword)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowPassword(!showPassword);
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                style={{ border: 'none', background: 'none', outline: 'none' }}
               />
             </div>
             {errors.password && (
@@ -336,11 +322,21 @@ export default function DoctorRegister() {
                 placeholder="Xác nhận mật khẩu"
                 autoComplete="new-password"
               />
-              <i
+              <button
+                type="button"
                 className={`bi ${
                   showConfirmPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
                 } password-toggle`}
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowConfirmPassword(!showConfirmPassword);
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                style={{ border: 'none', background: 'none', outline: 'none' }}
               />
             </div>
             {errors.confirmPassword && (
@@ -372,47 +368,30 @@ export default function DoctorRegister() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="licenseNumber" className="form-label">
-              Số chứng chỉ hành nghề <span className="required">*</span>
-            </label>
-            <input
-              className="doctor-register-input"
-              id="licenseNumber"
-              name="licenseNumber"
-              value={formData.licenseNumber}
-              onChange={handleInputChange}
-              placeholder="Nhập số chứng chỉ hành nghề bác sĩ của bạn"
-            />
-            {errors.licenseNumber && (
-              <div className="error-text">{errors.licenseNumber}</div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="licenseImage" className="form-label">
+            <label htmlFor="license" className="form-label">
               Ảnh chứng chỉ hành nghề <span className="required">*</span>
             </label>
             <div className="file-upload-group">
               <input
                 type="file"
-                id="licenseImage"
-                name="licenseImage"
+                id="license"
+                name="license"
                 accept="image/jpeg,image/jpg,image/png,image/webp"
                 onChange={handleInputChange}
                 className="file-input"
               />
-              <label htmlFor="licenseImage" className="file-upload-label">
+              <label htmlFor="license" className="file-upload-label">
                 <i className="bi bi-cloud-upload"></i>
                 <span>
-                  {formData.licenseImage 
-                    ? formData.licenseImage.name 
+                  {formData.license 
+                    ? formData.license.name 
                     : "Chọn ảnh chứng chỉ hành nghề (JPG, PNG, WebP - Tối đa 5MB)"
                   }
                 </span>
               </label>
             </div>
-            {errors.licenseImage && (
-              <div className="error-text">{errors.licenseImage}</div>
+            {errors.license && (
+              <div className="error-text">{errors.license}</div>
             )}
           </div>
 
