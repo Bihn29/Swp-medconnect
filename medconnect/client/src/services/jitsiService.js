@@ -7,6 +7,8 @@ class JitsiService {
   constructor() {
     this.api = null;
     this.domain = import.meta.env.VITE_JITSI_DOMAIN || 'meet.jit.si';
+    this.currentContainerId = null;
+    this.isInitializing = false;
     this.options = {
       roomName: null,
       width: '100%',
@@ -32,8 +34,26 @@ class JitsiService {
     console.log('🎥 JitsiService.initialize called with:', {
       containerId,
       roomName,
-      userInfo
+      userInfo,
+      isInitialized: !!this.api,
+      isInitializing: this.isInitializing,
+      currentContainerId: this.currentContainerId
     });
+    
+    // Prevent duplicate initialization
+    if (this.api && this.currentContainerId === containerId) {
+      console.log('⚠️ Jitsi already initialized for this container, skipping...');
+      return Promise.resolve(this.api);
+    }
+
+    // If initializing or already initialized for different container, dispose old instance
+    if (this.api) {
+      console.log('🔄 Disposing old Jitsi instance...');
+      this.endCall();
+    }
+
+    this.isInitializing = true;
+    this.currentContainerId = containerId;
     
     return new Promise((resolve, reject) => {
       try {
@@ -66,10 +86,12 @@ class JitsiService {
                 }
               });
               console.log('✅ Jitsi API created, room:', roomName);
+              this.isInitializing = false;
               this.setupEventListeners();
               resolve(this.api);
             };
             script.onerror = () => {
+              this.isInitializing = false;
               reject(new Error('Failed to load Jitsi Meet API'));
             };
             document.body.appendChild(script);
@@ -87,6 +109,7 @@ class JitsiService {
               }
             });
             console.log('✅ Jitsi API created, room:', roomName);
+            this.isInitializing = false;
             this.setupEventListeners();
             resolve(this.api);
           }
@@ -95,6 +118,7 @@ class JitsiService {
         checkContainer();
       } catch (error) {
         console.error('Failed to initialize Jitsi Meet:', error);
+        this.isInitializing = false;
         reject(error);
       }
     });
@@ -171,6 +195,8 @@ class JitsiService {
       this.api.dispose();
       this.api = null;
     }
+    this.currentContainerId = null;
+    this.isInitializing = false;
   }
 
   // Set callbacks

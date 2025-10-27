@@ -13,6 +13,7 @@ const VideoCallPage = () => {
   const navigate = useNavigate();
   const [appointment, setAppointment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isInCall, setIsInCall] = useState(false);
 
   useEffect(() => {
     fetchAppointment();
@@ -66,7 +67,7 @@ const VideoCallPage = () => {
   }
 
   return (
-    <div className="video-call-page">
+    <div className={`video-call-page ${isInCall ? 'video-call-active' : ''}`}>
       <div className="video-call-page-container">
         {/* Header */}
         <div className="page-header">
@@ -95,6 +96,7 @@ const VideoCallPage = () => {
           <VideoCallManager 
             appointmentId={appointmentId}
             userRole="patient"
+            onCallStateChange={setIsInCall}
           />
         </div>
 

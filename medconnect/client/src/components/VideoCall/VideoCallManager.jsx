@@ -14,12 +14,17 @@ import { api } from '../../lib/api';
 
 const { Title, Text, Paragraph } = Typography;
 
-const VideoCallManager = ({ appointmentId, userRole = 'patient' }) => {
+const VideoCallManager = ({ appointmentId, userRole = 'patient', onCallStateChange }) => {
   const [videoCallData, setVideoCallData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInCall, setIsInCall] = useState(false);
   const [showStartCallModal, setShowStartCallModal] = useState(false);
   const [appointmentInfo, setAppointmentInfo] = useState(null);
+
+  // Notify parent when call state changes
+  useEffect(() => {
+    onCallStateChange?.(isInCall);
+  }, [isInCall, onCallStateChange]);
 
   useEffect(() => {
     fetchAppointmentInfo();

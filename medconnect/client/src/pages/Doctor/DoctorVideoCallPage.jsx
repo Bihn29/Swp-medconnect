@@ -10,16 +10,25 @@ const DoctorVideoCallPage = () => {
   const jitsiContainerRef = useRef(null);
   const containerId = 'jitsi-container-doctor';
   const hasJoinedConference = useRef(false);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
+    // Prevent duplicate initialization
+    if (hasInitialized.current) {
+      console.log('⚠️ DoctorVideoCallPage already initialized, skipping...');
+      return;
+    }
+
     // Use FIXED roomId to ensure doctor and patient join the SAME room
     const roomId = `room_medconnect_${appointmentId}`;
     console.log('🎥 Doctor Initializing Jitsi Meet with FIXED room:', roomId);
     
+    hasInitialized.current = true;
     initializeJitsiCall(roomId);
 
     return () => {
       // Cleanup on unmount
+      hasInitialized.current = false;
       if (jitsiService.isInitialized()) {
         jitsiService.endCall();
       }
@@ -40,16 +49,25 @@ const DoctorVideoCallPage = () => {
         },
         onParticipantJoined: (event) => {
           console.log('Participant joined:', event);
-          message.info('Bệnh nhân đã tham gia');
+          const participantName = event?.participant?.displayName || 'Unknown';
+          console.log('🎉 Bệnh nhân đã tham gia!');
+          message.success(`Bệnh nhân ${participantName} đã tham gia cuộc gọi`);
         },
         onParticipantLeft: (event) => {
           console.log('Participant left:', event);
+          message.warning('Một người tham gia đã rời khỏi cuộc gọi');
         },
         onAudioMuteStatusChanged: (isMuted) => {
           console.log('Audio muted:', isMuted);
+          if (isMuted) {
+            message.info('Microphone đã tắt');
+          }
         },
         onVideoMuteStatusChanged: (isMuted) => {
           console.log('Video muted:', isMuted);
+          if (isMuted) {
+            message.info('Camera đã tắt');
+          }
         },
         onReadyToClose: () => {
           console.log('Ready to close');
@@ -70,6 +88,9 @@ const DoctorVideoCallPage = () => {
             message.warning('Vui lòng bấm nút "Mình là quản trị viên" để bắt đầu cuộc gọi');
             // KHÔNG redirect - để user bấm nút "Mình là quản trị viên"
             return;
+          } else if (error?.error === 'gum.permission_denied') {
+            console.error('❌ Permission denied for camera/microphone');
+            message.error('Vui lòng cho phép truy cập camera và microphone để tham gia cuộc gọi');
           } else {
             message.error('Có lỗi xảy ra trong cuộc gọi video');
           }

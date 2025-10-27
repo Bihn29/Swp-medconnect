@@ -23,13 +23,27 @@ const VideoCall = ({
   
   const jitsiContainerRef = useRef(null);
   const containerId = 'jitsi-container';
+  const hasInitialized = useRef(false);
+  const loadingTimeoutRef = useRef(null);
 
   useEffect(() => {
     console.log('🎥 VideoCall useEffect triggered with roomId:', roomId);
+    
+    // Prevent duplicate initialization
+    if (hasInitialized.current) {
+      console.log('⚠️ VideoCall already initialized, skipping...');
+      return;
+    }
+    
+    hasInitialized.current = true;
     initializeCall();
     
     return () => {
       // Cleanup on unmount
+      hasInitialized.current = false;
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
       if (jitsiService.isInitialized()) {
         jitsiService.endCall();
       }
@@ -46,12 +60,18 @@ const VideoCall = ({
       // Set up callbacks
       jitsiService.setCallbacks({
         onConferenceJoined: () => {
-          console.log('Conference joined');
+          console.log('✅ Conference joined - hiding loading');
           setCallStatus('connected');
           setIsLoading(false);
+          // Clear timeout if conference joined
+          if (loadingTimeoutRef.current) {
+            clearTimeout(loadingTimeoutRef.current);
+            loadingTimeoutRef.current = null;
+          }
         },
         onParticipantJoined: (event) => {
           console.log('Participant joined:', event);
+          message.success('Đã có người tham gia cuộc gọi');
         },
         onParticipantLeft: (event) => {
           console.log('Participant left:', event);
@@ -80,6 +100,13 @@ const VideoCall = ({
         displayName: userName || 'Người dùng',
         email: ''
       });
+
+      // Fallback: Auto-hide loading after 8 seconds if conference event doesn't fire
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.log('⚠️ Auto-hiding loading overlay after 8s timeout');
+        setIsLoading(false);
+        setCallStatus('connected');
+      }, 8000);
 
     } catch (error) {
       console.error('Failed to initialize call:', error);

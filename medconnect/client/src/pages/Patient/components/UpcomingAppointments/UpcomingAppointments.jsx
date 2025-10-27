@@ -371,39 +371,6 @@ export function UpcomingAppointments() {
                   gap: "0.5rem",
                 }}
               >
-                {/* Video Call Button - Only show for accepted online appointments */}
-                {appointment.status === "accepted" && appointment.mode === "online" ? (
-                  <button
-                    style={{
-                      padding: "0.5rem 1rem",
-                      backgroundColor: "#10b981",
-                      color: "#ffffff",
-                      border: "none",
-                      borderRadius: "0.375rem",
-                      fontSize: "0.75rem",
-                      fontWeight: "500",
-                      cursor: "pointer",
-                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                      position: "relative",
-                      overflow: "hidden",
-                      boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
-                    }}
-                    onMouseOver={(e) => {
-                      e.target.style.backgroundColor = "#059669";
-                      e.target.style.transform = "translateY(-1px) scale(1.02)";
-                      e.target.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
-                    }}
-                    onMouseOut={(e) => {
-                      e.target.style.backgroundColor = "#10b981";
-                      e.target.style.transform = "translateY(0) scale(1)";
-                      e.target.style.boxShadow = "0 2px 4px rgba(16, 185, 129, 0.2)";
-                    }}
-                    onClick={() => window.open(`/benh-nhan/video-call/${appointment.id}`, '_blank')}
-                  >
-                    📹 Video Call
-                  </button>
-                ) : null}
-                
                 <button
                   style={{
                     padding: "0.5rem 1rem",
