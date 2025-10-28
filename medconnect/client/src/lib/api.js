@@ -93,18 +93,18 @@ export async function logout() {
 export async function completeLogout() {
   try {
     // Import clearAuthData dynamically to avoid circular imports
-    const { clearAuthData } = await import('./firebase.js');
-    
+    const { clearAuthData } = await import("./firebase.js");
+
     // Clear server session
     await logout();
-    
+
     // Clear all Firebase auth data
     await clearAuthData();
-    
+
     // Force reload to ensure clean state
     window.location.reload();
   } catch (error) {
-    console.error('Error during complete logout:', error);
+    console.error("Error during complete logout:", error);
     // Fallback: just reload the page
     window.location.reload();
   }
@@ -248,7 +248,7 @@ export async function getCurrentDoctorProfile() {
   });
   if (!r.ok) {
     const errorText = await r.text();
-    console.log('getCurrentDoctorProfile failed:', r.status, errorText);
+    console.log("getCurrentDoctorProfile failed:", r.status, errorText);
     throw new Error(errorText);
   }
   return r.json();
@@ -278,7 +278,7 @@ export async function getDoctorAppointments(params = {}) {
   });
   if (!r.ok) {
     const errorText = await r.text();
-    console.log('getDoctorAppointments failed:', r.status, errorText);
+    console.log("getDoctorAppointments failed:", r.status, errorText);
     throw new Error(errorText);
   }
   return r.json();
@@ -290,7 +290,7 @@ export async function getAllAppointments(params = {}) {
     const queryParams = new URLSearchParams();
     if (params.limit) queryParams.append("limit", params.limit);
     if (params.page) queryParams.append("page", params.page);
-    
+
     const response = await fetch(`${BASE}/api/appointments?${queryParams}`, {
       credentials: "include",
     });
@@ -309,49 +309,68 @@ export async function getAllAppointments(params = {}) {
 
 // Helper: get doctor appointments with fallback mechanism
 export async function getDoctorAppointmentsWithFallback(params = {}) {
-  console.log('🔍 getDoctorAppointmentsWithFallback called with params:', params);
-  
+  console.log(
+    "🔍 getDoctorAppointmentsWithFallback called with params:",
+    params
+  );
+
   try {
     // Try primary endpoint first
-    console.log('🔍 Trying primary endpoint...');
+    console.log("🔍 Trying primary endpoint...");
     const response = await getDoctorAppointments(params);
-    console.log('🔍 Primary endpoint response:', response);
-    
-    const appointments = response?.data?.appointments || response?.appointments || response;
+    console.log("🔍 Primary endpoint response:", response);
+
+    const appointments =
+      response?.data?.appointments || response?.appointments || response;
     if (appointments && appointments.length > 0) {
-      console.log('✅ Primary endpoint success, found', appointments.length, 'appointments');
+      console.log(
+        "✅ Primary endpoint success, found",
+        appointments.length,
+        "appointments"
+      );
       return { success: true, data: { appointments } };
     }
   } catch (error) {
-    console.log('❌ Primary appointments endpoint failed:', error.message);
+    console.log("❌ Primary appointments endpoint failed:", error.message);
   }
 
   try {
     // Fallback: get appointments from public endpoint using doctor ID
-    console.log('🔍 Trying fallback endpoint...');
+    console.log("🔍 Trying fallback endpoint...");
     const doctor = await getDoctorProfileWithFallback();
-    console.log('🔍 Found doctor:', doctor);
-    
+    console.log("🔍 Found doctor:", doctor);
+
     if (doctor && doctor._id) {
       // Get all appointments and filter by doctor ID
       const allAppointments = await getAllAppointments({ limit: 1000 });
-      console.log('🔍 All appointments response:', allAppointments);
-      
-      const appointmentsList = allAppointments?.data?.appointments || allAppointments?.appointments || [];
-      console.log('🔍 Appointments list:', appointmentsList.length, 'total appointments');
-      
-      const doctorAppointments = appointmentsList.filter(apt => 
-        apt.doctorId === doctor._id || apt.doctorId?._id === doctor._id
+      console.log("🔍 All appointments response:", allAppointments);
+
+      const appointmentsList =
+        allAppointments?.data?.appointments ||
+        allAppointments?.appointments ||
+        [];
+      console.log(
+        "🔍 Appointments list:",
+        appointmentsList.length,
+        "total appointments"
       );
-      console.log('✅ Fallback success, found', doctorAppointments.length, 'appointments for doctor');
-      
+
+      const doctorAppointments = appointmentsList.filter(
+        (apt) => apt.doctorId === doctor._id || apt.doctorId?._id === doctor._id
+      );
+      console.log(
+        "✅ Fallback success, found",
+        doctorAppointments.length,
+        "appointments for doctor"
+      );
+
       return { success: true, data: { appointments: doctorAppointments } };
     }
   } catch (error) {
-    console.log('❌ Fallback appointments failed:', error.message);
+    console.log("❌ Fallback appointments failed:", error.message);
   }
-  
-  console.log('❌ Both endpoints failed, returning empty array');
+
+  console.log("❌ Both endpoints failed, returning empty array");
   return { success: true, data: { appointments: [] } };
 }
 
@@ -361,7 +380,7 @@ export async function getDoctorDashboardStats() {
   });
   if (!r.ok) {
     const errorText = await r.text();
-    console.log('getDoctorDashboardStats failed:', r.status, errorText);
+    console.log("getDoctorDashboardStats failed:", r.status, errorText);
     throw new Error(errorText);
   }
   return r.json();
@@ -382,17 +401,30 @@ export async function getDoctorDashboardStatsWithFallback() {
 
   try {
     // Fallback: get basic stats from appointments
-    const appointments = await getDoctorAppointmentsWithFallback({ limit: 1000 });
-    const appointmentsList = appointments?.data?.appointments || appointments?.appointments || [];
-    
+    const appointments = await getDoctorAppointmentsWithFallback({
+      limit: 1000,
+    });
+    const appointmentsList =
+      appointments?.data?.appointments || appointments?.appointments || [];
+
     // Calculate basic stats
     const totalAppointments = appointmentsList.length;
-    const acceptedAppointments = appointmentsList.filter(apt => apt.status === 'accepted').length;
-    const pendingAppointments = appointmentsList.filter(apt => apt.status === 'pending_doctor').length;
-    const inProgressAppointments = appointmentsList.filter(apt => apt.status === 'in_progress').length;
-    const completedAppointments = appointmentsList.filter(apt => apt.status === 'done').length;
-    const rejectedAppointments = appointmentsList.filter(apt => apt.status === 'rejected').length;
-    
+    const acceptedAppointments = appointmentsList.filter(
+      (apt) => apt.status === "accepted"
+    ).length;
+    const pendingAppointments = appointmentsList.filter(
+      (apt) => apt.status === "pending_doctor"
+    ).length;
+    const inProgressAppointments = appointmentsList.filter(
+      (apt) => apt.status === "in_progress"
+    ).length;
+    const completedAppointments = appointmentsList.filter(
+      (apt) => apt.status === "done"
+    ).length;
+    const rejectedAppointments = appointmentsList.filter(
+      (apt) => apt.status === "rejected"
+    ).length;
+
     const fallbackStats = {
       totalAppointments,
       acceptedAppointments,
@@ -400,13 +432,13 @@ export async function getDoctorDashboardStatsWithFallback() {
       inProgressAppointments,
       completedAppointments,
       rejectedAppointments,
-      todayAppointments: appointmentsList.filter(apt => {
+      todayAppointments: appointmentsList.filter((apt) => {
         const aptDate = new Date(apt.scheduledStart);
         const today = new Date();
         return aptDate.toDateString() === today.toDateString();
-      }).length
+      }).length,
     };
-    
+
     return fallbackStats;
   } catch (error) {
     // Fallback dashboard stats failed
@@ -417,7 +449,7 @@ export async function getDoctorDashboardStatsWithFallback() {
       inProgressAppointments: 0,
       completedAppointments: 0,
       rejectedAppointments: 0,
-      todayAppointments: 0
+      todayAppointments: 0,
     };
   }
 }
@@ -436,6 +468,55 @@ export async function updateAppointmentStatus(
       body: JSON.stringify({ status, cancelReason }),
     }
   );
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Doctor time slot functions
+export async function getDoctorTimeSlots(params = {}) {
+  console.log("🔍 getDoctorTimeSlots params:", params);
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      searchParams.append(key, value);
+    }
+  });
+  const url = `${BASE}/api/doctors/me/time-slots?${searchParams}`;
+  console.log("🔍 getDoctorTimeSlots URL:", url);
+  const r = await fetch(url, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function autoGenerateTimeSlots() {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/auto-generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({}),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Schedule rules functions
+export async function getDoctorScheduleRules() {
+  const r = await fetch(`${BASE}/api/doctors/me/schedule-rules`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function updateDoctorScheduleRules(scheduleRules) {
+  const r = await fetch(`${BASE}/api/doctors/me/schedule-rules`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ scheduleRules }),
+  });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -577,26 +658,6 @@ export async function makePayment(paymentData) {
   return r.json();
 }
 
-// Video consultation functions
-export async function createVideoSession(appointmentId) {
-  const r = await fetch(`${BASE}/api/video-sessions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ appointmentId }),
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-export async function getVideoSession(sessionId) {
-  const r = await fetch(`${BASE}/api/video-sessions/${sessionId}`, {
-    credentials: "include",
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
 // Notification functions
 export async function getNotifications(params = {}) {
   const searchParams = new URLSearchParams();
@@ -631,63 +692,7 @@ export async function markAllNotificationsAsRead() {
   return r.json();
 }
 
-// Time slot management functions
-export async function getDoctorTimeSlots(params = {}) {
-  const searchParams = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      searchParams.append(key, value);
-    }
-  });
 
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots?${searchParams}`, {
-    credentials: "include",
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-export async function createTimeSlot(slotData) {
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(slotData),
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-export async function updateTimeSlot(slotId, slotData) {
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots/${slotId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(slotData),
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-export async function deleteTimeSlot(slotId) {
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots/${slotId}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-export async function blockTimeSlot(blockData) {
-  const r = await fetch(`${BASE}/api/doctors/me/time-slots/block`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(blockData),
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
 
 // Review functions
 export async function getDoctorReviews(params = {}) {
@@ -762,7 +767,7 @@ export async function findDoctorByUserId(userId) {
   try {
     const list = await getAllDoctors({ limit: 1000 });
     const doctorsArray = list?.data?.doctors || list?.doctors || list;
-    
+
     if (Array.isArray(doctorsArray)) {
       const found = doctorsArray.find((d) => {
         const doctorUserId = d?.userId?._id || d?.userId;
@@ -786,6 +791,7 @@ export async function getDoctorProfileWithFallback() {
       return doctor;
     }
   } catch (error) {
+    console.log("🔍 Primary doctor profile failed:", error.message);
     // Primary endpoint failed, trying fallback
   }
 
@@ -793,15 +799,17 @@ export async function getDoctorProfileWithFallback() {
     // Fallback: find by userId from patient profile (same as useUserProfile)
     const patientProfile = await getCurrentPatientProfile();
     const userId = patientProfile?.data?.user?._id || patientProfile?.user?._id;
-    
+
     if (userId) {
+      console.log("🔍 Fallback - Found userId:", userId);
       const found = await findDoctorByUserId(userId);
       if (found) {
+        console.log("🔍 Fallback - Found doctor:", found.fullName);
         return found;
       }
     }
   } catch (error) {
-    // Fallback failed
+    console.log("🔍 Fallback failed:", error.message);
   }
 
   return null;
@@ -872,8 +880,6 @@ export async function getRejectedDoctors() {
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
-
-
 
 export async function getAdminUsers(params = {}) {
   const queryParams = new URLSearchParams();
@@ -957,9 +963,12 @@ export async function getAdminSpecializations() {
 }
 
 export async function getDoctorsBySpecialization(specializationId) {
-  const r = await fetch(`${BASE}/api/admin/specializations/${specializationId}/doctors`, {
-    credentials: "include",
-  });
+  const r = await fetch(
+    `${BASE}/api/admin/specializations/${specializationId}/doctors`,
+    {
+      credentials: "include",
+    }
+  );
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -1010,12 +1019,15 @@ export async function getAdminAppointments(params = {}) {
 }
 
 export async function updateAdminAppointmentStatus(appointmentId, status) {
-  const r = await fetch(`${BASE}/api/admin/appointments/${appointmentId}/status`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ status }),
-  });
+  const r = await fetch(
+    `${BASE}/api/admin/appointments/${appointmentId}/status`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ status }),
+    }
+  );
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -1075,10 +1087,6 @@ const apiObject = {
   // Payment functions
   makePayment,
 
-  // Video consultation functions
-  createVideoSession,
-  getVideoSession,
-
   // Notification functions
   getNotifications,
   markNotificationAsRead,
@@ -1086,10 +1094,7 @@ const apiObject = {
 
   // Time slot management functions
   getDoctorTimeSlots,
-  createTimeSlot,
-  updateTimeSlot,
-  deleteTimeSlot,
-  blockTimeSlot,
+  autoGenerateTimeSlots,
 
   // Review functions
   getDoctorReviews,
@@ -1099,7 +1104,6 @@ const apiObject = {
   // Public doctor functions
   getAllDoctors,
   getAllDoctorsForAdmin,
-  
 
   // Specialization functions
   getAllSpecializations,

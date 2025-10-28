@@ -71,12 +71,9 @@ const VideoCallNotification = () => {
   };
 
   const isCallTime = (scheduledStart) => {
-    const now = new Date();
-    const appointmentTime = new Date(scheduledStart);
-    const diffMs = appointmentTime - now;
-    
-    // Allow joining 15 minutes before scheduled time
-    return diffMs <= 15 * 60 * 1000 && diffMs >= -30 * 60 * 1000;
+    // BỎ CHECK THỜI GIAN - Cho phép gọi bất cứ lúc nào sau khi accepted
+    // Chỉ cần appointment status là 'accepted' là được
+    return true;
   };
 
   if (loading) {

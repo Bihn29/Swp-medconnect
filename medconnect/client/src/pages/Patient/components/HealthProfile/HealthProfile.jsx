@@ -569,9 +569,10 @@ export function HealthProfile() {
                                   <strong>{med.name}</strong>
                                 </div>
                                 <div className="med-details">
-                                  <span>Liều lượng: {med.dosage}</span>
-                                  <span>Đường dùng: {med.route}</span>
                                   <span>Số lượng: {med.quantity}</span>
+                                  {med.notes && (
+                                    <span>Ghi chú: {med.notes}</span>
+                                  )}
                                 </div>
                                 <div className="med-instruction">
                                   <strong>Hướng dẫn:</strong> {med.instruction}
@@ -625,10 +626,12 @@ export function HealthProfile() {
                         <p>{selectedSummary.fullDetails.treatmentMethod}</p>
                       </div>
                     )}
-                    {selectedSummary.fullDetails.followUpInstruction && (
+                    {selectedSummary.fullDetails.followUpInstructions && (
                       <div className="follow-up">
                         <strong>Hướng dẫn theo dõi:</strong>
-                        <p>{selectedSummary.fullDetails.followUpInstruction}</p>
+                        <p>
+                          {selectedSummary.fullDetails.followUpInstructions}
+                        </p>
                       </div>
                     )}
                     {selectedSummary.fullDetails.nextAppointmentDate && (
@@ -737,9 +740,10 @@ export function HealthProfile() {
                                   <strong>{med.name}</strong>
                                 </div>
                                 <div className="med-details">
-                                  <span>Liều lượng: {med.dosage}</span>
-                                  <span>Đường dùng: {med.route}</span>
                                   <span>Số lượng: {med.quantity}</span>
+                                  {med.notes && (
+                                    <span>Ghi chú: {med.notes}</span>
+                                  )}
                                 </div>
                                 <div className="med-instruction">
                                   <strong>Hướng dẫn:</strong> {med.instruction}

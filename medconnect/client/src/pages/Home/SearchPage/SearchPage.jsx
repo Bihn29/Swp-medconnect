@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
+import { api } from "../../../lib/api";
 import {
   Row,
   Col,
@@ -16,6 +17,8 @@ import {
   Rate,
   Empty,
   Pagination,
+  Spin,
+  message,
 } from "antd";
 import {
   SearchOutlined,
@@ -45,171 +48,116 @@ const SearchPage = () => {
   const [filterType, setFilterType] = useState(urlType);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [data, setData] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState(null);
 
   // Cập nhật filterType khi URL thay đổi
   useEffect(() => {
     setFilterType(urlType);
   }, [urlType]);
 
-  // Mock data - Bác sĩ
-  const doctors = [
-    {
-      id: 1,
-      name: "BS.CKI Nguyễn Văn An",
-      specialty: "Tim mạch",
-      hospital: "Bệnh viện Đa khoa Medconnect",
-      location: "Quận 1, TP.HCM",
-      experience: "15 năm",
-      rating: 4.9,
-      price: "500,000đ",
-      avatar: "https://via.placeholder.com/80x80?text=Dr+An",
-      schedule: "Thứ 2-6: 7:00-17:00",
-      type: "doctor",
-    },
-    {
-      id: 2,
-      name: "BS.CKII Trần Thị Bình",
-      specialty: "Nội khoa",
-      hospital: "Bệnh viện Đa khoa Medconnect",
-      location: "Quận 3, TP.HCM",
-      experience: "12 năm",
-      rating: 4.8,
-      price: "400,000đ",
-      avatar: "https://via.placeholder.com/80x80?text=Dr+Binh",
-      schedule: "Thứ 2-7: 8:00-16:00",
-      type: "doctor",
-    },
-    {
-      id: 3,
-      name: "PGS.TS Lê Văn Cường",
-      specialty: "Ngoại khoa",
-      hospital: "Bệnh viện Chuyên khoa Tim",
-      location: "Quận 5, TP.HCM",
-      experience: "20 năm",
-      rating: 5.0,
-      price: "800,000đ",
-      avatar: "https://via.placeholder.com/80x80?text=Dr+Cuong",
-      schedule: "Thứ 3-6: 9:00-15:00",
-      type: "doctor",
-    },
-  ];
+  // Fetch data from API
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
 
-  // Mock data - Chuyên khoa
-  const specialties = [
-    {
-      id: 1,
-      name: "Tim mạch",
-      description: "Khám và điều trị các bệnh về tim mạch",
-      doctorCount: 25,
-      icon: "❤️",
-      type: "specialty",
-    },
-    {
-      id: 2,
-      name: "Nội khoa",
-      description: "Khám nội tổng quát, điều trị nội khoa",
-      doctorCount: 40,
-      icon: "🩺",
-      type: "specialty",
-    },
-    {
-      id: 3,
-      name: "Ngoại khoa",
-      description: "Phẫu thuật và điều trị ngoại khoa",
-      doctorCount: 18,
-      icon: "🔬",
-      type: "specialty",
-    },
-    {
-      id: 4,
-      name: "Sản phụ khoa",
-      description: "Chăm sóc sức khỏe phụ nữ và trẻ em",
-      doctorCount: 15,
-      icon: "👶",
-      type: "specialty",
-    },
-  ];
+    try {
+      let endpoint = "";
+      let params = new URLSearchParams({
+        page: currentPage,
+        limit: 10,
+      });
 
-  // Mock data - Địa điểm khám
-  const locations = [
-    {
-      id: 1,
-      name: "Bệnh viện Đa khoa Medconnect",
-      address: "123 Nguyễn Văn Cừ, Quận 1, TP.HCM",
-      phone: "028-3829-1234",
-      rating: 4.8,
-      specialties: ["Tim mạch", "Nội khoa", "Ngoại khoa"],
-      type: "location",
-    },
-    {
-      id: 2,
-      name: "Bệnh viện Chuyên khoa Tim",
-      address: "456 Võ Văn Tần, Quận 3, TP.HCM",
-      phone: "028-3829-5678",
-      rating: 4.9,
-      specialties: ["Tim mạch", "Phẫu thuật tim"],
-      type: "location",
-    },
-  ];
+      if (searchQuery) {
+        params.append("search", searchQuery);
+      }
 
-  // Mock data - Lý do khám
-  const reasons = [
-    {
-      id: 1,
-      name: "Đau tim, khó thở",
-      specialty: "Tim mạch",
-      description: "Triệu chứng liên quan đến tim mạch",
-      type: "reason",
-    },
-    {
-      id: 2,
-      name: "Đau bụng, khó tiêu",
-      specialty: "Tiêu hóa",
-      description: "Triệu chứng liên quan đến hệ tiêu hóa",
-      type: "reason",
-    },
-    {
-      id: 3,
-      name: "Đau đầu, chóng mặt",
-      specialty: "Thần kinh",
-      description: "Triệu chứng liên quan đến thần kinh",
-      type: "reason",
-    },
-  ];
+      switch (filterType) {
+        case "doctor":
+          endpoint = `/api/doctors/search?${params}`;
+          break;
+        case "specialty":
+          endpoint = `/api/doctors/specializations/search?${params}`;
+          break;
+        case "location":
+          endpoint = `/api/doctors/clinics/search?${params}`;
+          break;
+        case "all":
+        default:
+          // Fetch all types
+          const [doctorsRes, specializationsRes, clinicsRes] =
+            await Promise.all([
+              api.get(`/api/doctors/search?${params}`),
+              api.get(`/api/doctors/specializations/search?${params}`),
+              api.get(`/api/doctors/clinics/search?${params}`),
+            ]);
 
-  // Lọc dữ liệu theo filter
-  const getFilteredData = () => {
-    let allData = [];
+          console.log("API Responses:", {
+            doctorsRes,
+            specializationsRes,
+            clinicsRes,
+          });
 
-    if (filterType === "all" || filterType === "doctor") {
-      allData = [...allData, ...doctors];
+          console.log("Doctors data:", doctorsRes.data?.doctors);
+          console.log(
+            "Specializations data:",
+            specializationsRes.data?.specializations
+          );
+          console.log("Clinics data:", clinicsRes.data?.clinics);
+
+          const allData = [
+            ...(doctorsRes.data?.doctors || []).map((d) => ({
+              ...d,
+              type: "doctor",
+            })),
+            ...(specializationsRes.data?.specializations || []).map((s) => ({
+              ...s,
+              type: "specialty",
+            })),
+            ...(clinicsRes.data?.clinics || []).map((c) => ({
+              ...c,
+              type: "location",
+            })),
+          ];
+
+          console.log("Combined allData:", allData);
+
+          setData(allData);
+          setTotal(allData.length);
+          return;
+      }
+
+      const response = await api.get(endpoint);
+
+      if (filterType === "doctor") {
+        setData(response.data.doctors.map((d) => ({ ...d, type: "doctor" })));
+        setTotal(response.data.pagination.total);
+      } else if (filterType === "specialty") {
+        setData(
+          response.data.specializations.map((s) => ({
+            ...s,
+            type: "specialty",
+          }))
+        );
+        setTotal(response.data.pagination.total);
+      } else if (filterType === "location") {
+        setData(response.data.clinics.map((c) => ({ ...c, type: "location" })));
+        setTotal(response.data.pagination.total);
+      }
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError("Không thể tải dữ liệu. Vui lòng thử lại sau.");
+      message.error("Không thể tải dữ liệu. Vui lòng thử lại sau.");
+    } finally {
+      setLoading(false);
     }
-    if (filterType === "all" || filterType === "specialty") {
-      allData = [...allData, ...specialties];
-    }
-    if (filterType === "all" || filterType === "location") {
-      allData = [...allData, ...locations];
-    }
-    if (filterType === "all" || filterType === "reason") {
-      allData = [...allData, ...reasons];
-    }
-
-    // Lọc theo từ khóa tìm kiếm
-    if (searchQuery) {
-      allData = allData.filter(
-        (item) =>
-          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (item.specialty &&
-            item.specialty.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (item.description &&
-            item.description.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    }
-
-    return allData;
   };
 
-  const filteredData = getFilteredData();
+  // Fetch data when component mounts or dependencies change
+  useEffect(() => {
+    fetchData();
+  }, [filterType, searchQuery, currentPage]);
 
   const handleSearch = (value) => {
     setSearchQuery(value);
@@ -234,7 +182,7 @@ const SearchPage = () => {
       // If not logged in, redirect to login page
       navigate("/dang-nhap", {
         state: {
-          from: "/dat-lich-kham",
+          from: "/dat-lich/chon-thoi-gian",
           doctor: doctor,
           message: "Vui lòng đăng nhập để đặt lịch khám",
         },
@@ -242,8 +190,8 @@ const SearchPage = () => {
       return;
     }
 
-    // If logged in, navigate to appointment booking page with doctor data
-    navigate("/dat-lich-kham", {
+    // If logged in, navigate to time slot selection page with doctor data
+    navigate("/dat-lich/chon-thoi-gian", {
       state: {
         doctor: doctor,
       },
@@ -258,26 +206,40 @@ const SearchPage = () => {
           <Card className="search-item doctor-item" hoverable>
             <Row gutter={16}>
               <Col flex="80px">
-                <Avatar size={64} src={item.avatar} />
+                <Avatar
+                  size={64}
+                  src={item.avatarUrl || item.userId?.avatarUrl}
+                />
               </Col>
               <Col flex="auto">
                 <div className="item-content">
                   <Title level={4} style={{ margin: 0 }}>
-                    {item.name}
+                    {(() => {
+                      const fullName = item.fullName;
+                      return fullName?.startsWith("BS.")
+                        ? fullName
+                        : `BS. ${fullName}`;
+                    })()}
                   </Title>
                   <Space direction="vertical" size="small">
-                    <Tag color="blue">{item.specialty}</Tag>
+                    <Tag color="blue">
+                      {item.specializationIds
+                        ?.map((spec) => spec.name)
+                        .join(", ") || "Chuyên khoa"}
+                    </Tag>
                     <Text>
-                      <EnvironmentOutlined /> {item.hospital}
+                      <EnvironmentOutlined />{" "}
+                      {item.clinicDefaultId?.name || "Phòng khám"}
                     </Text>
                     <Text>
-                      <CalendarOutlined /> {item.schedule}
+                      <CalendarOutlined /> Kinh nghiệm: {item.yearsExperience}{" "}
+                      năm
                     </Text>
                     <Space>
-                      <Rate disabled defaultValue={item.rating} />
-                      <Text>({item.rating})</Text>
+                      <Rate disabled defaultValue={item.ratingAvg || 0} />
+                      <Text>({item.ratingAvg?.toFixed(1) || 0})</Text>
                       <Text strong style={{ color: "#1890ff" }}>
-                        {item.price}
+                        {item.ratingCount} đánh giá
                       </Text>
                     </Space>
                   </Space>
@@ -307,14 +269,16 @@ const SearchPage = () => {
           <Card className="search-item specialty-item" hoverable>
             <Row gutter={16}>
               <Col flex="60px">
-                <div className="specialty-icon">{item.icon}</div>
+                <div className="specialty-icon">🩺</div>
               </Col>
               <Col flex="auto">
                 <Title level={4} style={{ margin: 0 }}>
                   {item.name}
                 </Title>
-                <Paragraph ellipsis={{ rows: 2 }}>{item.description}</Paragraph>
-                <Text type="secondary">{item.doctorCount} bác sĩ</Text>
+                <Paragraph ellipsis={{ rows: 2 }}>
+                  {item.description || "Chuyên khoa y tế"}
+                </Paragraph>
+                <Text type="secondary">{item.doctorCount || 0} bác sĩ</Text>
               </Col>
               <Col flex="100px">
                 <Button type="primary" block>
@@ -341,15 +305,15 @@ const SearchPage = () => {
                     <PhoneOutlined /> {item.phone}
                   </Text>
                   <Space>
-                    <Rate disabled defaultValue={item.rating} />
-                    <Text>({item.rating})</Text>
+                    <Rate disabled defaultValue={4.5} />
+                    <Text>(4.5)</Text>
                   </Space>
                   <div>
-                    {item.specialties.map((spec, index) => (
+                    {item.specializations?.map((spec, index) => (
                       <Tag key={index} color="green">
                         {spec}
                       </Tag>
-                    ))}
+                    )) || <Tag color="green">Đa khoa</Tag>}
                   </div>
                 </Space>
               </Col>
@@ -362,28 +326,6 @@ const SearchPage = () => {
                     Gọi ngay
                   </Button>
                 </Space>
-              </Col>
-            </Row>
-          </Card>
-        );
-
-      case "reason":
-        return (
-          <Card className="search-item reason-item" hoverable>
-            <Row gutter={16}>
-              <Col flex="auto">
-                <Title level={4} style={{ margin: 0 }}>
-                  {item.name}
-                </Title>
-                <Space direction="vertical" size="small">
-                  <Tag color="orange">{item.specialty}</Tag>
-                  <Text type="secondary">{item.description}</Text>
-                </Space>
-              </Col>
-              <Col flex="120px">
-                <Button type="primary" block>
-                  Tìm bác sĩ
-                </Button>
               </Col>
             </Row>
           </Card>
@@ -423,9 +365,6 @@ const SearchPage = () => {
                 <Option value="location">
                   <EnvironmentOutlined /> Địa điểm khám
                 </Option>
-                <Option value="reason">
-                  <HeartOutlined /> Lý do khám
-                </Option>
               </Select>
             </Col>
             <Col xs={24} sm={18}>
@@ -446,7 +385,7 @@ const SearchPage = () => {
       <div className="search-results">
         <div className="container">
           <div className="results-header">
-            <Title level={3}>Kết quả tìm kiếm ({filteredData.length})</Title>
+            <Title level={3}>Kết quả tìm kiếm ({total})</Title>
             {searchQuery && (
               <Text>
                 Kết quả cho: "<strong>{searchQuery}</strong>"
@@ -456,15 +395,23 @@ const SearchPage = () => {
 
           <Divider />
 
-          {filteredData.length > 0 ? (
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "50px 0" }}>
+              <Spin size="large" />
+              <div style={{ marginTop: 16 }}>Đang tải dữ liệu...</div>
+            </div>
+          ) : error ? (
+            <Empty description={error} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          ) : data.length > 0 ? (
             <div className="results-list">
-              {filteredData
-                .slice((currentPage - 1) * 10, currentPage * 10)
-                .map((item) => (
-                  <div key={`${item.type}-${item.id}`} className="result-item">
-                    {renderSearchItem(item)}
-                  </div>
-                ))}
+              {data.map((item, index) => (
+                <div
+                  key={`${item.type}-${item._id || index}`}
+                  className="result-item"
+                >
+                  {renderSearchItem(item)}
+                </div>
+              ))}
             </div>
           ) : (
             <Empty
@@ -473,11 +420,11 @@ const SearchPage = () => {
             />
           )}
 
-          {filteredData.length > 10 && (
+          {total > 10 && (
             <div style={{ textAlign: "center", marginTop: 30 }}>
               <Pagination
                 current={currentPage}
-                total={filteredData.length}
+                total={total}
                 pageSize={10}
                 onChange={setCurrentPage}
                 showSizeChanger={false}

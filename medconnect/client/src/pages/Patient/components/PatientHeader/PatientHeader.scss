@@ -77,6 +77,15 @@
   min-width: 300px;
 }
 
+/* Right Section - Notifications */
+.header-right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 60px;
+}
+
 /* Search Form */
 .search-form {
   width: 100%;

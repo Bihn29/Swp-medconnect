@@ -116,7 +116,8 @@ export function DoctorSearch() {
         if (searchTerm && searchTerm.trim()) {
           const searchQuery = searchTerm.trim().toLowerCase();
           doctors = doctors.filter((doctor) => {
-            const doctorName = (doctor.userId?.fullName || doctor.fullName)?.toLowerCase() || "";
+            const doctorName =
+              (doctor.userId?.fullName || doctor.fullName)?.toLowerCase() || "";
             const specialty =
               doctor.specializationIds?.[0]?.name?.toLowerCase() || "";
             const bio = doctor.bio?.toLowerCase() || "";
@@ -400,7 +401,7 @@ export function DoctorSearch() {
                 {/* Doctor Content */}
                 <div className="doctor-content">
                   {/* Doctor Avatar */}
-                  <div className="doctor-avatar">
+                  <div>
                     {doctor.avatarUrl ? (
                       <img
                         src={doctor.avatarUrl}
@@ -414,7 +415,15 @@ export function DoctorSearch() {
 
                   {/* Doctor Info */}
                   <div className="doctor-info">
-                    <h3 className="doctor-name">BS. {doctor.userId?.fullName || doctor.fullName}</h3>
+                    <h3 className="doctor-name">
+                      {(() => {
+                        const fullName =
+                          doctor.userId?.fullName || doctor.fullName;
+                        return fullName?.startsWith("BS.")
+                          ? fullName
+                          : `BS. ${fullName}`;
+                      })()}
+                    </h3>
                     <p className="doctor-specialty">
                       {doctor.specializationIds?.[0]?.name || "Chưa xác định"}
                     </p>

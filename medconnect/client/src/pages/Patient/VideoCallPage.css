@@ -4,6 +4,23 @@
   padding: 20px 0;
 }
 
+/* When video call is active, make it fullscreen */
+.video-call-page.video-call-active {
+  padding: 0;
+  background: #000;
+}
+
+.video-call-page.video-call-active .video-call-page-container {
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+.video-call-page.video-call-active .page-header,
+.video-call-page.video-call-active .instructions-card {
+  display: none;
+}
+
 .video-call-page-container {
   max-width: 1200px;
   margin: 0 auto;

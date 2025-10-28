@@ -1,269 +1,158 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Typography, Button, Space, message, Spin, Table, Tag } from 'antd';
-import { ArrowLeftOutlined, VideoCameraOutlined, PhoneOutlined } from '@ant-design/icons';
-import VideoCallManager from '../../components/VideoCall/VideoCallManager';
-import { api } from '../../lib/api';
+import { message } from 'antd';
+import jitsiService from '../../services/jitsiService';
+import VideoCallAPI from '../../services/videoCallAPI';
 import './DoctorVideoCallPage.css';
-
-const { Title, Text } = Typography;
 
 const DoctorVideoCallPage = () => {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
-  const [appointment, setAppointment] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [videoCalls, setVideoCalls] = useState([]);
+  const jitsiContainerRef = useRef(null);
+  const containerId = 'jitsi-container-doctor';
+  const hasJoinedConference = useRef(false);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    fetchAppointment();
-    fetchVideoCalls();
+    // Prevent duplicate initialization
+    if (hasInitialized.current) {
+      console.log('⚠️ DoctorVideoCallPage already initialized, skipping...');
+      return;
+    }
+
+    // Use FIXED roomId to ensure doctor and patient join the SAME room
+    const roomId = `room_medconnect_${appointmentId}`;
+    console.log('🎥 Doctor Initializing Jitsi Meet with FIXED room:', roomId);
+    
+    hasInitialized.current = true;
+
+    // Ensure a video call record exists in DB before starting Jitsi
+    (async () => {
+      try {
+        console.log('🗄️ Creating/ensuring video call room in DB for appointment:', appointmentId);
+        const createRes = await VideoCallAPI.createRoom(appointmentId);
+        console.log('🗄️ Video call room ensure result:', createRes);
+      } catch (e) {
+        console.warn('⚠️ Could not create video call room (continuing anyway):', e?.message);
+      } finally {
+        initializeJitsiCall(roomId);
+      }
+    })();
+
+    return () => {
+      // Cleanup on unmount
+      hasInitialized.current = false;
+      if (jitsiService.isInitialized()) {
+        jitsiService.endCall();
+      }
+    };
   }, [appointmentId]);
 
-  const fetchAppointment = async () => {
+  const initializeJitsiCall = async (roomId) => {
     try {
-      setLoading(true);
-      const response = await api.get(`/appointments/${appointmentId}`);
-      setAppointment(response.data);
-    } catch (error) {
-      console.error('Error fetching appointment:', error);
-      message.error('Không thể tải thông tin lịch hẹn');
-      navigate('/bac-si');
-    } finally {
-      setLoading(false);
-    }
-  };
+      // Set up callbacks
+      jitsiService.setCallbacks({
+        onConferenceJoined: async () => {
+          console.log('✅ Doctor joined conference successfully');
+          hasJoinedConference.current = true; // Đánh dấu đã join thành công
+          // Đợi một chút rồi báo thành công
+          setTimeout(() => {
+            message.success('Đã kết nối cuộc gọi video thành công');
+          }, 500);
 
-  const fetchVideoCalls = async () => {
-    try {
-      const response = await api.get(`/video-calls/appointment/${appointmentId}`);
-      setVideoCalls(response.data);
+          // Mark call as started in DB
+          try {
+            await VideoCallAPI.startCall(roomId);
+          } catch (e) {
+            console.warn('⚠️ Could not mark video call started:', e?.message);
+          }
+        },
+        onParticipantJoined: (event) => {
+          console.log('Participant joined:', event);
+          const participantName = event?.participant?.displayName || 'Unknown';
+          console.log('🎉 Bệnh nhân đã tham gia!');
+          message.success(`Bệnh nhân ${participantName} đã tham gia cuộc gọi`);
+        },
+        onParticipantLeft: (event) => {
+          console.log('Participant left:', event);
+          message.warning('Một người tham gia đã rời khỏi cuộc gọi');
+        },
+        onAudioMuteStatusChanged: (isMuted) => {
+          console.log('Audio muted:', isMuted);
+          if (isMuted) {
+            message.info('Microphone đã tắt');
+          }
+        },
+        onVideoMuteStatusChanged: (isMuted) => {
+          console.log('Video muted:', isMuted);
+          if (isMuted) {
+            message.info('Camera đã tắt');
+          }
+        },
+        onReadyToClose: async () => {
+          console.log('Ready to close');
+          // CHỈ redirect nếu đã thực sự join conference (không phải lỗi membersOnly)
+          if (hasJoinedConference.current) {
+            console.log('Closing video call window...');
+            // Đóng TAB HIỆN TẠI thay vì redirect về dashboard
+            window.close();
+          } else {
+            console.log('Not redirecting - conference failed before joining');
+          }
+        },
+        onError: (error) => {
+          console.error('Jitsi Error:', error);
+          // Nếu là lỗi membersOnly, CHỈ HƯỚNG DẪN - KHÔNG REDIRECT
+          if (error?.error === 'membersOnly' || error?.toString().includes('membersOnly')) {
+            console.log('Room requires moderator. Please click "Mình là quản trị viên" button.');
+            message.warning('Vui lòng bấm nút "Mình là quản trị viên" để bắt đầu cuộc gọi');
+            // KHÔNG redirect - để user bấm nút "Mình là quản trị viên"
+            return;
+          } else if (error?.error === 'gum.permission_denied') {
+            console.error('❌ Permission denied for camera/microphone');
+            message.error('Vui lòng cho phép truy cập camera và microphone để tham gia cuộc gọi');
+          } else {
+            message.error('Có lỗi xảy ra trong cuộc gọi video');
+          }
+        }
+      });
+
+      // Initialize Jitsi Meet
+      await jitsiService.initialize(containerId, roomId, {
+        displayName: 'Bác sĩ',
+        email: ''
+      });
+      
+      console.log('✅ Jitsi initialized successfully');
+
     } catch (error) {
-      console.error('Error fetching video calls:', error);
+      console.error('Failed to initialize Jitsi call:', error);
+      message.error('Không thể khởi tạo cuộc gọi video');
     }
   };
 
   const handleBack = () => {
+    if (jitsiService.isInitialized()) {
+      jitsiService.endCall();
+    }
     navigate('/bac-si');
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'created':
-        return 'green';
-      case 'in_progress':
-        return 'blue';
-      case 'ended':
-        return 'red';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'created':
-        return 'Sẵn sàng';
-      case 'in_progress':
-        return 'Đang diễn ra';
-      case 'ended':
-        return 'Đã kết thúc';
-      default:
-        return 'Không xác định';
-    }
-  };
-
-  const videoCallColumns = [
-    {
-      title: 'Phòng',
-      dataIndex: 'roomId',
-      key: 'roomId',
-      render: (roomId) => (
-        <Text code>{roomId}</Text>
-      ),
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => (
-        <Tag color={getStatusColor(status)}>
-          {getStatusText(status)}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Bắt đầu',
-      dataIndex: 'startedAt',
-      key: 'startedAt',
-      render: (startedAt) => startedAt ? new Date(startedAt).toLocaleString('vi-VN') : '-',
-    },
-    {
-      title: 'Kết thúc',
-      dataIndex: 'endedAt',
-      key: 'endedAt',
-      render: (endedAt) => endedAt ? new Date(endedAt).toLocaleString('vi-VN') : '-',
-    },
-    {
-      title: 'Thao tác',
-      key: 'action',
-      render: (_, record) => (
-        <Space>
-          {record.status === 'created' && (
-            <Button
-              type="primary"
-              size="small"
-              icon={<PhoneOutlined />}
-              onClick={() => handleJoinCall(record.roomId)}
-            >
-              Tham gia
-            </Button>
-          )}
-          {record.status === 'in_progress' && (
-            <Button
-              type="primary"
-              size="small"
-              icon={<VideoCameraOutlined />}
-              onClick={() => handleJoinCall(record.roomId)}
-            >
-              Tham gia
-            </Button>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
-  const handleJoinCall = (roomId) => {
-    navigate(`/bac-si/video-call/${roomId}`);
-  };
-
-  if (loading) {
-    return (
-      <div className="doctor-video-call-page-loading">
-        <Spin size="large" />
-        <Text>Đang tải thông tin...</Text>
-      </div>
-    );
-  }
-
-  if (!appointment) {
-    return (
-      <div className="doctor-video-call-page-error">
-        <Card>
-          <Title level={4}>Không tìm thấy lịch hẹn</Title>
-          <Text type="secondary">Lịch hẹn không tồn tại hoặc bạn không có quyền truy cập.</Text>
-          <br />
-          <Button type="primary" onClick={handleBack} style={{ marginTop: 16 }}>
-            Quay lại
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="doctor-video-call-page">
-      <div className="doctor-video-call-page-container">
-        {/* Header */}
-        <div className="page-header">
-          <Button 
-            type="text" 
-            icon={<ArrowLeftOutlined />} 
-            onClick={handleBack}
-            className="back-button"
-          >
-            Quay lại
-          </Button>
-          
-          <div className="header-content">
-            <Title level={2} className="page-title">
-              <VideoCameraOutlined className="title-icon" />
-              Quản lý cuộc gọi video
-            </Title>
-            <Text type="secondary" className="page-subtitle">
-              Quản lý cuộc gọi video với bệnh nhân
-            </Text>
-          </div>
-        </div>
-
-        {/* Appointment Info */}
-        <Card className="appointment-info-card" style={{ marginBottom: 24 }}>
-          <Title level={4}>Thông tin lịch hẹn</Title>
-          <Space direction="vertical" size="small" style={{ width: '100%' }}>
-            <div className="info-item">
-              <Text strong>Bệnh nhân:</Text>
-              <Text>{appointment.patientId?.name || 'Chưa xác định'}</Text>
-            </div>
-            <div className="info-item">
-              <Text strong>Ngày khám:</Text>
-              <Text>{new Date(appointment.scheduledStart).toLocaleDateString('vi-VN')}</Text>
-            </div>
-            <div className="info-item">
-              <Text strong>Thời gian:</Text>
-              <Text>
-                {new Date(appointment.scheduledStart).toLocaleTimeString('vi-VN', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })} - {new Date(appointment.scheduledEnd).toLocaleTimeString('vi-VN', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}
-              </Text>
-            </div>
-            <div className="info-item">
-              <Text strong>Trạng thái:</Text>
-              <Tag color={appointment.status === 'accepted' ? 'green' : 'orange'}>
-                {appointment.status === 'accepted' ? 'Đã chấp nhận' : 'Chờ chấp nhận'}
-              </Tag>
-            </div>
-          </Space>
-        </Card>
-
-        {/* Video Call Manager */}
-        <div className="video-call-content">
-          <VideoCallManager 
-            appointmentId={appointmentId}
-            userRole="doctor"
-          />
-        </div>
-
-        {/* Video Call History */}
-        {videoCalls.length > 0 && (
-          <Card className="video-call-history-card" style={{ marginTop: 24 }}>
-            <Title level={4}>Lịch sử cuộc gọi video</Title>
-            <Table
-              columns={videoCallColumns}
-              dataSource={videoCalls}
-              rowKey="_id"
-              pagination={false}
-              size="small"
-            />
-          </Card>
-        )}
-
-        {/* Instructions */}
-        <Card className="instructions-card" style={{ marginTop: 24 }}>
-          <Title level={4}>Hướng dẫn cho bác sĩ</Title>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <div className="instruction-item">
-              <Text strong>1. Chuẩn bị:</Text>
-              <Text>Đảm bảo camera và microphone hoạt động tốt, có ánh sáng đầy đủ</Text>
-            </div>
-            <div className="instruction-item">
-              <Text strong>2. Môi trường:</Text>
-              <Text>Chọn nơi yên tĩnh, chuyên nghiệp để thực hiện cuộc gọi</Text>
-            </div>
-            <div className="instruction-item">
-              <Text strong>3. Thời gian:</Text>
-              <Text>Cuộc gọi chỉ có thể bắt đầu khi lịch hẹn đã được chấp nhận</Text>
-            </div>
-            <div className="instruction-item">
-              <Text strong>4. Chất lượng:</Text>
-              <Text>Đảm bảo kết nối internet ổn định để có chất lượng video tốt</Text>
-            </div>
-          </Space>
-        </Card>
+      {/* Jitsi Meet Container - Fullscreen, không có nút back */}
+      <div className="jitsi-container-wrapper">
+        <div 
+          id={containerId} 
+          ref={jitsiContainerRef}
+          style={{
+            width: '100vw',
+            height: '100vh',
+            position: 'absolute',
+            top: 0,
+            left: 0
+          }}
+        />
       </div>
     </div>
   );

@@ -6,13 +6,17 @@ import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Appointment from "../models/appointment.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
 import ConsultationAdvice from "../models/consultationAdvice.model.js";
+import {
+  createBookingNotification,
+  createAppointmentNotification,
+} from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
 /**
- * Get current patient profile with full information
+ * Cancel appointment by patient
  */
-export async function getCurrentPatientProfile(req, res) {
+export async function cancelAppointment(req, res) {
   try {
     const claims = req.user || {};
     const appUserId = claims.app_user_id;
@@ -26,14 +30,150 @@ export async function getCurrentPatientProfile(req, res) {
       );
     }
 
-    // Find user by app_user_id
-    const user = await User.findById(appUserId).lean();
+    const { appointmentId } = req.params;
+    const { cancelReason } = req.body;
+
+    // Find patient
+    const patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Patient profile not found"
+      );
+    }
+
+    // Find appointment
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      patientId: patient._id,
+    });
+
+    if (!appointment) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Appointment not found or does not belong to this patient"
+      );
+    }
+
+    // Check if appointment can be cancelled
+    if (!["pending_doctor", "accepted"].includes(appointment.status)) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Appointment cannot be cancelled in current status"
+      );
+    }
+
+    // Update appointment status
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      {
+        status: "cancelled",
+        cancelledAt: new Date(),
+        cancelledBy: appUserId,
+        cancelReason: cancelReason || "Cancelled by patient",
+      },
+      { new: true }
+    )
+      .populate("patientId", "fullName phone")
+      .populate("doctorId", "fullName")
+      .populate("slotId", "startAt endAt")
+      .lean();
+
+    // Free up the time slot
+    await DoctorTimeSlot.findByIdAndUpdate(appointment.slotId, {
+      status: "available",
+    });
+
+    // Create notification for doctor about cancellation
+    try {
+      await createAppointmentNotification(appointmentId, "cancelled", {
+        cancelReason: cancelReason || "Cancelled by patient",
+      });
+      console.log(
+        `✅ Cancellation notification created for appointment ${appointmentId}`
+      );
+    } catch (notificationError) {
+      console.error(
+        "❌ Error creating cancellation notification:",
+        notificationError
+      );
+      // Don't fail the main request if notification fails
+    }
+
+    return ok(res, {
+      message: "Appointment cancelled successfully",
+      appointment: updatedAppointment,
+    });
+  } catch (error) {
+    console.error("Error cancelling appointment:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Get current patient profile with full information
+ */
+export async function getCurrentPatientProfile(req, res) {
+  try {
+    const claims = req.user || {};
+    
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
+    let user;
+
+    if (appUserId) {
+      // Use app_user_id if available
+      user = await User.findById(appUserId).lean();
+    } else {
+      // Fall back to email-based lookup (compatible with Google login)
+      const userEmail = claims.email;
+      if (!userEmail) {
+        console.log("❌ No app_user_id or email found in token");
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      
+      console.log("🔍 Looking up user by email:", userEmail);
+      user = await User.findOne({ email: userEmail }).lean();
+      
+      if (user) {
+        appUserId = user._id;
+      }
+    }
+
     if (!user) {
       return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
     }
+    
+    console.log("👤 Found user:", { _id: user._id, email: user.email, fullName: user.fullName });
 
-    // Find patient profile
-    const patient = await Patient.findOne({ userId: appUserId }).lean();
+    // Find patient profile, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId }).lean();
+    
+    if (!patient) {
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient.toObject();
+      console.log("Created patient profile:", patient._id);
+    }
 
     // Combine user and patient data
     const profileData = {
@@ -113,15 +253,27 @@ export async function getCurrentPatientProfile(req, res) {
 export async function updatePatientProfile(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
+    
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
 
     if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+      // Fall back to email-based lookup
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      
+      const user = await User.findOne({ email: userEmail }).lean();
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+      appUserId = user._id;
     }
 
     const updateData = req.body;
@@ -501,12 +653,23 @@ export async function bookAppointment(req, res) {
     // Get or create patient profile
     let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found. Please complete your profile first."
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const user = await User.findById(appUserId);
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+      
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     // Verify the time slot exists and is available
@@ -562,6 +725,20 @@ export async function bookAppointment(req, res) {
     // Update time slot status to booked
     await DoctorTimeSlot.findByIdAndUpdate(slotId, { status: "booked" });
 
+    // Create notification for doctor about new appointment
+    try {
+      await createBookingNotification(appointment._id);
+      console.log(
+        `✅ Booking notification created for appointment ${appointment._id}`
+      );
+    } catch (notificationError) {
+      console.error(
+        "❌ Error creating booking notification:",
+        notificationError
+      );
+      // Don't fail the main request if notification fails
+    }
+
     // Populate appointment data for response
     const populatedAppointment = await Appointment.findById(appointment._id)
       .populate("patientId", "fullName phone")
@@ -596,26 +773,49 @@ export async function bookAppointment(req, res) {
 export async function getPatientAppointments(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
+    
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
+    let user;
 
-    if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+    if (appUserId) {
+      user = await User.findById(appUserId).lean();
+    } else {
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      user = await User.findOne({ email: userEmail }).lean();
+      if (user) {
+        appUserId = user._id;
+      }
     }
 
-    // Find patient by user ID
-    const patient = await Patient.findOne({ userId: appUserId });
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+    }
+
+    // Find patient by user ID, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found"
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     const { status, page = 1, limit = 50 } = req.query;
@@ -681,29 +881,52 @@ export async function getPatientAppointments(req, res) {
 export async function cancelPatientAppointment(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
+    
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
+    let user;
 
-    if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+    if (appUserId) {
+      user = await User.findById(appUserId).lean();
+    } else {
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      user = await User.findOne({ email: userEmail }).lean();
+      if (user) {
+        appUserId = user._id;
+      }
+    }
+
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
     }
 
     const { appointmentId } = req.params;
     const { cancelReason } = req.body;
 
-    // Find patient by user ID
-    const patient = await Patient.findOne({ userId: appUserId });
+    // Find patient by user ID, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found"
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     // Find appointment belonging to this patient
@@ -796,7 +1019,7 @@ export async function getAppointmentDetails(req, res) {
     })
       .populate({
         path: "doctorId",
-        select: "fullName specializationIds phone avatarUrl",
+        select: "fullName name specializationIds phone avatarUrl",
         populate: {
           path: "specializationIds",
           select: "name",
@@ -809,6 +1032,15 @@ export async function getAppointmentDetails(req, res) {
     if (!appointment) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
     }
+
+    console.log("✅ Patient appointment detail fetched:", {
+      appointmentId: appointment._id.toString(),
+      status: appointment.status,
+      hasDoctor: !!appointment.doctorId,
+      doctorName: appointment.doctorId?.fullName || appointment.doctorId?.name,
+      doctorIdValue: appointment.doctorId,
+      appointmentData: JSON.stringify(appointment, null, 2)
+    });
 
     return ok(res, appointment);
   } catch (error) {
@@ -890,7 +1122,10 @@ export async function getPatientConsultationSummaries(req, res) {
       const medicationsText =
         summary.medications && summary.medications.length > 0
           ? summary.medications
-              .map((med) => `${med.name} - ${med.dosage} - ${med.instruction}`)
+              .map(
+                (med) =>
+                  `${med.name} - ${med.quantity || "N/A"} - ${med.instruction}`
+              )
               .join(", ")
           : "Không có đơn thuốc";
 
@@ -935,7 +1170,7 @@ export async function getPatientConsultationSummaries(req, res) {
           procedures: summary.procedures,
           summaryText: summary.summaryText,
           treatmentMethod: summary.treatmentMethod,
-          followUpInstruction: summary.followUpInstruction,
+          followUpInstructions: summary.followUpInstructions,
           nextAppointmentDate: summary.nextAppointmentDate,
           appointment: summary.appointmentId,
           clinic: summary.clinicId,
@@ -1023,7 +1258,10 @@ export async function getPatientConsultationAdvice(req, res) {
       const medicationsText =
         advice.medications && advice.medications.length > 0
           ? advice.medications
-              .map((med) => `${med.name} - ${med.dosage} - ${med.instruction}`)
+              .map(
+                (med) =>
+                  `${med.name} - ${med.quantity || "N/A"} - ${med.instruction}`
+              )
               .join(", ")
           : "Không có đơn thuốc";
 

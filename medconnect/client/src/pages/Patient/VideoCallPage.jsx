@@ -13,6 +13,7 @@ const VideoCallPage = () => {
   const navigate = useNavigate();
   const [appointment, setAppointment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isInCall, setIsInCall] = useState(false);
 
   useEffect(() => {
     fetchAppointment();
@@ -21,8 +22,13 @@ const VideoCallPage = () => {
   const fetchAppointment = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/appointments/${appointmentId}`);
-      setAppointment(response.data);
+      const response = await api.get(`/api/patients/me/appointments/${appointmentId}`);
+      
+      if (response.success) {
+        setAppointment(response.data);
+      } else {
+        throw new Error(response.message || 'Failed to fetch appointment');
+      }
     } catch (error) {
       console.error('Error fetching appointment:', error);
       message.error('Không thể tải thông tin lịch hẹn');
@@ -61,7 +67,7 @@ const VideoCallPage = () => {
   }
 
   return (
-    <div className="video-call-page">
+    <div className={`video-call-page ${isInCall ? 'video-call-active' : ''}`}>
       <div className="video-call-page-container">
         {/* Header */}
         <div className="page-header">
@@ -90,6 +96,7 @@ const VideoCallPage = () => {
           <VideoCallManager 
             appointmentId={appointmentId}
             userRole="patient"
+            onCallStateChange={setIsInCall}
           />
         </div>
 

@@ -7,6 +7,7 @@ import HomeVisit from "../pages/Home/HomeVisit/HomeVisit";
 import HospitalVisit from "../pages/Home/HospitalVisit/HospitalVisit";
 import SearchPage from "../pages/Home/SearchPage/SearchPage";
 import DoctorList from "../pages/Home/DoctorList/DoctorList";
+import DoctorReviews from "../pages/Home/DoctorReviews/DoctorReviews";
 import Specialization from "../pages/Home/Specialization/Specialization";
 import Facility from "../pages/Home/Facility/Facility";
 import Package from "../pages/Home/Package/Package";
@@ -29,6 +30,7 @@ export const publicRoutes = (
       <Route path="/kham-tai-vien" element={<HospitalVisit />} />
       <Route path="/tim-kiem" element={<SearchPage />} />
       <Route path="/danh-sach-bac-si" element={<DoctorList />} />
+      <Route path="/bac-si/:doctorId/danh-gia" element={<DoctorReviews />} />
       <Route path="/chuyen-khoa" element={<Specialization />} />
       <Route path="/co-so-y-te" element={<Facility />} />
       <Route path="/goi-kham" element={<Package />} />

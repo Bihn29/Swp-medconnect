@@ -10,32 +10,62 @@ import {
 } from '@ant-design/icons';
 import VideoCall from './VideoCall';
 import VideoCallAPI from '../../services/videoCallAPI';
+import { api } from '../../lib/api';
 
 const { Title, Text, Paragraph } = Typography;
 
-const VideoCallManager = ({ appointmentId, userRole = 'patient' }) => {
+const VideoCallManager = ({ appointmentId, userRole = 'patient', onCallStateChange }) => {
   const [videoCallData, setVideoCallData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInCall, setIsInCall] = useState(false);
   const [showStartCallModal, setShowStartCallModal] = useState(false);
   const [appointmentInfo, setAppointmentInfo] = useState(null);
 
+  // Notify parent when call state changes
+  useEffect(() => {
+    onCallStateChange?.(isInCall);
+  }, [isInCall, onCallStateChange]);
+
   useEffect(() => {
     fetchAppointmentInfo();
+    
+    // Poll for video call status updates every 5 seconds
+    const interval = setInterval(() => {
+      fetchVideoCallStatus();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, [appointmentId]);
 
   const fetchAppointmentInfo = async () => {
     try {
       setIsLoading(true);
       
-      // Fetch appointment details
-      const appointmentResponse = await api.get(`/appointments/${appointmentId}`);
-      setAppointmentInfo(appointmentResponse.data);
+      // Fetch appointment details based on user role
+      const appointmentResponse = userRole === 'patient'
+        ? await api.get(`/api/patients/me/appointments/${appointmentId}`)
+        : await api.get(`/api/doctors/me/appointments/${appointmentId}`);
       
-      // Check if video call already exists
-      const videoCallResponse = await VideoCallAPI.getCallHistory(appointmentId);
-      if (videoCallResponse.length > 0) {
-        setVideoCallData(videoCallResponse[0]);
+      console.log('Appointment response:', appointmentResponse);
+      
+      if (appointmentResponse.success) {
+        // response structure is { success: true, data: appointment }
+        console.log('Appointment data:', appointmentResponse.data);
+        setAppointmentInfo(appointmentResponse.data);
+      } else {
+        throw new Error(appointmentResponse.message || 'Failed to fetch appointment');
+      }
+      
+      // Check if video call already exists (optional, don't fail if error)
+      try {
+        const videoCallResponse = await VideoCallAPI.getCallHistory(appointmentId);
+        console.log('Video call history response:', videoCallResponse);
+        if (videoCallResponse && Array.isArray(videoCallResponse) && videoCallResponse.length > 0) {
+          setVideoCallData(videoCallResponse[0]);
+        }
+      } catch (videoCallError) {
+        console.log('No video call history found for this appointment:', videoCallError.message);
+        // Don't fail the whole fetch if video call history doesn't exist
       }
       
     } catch (error) {
@@ -43,6 +73,26 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient' }) => {
       message.error('Không thể tải thông tin cuộc hẹn');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchVideoCallStatus = async () => {
+    try {
+      // Only fetch if we have video call data
+      if (!videoCallData) return;
+      
+      const videoCallResponse = await VideoCallAPI.getCallHistory(appointmentId);
+      if (videoCallResponse && Array.isArray(videoCallResponse) && videoCallResponse.length > 0) {
+        const latestVideoCall = videoCallResponse[0];
+        // Only update if status has changed
+        if (latestVideoCall.status !== videoCallData.status) {
+          console.log('🔄 Video call status updated:', latestVideoCall.status);
+          setVideoCallData(latestVideoCall);
+        }
+      }
+    } catch (error) {
+      console.log('Error fetching video call status:', error.message);
+      // Silent error - don't show to user during polling
     }
   };
 
@@ -70,56 +120,94 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient' }) => {
 
   const startVideoCall = async () => {
     try {
-      if (!videoCallData) {
-        message.error('Không có dữ liệu video call');
-        return;
-      }
+      console.log('🎥 startVideoCall - Starting video call...', {
+        appointmentId,
+        userRole,
+        hasVideoCallData: !!videoCallData,
+        roomId: videoCallData?.roomId
+      });
 
-      // Update video call status to in_progress
-      await VideoCallAPI.startCall(videoCallData.roomId);
-      
+      // Use FIXED roomId based on appointmentId (no timestamp)
+      // This ensures both doctor and patient join the SAME room
+      const fixedRoomId = `room_medconnect_${appointmentId}`;
+      console.log('🎥 startVideoCall - Using FIXED roomId:', fixedRoomId);
+
+      // For patient: Just join the call with fixed roomId
+      // The doctor has already started/created the room
       setIsInCall(true);
-      message.success('Cuộc gọi video đã được bắt đầu');
+      console.log('✅ startVideoCall - Patient joining call with roomId:', fixedRoomId);
+      
+      // Store the fixed roomId in state for VideoCall component
+      setVideoCallData({
+        ...videoCallData,
+        roomId: fixedRoomId
+      });
       
     } catch (error) {
-      console.error('Error starting video call:', error);
-      message.error('Không thể bắt đầu cuộc gọi video');
+      console.error('❌ startVideoCall - Error joining video call:', error);
+      message.error('Không thể tham gia cuộc gọi video');
     }
   };
 
   const endVideoCall = async () => {
     try {
+      console.log('🔚 endVideoCall - Leaving video call (not ending, status remains)');
+      
       if (!videoCallData) {
+        console.log('⚠️ No video call data');
         return;
       }
 
-      // Update video call status to ended
-      await VideoCallAPI.endCall(videoCallData.roomId);
+      // DON'T update video call status to "ended" here
+      // The status should only be "ended" when doctor clicks "Complete" button
+      // Just close the video call UI
       
       setIsInCall(false);
-      message.success('Cuộc gọi video đã kết thúc');
+      // Keep videoCallData, just exit the call view
+      message.success('Đã rời khỏi cuộc gọi video');
+      
+      console.log('✅ endVideoCall - Left video call, status unchanged:', videoCallData.status);
       
     } catch (error) {
-      console.error('Error ending video call:', error);
-      message.error('Không thể kết thúc cuộc gọi video');
+      console.error('❌ endVideoCall - Error leaving video call:', error);
+      message.error('Không thể rời khỏi cuộc gọi video');
     }
   };
 
   const canStartCall = () => {
-    if (!appointmentInfo) return false;
-    
-    // Check if appointment is accepted
-    if (appointmentInfo.status !== 'accepted') {
+    if (!appointmentInfo) {
+      console.log('No appointment info');
       return false;
     }
     
-    // Check if it's the right time (within 15 minutes of scheduled time)
-    const now = new Date();
-    const scheduledStart = new Date(appointmentInfo.scheduledStart);
-    const timeDiff = Math.abs(now - scheduledStart);
-    const fifteenMinutes = 15 * 60 * 1000;
+    console.log('Checking canStartCall:', {
+      userRole,
+      status: appointmentInfo.status,
+      appointmentInfo
+    });
     
-    return timeDiff <= fifteenMinutes;
+    // Check if appointment is accepted or in_progress
+    // Doctor can call anytime when appointment is accepted
+    // Patient can join when doctor has started the call (in_progress)
+    if (userRole === 'doctor') {
+      const canStart = appointmentInfo.status === 'accepted' || appointmentInfo.status === 'in_progress';
+      console.log('Doctor can start:', canStart);
+      return canStart;
+    } else {
+      // Patient can join when doctor has initiated the call AND video call exists
+      const hasInProgressStatus = appointmentInfo.status === 'in_progress';
+      const hasVideoCall = !!videoCallData;
+      const canJoin = hasInProgressStatus && hasVideoCall;
+      
+      console.log('Patient can join check:', {
+        status: appointmentInfo.status,
+        hasInProgressStatus,
+        hasVideoCall,
+        canJoin
+      });
+      
+      return canJoin;
+    }
   };
 
   const getCallStatusText = () => {
@@ -161,15 +249,34 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient' }) => {
     );
   }
 
-  if (isInCall && videoCallData) {
+  // Always use FIXED roomId based on appointmentId when in call
+  // NEVER use videoCallData.roomId (it might have old timestamp format)
+  const fixedRoomId = `room_medconnect_${appointmentId}`;
+  
+  if (isInCall) {
+    // ALWAYS use fixedRoomId, ignore videoCallData.roomId completely
+    const roomIdToUse = fixedRoomId;
+    
+    console.log('🎥 Rendering VideoCall component:', {
+      roomId: roomIdToUse,
+      userRole,
+      appointmentId,
+      videoCallDataOldRoomId: videoCallData?.roomId, // Log old roomId for debugging
+      videoCallData
+    });
+    
+    const userName = userRole === 'patient' 
+      ? appointmentInfo?.patientId?.name || 'Patient'
+      : appointmentInfo?.doctorId?.name || 'Doctor';
+    
     return (
       <VideoCall
-        roomId={videoCallData.roomId}
-        isInitiator={userRole === 'patient'}
+        roomId={roomIdToUse}
         onCallEnd={endVideoCall}
         appointmentId={appointmentId}
         doctorInfo={appointmentInfo?.doctorId}
         patientInfo={appointmentInfo?.patientId}
+        userName={userName}
       />
     );
   }
@@ -209,7 +316,7 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient' }) => {
                     <div className="info-item">
                       <UserOutlined className="info-icon" />
                       <Text strong>Bác sĩ:</Text>
-                      <Text>{appointmentInfo.doctorId?.name || 'Chưa xác định'}</Text>
+                      <Text>{appointmentInfo.doctorId?.name || appointmentInfo.doctorId?.fullName || 'Chưa xác định'}</Text>
                     </div>
                     <div className="info-item">
                       <Text strong>Trạng thái:</Text>
@@ -223,35 +330,67 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient' }) => {
         )}
 
         <div className="call-actions">
-          {!videoCallData ? (
-            <Button
-              type="primary"
-              size="large"
-              icon={<VideoCameraOutlined />}
-              onClick={() => setShowStartCallModal(true)}
-              disabled={!canStartCall()}
-              className="action-button"
-            >
-              Tạo cuộc gọi video
-            </Button>
-          ) : videoCallData.status === 'created' ? (
-            <Button
-              type="primary"
-              size="large"
-              icon={<PhoneOutlined />}
-              onClick={startVideoCall}
-              disabled={!canStartCall()}
-              className="action-button"
-            >
-              Bắt đầu cuộc gọi
-            </Button>
-          ) : videoCallData.status === 'ended' ? (
-            <Text type="secondary">Cuộc gọi đã kết thúc</Text>
-          ) : null}
+          {/* Patient can only join existing calls, not create them */}
+          {userRole === 'patient' ? (
+            videoCallData ? (
+              (videoCallData.status === 'created' || videoCallData.status === 'in_progress') ? (
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<PhoneOutlined />}
+                  onClick={startVideoCall}
+                  className="action-button"
+                >
+                  Tham gia cuộc gọi
+                </Button>
+              ) : videoCallData.status === 'ended' ? (
+                <Text type="secondary">Cuộc gọi đã kết thúc</Text>
+              ) : null
+            ) : canStartCall() ? (
+              <Button
+                type="default"
+                size="large"
+                icon={<ClockCircleOutlined />}
+                disabled
+                className="action-button"
+              >
+                Đang chờ bác sĩ bắt đầu cuộc gọi...
+              </Button>
+            ) : (
+              <Text type="secondary">Chờ bác sĩ bắt đầu cuộc gọi</Text>
+            )
+          ) : (
+            /* Doctor can create and start calls */
+            !videoCallData ? (
+              <Button
+                type="primary"
+                size="large"
+                icon={<VideoCameraOutlined />}
+                onClick={() => setShowStartCallModal(true)}
+                disabled={!canStartCall()}
+                className="action-button"
+              >
+                Tạo cuộc gọi video
+              </Button>
+            ) : videoCallData.status === 'created' ? (
+              <Button
+                type="primary"
+                size="large"
+                icon={<PhoneOutlined />}
+                onClick={startVideoCall}
+                disabled={!canStartCall()}
+                className="action-button"
+              >
+                Bắt đầu cuộc gọi
+              </Button>
+            ) : videoCallData.status === 'ended' ? (
+              <Text type="secondary">Cuộc gọi đã kết thúc</Text>
+            ) : null
+          )}
 
-          {!canStartCall() && (
+          {!canStartCall() && userRole !== 'patient' && (
             <Text type="secondary" className="warning-text">
-              Cuộc gọi chỉ có thể bắt đầu khi lịch hẹn đã được chấp nhận và trong thời gian cho phép
+              Cuộc gọi chỉ có thể bắt đầu khi lịch hẹn đã được chấp nhận
             </Text>
           )}
         </div>
