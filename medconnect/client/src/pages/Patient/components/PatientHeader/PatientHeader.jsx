@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Search, Bell } from "lucide-react";
-import { Badge } from "../../../../components/ui/Badge";
+import { Search } from "lucide-react";
+import { NotificationCenter } from "../../../../components/NotificationCenter/NotificationCenter";
 import "./PatientHeader.scss";
 
 export function PatientHeader() {
@@ -48,10 +48,7 @@ export function PatientHeader() {
 
         {/* Right Section - Notifications */}
         <div className="header-right">
-          <button className="notification-button">
-            <Bell className="notification-icon" />
-            <Badge className="notification-badge">3</Badge>
-          </button>
+          <NotificationCenter />
         </div>
       </div>
     </header>

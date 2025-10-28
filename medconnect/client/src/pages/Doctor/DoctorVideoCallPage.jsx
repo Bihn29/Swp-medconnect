@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 import jitsiService from '../../services/jitsiService';
+import VideoCallAPI from '../../services/videoCallAPI';
 import './DoctorVideoCallPage.css';
 
 const DoctorVideoCallPage = () => {
@@ -24,7 +25,19 @@ const DoctorVideoCallPage = () => {
     console.log('🎥 Doctor Initializing Jitsi Meet with FIXED room:', roomId);
     
     hasInitialized.current = true;
-    initializeJitsiCall(roomId);
+
+    // Ensure a video call record exists in DB before starting Jitsi
+    (async () => {
+      try {
+        console.log('🗄️ Creating/ensuring video call room in DB for appointment:', appointmentId);
+        const createRes = await VideoCallAPI.createRoom(appointmentId);
+        console.log('🗄️ Video call room ensure result:', createRes);
+      } catch (e) {
+        console.warn('⚠️ Could not create video call room (continuing anyway):', e?.message);
+      } finally {
+        initializeJitsiCall(roomId);
+      }
+    })();
 
     return () => {
       // Cleanup on unmount
@@ -39,13 +52,20 @@ const DoctorVideoCallPage = () => {
     try {
       // Set up callbacks
       jitsiService.setCallbacks({
-        onConferenceJoined: () => {
+        onConferenceJoined: async () => {
           console.log('✅ Doctor joined conference successfully');
           hasJoinedConference.current = true; // Đánh dấu đã join thành công
           // Đợi một chút rồi báo thành công
           setTimeout(() => {
             message.success('Đã kết nối cuộc gọi video thành công');
           }, 500);
+
+          // Mark call as started in DB
+          try {
+            await VideoCallAPI.startCall(roomId);
+          } catch (e) {
+            console.warn('⚠️ Could not mark video call started:', e?.message);
+          }
         },
         onParticipantJoined: (event) => {
           console.log('Participant joined:', event);
@@ -69,7 +89,7 @@ const DoctorVideoCallPage = () => {
             message.info('Camera đã tắt');
           }
         },
-        onReadyToClose: () => {
+        onReadyToClose: async () => {
           console.log('Ready to close');
           // CHỈ redirect nếu đã thực sự join conference (không phải lỗi membersOnly)
           if (hasJoinedConference.current) {

@@ -22,25 +22,29 @@ import {
 import { usePatientAppointments } from "../../../hooks/usePatientAppointments";
 
 export function AppointmentHistory() {
-  const { pastAppointments, loading, error, refreshAppointments } = usePatientAppointments();
+  const { pastAppointments, loading, error, refreshAppointments } =
+    usePatientAppointments();
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
+    return date.toLocaleDateString("vi-VN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     });
   };
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'done':
+      case "done":
         return (
           <Badge
             variant="secondary"
@@ -49,8 +53,8 @@ export function AppointmentHistory() {
             Hoàn thành
           </Badge>
         );
-      case 'cancelled':
-      case 'auto_cancelled':
+      case "cancelled":
+      case "auto_cancelled":
         return (
           <Badge
             variant="secondary"
@@ -59,7 +63,7 @@ export function AppointmentHistory() {
             Đã hủy
           </Badge>
         );
-      case 'no_show':
+      case "no_show":
         return (
           <Badge
             variant="secondary"
@@ -68,7 +72,7 @@ export function AppointmentHistory() {
             Không đến khám
           </Badge>
         );
-      case 'rejected':
+      case "rejected":
         return (
           <Badge
             variant="secondary"
@@ -78,11 +82,7 @@ export function AppointmentHistory() {
           </Badge>
         );
       default:
-        return (
-          <Badge variant="secondary">
-            {status}
-          </Badge>
-        );
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
@@ -95,7 +95,7 @@ export function AppointmentHistory() {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8">
-          <LoadingOutlined style={{ fontSize: '24px' }} />
+          <LoadingOutlined style={{ fontSize: "24px" }} />
           <span className="ml-2">Đang tải dữ liệu...</span>
         </CardContent>
       </Card>
@@ -133,8 +133,10 @@ export function AppointmentHistory() {
       <CardContent className="space-y-4">
         {pastAppointments.length === 0 ? (
           <div className="text-center py-8">
-            <FileTextOutlined style={{ fontSize: '48px', color: '#ccc' }} />
-            <p className="text-muted-foreground mt-4">Chưa có lịch sử khám bệnh</p>
+            <FileTextOutlined style={{ fontSize: "48px", color: "#ccc" }} />
+            <p className="text-muted-foreground mt-4">
+              Chưa có lịch sử khám bệnh
+            </p>
           </div>
         ) : (
           pastAppointments.map((appointment) => (
@@ -148,7 +150,10 @@ export function AppointmentHistory() {
                   alt={appointment.doctorId?.fullName}
                 />
                 <AvatarFallback className="bg-primary/10 text-primary">
-                  {appointment.doctorId?.fullName?.split(" ").pop()?.charAt(0) || "BS"}
+                  {appointment.doctorId?.fullName
+                    ?.split(" ")
+                    .pop()
+                    ?.charAt(0) || "BS"}
                 </AvatarFallback>
               </Avatar>
 
@@ -156,10 +161,16 @@ export function AppointmentHistory() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-semibold text-foreground">
-                      {appointment.doctorId?.fullName || "Bác sĩ"}
+                      {(() => {
+                        const fullName = appointment.doctorId?.fullName;
+                        return fullName?.startsWith("BS.")
+                          ? fullName
+                          : `BS. ${fullName}`;
+                      })() || "Bác sĩ"}
                     </h4>
                     <p className="text-sm text-muted-foreground">
-                      {appointment.doctorId?.specializationIds?.[0]?.name || "Chuyên khoa"}
+                      {appointment.doctorId?.specializationIds?.[0]?.name ||
+                        "Chuyên khoa"}
                     </p>
                   </div>
                 </div>

@@ -8,8 +8,10 @@ import {
   getDoctorTimeSlots,
   bookAppointment,
   getPatientAppointments,
-  cancelPatientAppointment,
+  cancelAppointment,
   getAppointmentDetails,
+  getPatientConsultationSummaries,
+  getPatientConsultationAdvice,
 } from "../controllers/patientController.js";
 import Patient from "../models/patient.model.js";
 import User from "../models/user.model.js";
@@ -45,7 +47,7 @@ router.get("/me/appointments", authGuard, getPatientAppointments);
 router.put(
   "/me/appointments/:appointmentId/cancel",
   authGuard,
-  cancelPatientAppointment
+  cancelAppointment
 );
 // Get appointment details by ID
 router.get("/me/appointments/:appointmentId", authGuard, getAppointmentDetails);
@@ -123,5 +125,14 @@ router.get("/me/stats", authGuard, async (req, res) => {
     });
   }
 });
+// Get patient's consultation summaries (medical history)
+router.get(
+  "/me/consultation-summaries",
+  authGuard,
+  getPatientConsultationSummaries
+);
+
+// Get patient's consultation advice (consultation history)
+router.get("/me/consultation-advice", authGuard, getPatientConsultationAdvice);
 
 export default router;

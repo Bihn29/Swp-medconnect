@@ -48,8 +48,20 @@ const DoctorList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [facilityFilter, setFacilityFilter] = useState("");
   const [totalDoctors, setTotalDoctors] = useState(0);
   const [urlProcessed, setUrlProcessed] = useState(false);
+
+  // Process URL parameters on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const facility = urlParams.get("facility");
+    if (facility) {
+      setFacilityFilter(facility);
+      console.log("Filtering doctors by facility:", facility);
+    }
+    setUrlProcessed(true);
+  }, [location.search]);
 
   // Fetch doctors from API
   const fetchDoctors = async () => {
@@ -72,6 +84,12 @@ const DoctorList = () => {
         console.log("Fetching doctors with specialization:", selectedSpecialty);
       } else {
         console.log("Fetching all doctors (no specialization filter)");
+      }
+
+      // Add facility filter if exists
+      if (facilityFilter) {
+        params.append("facility", facilityFilter);
+        console.log("Fetching doctors with facility:", facilityFilter);
       }
 
       const url = `/api/doctors?${params.toString()}`;
@@ -135,8 +153,12 @@ const DoctorList = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const qSpecialty = params.get("specialty");
+    const qFacility = params.get("facility");
+
     console.log("🔍 URL specialty parameter:", qSpecialty);
+    console.log("🔍 URL facility parameter:", qFacility);
     console.log("🔍 Current selectedSpecialty:", selectedSpecialty);
+
     if (qSpecialty) {
       // If qSpecialty looks like an ObjectId (24 hex characters), use it directly
       if (qSpecialty.match(/^[0-9a-fA-F]{24}$/)) {
@@ -149,6 +171,14 @@ const DoctorList = () => {
     } else {
       console.log("ℹ️ No specialty parameter in URL");
     }
+
+    if (qFacility) {
+      console.log("✅ Setting facility filter:", qFacility);
+      setFacilityFilter(qFacility);
+    } else {
+      console.log("ℹ️ No facility parameter in URL");
+    }
+
     // Always set urlProcessed to true after processing URL (or if no URL param)
     setUrlProcessed(true);
   }, []); // Only run on mount
@@ -165,7 +195,13 @@ const DoctorList = () => {
       console.log("🚀 Calling fetchDoctors...");
       fetchDoctors();
     }
-  }, [currentPage, searchTerm, selectedSpecialty, urlProcessed]);
+  }, [
+    currentPage,
+    searchTerm,
+    selectedSpecialty,
+    facilityFilter,
+    urlProcessed,
+  ]);
 
   // Fetch specialization details when selectedSpecialty changes
   useEffect(() => {
@@ -259,7 +295,7 @@ const DoctorList = () => {
       // If not logged in, redirect to login page
       navigate("/dang-nhap", {
         state: {
-          from: "/dat-lich-kham",
+          from: "/dat-lich/chon-thoi-gian",
           doctor: doctor,
           message: "Vui lòng đăng nhập để đặt lịch khám",
         },
@@ -267,10 +303,11 @@ const DoctorList = () => {
       return;
     }
 
-    // If logged in, navigate to appointment booking page with doctor data
-    navigate("/dat-lich-kham", {
+    // If logged in, navigate to time slot selection page with doctor data
+    navigate("/dat-lich/chon-thoi-gian", {
       state: {
         doctor: doctor,
+        specialization: doctor.specializationIds?.[0] || null,
       },
     });
   };
@@ -318,7 +355,12 @@ const DoctorList = () => {
         <Col flex="auto">
           <div className="doctor-info">
             <Title level={4} style={{ margin: "0 0 8px 0", color: "#1890ff" }}>
-              {doctor.fullName}
+              {(() => {
+                const fullName = doctor.userId?.fullName || doctor.fullName;
+                return fullName?.startsWith("BS.")
+                  ? fullName
+                  : `BS. ${fullName}`;
+              })()}
             </Title>
             <Text
               strong
@@ -389,11 +431,12 @@ const DoctorList = () => {
               block
               onClick={(e) => {
                 e.stopPropagation();
-                handleDoctorClick(doctor._id);
+                // Navigate to doctor reviews page
+                navigate(`/bac-si/${doctor._id}/danh-gia`);
               }}
               style={{ fontWeight: "500" }}
             >
-              Xem thông tin
+              Xem đánh giá
             </Button>
           </div>
         </Col>
@@ -534,7 +577,9 @@ const DoctorList = () => {
         <div className="container">
           <div className="results-header">
             <Title level={3}>
-              {currentSpecialization
+              {facilityFilter
+                ? `Bác sĩ tại ${facilityFilter} (${filteredDoctors.length})`
+                : currentSpecialization
                 ? `Bác sĩ ${currentSpecialization.name} (${filteredDoctors.length})`
                 : `Kết quả tìm kiếm (${filteredDoctors.length})`}
             </Title>

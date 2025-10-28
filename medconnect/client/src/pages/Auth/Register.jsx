@@ -66,7 +66,7 @@ export default function Register() {
         navigate("/bac-si");
         break;
       case "ADMIN":
-        navigate("/quan-tri");
+        navigate("/admin");
         break;
       default:
         navigate("/");
@@ -328,11 +328,21 @@ export default function Register() {
                 placeholder="Nhập mật khẩu"
                 autoComplete="new-password"
               />
-              <i
+              <button
+                type="button"
                 className={`bi ${
                   showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
                 } password-toggle`}
-                onClick={() => setShowPassword(!showPassword)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowPassword(!showPassword);
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                style={{ border: 'none', background: 'none', outline: 'none' }}
               />
             </div>
             {errors.password && (
@@ -355,11 +365,21 @@ export default function Register() {
                 placeholder="Xác nhận mật khẩu"
                 autoComplete="new-password"
               />
-              <i
+              <button
+                type="button"
                 className={`bi ${
                   showConfirmPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
                 } password-toggle`}
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowConfirmPassword(!showConfirmPassword);
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                style={{ border: 'none', background: 'none', outline: 'none' }}
               />
             </div>
             {errors.confirmPassword && (
@@ -371,8 +391,14 @@ export default function Register() {
             <label className="consent-row">
               <input
                 type="checkbox"
+                id="terms-checkbox"
                 checked={acceptedTerms}
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
+                style={{
+                  display: "block",
+                  visibility: "visible",
+                  opacity: 1,
+                }}
               />
               <span>
                 Tôi đã đọc và đồng ý với {""}
@@ -392,8 +418,14 @@ export default function Register() {
             <label className="consent-row">
               <input
                 type="checkbox"
+                id="privacy-checkbox"
                 checked={acceptedPrivacy}
                 onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                style={{
+                  display: "block",
+                  visibility: "visible",
+                  opacity: 1,
+                }}
               />
               <span>
                 Tôi đồng ý với {""}
@@ -430,10 +462,10 @@ export default function Register() {
             <i className="bi bi-google" />
             Đăng ký bằng Google
           </button>
-          
+
           <button
             type="button"
-            onClick={() => navigate('/dang-ky-bac-si')}
+            onClick={() => navigate("/dang-ky-bac-si")}
             className="btn btn-doctor btn-full"
           >
             <i className="bi bi-person-badge" />
@@ -445,7 +477,10 @@ export default function Register() {
 
         <div className="register-links">
           <Link to="/dang-nhap">Đã có tài khoản? Đăng nhập</Link>
-          <Link to="/" className="home-link"> Quay về trang chủ</Link>
+          <Link to="/" className="home-link">
+            {" "}
+            Quay về trang chủ
+          </Link>
         </div>
       </div>
     </div>

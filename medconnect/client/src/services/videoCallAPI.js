@@ -85,6 +85,20 @@ class VideoCallAPI {
       throw error;
     }
   }
+
+  // End video call by appointment ID
+  static async endCallByAppointmentId(appointmentId) {
+    try {
+      console.log('🔍 VideoCallAPI.endCallByAppointmentId - Called with appointmentId:', appointmentId);
+      const response = await api.post(`/api/video-calls/end-by-appointment/${appointmentId}`);
+      console.log('🔍 VideoCallAPI.endCallByAppointmentId - Response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ VideoCallAPI.endCallByAppointmentId - Error:', error);
+      console.error('❌ VideoCallAPI.endCallByAppointmentId - Error details:', error.response?.data);
+      throw error;
+    }
+  }
 }
 
 export default VideoCallAPI;

@@ -27,7 +27,7 @@ export function OnlineConsultation() {
 
   const renderConsultationCard = (consultation, isHistory = false) => (
     <div key={consultation.id} className="consultation-card">
-      <div className="doctor-avatar">
+      <div>
         {consultation.doctor.avatar ? (
           <img
             src={consultation.doctor.avatar}

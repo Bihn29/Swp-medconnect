@@ -7,7 +7,7 @@ import { api } from "../../../../lib/api";
 import { Calendar, Video, Search } from "lucide-react";
 import "./WelcomeSection.scss";
 
-export function WelcomeSection() {
+function WelcomeSection() {
   const { userProfile } = useUserProfile();
   const navigate = useNavigate();
   const [todayAppointments, setTodayAppointments] = useState(0);
@@ -20,15 +20,25 @@ export function WelcomeSection() {
   const fetchTodayAppointments = async () => {
     try {
       setLoading(true);
-      
+
       // Get today's date range
       const today = new Date();
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-      
+      const startOfDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+      const endOfDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() + 1
+      );
+
       // Fetch appointments for today
-      const response = await api.get(`/api/patients/me/appointments?startDate=${startOfDay.toISOString()}&endDate=${endOfDay.toISOString()}`);
-      
+      const response = await api.get(
+        `/api/patients/me/appointments?startDate=${startOfDay.toISOString()}&endDate=${endOfDay.toISOString()}`
+      );
+
       if (response.success) {
         const appointments = response.data.appointments || [];
         setTodayAppointments(appointments.length);
@@ -56,6 +66,14 @@ export function WelcomeSection() {
     navigate("/dat-lich");
   };
 
+  const handleOnlineConsultation = () => {
+    navigate("/tu-van-truc-tuyen");
+  };
+
+  const handleFindDoctor = () => {
+    navigate("/search-doctors");
+  };
+
   return (
     <div
       style={{
@@ -66,7 +84,7 @@ export function WelcomeSection() {
         boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
         background:
           "linear-gradient(to bottom right, #f8fafc 0%, #ffffff 100%)",
-        marginTop: "-2rem",
+        marginTop: "1rem",
         width: "100%",
         minHeight: "200px",
       }}
@@ -104,12 +122,11 @@ export function WelcomeSection() {
               lineHeight: 1.4,
             }}
           >
-            {loading 
-              ? "Đang tải thông tin lịch hẹn..." 
-              : todayAppointments > 0 
-                ? `Hôm nay bạn có ${todayAppointments} lịch hẹn. Hãy chuẩn bị sẵn sàng cho buổi khám.`
-                : "Hôm nay bạn chưa có lịch hẹn nào. Hãy đặt lịch khám để được chăm sóc tốt nhất."
-            }
+            {loading
+              ? "Đang tải thông tin lịch hẹn..."
+              : todayAppointments > 0
+              ? `Hôm nay bạn có ${todayAppointments} lịch hẹn. Hãy chuẩn bị sẵn sàng cho buổi khám.`
+              : "Hôm nay bạn chưa có lịch hẹn nào. Hãy đặt lịch khám để được chăm sóc tốt nhất."}
           </p>
         </div>
 
@@ -170,6 +187,7 @@ export function WelcomeSection() {
 
           {/* Tư vấn online button */}
           <button
+            onClick={handleOnlineConsultation}
             style={{
               display: "flex",
               alignItems: "center",
@@ -218,6 +236,7 @@ export function WelcomeSection() {
 
           {/* Tìm bác sĩ button */}
           <button
+            onClick={handleFindDoctor}
             style={{
               display: "flex",
               alignItems: "center",
@@ -268,3 +287,6 @@ export function WelcomeSection() {
     </div>
   );
 }
+
+export default WelcomeSection;
+export { WelcomeSection };

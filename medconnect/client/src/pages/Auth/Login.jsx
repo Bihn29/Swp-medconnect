@@ -93,13 +93,26 @@ export default function Login() {
     const from = location.state?.from;
     const doctor = location.state?.doctor;
 
-    if (from === "/dat-lich" || from === "/dat-lich-kham") {
+    if (
+      from === "/dat-lich" ||
+      from === "/dat-lich-kham" ||
+      from === "/dat-lich/chon-thoi-gian"
+    ) {
       // If coming from appointment booking, redirect back with doctor data
-      navigate("/dat-lich-kham", {
-        state: {
-          doctor: doctor,
-        },
-      });
+      if (from === "/dat-lich/chon-thoi-gian") {
+        navigate("/dat-lich/chon-thoi-gian", {
+          state: {
+            doctor: doctor,
+            specialization: doctor?.specializationIds?.[0] || null,
+          },
+        });
+      } else {
+        navigate("/dat-lich-kham", {
+          state: {
+            doctor: doctor,
+          },
+        });
+      }
       return;
     }
 
@@ -111,7 +124,7 @@ export default function Login() {
         navigate("/bac-si");
         break;
       case "ADMIN":
-        navigate("/quan-tri");
+        navigate("/admin");
         break;
       default:
         navigate("/");
@@ -138,7 +151,7 @@ export default function Login() {
       }
       if (r.status === 401)
         throw new Error("Email/SĐT hoặc mật khẩu không đúng");
-      throw new Error(data?.error || "Không đăng nhập được");
+      throw new Error(data?.message || data?.error || "Không đăng nhập được");
     }
 
     const token = data?.customToken ?? data?.data?.customToken;
@@ -197,7 +210,7 @@ export default function Login() {
 
   const validateForm = () => {
     let isValid = true;
-    
+
     // Clear previous errors
     setEmailError("");
     setPhoneError("");
@@ -256,7 +269,18 @@ export default function Login() {
       await passwordLogin(identifier, password);
     } catch (err) {
       console.error("Login error:", err);
-      setGeneralError(err?.message || "Không đăng nhập được");
+      // Handle both string and object error messages
+      let errorMessage = "Không đăng nhập được";
+      if (typeof err?.message === 'string') {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.data?.message) {
+        errorMessage = err.data.message;
+      }
+      setGeneralError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -327,7 +351,18 @@ export default function Login() {
       try {
         await signOut(auth);
       } catch (err) {
-        setGeneralError(err?.message || "Lỗi đăng nhập Google");
+        // Handle both string and object error messages
+        let errorMessage = "Lỗi đăng nhập Google";
+        if (typeof err?.message === 'string') {
+          errorMessage = err.message;
+        } else if (typeof err === 'string') {
+          errorMessage = err;
+        } else if (err?.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err?.data?.message) {
+          errorMessage = err.data.message;
+        }
+        setGeneralError(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -345,7 +380,13 @@ export default function Login() {
             <>
               <div className="input-group">
                 <input
-                  className={`login-input ${emailError ? 'input-error' : emailValid ? 'input-success' : ''}`}
+                  className={`login-input ${
+                    emailError
+                      ? "input-error"
+                      : emailValid
+                      ? "input-success"
+                      : ""
+                  }`}
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -356,8 +397,12 @@ export default function Login() {
                   autoComplete="email"
                   type="email"
                 />
-                {emailValid && <i className="bi bi-check-circle-fill input-success-icon" />}
-                {emailError && <i className="bi bi-exclamation-circle-fill input-error-icon" />}
+                {emailValid && (
+                  <i className="bi bi-check-circle-fill input-success-icon" />
+                )}
+                {emailError && (
+                  <i className="bi bi-exclamation-circle-fill input-error-icon" />
+                )}
               </div>
               {emailError && <div className="error-text">{emailError}</div>}
             </>
@@ -365,7 +410,13 @@ export default function Login() {
             <>
               <div className="input-group">
                 <input
-                  className={`login-input ${phoneError ? 'input-error' : phoneValid ? 'input-success' : ''}`}
+                  className={`login-input ${
+                    phoneError
+                      ? "input-error"
+                      : phoneValid
+                      ? "input-success"
+                      : ""
+                  }`}
                   value={phone}
                   onChange={(e) => {
                     setPhone(e.target.value);
@@ -376,17 +427,27 @@ export default function Login() {
                   autoComplete="tel"
                   type="tel"
                 />
-                {phoneValid && <i className="bi bi-check-circle-fill input-success-icon" />}
-                {phoneError && <i className="bi bi-exclamation-circle-fill input-error-icon" />}
+                {phoneValid && (
+                  <i className="bi bi-check-circle-fill input-success-icon" />
+                )}
+                {phoneError && (
+                  <i className="bi bi-exclamation-circle-fill input-error-icon" />
+                )}
               </div>
               {phoneError && <div className="error-text">{phoneError}</div>}
             </>
           )}
 
           <div className="password-group">
-            <div className="input-group">
+            <div className={`input-group ${!passwordValid && !passwordError ? 'no-validation-icon' : ''}`}>
               <input
-                className={`login-input ${passwordError ? 'input-error' : passwordValid ? 'input-success' : ''}`}
+                className={`login-input ${
+                  passwordError
+                    ? "input-error"
+                    : passwordValid
+                    ? "input-success"
+                    : ""
+                }`}
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => {
@@ -397,22 +458,33 @@ export default function Login() {
                 placeholder="Nhập mật khẩu"
                 autoComplete="current-password"
               />
-              {passwordValid && <i className="bi bi-check-circle-fill input-success-icon" />}
-              {passwordError && <i className="bi bi-exclamation-circle-fill input-error-icon" />}
-              <i
+              {passwordValid && (
+                <i className="bi bi-check-circle-fill input-success-icon" />
+              )}
+              {passwordError && (
+                <i className="bi bi-exclamation-circle-fill input-error-icon" />
+              )}
+              <button
+                type="button"
                 className={`bi ${
                   showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
                 } password-toggle`}
                 onClick={() => setShowPassword(!showPassword)}
+                style={{ cursor: 'pointer', zIndex: 10 }}
               />
             </div>
           </div>
 
           {passwordError && <div className="error-text">{passwordError}</div>}
 
-          <button 
-            type="submit" 
-            disabled={loading || !(mode === "email" ? emailValid && passwordValid : phoneValid && passwordValid)} 
+          <button
+            type="submit"
+            disabled={
+              loading ||
+              !(mode === "email"
+                ? emailValid && passwordValid
+                : phoneValid && passwordValid)
+            }
             className="btn btn-primary"
           >
             {loading ? "Đang đăng nhập..." : "Đăng nhập"}
@@ -453,7 +525,10 @@ export default function Login() {
             <Link to="/quen-mat-khau">Quên mật khẩu</Link>
             <Link to="/dang-ky">Đăng ký tài khoản mới</Link>
           </div>
-          <Link to="/" className="home-link"> Quay về trang chủ</Link>
+          <Link to="/" className="home-link">
+            {" "}
+            Quay về trang chủ
+          </Link>
         </div>
       </div>
     </div>

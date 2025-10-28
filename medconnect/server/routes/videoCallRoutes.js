@@ -268,6 +268,51 @@ router.post('/end/:roomId', async (req, res) => {
   }
 });
 
+// End video call by appointment ID
+router.post('/end-by-appointment/:appointmentId', async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    console.log('🎯 [VideoCallAPI] Received request to end video call for appointmentId:', appointmentId);
+    console.log('🎯 [VideoCallAPI] Request body:', req.body);
+    console.log('🎯 [VideoCallAPI] Request headers:', req.headers);
+
+    const videoCall = await VideoCall.findOne({ appointmentId });
+    console.log('🔍 [VideoCallAPI] Found video call:', videoCall ? 'YES' : 'NO');
+    
+    if (!videoCall) {
+      console.log('❌ [VideoCallAPI] Video call not found for appointment:', appointmentId);
+      return res.status(404).json({
+        success: false,
+        message: 'Video call not found for this appointment'
+      });
+    }
+
+    console.log('📞 [VideoCallAPI] Found video call:', videoCall._id, 'Current status:', videoCall.status);
+
+    // Update video call status
+    videoCall.status = 'ended';
+    videoCall.endedAt = new Date();
+    await videoCall.save();
+
+    console.log('✅ [VideoCallAPI] Video call status updated to ended for appointmentId:', appointmentId);
+    console.log('✅ [VideoCallAPI] Updated video call:', videoCall);
+
+    res.json({
+      success: true,
+      message: 'Video call ended successfully',
+      data: videoCall
+    });
+
+  } catch (error) {
+    console.error('❌ [VideoCallAPI] Error ending video call by appointment:', error);
+    console.error('❌ [VideoCallAPI] Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // Get active video calls
 router.get('/active', async (req, res) => {
   try {

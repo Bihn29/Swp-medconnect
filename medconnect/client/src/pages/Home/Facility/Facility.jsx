@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useClinics } from "../../../hooks/useClinics";
 import {
   Row,
   Col,
@@ -11,13 +12,12 @@ import {
   Select,
   Pagination,
   Tag,
-  Rate,
+  Spin,
+  Empty,
 } from "antd";
 import {
   EnvironmentOutlined,
-  UserOutlined,
   PhoneOutlined,
-  StarOutlined,
   SearchOutlined,
   MedicineBoxOutlined,
   HomeOutlined,
@@ -36,117 +36,21 @@ const Facility = () => {
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Mock data for facilities
-  const facilities = [
-    {
-      id: 1,
-      name: "Bệnh viện Chợ Rẫy",
-      type: "hospital",
-      location: "TP.HCM",
-      address: "201B Nguyễn Chí Thanh, Quận 5, TP.HCM",
-      phone: "028 3855 4269",
-      specialties: ["Tim mạch", "Thần kinh", "Ung bướu", "Cấp cứu"],
-      doctorCount: 450,
-      rating: 4.7,
-      reviewCount: 289,
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Bệnh viện đa khoa hạng đặc biệt, là một trong những bệnh viện lớn nhất miền Nam.",
-    },
-    {
-      id: 2,
-      name: "Bệnh viện Việt Đức",
-      type: "hospital",
-      location: "Hà Nội",
-      address: "40 Tràng Thi, Hoàn Kiếm, Hà Nội",
-      phone: "024 3825 3531",
-      specialties: ["Chấn thương chỉnh hình", "Phẫu thuật", "Cấp cứu"],
-      doctorCount: 380,
-      rating: 4.6,
-      reviewCount: 234,
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Bệnh viện chuyên khoa hàng đầu về chấn thương chỉnh hình và phẫu thuật.",
-    },
-    {
-      id: 3,
-      name: "Phòng khám Đa khoa Medlatec",
-      type: "clinic",
-      location: "Hà Nội",
-      address: "42-44 Nghĩa Dũng, Ba Đình, Hà Nội",
-      phone: "024 7301 6595",
-      specialties: ["Khám tổng quát", "Xét nghiệm", "Chẩn đoán hình ảnh"],
-      doctorCount: 85,
-      rating: 4.5,
-      reviewCount: 167,
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Hệ thống phòng khám đa khoa hiện đại với trang thiết bị tiên tiến.",
-    },
-    {
-      id: 4,
-      name: "Bệnh viện Nhi Đồng 1",
-      type: "hospital",
-      location: "TP.HCM",
-      address: "341 Sư Vạn Hạnh, Quận 10, TP.HCM",
-      phone: "028 3865 4270",
-      specialties: ["Nhi khoa", "Nhi tim mạch", "Nhi thần kinh"],
-      doctorCount: 320,
-      rating: 4.8,
-      reviewCount: 198,
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Bệnh viện nhi đồng hàng đầu với đội ngũ bác sĩ chuyên khoa nhi giàu kinh nghiệm.",
-    },
-    {
-      id: 5,
-      name: "Trung tâm Y tế Quận 1",
-      type: "center",
-      location: "TP.HCM",
-      address: "125 Lê Thị Riêng, Quận 1, TP.HCM",
-      phone: "028 3829 5432",
-      specialties: ["Y tế cơ sở", "Khám tổng quát", "Tiêm chủng"],
-      doctorCount: 45,
-      rating: 4.3,
-      reviewCount: 89,
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Trung tâm y tế cung cấp dịch vụ chăm sóc sức khỏe cơ bản cho cộng đồng.",
-    },
-    {
-      id: 6,
-      name: "Phòng khám Thẩm mỹ Kangnam",
-      type: "clinic",
-      location: "TP.HCM",
-      address: "158 Pasteur, Quận 3, TP.HCM",
-      phone: "028 6299 0055",
-      specialties: ["Thẩm mỹ", "Da liễu", "Phẫu thuật thẩm mỹ"],
-      doctorCount: 25,
-      rating: 4.4,
-      reviewCount: 156,
-      image: "https://via.placeholder.com/100x100",
-      description:
-        "Phòng khám chuyên về thẩm mỹ và điều trị da liễu với công nghệ hiện đại.",
-    },
-  ];
+  // Fetch clinics data
+  const {
+    data: clinicsData,
+    isLoading,
+    error,
+  } = useClinics(
+    currentPage,
+    5, // pageSize
+    searchTerm,
+    selectedType,
+    selectedLocation
+  );
 
-  // Filter facilities
-  const filteredFacilities = facilities.filter((facility) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      facility.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      facility.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      facility.specialties.some((spec) =>
-        spec.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
-    const matchesType =
-      selectedType === "all" || facility.type === selectedType;
-    const matchesLocation =
-      selectedLocation === "all" || facility.location === selectedLocation;
-
-    return matchesSearch && matchesType && matchesLocation;
-  });
+  const facilities = clinicsData?.data?.clinics || [];
+  const total = clinicsData?.data?.pagination?.total || 0;
 
   const handleSearch = (value) => {
     setSearchTerm(value);
@@ -214,17 +118,6 @@ const Facility = () => {
               <Space>
                 <PhoneOutlined style={{ color: "#45c3d2" }} />
                 <Text>{facility.phone}</Text>
-              </Space>
-              <Space>
-                <UserOutlined style={{ color: "#45c3d2" }} />
-                <Text>{facility.doctorCount} bác sĩ</Text>
-                <StarOutlined style={{ color: "#fadb14" }} />
-                <Rate
-                  disabled
-                  defaultValue={facility.rating}
-                  style={{ fontSize: "14px" }}
-                />
-                <Text>({facility.reviewCount} đánh giá)</Text>
               </Space>
               <Space wrap>
                 {facility.specialties.slice(0, 3).map((specialty, index) => (
@@ -348,34 +241,52 @@ const Facility = () => {
       <div className="facility-list-section">
         <div className="container">
           <div className="results-header">
-            <Title level={3}>
-              Danh sách cơ sở y tế ({filteredFacilities.length})
-            </Title>
+            <Title level={3}>Danh sách cơ sở y tế ({total})</Title>
           </div>
 
-          <div className="facility-list">
-            {filteredFacilities
-              .slice((currentPage - 1) * 5, currentPage * 5)
-              .map((facility) => (
-                <FacilityCard key={facility.id} facility={facility} />
-              ))}
-          </div>
-
-          {/* Pagination */}
-          {filteredFacilities.length > 5 && (
-            <div style={{ textAlign: "center", marginTop: "32px" }}>
-              <Pagination
-                current={currentPage}
-                total={filteredFacilities.length}
-                pageSize={5}
-                onChange={setCurrentPage}
-                showSizeChanger={false}
-                showQuickJumper
-                showTotal={(total, range) =>
-                  `${range[0]}-${range[1]} của ${total} cơ sở`
-                }
-              />
+          {isLoading ? (
+            <div style={{ textAlign: "center", padding: "60px 0" }}>
+              <Spin size="large" />
+              <div style={{ marginTop: "16px", color: "#666" }}>
+                Đang tải danh sách cơ sở y tế...
+              </div>
             </div>
+          ) : error ? (
+            <div style={{ textAlign: "center", padding: "60px 0" }}>
+              <div style={{ color: "#ff4d4f", fontSize: "16px" }}>
+                Có lỗi khi tải dữ liệu. Vui lòng thử lại sau.
+              </div>
+            </div>
+          ) : facilities.length === 0 ? (
+            <Empty
+              description="Không tìm thấy cơ sở y tế nào"
+              style={{ margin: "60px 0" }}
+            />
+          ) : (
+            <>
+              <div className="facility-list">
+                {facilities.map((facility) => (
+                  <FacilityCard key={facility.id} facility={facility} />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {total > 5 && (
+                <div style={{ textAlign: "center", marginTop: "32px" }}>
+                  <Pagination
+                    current={currentPage}
+                    total={total}
+                    pageSize={5}
+                    onChange={setCurrentPage}
+                    showSizeChanger={false}
+                    showQuickJumper
+                    showTotal={(total, range) =>
+                      `${range[0]}-${range[1]} của ${total} cơ sở`
+                    }
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

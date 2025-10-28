@@ -12,20 +12,28 @@ const NavigationBreadcrumb = ({ items = [] }) => {
     navigate(path);
   };
 
-  const renderBreadcrumbItem = (item, index, isLast) => {
+  const breadcrumbItems = items.map((item, index) => {
+    const isLast = index === items.length - 1;
+
     if (isLast) {
       // Last item (current page) should not be clickable
-      return (
-        <Breadcrumb.Item key={index}>
-          {item.icon && <span style={{ marginRight: "4px" }}>{item.icon}</span>}
-          {item.label}
-        </Breadcrumb.Item>
-      );
+      return {
+        key: index,
+        title: (
+          <>
+            {item.icon && (
+              <span style={{ marginRight: "4px" }}>{item.icon}</span>
+            )}
+            {item.label}
+          </>
+        ),
+      };
     }
 
     // Clickable items
-    return (
-      <Breadcrumb.Item key={index}>
+    return {
+      key: index,
+      title: (
         <a
           href={item.path}
           onClick={(e) => handleNavigation(item.path, e)}
@@ -34,16 +42,12 @@ const NavigationBreadcrumb = ({ items = [] }) => {
           {item.icon && <span style={{ marginRight: "4px" }}>{item.icon}</span>}
           {item.label}
         </a>
-      </Breadcrumb.Item>
-    );
-  };
+      ),
+    };
+  });
 
   return (
-    <Breadcrumb className="navigation-breadcrumb">
-      {items.map((item, index) =>
-        renderBreadcrumbItem(item, index, index === items.length - 1)
-      )}
-    </Breadcrumb>
+    <Breadcrumb className="navigation-breadcrumb" items={breadcrumbItems} />
   );
 };
 

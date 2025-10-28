@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import PropTypes from "prop-types"
-import { User, Mail, Phone, MapPin, Award, Calendar, Lock } from "lucide-react"
+import { User, Mail, Phone, MapPin, Award, Calendar, Lock, Upload } from "lucide-react"
 import { getDoctorProfileWithFallback, updateDoctorProfile } from "../../../lib/api"
 import "./ProfileSettings.scss"
 
@@ -10,6 +10,7 @@ const ProfileSettings = () => {
   const [doctorInfo, setDoctorInfo] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -35,12 +36,18 @@ const ProfileSettings = () => {
       try {
         const doctor = await getDoctorProfileWithFallback()
         if (doctor) {
+          console.log("🔍 ProfileSettings - Doctor data:", doctor)
+          console.log("🔍 ProfileSettings - User data:", doctor.userId)
+          console.log("🔍 ProfileSettings - Doctor fullName:", doctor.fullName)
+          console.log("🔍 ProfileSettings - User fullName:", doctor.userId?.fullName)
+          console.log("🔍 ProfileSettings - Final name:", doctor.userId?.fullName || doctor.fullName)
+          
           setDoctorInfo(doctor)
           setFormData({
             fullName: doctor.userId?.fullName || doctor.fullName || "",
             email: doctor.userId?.email || "",
             phone: doctor.userId?.phone || "",
-            specialization: doctor.specializationIds?.[0]?.name || "",
+            specialization: doctor.specializationIds?.map(spec => spec.name).join(', ') || "",
             address: doctor.clinicDefaultId?.address || "",
             bio: doctor.bio || "",
             licenseNo: doctor.licenseNo || "",
@@ -69,8 +76,39 @@ const ProfileSettings = () => {
 
   const handleSave = async () => {
     try {
+      console.log("🔄 Sending data to API:", formData)
       const response = await updateDoctorProfile(formData)
+      console.log("✅ API Response:", response)
+      
       if (response) {
+        // Refresh doctor info after successful update
+        const updatedDoctor = await getDoctorProfileWithFallback()
+        console.log("🔄 Refreshed doctor data:", updatedDoctor)
+        console.log("🔄 User fullName:", updatedDoctor?.userId?.fullName)
+        console.log("🔄 Doctor fullName:", updatedDoctor?.fullName)
+        
+        if (updatedDoctor) {
+          setDoctorInfo(updatedDoctor)
+          setFormData({
+            fullName: updatedDoctor.userId?.fullName || updatedDoctor.fullName || "",
+            email: updatedDoctor.userId?.email || "",
+            phone: updatedDoctor.userId?.phone || "",
+            specialization: updatedDoctor.specializationIds?.map(spec => spec.name).join(', ') || "",
+            address: updatedDoctor.clinicDefaultId?.address || "",
+            bio: updatedDoctor.bio || "",
+            licenseNo: updatedDoctor.licenseNo || "",
+            graduationYear: updatedDoctor.education?.[0]?.year || "",
+            yearsExperience: updatedDoctor.yearsExperience || 0,
+            ratingAvg: updatedDoctor.ratingAvg || 0,
+            ratingCount: updatedDoctor.ratingCount || 0,
+          })
+        }
+        
+        // Dispatch custom event to notify other components
+        window.dispatchEvent(new CustomEvent('doctorProfileUpdated', { 
+          detail: { doctor: updatedDoctor } 
+        }))
+        
         alert("Thông tin đã được cập nhật thành công")
       } else {
         alert("Có lỗi xảy ra khi cập nhật thông tin")
@@ -164,6 +202,82 @@ const ProfileSettings = () => {
   }
 
 
+  // Handle avatar upload
+  const resizeImage = (file, maxWidth, maxHeight, quality = 0.8) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+
+          // Calculate new dimensions
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width
+              width = maxWidth
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height
+              height = maxHeight
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, width, height)
+
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality)
+          resolve(compressedDataUrl)
+        }
+        img.onerror = reject
+        img.src = e.target.result
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Ảnh quá lớn, vui lòng chọn ảnh nhỏ hơn 5MB')
+      return
+    }
+
+    setUploadingAvatar(true)
+    try {
+      // Resize image
+      const compressedImage = await resizeImage(file, 800, 800, 0.8)
+      
+      // Update avatar via API
+      await updateDoctorProfile({ avatarUrl: compressedImage })
+
+      // Refresh doctor info
+      const updatedDoctor = await getDoctorProfileWithFallback()
+      if (updatedDoctor) {
+        setDoctorInfo(updatedDoctor)
+      }
+
+      alert('Cập nhật ảnh đại diện thành công!')
+    } catch (error) {
+      console.error('Error updating avatar:', error)
+      alert('Có lỗi xảy ra khi cập nhật ảnh đại diện')
+    } finally {
+      setUploadingAvatar(false)
+      // Reset file input
+      e.target.value = ''
+    }
+  }
+
   if (loading) {
     return (
       <div className="profileSettings">
@@ -191,13 +305,40 @@ const ProfileSettings = () => {
                 <h2>Thông tin cơ bản</h2>
               </div>
 
+              {/* Avatar Section */}
+              <div className="avatar-section">
+                <div className="avatar-container">
+                  <img 
+                    src={doctorInfo?.avatarUrl || "/default-avatar.png"} 
+                    alt="Avatar" 
+                    className="avatar-image"
+                  />
+                </div>
+                <div className="avatar-upload">
+                  <input
+                    type="file"
+                    id="avatar-input"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    disabled={uploadingAvatar}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="avatar-input" className="avatar-upload-label">
+                    <Upload size={20} />
+                    {uploadingAvatar ? 'Đang tải lên...' : 'Chọn ảnh đại diện'}
+                  </label>
+                  <p className="avatar-hint">JPG, PNG (Tối đa 5MB)</p>
+                </div>
+              </div>
+
               <div className="formGrid">
                 <div className="formGroup">
                   <FormField
                     label="Họ và tên"
                     icon={User}
                     value={formData.fullName}
-                    onChange={(e) => handleInputChange("fullName", e.target.value)}
+                    disabled={true}
+                    onChange={() => {}}
                   />
                 </div>
                 <div className="formGroup">
@@ -205,7 +346,8 @@ const ProfileSettings = () => {
                     label="Chuyên khoa"
                     icon={Award}
                     value={formData.specialization}
-                    onChange={(e) => handleInputChange("specialization", e.target.value)}
+                    disabled={true}
+                    onChange={() => {}}
                   />
                 </div>
                 <div className="formGroup">
@@ -270,7 +412,7 @@ const ProfileSettings = () => {
                     title="Bằng cấp"
                     content={`${doctorInfo?.education?.[0]?.degree || "Bác sĩ Đa khoa"} - ${doctorInfo?.education?.[0]?.school || "ĐH Y Dược"}`}
                   />
-                  <InfoCard icon={Calendar} title="Năm tốt nghiệp" content={formData.graduationYear || "N/A"} />
+                  <InfoCard icon={Calendar} title="Năm kinh nghiệm" content={`${formData.yearsExperience || 0} năm`} />
                   <InfoCard icon={Award} title="Chứng chỉ hành nghề" content={`Số ${formData.licenseNo || "N/A"}`} />
                 </div>
               </div>
@@ -326,7 +468,7 @@ const ProfileSettings = () => {
 }
 
 // Helper Components
-const FormField = ({ label, icon: Icon, type = "text", value, onChange }) => (
+const FormField = ({ label, icon: Icon, type = "text", value, onChange, disabled = false }) => (
   <div className="formGroup">
     <label>{label}</label>
     <div className="inputWrapper">
@@ -335,6 +477,8 @@ const FormField = ({ label, icon: Icon, type = "text", value, onChange }) => (
         type={type}
         value={value}
         onChange={onChange}
+        disabled={disabled}
+        style={disabled ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
       />
     </div>
   </div>
@@ -346,6 +490,7 @@ FormField.propTypes = {
   type: PropTypes.string,
   value: PropTypes.string.isRequired,
   onChange: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
 }
 
 const InfoCard = ({ icon: Icon, title, content }) => (

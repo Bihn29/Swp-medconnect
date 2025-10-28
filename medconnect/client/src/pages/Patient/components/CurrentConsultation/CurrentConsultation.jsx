@@ -22,13 +22,13 @@ export function CurrentConsultation() {
       const response = await api.get("/api/patients/me/appointments?limit=50");
 
       if (response.success) {
-        // Filter for in_progress appointments
-        const inProgressAppointments = response.data.appointments.filter(
-          (appointment) => appointment.status === "in_progress"
+        // Filter for in_progress ONLINE appointments only
+        const inProgressOnlineAppointments = response.data.appointments.filter(
+          (appointment) => appointment.status === "in_progress" && appointment.mode === "online"
         );
 
-        if (inProgressAppointments.length > 0) {
-          const appointment = inProgressAppointments[0];
+        if (inProgressOnlineAppointments.length > 0) {
+          const appointment = inProgressOnlineAppointments[0];
           console.log('🔍 Current Consultation - Appointment data:', appointment);
           console.log('🔍 Current Consultation - Doctor data:', appointment.doctorId);
           console.log('🔍 Current Consultation - Specialization:', appointment.doctorId?.specializationIds);
@@ -50,10 +50,7 @@ export function CurrentConsultation() {
                 minute: "2-digit",
               }
             ),
-            location:
-              appointment.mode === "online"
-                ? "Khám online"
-                : appointment.clinicId?.name || "Phòng khám",
+            location: "Khám online",
             mode: appointment.mode,
           });
         } else {
@@ -113,8 +110,8 @@ export function CurrentConsultation() {
             gap: "0.5rem",
           }}
         >
-          <Phone size={20} style={{ color: "#3b82f6" }} />
-          Đang khám
+          <Video size={20} style={{ color: "#3b82f6" }} />
+          Đang khám online
         </h3>
         <div
           style={{

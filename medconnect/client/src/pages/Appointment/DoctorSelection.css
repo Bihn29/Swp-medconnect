@@ -103,12 +103,27 @@
   margin-top: 32px;
 }
 
+.doctor-selection-page .help-section .ant-card {
+  text-align: left;
+}
+
 .doctor-selection-page .help-section ul {
   margin: 0;
   padding-left: 20px;
+  list-style: none;
 }
 
 .doctor-selection-page .help-section li {
   margin-bottom: 8px;
   color: #595959;
+  position: relative;
+  padding-left: 20px;
+}
+
+.doctor-selection-page .help-section li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #000;
+  font-weight: bold;
 }

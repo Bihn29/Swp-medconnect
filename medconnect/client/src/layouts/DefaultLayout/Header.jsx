@@ -12,6 +12,7 @@ import {
   CalendarOutlined,
 } from "@ant-design/icons";
 import { Avatar, Dropdown, Badge, Button, Space, Input } from "antd";
+import { NotificationCenter } from "../../components/NotificationCenter/NotificationCenter";
 import "./Header.scss";
 
 const Header = () => {
@@ -183,7 +184,13 @@ const Header = () => {
     }
   }, [location.pathname]);
 
-  // Removed redundant useEffect - user is already managed by useAuth hook
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((u) => {
+      // User state is managed by useAuth hook
+      console.log("Auth state changed:", u);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Load patient's upcoming appointments when on patient page and logged in
   useEffect(() => {
@@ -374,36 +381,10 @@ const Header = () => {
             )}
           </div>
 
-          {/* Bell notification for appointments */}
+          {/* Notification Center */}
           {user && !isDoctorDashboard && (
             <div className="patient-header-controls" style={{ marginLeft: 12 }}>
-              <Dropdown
-                menu={{ items: apptMenuItems }}
-                placement="bottomRight"
-                trigger={["click"]}
-              >
-                <Button
-                  type="text"
-                  shape="circle"
-                  size="large"
-                  style={{
-                    width: 48,
-                    height: 48,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                  icon={
-                    <BellOutlined
-                      style={{
-                        fontSize: 24,
-                        color: "var(--primary-color, #12c2e9)",
-                      }}
-                    />
-                  }
-                  aria-label="Thông báo lịch hẹn"
-                />
-              </Dropdown>
+              <NotificationCenter />
             </div>
           )}
 
@@ -437,30 +418,45 @@ const Header = () => {
                     disabled: true,
                   },
                   { type: "divider", key: "d1" },
-                  {
-                    key: "profile",
-                    label: (
-                      <div style={{ minWidth: 220 }}>
-                        <div style={{ fontWeight: 700 }}>Hồ sơ</div>
-                        <div style={{ fontSize: 12, color: "#666" }}>
-                          Xem và chỉnh sửa thông tin cá nhân
-                        </div>
-                      </div>
-                    ),
-                  },
-                  { key: "dashboard", label: "Trang cá nhân" },
+                  // Only show profile and dashboard for non-admin users
+                  ...(userProfile?.role !== "admin" &&
+                  userProfile?.role !== "ADMIN"
+                    ? [
+                        {
+                          key: "profile",
+                          label: (
+                            <div style={{ minWidth: 220 }}>
+                              <div style={{ fontWeight: 700 }}>Hồ sơ</div>
+                              <div style={{ fontSize: 12, color: "#666" }}>
+                                Xem và chỉnh sửa thông tin cá nhân
+                              </div>
+                            </div>
+                          ),
+                        },
+                        { key: "dashboard", label: "Trang cá nhân" },
+                      ]
+                    : []),
                   // Admin Dashboard link - only show for admin users
-                  ...(userProfile?.role === 'admin' || userProfile?.role === 'ADMIN' ? [{
-                    key: "admin",
-                    label: (
-                      <div style={{ minWidth: 220 }}>
-                        <div style={{ fontWeight: 700, color: "#1890ff" }}>🛡️ Admin Dashboard</div>
-                        <div style={{ fontSize: 12, color: "#666" }}>
-                          Quản trị hệ thống
-                        </div>
-                      </div>
-                    ),
-                  }] : []),
+                  ...(userProfile?.role === "admin" ||
+                  userProfile?.role === "ADMIN"
+                    ? [
+                        {
+                          key: "admin",
+                          label: (
+                            <div style={{ minWidth: 220 }}>
+                              <div
+                                style={{ fontWeight: 700, color: "#1890ff" }}
+                              >
+                                🛡️ Admin Dashboard
+                              </div>
+                              <div style={{ fontSize: 12, color: "#666" }}>
+                                Quản trị hệ thống
+                              </div>
+                            </div>
+                          ),
+                        },
+                      ]
+                    : []),
                   { type: "divider", key: "d2" },
                   { key: "logout", label: "Đăng xuất", danger: true },
                 ],
@@ -664,9 +660,7 @@ const Header = () => {
           </div>
         </>
       )}
-      
     </header>
-    
   );
 };
 

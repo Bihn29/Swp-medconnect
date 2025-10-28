@@ -1,19 +1,19 @@
 import { useState, useEffect } from "react";
 import { Clock, Users, FileText, Upload } from "lucide-react";
-import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
-import Sidebar from "../Sidebar/Sidebar";
+import "./DoctorDashboard.scss";
+import { api, getDoctorProfileWithFallback, getDoctorDashboardStatsWithFallback } from "../../../lib/api";
 import ScheduleManagement from "../ScheduleManagement/ScheduleManagement";
 import AppointmentList from "../AppointmentList/AppointmentList";
 import MedicalHistory from "../MedicalHistory/MedicalHistory";
-import ProfileSettings from "../ProfileSettings/ProfileSettings";
-import "./DoctorDashboard.scss";
-import { getDoctorProfileWithFallback, getDoctorDashboardStatsWithFallback, api } from "../../../lib/api";
 
 export default function DoctorDashboard() {
-  const [activeMenu, setActiveMenu] = useState("dashboard");
   const [doctorInfo, setDoctorInfo] = useState(null);
   const [dashboardStats, setDashboardStats] = useState(null);
+  const [activeMenu, setActiveMenu] = useState(null);
+  
+  const doctorAvatar = doctorInfo?.avatarUrl || doctorInfo?.imageUrl;
+  const doctorName = doctorInfo?.name || doctorInfo?.fullName || "Doctor";
 
   // Fetch doctor info and dashboard stats
   useEffect(() => {
@@ -24,132 +24,86 @@ export default function DoctorDashboard() {
         if (doctor) {
           setDoctorInfo(doctor);
         } else {
-          console.error('No doctor found');
+          console.error("No doctor found");
         }
 
-            // Fetch dashboard stats
-            const stats = await getDoctorDashboardStatsWithFallback();
-            if (stats) setDashboardStats(stats);
+        // Fetch dashboard stats
+        const stats = await getDoctorDashboardStatsWithFallback();
+        if (stats) setDashboardStats(stats);
       } catch (error) {
         console.error('Error fetching doctor data:', error);
       }
     };
 
     fetchDoctorData();
+
+    // Listen for doctor profile update event
+    const handleDoctorProfileUpdate = (event) => {
+      if (event.detail?.doctor) {
+        setDoctorInfo(event.detail.doctor);
+      } else {
+        fetchDoctorData();
+      }
+    };
+
+    window.addEventListener('doctorProfileUpdated', handleDoctorProfileUpdate);
+
+    return () => {
+      window.removeEventListener('doctorProfileUpdated', handleDoctorProfileUpdate);
+    };
   }, []);
 
-  // Get doctor info from API data
-  const doctorName = doctorInfo?.userId?.fullName || doctorInfo?.fullName || "Đang tải...";
-  const doctorAvatar = doctorInfo?.avatarUrl || "https://api.dicebear.com/7.x/avataaars/svg?seed=doctor";
-
-  const stats = dashboardStats ? [
-    {
-      label: "Ca khám hôm nay",
-      value: dashboardStats.todayAppointmentsCount || "0",
-      icon: Clock,
-      color: "dashboard-stat-card-teal"
-    },
-    {
-      label: "Slot trống",
-      value: dashboardStats.availableSlotsToday || "0",
-      icon: Users,
-      color: "dashboard-stat-card-teal"
-    },
-    {
-      label: "Lịch hẹn chờ",
-      value: dashboardStats.pendingAppointmentsCount || "0",
-      icon: FileText,
-      color: "dashboard-stat-card-teal"
-    },
-    {
-      label: "Tổng ca tuần này",
-      value: dashboardStats.weeklyAppointmentsCount || "0",
-      icon: FileText,
-      color: "dashboard-stat-card-teal"
-    }
-  ] : [];
+  const stats = dashboardStats
+    ? [
+        {
+          label: "Ca khám hôm nay",
+          value: dashboardStats.todayAppointmentsCount || "0",
+          icon: Clock,
+          color: "dashboard-stat-card-teal",
+        },
+        {
+          label: "Slot trống",
+          value: dashboardStats.availableSlotsToday || "0",
+          icon: Users,
+          color: "dashboard-stat-card-teal",
+        },
+        {
+          label: "Lịch hẹn chờ",
+          value: dashboardStats.pendingAppointmentsCount || "0",
+          icon: FileText,
+          color: "dashboard-stat-card-teal",
+        },
+        {
+          label: "Tổng ca tuần này",
+          value: dashboardStats.weeklyAppointmentsCount || "0",
+          icon: FileText,
+          color: "dashboard-stat-card-teal",
+        },
+      ]
+    : [];
 
   return (
     <div className="doctor-dashboard-container">
-      <Sidebar activeMenu={activeMenu} onMenuChange={setActiveMenu} />
-
       <div className="doctor-main-content">
         <main className="doctor-content-area">
           <div className="dashboard-content-padding">
-            {/* Dashboard */}
-            {activeMenu === "dashboard" && (
-              <div className="dashboard-main-content">
-                <div className="dashboard-stats">
-                  {stats.map((stat, idx) => {
-                    const Icon = stat.icon;
-                    return (
-                      <div key={idx} className="stat-card">
-                        <div className="stat-card-content">
-                          <div>
-                            <p className="stat-label">{stat.label}</p>
-                            <p className="stat-value">{stat.value}</p>
-                          </div>
-                          <Icon className="stat-icon" />
+            <div className="dashboard-main-content">
+              <div className="dashboard-stats">
+                {stats.map((stat, idx) => {
+                  const Icon = stat.icon;
+                  return (
+                    <div key={idx} className="stat-card">
+                      <div className="stat-card-content">
+                        <div>
+                          <p className="stat-label">{stat.label}</p>
+                          <p className="stat-value">{stat.value}</p>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="dashboard-grid">
-                  <Card className="dashboard-shortcuts-card">
-                    <h3 className="dashboard-shortcuts-title">Lối tắt</h3>
-                    <div className="dashboard-shortcuts-buttons">
-                      <Button
-                        onClick={() => setActiveMenu("schedule")}
-                        variant="outline"
-                        className="dashboard-shortcut-btn"
-                      >
-                        Xem lịch làm việc
-                      </Button>
-                      <Button
-                        onClick={() => setActiveMenu("appointments")}
-                        variant="outline"
-                        className="dashboard-shortcut-btn"
-                      >
-                        Xem lịch hẹn
-                      </Button>
-                      <Button
-                        onClick={() => setActiveMenu("medical-history")}
-                        variant="outline"
-                        className="dashboard-shortcut-btn"
-                      >
-                        Tạo tóm tắt khám
-                      </Button>
-                    </div>
-                  </Card>
-
-                  <Card className="dashboard-info-card">
-                    <h3 className="dashboard-info-title">Thông tin nhanh</h3>
-                    <div className="dashboard-info-content">
-                      <div>
-                        <p className="dashboard-info-label">Lịch hẹn hôm nay</p>
-                        <p className="dashboard-info-value">
-                          {dashboardStats?.todayAppointmentsCount || "0"} cuộc hẹn
-                        </p>
-                      </div>
-                      <div>
-                        <p className="dashboard-info-label">Slot trống</p>
-                        <p className="dashboard-info-value">
-                          {dashboardStats?.availableSlotsToday || "0"} slot
-                        </p>
-                      </div>
-                      <div>
-                        <p className="dashboard-info-label">Chờ xác nhận</p>
-                        <p className="dashboard-info-value">
-                          {dashboardStats?.pendingAppointmentsCount || "0"} lịch hẹn
-                        </p>
+                        <Icon className="stat-icon" />
                       </div>
                     </div>
-                  </Card>
-                </div>
+                  );
+                })}
               </div>
-            )}
 
             {/* Schedule */}
             {activeMenu === "schedule" && (
@@ -163,28 +117,28 @@ export default function DoctorDashboard() {
               </div>
             )}
 
-                 {/* Medical History */}
-                 {activeMenu === "medical-history" && <MedicalHistory />}
+            {/* Medical History */}
+            {activeMenu === "medical-history" && <MedicalHistory />}
 
-                 {/* Notifications */}
-                 {activeMenu === "notifications" && (
-                   <div className="space-y-6">
-                     <h3 className="text-xl font-semibold text-slate-900">Thông báo hệ thống</h3>
-                     <div className="bg-white p-6 rounded-lg border border-gray-200">
-                       <p className="text-gray-600">Chưa có thông báo mới</p>
-                     </div>
-                   </div>
-                 )}
+            {/* Notifications */}
+            {activeMenu === "notifications" && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-slate-900">Thông báo hệ thống</h3>
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <p className="text-gray-600">Chưa có thông báo mới</p>
+                </div>
+              </div>
+            )}
 
-                 {/* Reviews */}
-                 {activeMenu === "reviews" && (
-                   <div className="space-y-6">
-                     <h3 className="text-xl font-semibold text-slate-900">Đánh giá từ bệnh nhân</h3>
-                     <div className="bg-white p-6 rounded-lg border border-gray-200">
-                       <p className="text-gray-600">Chưa có đánh giá nào</p>
-                     </div>
-                   </div>
-                 )}
+            {/* Reviews */}
+            {activeMenu === "reviews" && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-slate-900">Đánh giá từ bệnh nhân</h3>
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <p className="text-gray-600">Chưa có đánh giá nào</p>
+                </div>
+              </div>
+            )}
 
             {/* Settings */}
             {activeMenu === "settings" && (
@@ -273,10 +227,33 @@ export default function DoctorDashboard() {
                     </label>
                   </div>
                 </Card>
-                <ProfileSettings />
               </div>
             )}
 
+            <Card className="dashboard-info-card">
+              <h3 className="dashboard-info-title">Thông tin nhanh</h3>
+              <div className="dashboard-info-content">
+                <div>
+                  <p className="dashboard-info-label">Lịch hẹn hôm nay</p>
+                  <p className="dashboard-info-value">
+                    {dashboardStats?.todayAppointmentsCount || "0"} cuộc hẹn
+                  </p>
+                </div>
+                <div>
+                  <p className="dashboard-info-label">Slot trống</p>
+                  <p className="dashboard-info-value">
+                    {dashboardStats?.availableSlotsToday || "0"} slot
+                  </p>
+                </div>
+                <div>
+                  <p className="dashboard-info-label">Chờ xác nhận</p>
+                  <p className="dashboard-info-value">
+                    {dashboardStats?.pendingAppointmentsCount || "0"} lịch hẹn
+                  </p>
+                </div>
+              </div>
+            </Card>
+            </div>
           </div>
         </main>
       </div>

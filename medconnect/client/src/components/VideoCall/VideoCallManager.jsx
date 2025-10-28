@@ -28,6 +28,13 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient', onCallStateChan
 
   useEffect(() => {
     fetchAppointmentInfo();
+    
+    // Poll for video call status updates every 5 seconds
+    const interval = setInterval(() => {
+      fetchVideoCallStatus();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, [appointmentId]);
 
   const fetchAppointmentInfo = async () => {
@@ -66,6 +73,26 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient', onCallStateChan
       message.error('Không thể tải thông tin cuộc hẹn');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchVideoCallStatus = async () => {
+    try {
+      // Only fetch if we have video call data
+      if (!videoCallData) return;
+      
+      const videoCallResponse = await VideoCallAPI.getCallHistory(appointmentId);
+      if (videoCallResponse && Array.isArray(videoCallResponse) && videoCallResponse.length > 0) {
+        const latestVideoCall = videoCallResponse[0];
+        // Only update if status has changed
+        if (latestVideoCall.status !== videoCallData.status) {
+          console.log('🔄 Video call status updated:', latestVideoCall.status);
+          setVideoCallData(latestVideoCall);
+        }
+      }
+    } catch (error) {
+      console.log('Error fetching video call status:', error.message);
+      // Silent error - don't show to user during polling
     }
   };
 
@@ -289,7 +316,7 @@ const VideoCallManager = ({ appointmentId, userRole = 'patient', onCallStateChan
                     <div className="info-item">
                       <UserOutlined className="info-icon" />
                       <Text strong>Bác sĩ:</Text>
-                      <Text>{appointmentInfo.doctorId?.name || 'Chưa xác định'}</Text>
+                      <Text>{appointmentInfo.doctorId?.name || appointmentInfo.doctorId?.fullName || 'Chưa xác định'}</Text>
                     </div>
                     <div className="info-item">
                       <Text strong>Trạng thái:</Text>

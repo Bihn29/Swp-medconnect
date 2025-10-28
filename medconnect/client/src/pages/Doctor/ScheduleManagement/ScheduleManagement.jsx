@@ -360,77 +360,79 @@ export default function ScheduleManagement() {
 
   // Hàm xử lý gọi video - MỞ SANG TAB MỚI
   const handleVideoCall = async (slot) => {
-    console.log("🔍 handleVideoCall - Called with slot:", slot);
+    console.log("🎥🎥🎥 handleVideoCall - Called with slot:", slot);
+    console.log("🎥🎥🎥 handleVideoCall - Slot data:", JSON.stringify(slot, null, 2));
     
     try {
       // Sử dụng appointmentId từ slot (đã được populate từ backend)
       if (!slot || !slot.appointmentId) {
-        console.error("❌ handleVideoCall - No slot or appointmentId");
+        console.error("❌❌❌ handleVideoCall - No slot or appointmentId");
         alert(`Không tìm thấy lịch hẹn cho slot này. Slot ID: ${slot?.id || 'N/A'}, Patient: ${slot?.patientName || 'N/A'}`);
         return;
       }
 
-      console.log("✅ handleVideoCall - Found appointment ID from slot:", slot.appointmentId);
+      console.log("✅✅✅ handleVideoCall - Found appointment ID from slot:", slot.appointmentId);
       
       const apiModule = await import('../../../lib/api');
       const VideoCallAPI = await import('../../../services/videoCallAPI');
+      console.log("✅✅✅ handleVideoCall - APIs imported");
       
-          console.log("🔍 handleVideoCall - Updating appointment status to in_progress...");
-          // Step 1: Update appointment status to "in_progress" (only if not already in_progress)
-          try {
-            const statusUrl = `/api/doctors/me/appointments/${slot.appointmentId}/status`;
-            console.log("🔍 handleVideoCall - Calling PUT:", statusUrl);
+      console.log("🔍🔍🔍 handleVideoCall - Updating appointment status to in_progress...");
+      // Step 1: Update appointment status to "in_progress" (only if not already in_progress)
+      try {
+        const statusUrl = `/api/doctors/me/appointments/${slot.appointmentId}/status`;
+        console.log("🔍🔍🔍 handleVideoCall - Calling PUT:", statusUrl);
 
-            const response = await apiModule.api.put(statusUrl, {
-              status: 'in_progress'
-            });
+        const response = await apiModule.api.put(statusUrl, {
+          status: 'in_progress'
+        });
 
-            console.log("🔍 handleVideoCall - Status update response:", response);
+        console.log("🔍🔍🔍 handleVideoCall - Status update response:", response);
 
-            if (response.success) {
-              console.log("✅ handleVideoCall - Appointment status updated to in_progress");
-            } else {
-              // If status is already in_progress, continue anyway
-              if (response.message?.includes('Invalid status transition from in_progress')) {
-                console.log("ℹ️ handleVideoCall - Appointment already in_progress, continuing...");
-              } else {
-                console.error("❌ handleVideoCall - Status update failed:", response);
-              }
-            }
-          } catch (statusError) {
-            console.error("❌ handleVideoCall - Error updating appointment status:", statusError);
-            // If error is about already being in_progress, continue anyway
-            if (statusError.message?.includes('Invalid status transition from in_progress')) {
-              console.log("ℹ️ handleVideoCall - Appointment already in_progress, continuing...");
-            } else {
-              console.error("❌ handleVideoCall - Error details:", statusError.message, statusError.stack);
-            }
+        if (response.success) {
+          console.log("✅✅✅ handleVideoCall - Appointment status updated to in_progress");
+        } else {
+          // If status is already in_progress, continue anyway
+          if (response.message?.includes('Invalid status transition from in_progress')) {
+            console.log("ℹ️ℹ️ℹ️ handleVideoCall - Appointment already in_progress, continuing...");
+          } else {
+            console.error("❌❌❌ handleVideoCall - Status update failed:", response);
           }
+        }
+      } catch (statusError) {
+        console.error("❌❌❌ handleVideoCall - Error updating appointment status:", statusError);
+        // If error is about already being in_progress, continue anyway
+        if (statusError.message?.includes('Invalid status transition from in_progress')) {
+          console.log("ℹ️ℹ️ℹ️ handleVideoCall - Appointment already in_progress, continuing...");
+        } else {
+          console.error("❌❌❌ handleVideoCall - Error details:", statusError.message, statusError.stack);
+        }
+      }
       
-      console.log("🔍 handleVideoCall - Creating video call room...");
+      console.log("🔍🔍🔍 handleVideoCall - Creating video call room...");
       // Step 2: Create video call room
       try {
-        console.log("🔍 handleVideoCall - Calling VideoCallAPI.createRoom with:", slot.appointmentId);
+        console.log("🔍🔍🔍 handleVideoCall - Calling VideoCallAPI.createRoom with:", slot.appointmentId);
         const videoCallResponse = await VideoCallAPI.default.createRoom(slot.appointmentId);
-        console.log("✅ handleVideoCall - Video call room created:", videoCallResponse);
+        console.log("✅✅✅ handleVideoCall - Video call room created:", videoCallResponse);
       } catch (videoCallError) {
-        console.error("❌ handleVideoCall - Error creating video call room:", videoCallError);
-        console.error("❌ handleVideoCall - Error details:", videoCallError.message, videoCallError.stack);
+        console.error("❌❌❌ handleVideoCall - Error creating video call room:", videoCallError);
+        console.error("❌❌❌ handleVideoCall - Error details:", videoCallError.message, videoCallError.stack);
         // Continue even if video call creation fails - will be created when page loads
       }
       
-      console.log("🔍 handleVideoCall - Reloading time slots...");
+      console.log("🔍🔍🔍 handleVideoCall - Reloading time slots...");
       // Reload time slots to reflect status change
       await loadTimeSlots();
       
-      console.log("🔍 handleVideoCall - Opening video call window...");
+      console.log("🔍🔍🔍 handleVideoCall - Opening video call window...");
       // Mở video call trong TAB MỚI thay vì thay đổi trang hiện tại
       window.open(`/bac-si/video-call/${slot.appointmentId}`, '_blank');
-      console.log("✅ handleVideoCall - Video call window opened");
+      console.log("✅✅✅ handleVideoCall - Video call window opened");
       
     } catch (error) {
-      console.error("❌ handleVideoCall - Unexpected error:", error);
-      console.error("❌ handleVideoCall - Error details:", error.message, error.stack);
+      console.error("❌❌❌ handleVideoCall - Unexpected error:", error);
+      console.error("❌❌❌ handleVideoCall - Error details:", error.message, error.stack);
       alert(`Lỗi khi bắt đầu cuộc gọi video: ${error.message}`);
     }
   };
