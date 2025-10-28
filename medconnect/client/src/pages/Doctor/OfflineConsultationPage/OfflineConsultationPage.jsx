@@ -108,6 +108,21 @@ export default function OfflineConsultationPage() {
     const file = e.target.files[0]
     if (!file) return
 
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      alert('Chỉ được upload file ảnh (JPG, PNG, WebP) hoặc PDF!')
+      e.target.value = ''
+      return
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Kích thước file không được vượt quá 10MB!')
+      e.target.value = ''
+      return
+    }
+
     setUploadingFile(true)
     try {
       const formDataObj = new FormData()
@@ -124,9 +139,17 @@ export default function OfflineConsultationPage() {
         if (data.success && data.data?.url) {
           const newImagingResults = [...formData.imagingResults]
           newImagingResults[index].imageUrl = data.data.url
+          newImagingResults[index].fileName = file.name
+          newImagingResults[index].fileSize = file.size
+          newImagingResults[index].fileType = file.type
           setFormData({ ...formData, imagingResults: newImagingResults })
           alert('Tải file lên thành công!')
+        } else {
+          alert('Có lỗi xảy ra khi lưu file')
         }
+      } else {
+        const errorData = await response.json()
+        alert(`Lỗi upload: ${errorData.message || 'Không thể upload file'}`)
       }
     } catch (error) {
       console.error('Error uploading file:', error)
@@ -135,6 +158,15 @@ export default function OfflineConsultationPage() {
       setUploadingFile(false)
       e.target.value = ''
     }
+  }
+
+  const handleRemoveFile = (index) => {
+    const newImagingResults = [...formData.imagingResults]
+    newImagingResults[index].imageUrl = ''
+    newImagingResults[index].fileName = ''
+    newImagingResults[index].fileSize = ''
+    newImagingResults[index].fileType = ''
+    setFormData({ ...formData, imagingResults: newImagingResults })
   }
 
   const handleSubmit = async (e) => {
@@ -150,12 +182,20 @@ export default function OfflineConsultationPage() {
       diagnoses: formData.diagnoses.filter(d => d.name && d.name.trim()),
       vitals: formData.vitals,
       labResults: formData.labResults.filter(l => l.testName || l.result),
-      imagingResults: formData.imagingResults,
+      imagingResults: formData.imagingResults.filter(img => img.imageUrl).map(img => ({
+        type: img.type || '',
+        conclusion: img.conclusion || '',
+        imageUrl: img.imageUrl || '',
+        performedAt: new Date()
+      })),
       medications: formData.medications.filter(m => m.name),
       procedures: formData.procedures,
       treatmentMethod: formData.treatmentMethod,
       nextAppointmentDate: formData.nextAppointmentDate ? new Date(formData.nextAppointmentDate) : undefined,
     }
+
+    // Debug logging
+    console.log("🔍 Submitting imagingResults:", JSON.stringify(submitData.imagingResults, null, 2));
 
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/doctors/me/consultation-summaries`, {
@@ -333,7 +373,7 @@ export default function OfflineConsultationPage() {
                           <input
                             type="file"
                             id={`imaging-file-${index}`}
-                            accept=".jpg,.jpeg,.png,.pdf"
+                            accept=".jpg,.jpeg,.png,.pdf,.webp"
                             onChange={(e) => handleFileUpload(e, index)}
                             disabled={uploadingFile}
                             className="file-input"
@@ -345,15 +385,66 @@ export default function OfflineConsultationPage() {
                                 ? "✓ File đã được chọn"
                                 : uploadingFile
                                 ? "Đang tải lên..."
-                                : "Chọn file hình ảnh (JPG, PNG, PDF - Tối đa 10MB)"}
+                                : "Chọn file hình ảnh (JPG, PNG, WebP, PDF - Tối đa 10MB)"}
                             </span>
                           </label>
                         </div>
+                        
+                        {/* Hiển thị file đã upload */}
+                        {imaging.imageUrl && (
+                          <div className="uploaded-file-preview">
+                            <div className="file-info">
+                              <div className="file-details">
+                                <i className="bi bi-file-earmark-image"></i>
+                                <div className="file-text">
+                                  <div className="file-name">{imaging.fileName || 'File đã upload'}</div>
+                                  <div className="file-size">
+                                    {imaging.fileSize ? `${(imaging.fileSize / 1024 / 1024).toFixed(2)} MB` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                              <button 
+                                type="button" 
+                                className="btn-remove-file"
+                                onClick={() => handleRemoveFile(index)}
+                                title="Xóa file"
+                              >
+                                <i className="bi bi-x-circle"></i>
+                              </button>
+                            </div>
+                            
+                            {/* Hiển thị preview hình ảnh */}
+                            {imaging.fileType && imaging.fileType.startsWith('image/') && (
+                              <div className="image-preview">
+                                <img 
+                                  src={`${import.meta.env.VITE_API_URL || "http://localhost:3000"}${imaging.imageUrl}`}
+                                  alt="Preview"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none'
+                                    e.target.nextSibling.style.display = 'block'
+                                  }}
+                                />
+                                <div className="image-error" style={{display: 'none'}}>
+                                  <i className="bi bi-image"></i>
+                                  <span>Không thể hiển thị hình ảnh</span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Hiển thị PDF icon */}
+                            {imaging.fileType && imaging.fileType === 'application/pdf' && (
+                              <div className="pdf-preview">
+                                <i className="bi bi-file-earmark-pdf"></i>
+                                <span>File PDF</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
-                <Button type="button" onClick={() => addArrayItem("imagingResults", { type: "", conclusion: "", imageUrl: "" })} className="btn-add">+ Thêm hình ảnh</Button>
+                <Button type="button" onClick={() => addArrayItem("imagingResults", { type: "", conclusion: "", imageUrl: "", fileName: "", fileSize: "", fileType: "" })} className="btn-add">+ Thêm hình ảnh</Button>
               </div>
             )}
 

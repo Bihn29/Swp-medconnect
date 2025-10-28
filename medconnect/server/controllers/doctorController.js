@@ -178,7 +178,7 @@ export async function getDoctorAppointments(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const { status, date, page = 1, limit = 10 } = req.query;
+    const { status, date, page = 1, limit = 1000 } = req.query;
     const skip = (page - 1) * limit;
 
     const filter = { doctorId: doctor._id };
@@ -191,12 +191,25 @@ export async function getDoctorAppointments(req, res) {
     }
 
     const appointments = await Appointment.find(filter)
-      .populate("patientId", "fullName dob gender phone")
+      .populate({
+        path: "patientId",
+        select: "fullName dob gender phone email",
+        populate: {
+          path: "userId",
+          select: "email phone"
+        }
+      })
       .populate("slotId")
       .sort({ scheduledStart: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
+
+    console.log("📋 Found appointments:", appointments.length);
+    if (appointments.length > 0) {
+      console.log("📋 First appointment mode:", appointments[0].mode);
+      console.log("📋 All appointment modes:", appointments.map(apt => apt.mode));
+    }
 
     const total = await Appointment.countDocuments(filter);
 
@@ -634,6 +647,11 @@ export async function createConsultationSummary(req, res) {
       consultationCategory, diagnoses, vitals, labResults, imagingResults, medications, 
       procedures, treatmentMethod, nextAppointmentDate } = req.body;
 
+    // Debug logging
+    console.log("🔍 Received imagingResults:", JSON.stringify(imagingResults, null, 2));
+    console.log("🔍 Type of imagingResults:", typeof imagingResults);
+    console.log("🔍 Is array:", Array.isArray(imagingResults));
+
     if (!appointmentId) {
       return fail(
         res,
@@ -663,25 +681,66 @@ export async function createConsultationSummary(req, res) {
     }
 
     // Add optional fields if provided
-    if (summaryText) summaryData.summaryText = summaryText
-    if (reasonForVisit) summaryData.reasonForVisit = reasonForVisit
+    if (summaryText !== undefined) summaryData.summaryText = summaryText
+    if (reasonForVisit !== undefined) summaryData.reasonForVisit = reasonForVisit
     if (visitDate) summaryData.visitDate = new Date(visitDate)
-    if (treatmentResult) summaryData.treatmentResult = treatmentResult
-    if (consultationCategory) summaryData.consultationCategory = consultationCategory
+    if (treatmentResult !== undefined) summaryData.treatmentResult = treatmentResult
+    if (consultationCategory !== undefined) summaryData.consultationCategory = consultationCategory
     if (diagnoses && Array.isArray(diagnoses)) summaryData.diagnoses = diagnoses
     if (vitals && typeof vitals === 'object') summaryData.vitals = vitals
     if (labResults && Array.isArray(labResults)) summaryData.labResults = labResults
-    if (imagingResults && Array.isArray(imagingResults)) summaryData.imagingResults = imagingResults
+    if (imagingResults && Array.isArray(imagingResults)) {
+      // Filter out empty imaging results and ensure proper structure
+      summaryData.imagingResults = imagingResults.filter(img => 
+        img && img.imageUrl
+      ).map(img => {
+        // Ensure all fields are properly formatted
+        const processedImg = {
+          type: String(img.type || ''),
+          conclusion: String(img.conclusion || ''),
+          imageUrl: String(img.imageUrl || ''),
+          performedAt: img.performedAt ? new Date(img.performedAt) : new Date()
+        };
+        
+        console.log("🔍 Processing individual imaging result:", processedImg);
+        return processedImg;
+      });
+      console.log("🔍 Processed imagingResults:", JSON.stringify(summaryData.imagingResults, null, 2));
+    } else if (imagingResults) {
+      console.log("⚠️ imagingResults is not an array:", typeof imagingResults, imagingResults);
+    }
     if (medications && Array.isArray(medications)) summaryData.medications = medications
     if (procedures && Array.isArray(procedures)) summaryData.procedures = procedures
-    if (treatmentMethod) summaryData.treatmentMethod = treatmentMethod
+    if (treatmentMethod !== undefined) summaryData.treatmentMethod = treatmentMethod
     if (nextAppointmentDate) summaryData.nextAppointmentDate = new Date(nextAppointmentDate)
+
+    console.log("🔍 Final summaryData before save:", JSON.stringify(summaryData, null, 2));
+
+    // Validate the data before saving
+    if (summaryData.imagingResults && summaryData.imagingResults.length > 0) {
+      console.log("🔍 Validating imagingResults before save...");
+      summaryData.imagingResults.forEach((img, index) => {
+        console.log(`🔍 Imaging result ${index}:`, {
+          type: typeof img.type,
+          conclusion: typeof img.conclusion,
+          imageUrl: typeof img.imageUrl,
+          performedAt: typeof img.performedAt,
+          isDate: img.performedAt instanceof Date
+        });
+      });
+    }
 
     const summary = await ConsultationSummary.create(summaryData);
 
+    console.log("✅ Successfully created consultation summary:", summary._id);
     return ok(res, { summary });
   } catch (e) {
     console.error("❌ createConsultationSummary error:", e);
+    console.error("❌ Error details:", {
+      message: e.message,
+      name: e.name,
+      stack: e.stack
+    });
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
@@ -1255,7 +1314,14 @@ export async function getAllAppointments(req, res) {
     const skip = (page - 1) * limit;
 
     const appointments = await Appointment.find({})
-      .populate('patientId', 'fullName dob gender phone')
+      .populate({
+        path: 'patientId',
+        select: 'fullName dob gender phone email',
+        populate: {
+          path: 'userId',
+          select: 'email phone'
+        }
+      })
       .populate('doctorId', 'fullName licenseNo')
       .populate('slotId')
       .sort({ scheduledStart: -1 })

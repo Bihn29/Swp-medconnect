@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/Card"
 import { Button } from "../../../components/ui/Button"
 import { Badge } from "../../../components/ui/Badge"
-import { CheckCircle, XCircle, Clock, Search } from "lucide-react"
+import { CheckCircle, XCircle, Clock, Search, Filter, Calendar, SortAsc, SortDesc, CheckSquare } from "lucide-react"
 import { Input } from "../../../components/ui/Input"
 import { getDoctorAppointmentsWithFallback, updateAppointmentStatus } from "../../../lib/api"
 import "./AppointmentList.scss"
@@ -19,20 +19,35 @@ export default function AppointmentList() {
   const [updatingAppointments, setUpdatingAppointments] = useState(new Set())
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10
+  const itemsPerPage = 1000 // Hiển thị tất cả appointments
+  
+  // Filter and sort states
+  const [filters, setFilters] = useState({
+    status: 'all',
+    mode: 'all',
+    dateFrom: '',
+    dateTo: ''
+  })
+  const [sortBy, setSortBy] = useState('scheduledStart')
+  const [sortOrder, setSortOrder] = useState('desc')
+  const [showFilters, setShowFilters] = useState(false)
 
   // Fetch appointments from API
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        const response = await getDoctorAppointmentsWithFallback();
+        // Fetch all appointments without pagination limit
+        const response = await getDoctorAppointmentsWithFallback({ limit: 1000 });
         
         if (response.success && response.data?.appointments) {
+          console.log('📋 Appointments data:', response.data.appointments);
+          console.log('📋 First appointment mode:', response.data.appointments[0]?.mode);
           setAppointments(response.data.appointments);
         } else {
           setAppointments([]);
         }
       } catch (error) {
+        console.error('Error fetching appointments:', error);
         setAppointments([]);
       } finally {
         setLoading(false);
@@ -42,24 +57,68 @@ export default function AppointmentList() {
     fetchAppointments();
   }, []);
 
-  // Filter appointments based on search query
-  const filteredAppointments = appointments.filter(appointment =>
-    appointment.patientId?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appointment.patientId?.phone?.includes(searchTerm) ||
-    appointment.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appointment.reason?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter and sort appointments
+  const filteredAppointments = appointments.filter(appointment => {
+    // Search filter
+    const matchesSearch = !searchTerm || 
+      appointment.patientId?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appointment.patientId?.phone?.includes(searchTerm) ||
+      appointment.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appointment.reason?.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    // Status filter
+    const matchesStatus = filters.status === 'all' || appointment.status === filters.status
+    
+    // Mode filter
+    const matchesMode = filters.mode === 'all' || appointment.mode === filters.mode
+    
+    // Date filter
+    let matchesDate = true
+    if (filters.dateFrom) {
+      const appointmentDate = new Date(appointment.scheduledStart)
+      const fromDate = new Date(filters.dateFrom)
+      matchesDate = matchesDate && appointmentDate >= fromDate
+    }
+    if (filters.dateTo) {
+      const appointmentDate = new Date(appointment.scheduledStart)
+      const toDate = new Date(filters.dateTo)
+      toDate.setHours(23, 59, 59, 999) // Include the entire day
+      matchesDate = matchesDate && appointmentDate <= toDate
+    }
+    
+    return matchesSearch && matchesStatus && matchesMode && matchesDate
+  }).sort((a, b) => {
+    let aValue, bValue
+    
+    switch (sortBy) {
+      case 'scheduledStart':
+        aValue = new Date(a.scheduledStart)
+        bValue = new Date(b.scheduledStart)
+        break
+      case 'patientName':
+        aValue = a.patientId?.fullName || a.patient?.fullName || ''
+        bValue = b.patientId?.fullName || b.patient?.fullName || ''
+        break
+      case 'status':
+        aValue = a.status
+        bValue = b.status
+        break
+      default:
+        aValue = new Date(a.scheduledStart)
+        bValue = new Date(b.scheduledStart)
+    }
+    
+    if (sortOrder === 'asc') {
+      return aValue > bValue ? 1 : -1
+    } else {
+      return aValue < bValue ? 1 : -1
+    }
+  });
 
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const paginatedAppointments = filteredAppointments.slice(startIndex, endIndex)
+  console.log('📊 Appointments debug:');
+  console.log('- Total appointments:', appointments.length);
+  console.log('- Filtered appointments:', filteredAppointments.length);
 
-  // Reset to page 1 when search term changes
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm])
 
 
 
@@ -100,7 +159,7 @@ export default function AppointmentList() {
   const getStatusText = (status) => {
     const statusMap = {
       "accepted": "Đã chấp nhận",
-      "pending_doctor": "Chờ bác sĩ xác nhận", 
+      "pending_doctor": "Chờ xác nhận", 
       "rejected": "Bác sĩ từ chối",
       "cancelled": "Bệnh nhân hủy",
       "in_progress": "Đang khám",
@@ -133,7 +192,7 @@ export default function AppointmentList() {
       // Refresh appointments list để đảm bảo đồng bộ
       setTimeout(async () => {
         try {
-          const updatedAppointments = await getDoctorAppointmentsWithFallback();
+          const updatedAppointments = await getDoctorAppointmentsWithFallback({ limit: 1000 });
           if (updatedAppointments.success && updatedAppointments.data?.appointments) {
             setAppointments(updatedAppointments.data.appointments);
           }
@@ -184,7 +243,7 @@ export default function AppointmentList() {
         // Refresh appointments list để đảm bảo đồng bộ
         setTimeout(async () => {
           try {
-            const updatedAppointments = await getDoctorAppointmentsWithFallback();
+            const updatedAppointments = await getDoctorAppointmentsWithFallback({ limit: 1000 });
             if (updatedAppointments.success && updatedAppointments.data?.appointments) {
               setAppointments(updatedAppointments.data.appointments);
             }
@@ -216,7 +275,7 @@ export default function AppointmentList() {
       // Refresh appointments list để đảm bảo đồng bộ
       setTimeout(async () => {
         try {
-          const updatedAppointments = await getDoctorAppointmentsWithFallback();
+          const updatedAppointments = await getDoctorAppointmentsWithFallback({ limit: 1000 });
           if (updatedAppointments.success && updatedAppointments.data?.appointments) {
             setAppointments(updatedAppointments.data.appointments);
           }
@@ -260,7 +319,7 @@ export default function AppointmentList() {
       // Refresh appointments list để đảm bảo đồng bộ
       setTimeout(async () => {
         try {
-          const updatedAppointments = await getDoctorAppointmentsWithFallback();
+          const updatedAppointments = await getDoctorAppointmentsWithFallback({ limit: 1000 });
           if (updatedAppointments.success && updatedAppointments.data?.appointments) {
             setAppointments(updatedAppointments.data.appointments);
           }
@@ -273,22 +332,197 @@ export default function AppointmentList() {
     }
   }
 
+  // Accept all pending appointments
+  const handleAcceptAll = async () => {
+    const pendingAppointments = appointments.filter(apt => apt.status === 'pending_doctor');
+    
+    if (pendingAppointments.length === 0) {
+      alert('Không có lịch hẹn nào đang chờ xác nhận');
+      return;
+    }
+    
+    const confirmed = window.confirm(`Bạn có chắc chắn muốn chấp nhận tất cả ${pendingAppointments.length} lịch hẹn đang chờ xác nhận?`);
+    if (!confirmed) return;
+    
+    try {
+      // Add all pending appointment IDs to updating set
+      setUpdatingAppointments(prev => new Set([...prev, ...pendingAppointments.map(apt => apt._id)]));
+      
+      // Update all appointments
+      const updatePromises = pendingAppointments.map(appointment => 
+        updateAppointmentStatus(appointment._id, 'accepted')
+      );
+      
+      await Promise.all(updatePromises);
+      
+      // Update UI immediately
+      setAppointments(prevAppointments => 
+        prevAppointments.map(apt => 
+          apt.status === 'pending_doctor' 
+            ? { ...apt, status: 'accepted' }
+            : apt
+        )
+      );
+      
+      alert(`Đã chấp nhận ${pendingAppointments.length} lịch hẹn`);
+      
+      // Refresh appointments list
+      setTimeout(async () => {
+        try {
+          const updatedAppointments = await getDoctorAppointmentsWithFallback({ limit: 1000 });
+          if (updatedAppointments.success && updatedAppointments.data?.appointments) {
+            setAppointments(updatedAppointments.data.appointments);
+          }
+        } catch (error) {
+          console.error('Error refreshing appointments:', error);
+        }
+      }, 1000);
+      
+    } catch (error) {
+      alert('Có lỗi xảy ra khi chấp nhận toàn bộ lịch hẹn: ' + error.message);
+    } finally {
+      // Clear updating state
+      setUpdatingAppointments(prev => {
+        const newSet = new Set(prev);
+        pendingAppointments.forEach(apt => newSet.delete(apt._id));
+        return newSet;
+      });
+    }
+  }
+
 
   return (
     <Card className="appointment-list-card">
       <CardHeader className="appointment-list-header">
         <div className="appointment-list-header-content">
           <CardTitle>Danh sách lịch hẹn</CardTitle>
-          <div className="appointment-list-search">
-            <Search className="appointment-list-search-icon" />
-            <Input
-              placeholder="    Tìm kiếm ..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="appointment-list-search-input"
-            />
+          <div className="appointment-list-controls">
+            <div className="appointment-list-search">
+              <Search className="appointment-list-search-icon" />
+              <Input
+                placeholder="    Tìm kiếm ..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="appointment-list-search-input"
+              />
+            </div>
+            <div className="appointment-list-control-buttons">
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="appointment-list-filter-btn"
+              >
+                <Filter className="w-4 h-4" />
+                Bộ lọc
+              </Button>
+              <Button
+                onClick={handleAcceptAll}
+                className="appointment-list-accept-all-btn"
+                disabled={appointments.filter(apt => apt.status === 'pending_doctor').length === 0}
+              >
+                <CheckSquare className="w-4 h-4" />
+                Chấp nhận toàn bộ
+              </Button>
+            </div>
           </div>
         </div>
+        
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="appointment-list-filter-panel">
+            <div className="appointment-list-filter-row">
+              <div className="appointment-list-filter-group">
+                <label>Trạng thái:</label>
+                <select
+                  value={filters.status}
+                  onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                  className="appointment-list-filter-select"
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="pending_doctor">Chờ xác nhận</option>
+                  <option value="accepted">Đã chấp nhận</option>
+                  <option value="in_progress">Đang khám</option>
+                  <option value="done">Hoàn thành</option>
+                  <option value="rejected">Từ chối</option>
+                  <option value="cancelled">Hủy</option>
+                  <option value="no_show">Không đến khám</option>
+                </select>
+              </div>
+              
+              <div className="appointment-list-filter-group">
+                <label>Loại khám:</label>
+                <select
+                  value={filters.mode}
+                  onChange={(e) => setFilters(prev => ({ ...prev, mode: e.target.value }))}
+                  className="appointment-list-filter-select"
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="online">Trực tuyến</option>
+                  <option value="offline">Trực tiếp</option>
+                </select>
+              </div>
+              
+              <div className="appointment-list-filter-group">
+                <label>Từ ngày:</label>
+                <Input
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                  className="appointment-list-filter-input"
+                />
+              </div>
+              
+              <div className="appointment-list-filter-group">
+                <label>Đến ngày:</label>
+                <Input
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                  className="appointment-list-filter-input"
+                />
+              </div>
+            </div>
+            
+            <div className="appointment-list-sort-row">
+              <div className="appointment-list-sort-group">
+                <label>Sắp xếp theo:</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appointment-list-filter-select"
+                >
+                  <option value="scheduledStart">Ngày giờ</option>
+                  <option value="patientName">Tên bệnh nhân</option>
+                  <option value="status">Trạng thái</option>
+                </select>
+              </div>
+              
+              <div className="appointment-list-sort-group">
+                <label>Thứ tự:</label>
+                <Button
+                  variant="outline"
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="appointment-list-sort-btn"
+                >
+                  {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+                  {sortOrder === 'asc' ? 'Tăng dần' : 'Giảm dần'}
+                </Button>
+              </div>
+              
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFilters({ status: 'all', mode: 'all', dateFrom: '', dateTo: '' });
+                  setSortBy('scheduledStart');
+                  setSortOrder('desc');
+                }}
+                className="appointment-list-reset-btn"
+              >
+                Đặt lại
+              </Button>
+            </div>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="appointment-list-content">
         <div className="appointment-list-table-wrapper">
@@ -300,23 +534,24 @@ export default function AppointmentList() {
                 <th className="appointment-list-th">Loại</th>
                 <th className="appointment-list-th">Lý do</th>
                 <th className="appointment-list-th">Trạng thái</th>
+                <th className="appointment-list-th">Hành động</th>
               </tr>
             </thead>
             <tbody className="appointment-list-tbody">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="appointment-list-td text-center">
+                  <td colSpan="6" className="appointment-list-td text-center">
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : filteredAppointments.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="appointment-list-td text-center">
+                  <td colSpan="6" className="appointment-list-td text-center">
                     Không có lịch hẹn nào
                   </td>
                 </tr>
               ) : (
-                paginatedAppointments.map((apt) => (
+                filteredAppointments.map((apt) => (
                   <tr key={apt._id} className="appointment-list-row">
                     <td className="appointment-list-td appointment-list-patient">
                       <span 
@@ -331,71 +566,78 @@ export default function AppointmentList() {
                       {new Date(apt.scheduledStart).toLocaleDateString('vi-VN')} {new Date(apt.scheduledStart).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="appointment-list-td">
-                      <Badge variant="outline">{apt.mode === 'online' ? 'Trực tuyến' : 'Trực tiếp'}</Badge>
+                      <Badge variant="outline">
+                        {apt.mode === 'online' ? 'Trực tuyến' : 
+                         apt.mode === 'offline' ? 'Trực tiếp' : 
+                         apt.mode || 'Không xác định'}
+                      </Badge>
                     </td>
                     <td className="appointment-list-td appointment-list-reason">
                       {apt.notes || apt.reason || 'N/A'}
                     </td>
+                    <td className="appointment-list-td appointment-list-status">
+                      <Badge className={getStatusColor(apt.status)} data-status={apt.status}>
+                        <span className="appointment-list-status">
+                          {getStatusIcon(apt.status)}
+                          {getStatusText(apt.status)}
+                        </span>
+                      </Badge>
+                    </td>
                     <td className="appointment-list-td appointment-list-actions">
-                      <div className="appointment-list-status-info">
-                        <Badge className={getStatusColor(apt.status)} data-status={apt.status}>
-                          <span className="appointment-list-status">
-                            {getStatusIcon(apt.status)}
-                            {getStatusText(apt.status)}
-                          </span>
-                        </Badge>
-                      </div>
-                      <div className="appointment-list-status-actions">
-                      {apt.status === "pending_doctor" && (
-                        <>
-                          <Button 
-                            size="sm" 
-                            className="appointment-list-accept-btn" 
-                            onClick={() => handleAccept(apt)}
-                            disabled={updatingAppointments.has(apt._id)}
-                          >
-                            {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Chấp nhận"}
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive" 
-                            onClick={() => handleReject(apt)}
-                            disabled={updatingAppointments.has(apt._id)}
-                          >
-                            Từ chối
-                          </Button>
-                        </>
-                      )}
-                      {apt.status === "accepted" && (
-                        <>
+                      <div className="appointment-list-action-buttons">
+                        {apt.status === "pending_doctor" && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              className="appointment-list-accept-btn" 
+                              onClick={() => handleAccept(apt)}
+                              disabled={updatingAppointments.has(apt._id)}
+                            >
+                              {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Chấp nhận"}
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive" 
+                              onClick={() => handleReject(apt)}
+                              disabled={updatingAppointments.has(apt._id)}
+                            >
+                              Từ chối
+                            </Button>
+                          </>
+                        )}
+                        {apt.status === "accepted" && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              variant="secondary"
+                              onClick={() => handleStart(apt)}
+                              disabled={updatingAppointments.has(apt._id)}
+                            >
+                              {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Bắt đầu khám"}
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => handleNoShow(apt)}
+                              disabled={updatingAppointments.has(apt._id)}
+                            >
+                              {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Không đến khám"}
+                            </Button>
+                          </>
+                        )}
+                        {apt.status === "in_progress" && (
                           <Button 
                             size="sm" 
                             variant="secondary"
-                            onClick={() => handleStart(apt)}
+                            onClick={() => handleComplete(apt)}
                             disabled={updatingAppointments.has(apt._id)}
                           >
-                            {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Bắt đầu khám"}
+                            {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Hoàn thành"}
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive"
-                            onClick={() => handleNoShow(apt)}
-                            disabled={updatingAppointments.has(apt._id)}
-                          >
-                            {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Không đến khám"}
-                          </Button>
-                        </>
-                      )}
-                      {apt.status === "in_progress" && (
-                        <Button 
-                          size="sm" 
-                          variant="secondary"
-                          onClick={() => handleComplete(apt)}
-                          disabled={updatingAppointments.has(apt._id)}
-                        >
-                          {updatingAppointments.has(apt._id) ? "Đang xử lý..." : "Hoàn thành"}
-                        </Button>
-                      )}
+                        )}
+                        {(apt.status === "done" || apt.status === "rejected" || apt.status === "cancelled" || apt.status === "no_show") && (
+                          <span className="appointment-list-no-action">-</span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -408,23 +650,9 @@ export default function AppointmentList() {
         {/* Pagination */}
         {filteredAppointments.length > 0 && (
           <div className="appointment-list-pagination">
-            <button 
-              className="pagination-btn"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-            >
-              Trước
-            </button>
-            <span className="pagination-info">
-              Trang {currentPage} / {totalPages} ({filteredAppointments.length} lịch hẹn)
-            </span>
-            <button 
-              className="pagination-btn"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Sau
-            </button>
+            <div className="pagination-info">
+              Hiển thị tất cả {filteredAppointments.length} lịch hẹn
+            </div>
           </div>
         )}
       </CardContent>
@@ -460,7 +688,10 @@ export default function AppointmentList() {
               <div className="appointment-detail-item">
                 <p className="appointment-detail-label">Email</p>
                 <p className="appointment-detail-value">
-                  {selectedAppointment.patientId?.email || selectedAppointment.patient?.email || 'N/A'}
+                  {selectedAppointment.patientId?.email || 
+                   selectedAppointment.patientId?.userId?.email || 
+                   selectedAppointment.patient?.email || 
+                   selectedAppointment.patient?.user?.email || 'N/A'}
                 </p>
               </div>
               <div className="appointment-detail-item">
@@ -547,7 +778,7 @@ export default function AppointmentList() {
                             alert('Đã bắt đầu khám bệnh');
                             setIsDetailDialogOpen(false);
                             // Refresh appointments
-                            const updatedAppointments = await getDoctorAppointmentsWithFallback();
+                            const updatedAppointments = await getDoctorAppointmentsWithFallback({ limit: 1000 });
                             if (updatedAppointments.success && updatedAppointments.data?.appointments) {
                               setAppointments(updatedAppointments.data.appointments);
                             }
@@ -567,7 +798,7 @@ export default function AppointmentList() {
                             alert('Đã đánh dấu bệnh nhân không đến khám');
                             setIsDetailDialogOpen(false);
                             // Refresh appointments
-                            const updatedAppointments = await getDoctorAppointmentsWithFallback();
+                            const updatedAppointments = await getDoctorAppointmentsWithFallback({ limit: 1000 });
                             if (updatedAppointments.success && updatedAppointments.data?.appointments) {
                               setAppointments(updatedAppointments.data.appointments);
                             }
@@ -590,7 +821,7 @@ export default function AppointmentList() {
                           alert('Đã hoàn thành khám bệnh');
                           setIsDetailDialogOpen(false);
                           // Refresh appointments
-                          const updatedAppointments = await getDoctorAppointmentsWithFallback();
+                          const updatedAppointments = await getDoctorAppointmentsWithFallback({ limit: 1000 });
                           if (updatedAppointments.success && updatedAppointments.data?.appointments) {
                             setAppointments(updatedAppointments.data.appointments);
                           }

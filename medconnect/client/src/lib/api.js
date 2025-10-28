@@ -309,34 +309,49 @@ export async function getAllAppointments(params = {}) {
 
 // Helper: get doctor appointments with fallback mechanism
 export async function getDoctorAppointmentsWithFallback(params = {}) {
+  console.log('🔍 getDoctorAppointmentsWithFallback called with params:', params);
+  
   try {
     // Try primary endpoint first
+    console.log('🔍 Trying primary endpoint...');
     const response = await getDoctorAppointments(params);
+    console.log('🔍 Primary endpoint response:', response);
+    
     const appointments = response?.data?.appointments || response?.appointments || response;
-    if (appointments) {
+    if (appointments && appointments.length > 0) {
+      console.log('✅ Primary endpoint success, found', appointments.length, 'appointments');
       return { success: true, data: { appointments } };
     }
   } catch (error) {
-    // Primary appointments endpoint failed, using fallback
+    console.log('❌ Primary appointments endpoint failed:', error.message);
   }
 
   try {
     // Fallback: get appointments from public endpoint using doctor ID
+    console.log('🔍 Trying fallback endpoint...');
     const doctor = await getDoctorProfileWithFallback();
+    console.log('🔍 Found doctor:', doctor);
+    
     if (doctor && doctor._id) {
       // Get all appointments and filter by doctor ID
       const allAppointments = await getAllAppointments({ limit: 1000 });
+      console.log('🔍 All appointments response:', allAppointments);
+      
       const appointmentsList = allAppointments?.data?.appointments || allAppointments?.appointments || [];
+      console.log('🔍 Appointments list:', appointmentsList.length, 'total appointments');
       
       const doctorAppointments = appointmentsList.filter(apt => 
         apt.doctorId === doctor._id || apt.doctorId?._id === doctor._id
       );
+      console.log('✅ Fallback success, found', doctorAppointments.length, 'appointments for doctor');
       
       return { success: true, data: { appointments: doctorAppointments } };
     }
   } catch (error) {
-    // Fallback appointments failed
+    console.log('❌ Fallback appointments failed:', error.message);
   }
+  
+  console.log('❌ Both endpoints failed, returning empty array');
   return { success: true, data: { appointments: [] } };
 }
 
