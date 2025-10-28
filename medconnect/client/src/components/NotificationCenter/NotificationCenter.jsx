@@ -74,13 +74,15 @@ export function NotificationCenter() {
   // Mark all as read
   const markAllAsRead = async () => {
     try {
-      const response = await api.put("/api/notifications/mark-all-read");
+      const response = await api.put("/api/notifications/read-all");
       if (response.success) {
         setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
         setUnreadCount(0);
+        console.log("✅ All notifications marked as read");
       }
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
+      alert("Không thể đánh dấu tất cả thông báo: " + error.message);
     }
   };
 
