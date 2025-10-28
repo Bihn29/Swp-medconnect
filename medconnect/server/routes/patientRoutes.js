@@ -25,7 +25,6 @@ router.put("/me/profile", authGuard, updatePatientProfile);
 // Get all specializations for appointment booking
 router.get("/specializations", getSpecializations);
 
-// Get doctors by specialization
 router.get(
   "/specializations/:specializationId/doctors",
   getDoctorsBySpecialization
