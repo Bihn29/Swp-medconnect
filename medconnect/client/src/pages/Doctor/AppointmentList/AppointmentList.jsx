@@ -1026,30 +1026,9 @@ export default function AppointmentList() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={async () => {
-                            try {
-                              await updateAppointmentStatus(
-                                selectedAppointment._id,
-                                "done"
-                              );
-                              alert("Đã hoàn thành khám bệnh");
-                              setIsDetailDialogOpen(false);
-                              // Refresh appointments
-                              const updatedAppointments =
-                                await getDoctorAppointmentsWithFallback({
-                                  limit: 1000,
-                                });
-                              if (
-                                updatedAppointments.success &&
-                                updatedAppointments.data?.appointments
-                              ) {
-                                setAppointments(
-                                  updatedAppointments.data.appointments
-                                );
-                              }
-                            } catch (error) {
-                              alert("Có lỗi xảy ra: " + error.message);
-                            }
+                          onClick={() => {
+                            setIsDetailDialogOpen(false);
+                            handleComplete(selectedAppointment);
                           }}
                         >
                           Hoàn thành khám

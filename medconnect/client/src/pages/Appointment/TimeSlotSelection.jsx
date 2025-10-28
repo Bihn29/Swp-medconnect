@@ -86,7 +86,7 @@ const TimeSlotSelection = () => {
       console.log("Doctor object:", doctor);
       console.log("Doctor ID:", doctor?._id);
       const response = await api.get(
-        `/api/doctors/${doctor._id}/time-slots?date=${dateStr}`
+        `/api/patients/doctors/${doctor._id}/time-slots?date=${dateStr}`
       );
 
       if (response.success) {

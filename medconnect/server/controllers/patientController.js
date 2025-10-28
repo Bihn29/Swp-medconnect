@@ -122,25 +122,58 @@ export async function cancelAppointment(req, res) {
 export async function getCurrentPatientProfile(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
+    
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
+    let user;
 
-    if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+    if (appUserId) {
+      // Use app_user_id if available
+      user = await User.findById(appUserId).lean();
+    } else {
+      // Fall back to email-based lookup (compatible with Google login)
+      const userEmail = claims.email;
+      if (!userEmail) {
+        console.log("❌ No app_user_id or email found in token");
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      
+      console.log("🔍 Looking up user by email:", userEmail);
+      user = await User.findOne({ email: userEmail }).lean();
+      
+      if (user) {
+        appUserId = user._id;
+      }
     }
 
-    // Find user by app_user_id
-    const user = await User.findById(appUserId).lean();
     if (!user) {
       return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
     }
+    
+    console.log("👤 Found user:", { _id: user._id, email: user.email, fullName: user.fullName });
 
-    // Find patient profile
-    const patient = await Patient.findOne({ userId: appUserId }).lean();
+    // Find patient profile, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId }).lean();
+    
+    if (!patient) {
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient.toObject();
+      console.log("Created patient profile:", patient._id);
+    }
 
     // Combine user and patient data
     const profileData = {
@@ -220,15 +253,27 @@ export async function getCurrentPatientProfile(req, res) {
 export async function updatePatientProfile(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
+    
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
 
     if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+      // Fall back to email-based lookup
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      
+      const user = await User.findOne({ email: userEmail }).lean();
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+      appUserId = user._id;
     }
 
     const updateData = req.body;
@@ -608,12 +653,23 @@ export async function bookAppointment(req, res) {
     // Get or create patient profile
     let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found. Please complete your profile first."
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const user = await User.findById(appUserId);
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+      
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     // Verify the time slot exists and is available
@@ -717,26 +773,49 @@ export async function bookAppointment(req, res) {
 export async function getPatientAppointments(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
+    
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
+    let user;
 
-    if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+    if (appUserId) {
+      user = await User.findById(appUserId).lean();
+    } else {
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      user = await User.findOne({ email: userEmail }).lean();
+      if (user) {
+        appUserId = user._id;
+      }
     }
 
-    // Find patient by user ID
-    const patient = await Patient.findOne({ userId: appUserId });
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+    }
+
+    // Find patient by user ID, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found"
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     const { status, page = 1, limit = 50 } = req.query;
@@ -802,29 +881,52 @@ export async function getPatientAppointments(req, res) {
 export async function cancelPatientAppointment(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
+    
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
+    let user;
 
-    if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+    if (appUserId) {
+      user = await User.findById(appUserId).lean();
+    } else {
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      user = await User.findOne({ email: userEmail }).lean();
+      if (user) {
+        appUserId = user._id;
+      }
+    }
+
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
     }
 
     const { appointmentId } = req.params;
     const { cancelReason } = req.body;
 
-    // Find patient by user ID
-    const patient = await Patient.findOne({ userId: appUserId });
+    // Find patient by user ID, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found"
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     // Find appointment belonging to this patient
@@ -917,7 +1019,7 @@ export async function getAppointmentDetails(req, res) {
     })
       .populate({
         path: "doctorId",
-        select: "fullName specializationIds phone avatarUrl",
+        select: "fullName name specializationIds phone avatarUrl",
         populate: {
           path: "specializationIds",
           select: "name",
@@ -930,6 +1032,15 @@ export async function getAppointmentDetails(req, res) {
     if (!appointment) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
     }
+
+    console.log("✅ Patient appointment detail fetched:", {
+      appointmentId: appointment._id.toString(),
+      status: appointment.status,
+      hasDoctor: !!appointment.doctorId,
+      doctorName: appointment.doctorId?.fullName || appointment.doctorId?.name,
+      doctorIdValue: appointment.doctorId,
+      appointmentData: JSON.stringify(appointment, null, 2)
+    });
 
     return ok(res, appointment);
   } catch (error) {

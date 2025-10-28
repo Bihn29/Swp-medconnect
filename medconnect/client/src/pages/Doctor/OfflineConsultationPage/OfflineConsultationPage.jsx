@@ -261,6 +261,18 @@ export default function OfflineConsultationPage() {
         }
       );
 
+      // End video call if it exists
+      try {
+        const VideoCallAPI = await import('../../../services/videoCallAPI');
+        console.log('🔍 OfflineConsultationPage - Attempting to end video call for appointmentId:', appointmentId);
+        await VideoCallAPI.default.endCallByAppointmentId(appointmentId);
+        console.log('✅ OfflineConsultationPage - Video call ended successfully');
+      } catch (videoCallError) {
+        console.warn('⚠️ OfflineConsultationPage - Could not end video call:', videoCallError.message);
+        console.error('⚠️ OfflineConsultationPage - Full error:', videoCallError);
+        // Don't fail the whole process if video call ending fails
+      }
+
       alert("Đã hoàn thành khám bệnh và lưu thông tin thành công!");
       navigate("/bac-si/lich-hen");
     } catch (error) {

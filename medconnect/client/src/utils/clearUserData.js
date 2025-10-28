@@ -3,6 +3,11 @@ export const clearUserData = async () => {
   try {
     console.log('Clearing all user data...');
     
+    // Dispatch event to notify components about logout
+    window.dispatchEvent(new CustomEvent('userLoggedOut', {
+      detail: { timestamp: Date.now() }
+    }));
+    
     // Clear localStorage
     localStorage.clear();
     

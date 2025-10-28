@@ -1,108 +1,115 @@
 /**
- * COLLECTION: doctor_schedule_rules — Quy tắc lịch định kỳ
- * PURPOSE: Generate concrete Doctor_time_slots for next N days.
+ * COLLECTION: doctor_schedule_rules
+ * PURPOSE: Generate doctor_time_slots cho N ngày tới (slot 20’, trung tính).
  */
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
-/**
- * DoctorScheduleRule
- * ------------------
- * Bảng lưu quy tắc lịch làm việc của bác sĩ.
- *
- *  KHÔNG chứa mode (online/offline) hay clinicId.
- *  Bác sĩ chỉ định nghĩa khung giờ rảnh, hệ thống sẽ tự sinh slot cụ thể (trung tính).
- *  Khi bệnh nhân đặt lịch -> mới chọn mode (online/offline) ở bảng appointments.
- *
- * Ví dụ:
- *   Thứ 2, 08:00–11:00, mỗi slot 45' (30' khám + 15' buffer)
- *   => Cron job sinh ra 08:00–08:45, 08:45–09:30, 09:30–10:15, 10:15–11:00
- */
-const DoctorScheduleRuleSchema = new Schema(
+const DayBlockSchema = new Schema(
   {
-    doctorId: {
-      type: Schema.Types.ObjectId,
-      ref: "Doctor",
-      required: true,
-    },
-
-    // Ngày trong tuần mà rule này áp dụng (0=Chủ Nhật, 1=Thứ 2, ..., 6=Thứ 7)
-    weekday: {
-      type: Number,
-      min: 0,
-      max: 6,
-      required: true,
-    },
-
-    // Giờ bắt đầu - kết thúc trong ngày (dạng "HH:mm")
     startTime: {
       type: String,
       required: true,
-      match: /^([0-1]\d|2[0-3]):([0-5]\d)$/, // validate định dạng 24h
+      match: /^([0-1]\d|2[0-3]):([0-5]\d)$/, // "HH:mm"
     },
     endTime: {
       type: String,
       required: true,
       match: /^([0-1]\d|2[0-3]):([0-5]\d)$/,
     },
-
-    // Cấu hình slot
-    // slotBlockMinutes: tổng thời lượng mỗi slot (bao gồm khám + nghỉ)
-    // consultMinutes: thời lượng khám thực tế (dùng để hiển thị hoặc tính phí)
-    slotBlockMinutes: {
-      type: Number,
-      default: 45, // 30' khám + 15' buffer
-      min: 5,
-    },
-    consultMinutes: {
-      type: Number,
-      default: 30,
-      min: 5,
-    },
-
-    // Thời gian hiệu lực của rule
-    effectiveFrom: {
-      type: Date,
-      required: true,
-      default: () => new Date(),
-    },
-    effectiveTo: {
-      type: Date,
-    },
-
-    // Trạng thái rule
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
   },
-  {
-    timestamps: true,
-    versionKey: false,
-    collection: "doctor_schedule_rules",
-  }
+  { _id: false }
 );
 
-/**
- *  Business Logic:
- * - Cron job sẽ đọc rule này mỗi đêm, tạo slot trong bảng doctor_time_slots cho 30 ngày tới.
- * - Slot sinh ra sẽ trung tính (không chứa mode/clinic).
- * - 1 slot chỉ có thể được đặt 1 lần, bất kể là Online hay Offline.
- */
+const DoctorScheduleRuleSchema = new Schema(
+  {
+    doctorId: {
+      type: Schema.Types.ObjectId,
+      ref: "Doctor",
+      required: true,
+      index: true,
+    },
 
+    // 0=CN, 1=Thứ 2, ..., 6=Thứ 7
+    weekday: { type: Number, min: 0, max: 6, required: true, index: true },
+
+    // Nhiều block trong 1 ngày (ví dụ: 07:00–11:40 và 13:00–17:00)
+    blocks: { type: [DayBlockSchema], required: true, default: [] },
+
+    // Slot length (mặc định 20’)
+    slotBlockMinutes: { type: Number, default: 20, min: 5 },
+
+    // (tuỳ chọn) thời lượng khám thực tế để hiển thị/tính phí
+    consultMinutes: { type: Number, default: 20, min: 5 },
+
+    effectiveFrom: { type: Date, required: true, default: () => new Date() },
+    effectiveTo: { type: Date },
+
+    isActive: { type: Boolean, default: true, index: true },
+  },
+  { timestamps: true, versionKey: false, collection: "Doctor_schedule_rules" }
+);
+
+// Validate
 DoctorScheduleRuleSchema.pre("validate", function (next) {
-  // Kiểm tra giờ bắt đầu phải nhỏ hơn giờ kết thúc
-  if (this.startTime >= this.endTime) {
-    this.invalidate("endTime", "endTime must be after startTime");
+  if (!this.blocks || this.blocks.length === 0) {
+    this.invalidate("blocks", "At least one block is required");
+  } else {
+    for (const b of this.blocks) {
+      if (b.startTime >= b.endTime) {
+        this.invalidate(
+          "blocks",
+          "block.endTime must be after block.startTime"
+        );
+        break;
+      }
+    }
   }
-  // Nếu có cả effectiveFrom và effectiveTo
   if (this.effectiveTo && this.effectiveFrom > this.effectiveTo) {
     this.invalidate("effectiveTo", "effectiveTo must be after effectiveFrom");
+  }
+  if (this.consultMinutes > this.slotBlockMinutes) {
+    this.invalidate(
+      "consultMinutes",
+      "consultMinutes must be <= slotBlockMinutes"
+    );
   }
   next();
 });
 
-// Index giúp truy vấn nhanh theo bác sĩ và thứ trong tuần
 DoctorScheduleRuleSchema.index({ doctorId: 1, weekday: 1, isActive: 1 });
+
+// Helper: sinh slot từ blocks
+DoctorScheduleRuleSchema.statics.generateSlotsForDate = function ({
+  date, // JS Date (00:00)
+  blocks,
+  slotBlockMinutes,
+}) {
+  const toMin = (s) => {
+    const [h, m] = s.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const toDateTime = (d, minutes) => {
+    const dt = new Date(d);
+    dt.setHours(0, 0, 0, 0);
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    dt.setHours(h, m, 0, 0);
+    return dt;
+  };
+
+  const out = [];
+  for (const blk of blocks) {
+    const start = toMin(blk.startTime);
+    const end = toMin(blk.endTime);
+    for (let t = start; t + slotBlockMinutes <= end; t += slotBlockMinutes) {
+      out.push({
+        startAt: toDateTime(date, t),
+        endAt: toDateTime(date, t + slotBlockMinutes),
+      });
+    }
+  }
+  return out;
+};
 
 export default model("DoctorScheduleRule", DoctorScheduleRuleSchema);

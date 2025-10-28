@@ -8,6 +8,7 @@ import Clinic from "../models/clinic.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
 import Prescription from "../models/prescription.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
+import DoctorScheduleRule from "../models/Doctor_schedule_rules.model.js";
 import Review from "../models/review.model.js";
 import AuthProvider from "../models/auth_providers.model.js";
 import { createAppointmentNotification } from "../services/notificationService.js";
@@ -95,9 +96,16 @@ export async function getCurrentDoctorProfile(req, res) {
  */
 export async function updateDoctorProfile(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
+    // Use email-based authentication (consistent with other functions)
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    // Find user directly by email
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
     }
 
     const {
@@ -342,6 +350,68 @@ export async function getDoctorDashboardStats(req, res) {
 }
 
 /**
+ * Get appointment detail by ID
+ */
+export async function getDoctorAppointmentDetail(req, res) {
+  try {
+    console.log("🔍 getDoctorAppointmentDetail - req.user:", req.user);
+    
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+    
+    const { appointmentId } = req.params;
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      doctorId: doctor._id,
+    })
+      .populate({
+        path: "patientId",
+        select: "fullName dob gender phone"
+      })
+      .populate({
+        path: "doctorId",
+        select: "fullName specializationIds phone avatarUrl",
+        populate: {
+          path: "specializationIds",
+          select: "name",
+        },
+      })
+      .populate("clinicId", "name address")
+      .populate("slotId", "startAt endAt")
+      .lean();
+
+    if (!appointment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found or does not belong to this doctor");
+    }
+
+    console.log("✅ Doctor appointment detail fetched:", {
+      appointmentId: appointment._id,
+      status: appointment.status,
+      hasPatient: !!appointment.patientId,
+      patientName: appointment.patientId?.fullName
+    });
+
+    return ok(res, appointment);
+  } catch (e) {
+    console.error("❌ getDoctorAppointmentDetail error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
  * Update appointment status
  */
 export async function updateAppointmentStatus(req, res) {
@@ -373,14 +443,29 @@ export async function updateAppointmentStatus(req, res) {
     const { appointmentId } = req.params;
     const { status, cancelReason } = req.body;
 
+    console.log("🔍 updateAppointmentStatus - Request params:", {
+      appointmentId,
+      status,
+      cancelReason
+    });
+
     const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
+    console.log("✅ updateAppointmentStatus - Doctor found:", doctor._id);
+
     const appointment = await Appointment.findOne({
       _id: appointmentId,
       doctorId: doctor._id,
+    });
+    
+    console.log("🔍 updateAppointmentStatus - Appointment lookup result:", {
+      found: !!appointment,
+      currentStatus: appointment?.status,
+      appointmentId,
+      doctorId: doctor._id
     });
 
     if (!appointment) {
@@ -611,61 +696,6 @@ export async function getAllDoctors(req, res) {
   }
 }
 
-/**
- * Get available time slots for a specific doctor (public endpoint)
- */
-export async function getDoctorAvailableTimeSlots(req, res) {
-  try {
-    const { doctorId } = req.params;
-    const { date } = req.query; // Format: YYYY-MM-DD
-
-    if (!doctorId) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
-    }
-
-    if (!date) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Date is required");
-    }
-
-    // Verify doctor exists
-    const doctor = await Doctor.findById(doctorId);
-    if (!doctor) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
-    }
-
-    // Parse date and create date range for the day
-    const startDate = new Date(date);
-    startDate.setHours(0, 0, 0, 0);
-
-    const endDate = new Date(date);
-    endDate.setHours(23, 59, 59, 999);
-
-    // Get available time slots for the doctor on the specified date
-    const timeSlots = await DoctorTimeSlot.find({
-      doctorId: doctorId,
-      startAt: { $gte: startDate, $lte: endDate },
-      status: "available",
-    })
-      .sort({ startAt: 1 })
-      .lean();
-
-    // Format time slots for frontend
-    const formattedSlots = timeSlots.map((slot) => ({
-      _id: slot._id,
-      startTime: slot.startAt.toTimeString().slice(0, 5), // HH:MM format
-      endTime: slot.endAt.toTimeString().slice(0, 5),
-      timeRange: `${slot.startAt.toTimeString().slice(0, 5)} - ${slot.endAt
-        .toTimeString()
-        .slice(0, 5)}`,
-      available: slot.status === "available",
-    }));
-
-    return ok(res, { timeSlots: formattedSlots });
-  } catch (error) {
-    console.error("Error fetching doctor time slots:", error);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
-  }
-}
 
 /**
  * Get consultation records (completed appointments with summaries)
@@ -701,7 +731,7 @@ export async function getConsultationRecords(req, res) {
       );
     }
 
-    // Then find the Doctor document by userId
+    // Find doctor profile
     const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
@@ -772,12 +802,18 @@ export async function getConsultationRecords(req, res) {
  */
 export async function createConsultationSummary(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
+    // Use email-based authentication
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
     }
 
-    const doctor = await Doctor.findOne({ userId: appUserId });
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
@@ -972,12 +1008,18 @@ export async function createConsultationAdvice(req, res) {
  */
 export async function createPrescription(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
+    // Use email-based authentication
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
     }
 
-    const doctor = await Doctor.findOne({ userId: appUserId });
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
@@ -1053,233 +1095,46 @@ export async function getDoctorClinics(req, res) {
 }
 
 /**
- * Get doctor time slots
+ * Debug endpoint to test authentication
  */
-export async function getDoctorTimeSlots(req, res) {
+export async function debugAuth(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
-    }
-
-    const doctor = await Doctor.findOne({ userId: appUserId });
-    if (!doctor) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
-    }
-
-    const { page = 1, limit = 50, date, status } = req.query;
-    const skip = (page - 1) * limit;
-
-    const filter = { doctorId: doctor._id };
-
-    if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      filter.startAt = { $gte: startOfDay, $lte: endOfDay };
-    }
-
-    if (status) {
-      filter.status = status;
-    }
-
-    const slots = await DoctorTimeSlot.find(filter)
-      .populate("clinicId", "name address")
-      .sort({ startAt: 1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .lean();
-
-    const total = await DoctorTimeSlot.countDocuments(filter);
-
+    console.log("🔍 debugAuth - req.user:", req.user);
+    console.log("🔍 debugAuth - req.user type:", typeof req.user);
+    console.log("🔍 debugAuth - req.user keys:", req.user ? Object.keys(req.user) : "req.user is null/undefined");
+    
     return ok(res, {
-      slots,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      user: req.user,
+      hasAppUserId: !!req.user?.app_user_id,
+      hasEmail: !!req.user?.email,
+      hasUid: !!req.user?.uid
     });
   } catch (e) {
-    console.error("❌ getDoctorTimeSlots error:", e);
+    console.error("❌ debugAuth error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
 
-/**
- * Create time slot
- */
-export async function createTimeSlot(req, res) {
-  try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
-    }
 
-    const doctor = await Doctor.findOne({ userId: appUserId });
-    if (!doctor) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
-    }
 
-    const { startAt, endAt, mode, clinicId, notes } = req.body;
-
-    if (!startAt || !endAt || !mode) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing required fields");
-    }
-
-    // Check for conflicts
-    const conflict = await DoctorTimeSlot.findOne({
-      doctorId: doctor._id,
-      $or: [
-        { startAt: { $lt: endAt, $gte: startAt } },
-        { endAt: { $gt: startAt, $lte: endAt } },
-      ],
-    });
-
-    if (conflict) {
-      return fail(
-        res,
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        "Time slot conflicts with existing slot"
-      );
-    }
-
-    const slot = await DoctorTimeSlot.create({
-      doctorId: doctor._id,
-      clinicId,
-      startAt: new Date(startAt),
-      endAt: new Date(endAt),
-      mode,
-      notes,
-    });
-
-    return ok(res, { slot });
-  } catch (e) {
-    console.error("❌ createTimeSlot error:", e);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
-  }
-}
-
-/**
- * Update time slot
- */
-export async function updateTimeSlot(req, res) {
-  try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
-    }
-
-    const doctor = await Doctor.findOne({ userId: appUserId });
-    if (!doctor) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
-    }
-
-    const { slotId } = req.params;
-    const updateData = req.body;
-
-    const slot = await DoctorTimeSlot.findOneAndUpdate(
-      { _id: slotId, doctorId: doctor._id },
-      updateData,
-      { new: true }
-    );
-
-    if (!slot) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Time slot not found");
-    }
-
-    return ok(res, { slot });
-  } catch (e) {
-    console.error("❌ updateTimeSlot error:", e);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
-  }
-}
-
-/**
- * Delete time slot
- */
-export async function deleteTimeSlot(req, res) {
-  try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
-    }
-
-    const doctor = await Doctor.findOne({ userId: appUserId });
-    if (!doctor) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
-    }
-
-    const { slotId } = req.params;
-
-    const slot = await DoctorTimeSlot.findOneAndDelete({
-      _id: slotId,
-      doctorId: doctor._id,
-    });
-
-    if (!slot) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Time slot not found");
-    }
-
-    return ok(res, { message: "Time slot deleted successfully" });
-  } catch (e) {
-    console.error("❌ deleteTimeSlot error:", e);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
-  }
-}
-
-/**
- * Block time slot
- */
-export async function blockTimeSlot(req, res) {
-  try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
-    }
-
-    const doctor = await Doctor.findOne({ userId: appUserId });
-    if (!doctor) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
-    }
-
-    const { startAt, endAt, reason, notes } = req.body;
-
-    if (!startAt || !endAt) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing required fields");
-    }
-
-    const slot = await DoctorTimeSlot.create({
-      doctorId: doctor._id,
-      startAt: new Date(startAt),
-      endAt: new Date(endAt),
-      mode: "offline",
-      status: "blocked",
-      notes: reason || notes,
-    });
-
-    return ok(res, { slot });
-  } catch (e) {
-    console.error("❌ blockTimeSlot error:", e);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
-  }
-}
 
 /**
  * Get doctor reviews
  */
 export async function getDoctorReviews(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
+    // Use email-based authentication
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
     }
 
-    const doctor = await Doctor.findOne({ userId: appUserId });
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
@@ -1539,12 +1394,18 @@ export async function createDoctorReview(req, res) {
  */
 export async function respondToReview(req, res) {
   try {
-    const appUserId = req.user?.app_user_id;
-    if (!appUserId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User not authenticated");
+    // Use email-based authentication
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
     }
 
-    const doctor = await Doctor.findOne({ userId: appUserId });
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
@@ -1570,6 +1431,466 @@ export async function respondToReview(req, res) {
   } catch (e) {
     console.error("❌ respondToReview error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Get doctor time slots
+ */
+export async function getDoctorTimeSlots(req, res) {
+  try {
+    const userEmail = req.user?.email;
+    console.log("🔍 getDoctorTimeSlots - userEmail:", userEmail);
+    
+    if (!userEmail) {
+      console.log("❌ No user email found in token");
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      console.log("❌ User not found by email:", userEmail);
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    console.log("🔍 getDoctorTimeSlots - Found user:", { id: user._id, email: user.email });
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      console.log("❌ Doctor profile not found for user:", user._id);
+      return ok(res, {
+        slots: [],
+        pagination: {
+          page: parseInt(req.query.page || 1),
+          limit: parseInt(req.query.limit || 50),
+          total: 0,
+          pages: 0,
+        },
+      });
+    }
+
+    console.log("🔍 getDoctorTimeSlots - Found doctor:", { 
+      id: doctor._id, 
+      fullName: doctor.fullName,
+      userId: doctor.userId,
+      userEmail: userEmail
+    });
+
+    const { page = 1, limit = 50, date, startDate, endDate, status } = req.query;
+    console.log("🔍 getDoctorTimeSlots query params:", { page, limit, date, startDate, endDate, status });
+
+    const mongoose = await import("mongoose");
+    
+    // Check if doctor._id is already an ObjectId or needs conversion
+    let doctorObjectId;
+    try {
+      if (typeof doctor._id === 'string') {
+        doctorObjectId = new mongoose.default.Types.ObjectId(doctor._id);
+      } else {
+        doctorObjectId = doctor._id; // Already an ObjectId
+      }
+    } catch (error) {
+      console.error("❌ Invalid doctor ID format:", doctor._id, error);
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Invalid doctor ID format");
+    }
+    
+    const filter = { doctorId: doctorObjectId };
+    
+    console.log("🔍 Filter with ObjectId:", {
+      doctorId: doctor._id,
+      convertedDoctorId: filter.doctorId,
+      doctorIdType: typeof doctor._id,
+      convertedType: typeof filter.doctorId
+    });
+
+    if (date) {
+      try {
+        const startDate = new Date(date);
+        if (isNaN(startDate.getTime())) {
+          console.error("❌ Invalid single date format:", date);
+          return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Invalid date format");
+        }
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(date);
+        endDate.setHours(23, 59, 59, 999);
+        filter.startAt = { $gte: startDate, $lte: endDate };
+        console.log("🔍 Single date filter applied:", {
+          date: date,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        });
+      } catch (dateError) {
+        console.error("❌ Single date parsing error:", dateError);
+        return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Invalid date format");
+      }
+    } else if (startDate && endDate) {
+      try {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          console.error("❌ Invalid date format:", { startDate, endDate });
+          return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Invalid date format");
+        }
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        filter.startAt = { $gte: start, $lte: end };
+        console.log("🔍 Date range filter applied:", {
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+          startDateParam: startDate,
+          endDateParam: endDate
+        });
+      } catch (dateError) {
+        console.error("❌ Date parsing error:", dateError);
+        return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Invalid date format");
+      }
+    } else {
+      console.log("⚠️ No date filter provided, returning slots for next 7 days");
+      // Nếu không có date filter, trả về slot trong 7 ngày tới
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+      nextWeek.setHours(23, 59, 59, 999);
+      filter.startAt = { $gte: today, $lte: nextWeek };
+      console.log("🔍 Default date range filter applied:", {
+        startDate: today.toISOString(),
+        endDate: nextWeek.toISOString()
+      });
+    }
+
+    console.log("🔍 Final filter:", filter);
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const skip = (page - 1) * limit;
+
+    try {
+      const timeSlots = await DoctorTimeSlot.find(filter)
+        .sort({ startAt: 1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await DoctorTimeSlot.countDocuments(filter);
+
+    console.log("🔍 Database query results:", {
+      filterApplied: filter,
+      slotsFound: timeSlots.length,
+      totalInRange: total,
+      limit: parseInt(limit),
+      skip: skip,
+      doctorId: doctor._id,
+      doctorEmail: userEmail
+    });
+
+      if (timeSlots.length > 0) {
+        console.log("🔍 Sample slots:", timeSlots.slice(0, 3).map(slot => ({
+          id: slot._id,
+          startAt: slot.startAt,
+          endAt: slot.endAt,
+          status: slot.status
+        })));
+      }
+
+    if (timeSlots.length === 0) {
+      console.log("🔍 No time slots found, returning empty array");
+      console.log("🔍 Doctor ID:", doctor._id);
+      console.log("🔍 Filter applied:", filter);
+      return ok(res, {
+        slots: [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: 0,
+          pages: 0,
+        },
+      });
+    }
+
+    // Import Appointment and Patient models
+    const Appointment = (await import("../models/appointment.model.js")).default;
+    const Patient = (await import("../models/patient.model.js")).default;
+    
+    // Get slot IDs to fetch appointments
+    const slotIds = timeSlots.map(slot => slot._id);
+    
+    // Fetch appointments for these slots
+    const appointments = await Appointment.find({ slotId: { $in: slotIds } })
+      .populate({
+        path: 'patientId',
+        select: 'fullName',
+        model: 'Patient'
+      })
+      .lean();
+    
+    // Create a map of slotId -> appointment
+    const appointmentMap = {};
+    console.log("🔍 START Mapping appointments, total:", appointments.length);
+    appointments.forEach(appointment => {
+      console.log("🔍 Processing appointment:", {
+        _id: appointment._id?.toString(),
+        slotId: appointment.slotId?.toString(),
+        status: appointment.status,
+        mode: appointment.mode
+      });
+      // Handle both populated patientId object and ObjectId
+      let patientName = 'Bệnh nhân';
+      if (appointment.patientId) {
+        if (typeof appointment.patientId === 'object' && appointment.patientId.fullName) {
+          patientName = appointment.patientId.fullName;
+        } else if (typeof appointment.patientId === 'string') {
+          // If it's still an ObjectId string, fetch the patient
+          // For now, use a fallback
+          patientName = 'Bệnh nhân';
+        }
+      }
+      
+      // Convert slotId to string for consistent lookup
+      const slotIdKey = appointment.slotId.toString();
+      const appointmentIdStr = appointment._id?.toString();
+      
+      console.log("🔍 STORING in map:", {
+        slotIdKey: slotIdKey,
+        appointmentId: appointmentIdStr,
+        patientName: patientName
+      });
+      
+      appointmentMap[slotIdKey] = {
+        appointmentId: appointmentIdStr, // Add appointmentId
+        patientName: patientName,
+        reason: appointment.reason || null,
+        appointmentStatus: appointment.status || 'booked', // Include appointment status
+        mode: appointment.mode || 'offline' // Include mode (online/offline)
+      };
+    });
+    
+    console.log("🔍 COMPLETED mapping, appointmentMap:", Object.keys(appointmentMap).length, "entries");
+    
+    console.log("🔍 Found appointments:", appointments.length);
+    console.log("🔍 Appointment map keys:", Object.keys(appointmentMap));
+    if (appointments.length > 0) {
+      console.log("🔍 Sample appointment:", {
+        _id: appointments[0]._id,
+        slotId: appointments[0].slotId?.toString(),
+        patientId: appointments[0].patientId,
+        reason: appointments[0].reason
+      });
+    }
+
+    const serializedSlots = timeSlots.map(slot => {
+      const slotIdStr = slot._id.toString();
+      const appointment = appointmentMap[slotIdStr];
+      
+      // Map appointment status to display status
+      let displayStatus = slot.status;
+      if (appointment) {
+        // Map appointment statuses to display statuses
+        const statusMap = {
+          'pending_doctor': 'pending',
+          'accepted': 'confirmed',
+          'in_progress': 'in_progress',
+          'cancelled': 'cancelled',
+          'done': 'completed',
+          'rejected': 'cancelled',
+          'no_show': 'cancelled'
+        };
+        displayStatus = statusMap[appointment.appointmentStatus] || slot.status;
+      }
+      
+      console.log("🔍 Serializing slot:", {
+        slotId: slotIdStr,
+        hasAppointment: !!appointment,
+        patientName: appointment?.patientName || 'null',
+        appointmentStatus: appointment?.appointmentStatus,
+        displayStatus: displayStatus,
+        appointmentId: appointment?.appointmentId || 'null',
+        fullAppointment: appointment
+      });
+      
+      return {
+        ...slot,
+        _id: slot._id.toString(),
+        doctorId: slot.doctorId.toString(),
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        status: displayStatus, // Use mapped status instead of slot.status
+        displayStatus: displayStatus, // Keep displayStatus for reference
+        patientName: appointment?.patientName || null,
+        reason: appointment?.reason || null,
+        mode: appointment?.mode || null,
+        appointmentId: appointment?.appointmentId || null // Add appointmentId to slot - FROM appointmentMap
+      };
+    });
+
+    console.log("🔍 Serialized slots count:", serializedSlots.length);
+    const bookedSlots = serializedSlots.filter(s => s.status === 'booked');
+    console.log("🔍 Booked slots count:", bookedSlots.length);
+    if (bookedSlots.length > 0) {
+      console.log("🔍 Sample booked slot:", {
+        slotId: bookedSlots[0]._id,
+        status: bookedSlots[0].status,
+        patientName: bookedSlots[0].patientName,
+        reason: bookedSlots[0].reason
+      });
+    }
+
+    return ok(res, {
+      slots: serializedSlots,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+    } catch (dbError) {
+      throw dbError;
+    }
+  } catch (e) {
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Generate time slots based on doctor's schedule rules
+ */
+export async function autoGenerateTimeSlots(req, res) {
+  try {
+    console.log("🔍 autoGenerateTimeSlots - req.user:", req.user);
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    console.log("🔍 autoGenerateTimeSlots - Found doctor:", { id: doctor._id, fullName: doctor.fullName });
+
+    // First, create default schedule rules if they don't exist
+    await createDefaultScheduleRules(doctor._id);
+
+    // Get active schedule rules for this doctor
+    const scheduleRules = await DoctorScheduleRule.find({
+      doctorId: doctor._id,
+      isActive: true
+    }).lean();
+
+    if (scheduleRules.length === 0) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "No schedule rules found. Please set up your schedule rules first.");
+    }
+
+    console.log(`📋 Found ${scheduleRules.length} schedule rules for doctor ${doctor.fullName}`);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() + 14);
+    endDate.setHours(23, 59, 59, 999);
+
+    console.log("🔍 Creating slots from:", today.toISOString().split('T')[0]);
+    console.log("🔍 Creating slots until:", endDate.toISOString().split('T')[0]);
+
+    const createdSlots = [];
+    const skippedSlots = [];
+
+    for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
+      const currentDate = new Date(today);
+      currentDate.setDate(today.getDate() + dayOffset);
+      const weekday = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
+
+      // Find schedule rule for this weekday
+      const dayRule = scheduleRules.find(rule => rule.weekday === weekday);
+      if (!dayRule) {
+        console.log(`⚠️ No schedule rule for weekday ${weekday} (${currentDate.toDateString()})`);
+        continue;
+      }
+
+      console.log(`📅 Processing ${currentDate.toDateString()} (weekday ${weekday}) with ${dayRule.blocks.length} blocks`);
+      let daySlotCount = 0;
+
+      // Generate slots based on schedule rules
+      const generatedSlots = DoctorScheduleRule.generateSlotsForDate({
+        date: currentDate,
+        blocks: dayRule.blocks,
+        slotBlockMinutes: dayRule.slotBlockMinutes
+      });
+
+      console.log(`🔍 Generated ${generatedSlots.length} slots for ${currentDate.toDateString()}`);
+
+      for (const slotData of generatedSlots) {
+        try {
+          console.log(`🔍 Checking slot: ${slotData.startAt.toTimeString()} - ${slotData.endAt.toTimeString()}`);
+          
+          const existingSlot = await DoctorTimeSlot.findOne({
+            doctorId: doctor._id,
+            startAt: slotData.startAt,
+            endAt: slotData.endAt
+          });
+
+          if (!existingSlot) {
+            console.log(`✅ Creating new slot: ${slotData.startAt.toTimeString()} - ${slotData.endAt.toTimeString()}`);
+            const newSlot = await DoctorTimeSlot.create({
+              doctorId: doctor._id,
+              startAt: slotData.startAt,
+              endAt: slotData.endAt,
+              status: "available"
+            });
+            createdSlots.push(newSlot);
+            daySlotCount++;
+            console.log(`✅ Slot created successfully: ${newSlot._id}`);
+          } else {
+            console.log(`⚠️ Slot already exists: ${slotData.startAt.toTimeString()} - ${slotData.endAt.toTimeString()}`);
+            skippedSlots.push({
+              startAt: slotData.startAt,
+              endAt: slotData.endAt,
+              reason: "Already exists"
+            });
+          }
+        } catch (error) {
+          console.error(`❌ Error creating slot ${slotData.startAt.toTimeString()} - ${slotData.endAt.toTimeString()}:`, error);
+          skippedSlots.push({
+            startAt: slotData.startAt,
+            endAt: slotData.endAt,
+            reason: error.message
+          });
+        }
+      }
+      
+      console.log(`📊 Day ${dayOffset + 1} completed: ${daySlotCount} slots created`);
+    }
+
+    console.log(`✅ Created ${createdSlots.length} new time slots for doctor ${doctor.fullName} based on schedule rules`);
+    console.log(`⚠️ Skipped ${skippedSlots.length} slots (already exist or error)`);
+    console.log(`📊 Actual created: ${createdSlots.length} slots`);
+
+    return ok(res, {
+      message: `Generated ${createdSlots.length} new time slots for doctor ${doctor.fullName} based on schedule rules (next 14 days)`,
+      createdSlots: createdSlots.length,
+      skippedSlots: skippedSlots.length,
+      dateRange: {
+        startDate: today.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0]
+      },
+      scheduleRules: scheduleRules.length,
+      details: {
+        created: createdSlots.slice(0, 5), // Show first 5 as sample
+        skipped: skippedSlots.slice(0, 5) // Show first 5 as sample
+      }
+    });
+  } catch (error) {
+    console.error("❌ autoGenerateTimeSlots error:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
   }
 }
 
@@ -1878,3 +2199,148 @@ export async function getSearchClinics(req, res) {
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
+
+
+/**
+ * Get doctor's schedule rules
+ */
+export async function getDoctorScheduleRules(req, res) {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const scheduleRules = await DoctorScheduleRule.find({
+      doctorId: doctor._id,
+      isActive: true
+    }).sort({ weekday: 1 }).lean();
+
+    return ok(res, {
+      scheduleRules,
+      doctor: {
+        id: doctor._id,
+        fullName: doctor.fullName
+      }
+    });
+  } catch (error) {
+    console.error("❌ getDoctorScheduleRules error:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
+  }
+}
+
+/**
+ * Update doctor's schedule rules
+ */
+export async function updateDoctorScheduleRules(req, res) {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const { scheduleRules } = req.body;
+    if (!scheduleRules || !Array.isArray(scheduleRules)) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Schedule rules array is required");
+    }
+
+    // Deactivate existing rules
+    await DoctorScheduleRule.updateMany(
+      { doctorId: doctor._id },
+      { isActive: false }
+    );
+
+    // Create new rules
+    const newRules = scheduleRules.map(rule => ({
+      ...rule,
+      doctorId: doctor._id,
+      effectiveFrom: new Date(),
+      isActive: true
+    }));
+
+    const createdRules = await DoctorScheduleRule.insertMany(newRules);
+
+    return ok(res, {
+      message: "Schedule rules updated successfully",
+      scheduleRules: createdRules,
+      doctor: {
+        id: doctor._id,
+        fullName: doctor.fullName
+      }
+    });
+  } catch (error) {
+    console.error("❌ updateDoctorScheduleRules error:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
+  }
+}
+
+/**
+ * Create default schedule rules for a doctor
+ */
+async function createDefaultScheduleRules(doctorId) {
+  try {
+    // Check if rules already exist
+    const existingRules = await DoctorScheduleRule.find({
+      doctorId: doctorId,
+      isActive: true
+    });
+
+    if (existingRules.length > 0) {
+      console.log("Schedule rules already exist for doctor:", doctorId);
+      return;
+    }
+
+    // Create default schedule rules for weekdays (Monday to Friday)
+    const defaultRules = [];
+    
+    for (let weekday = 1; weekday <= 5; weekday++) { // Monday to Friday
+      const rule = {
+        doctorId: doctorId,
+        weekday: weekday,
+        blocks: [
+          {
+            startTime: "07:00",
+            endTime: "11:40"
+          },
+          {
+            startTime: "13:00", 
+            endTime: "17:00"
+          }
+        ],
+        slotBlockMinutes: 20,
+        consultMinutes: 20,
+        effectiveFrom: new Date(),
+        isActive: true
+      };
+      defaultRules.push(rule);
+    }
+
+    await DoctorScheduleRule.insertMany(defaultRules);
+    console.log(`Created default schedule rules for doctor ${doctorId}`);
+    
+  } catch (error) {
+    console.error("Error creating default schedule rules:", error);
+    throw error;
+  }
+}
+

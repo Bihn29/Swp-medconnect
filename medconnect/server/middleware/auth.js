@@ -17,7 +17,7 @@ export async function authGuard(req, res, next) {
   
   try {
     const decoded = await admin.auth().verifySessionCookie(cookie, true);
-    console.log("🔍 AuthGuard - Decoded token:", { uid: decoded.uid, email: decoded.email, customClaims: decoded });
+    console.log("🔍 AuthGuard - Decoded token:", { uid: decoded.uid, email: decoded.email, app_user_id: decoded.app_user_id, customClaims: decoded });
     
     // Email should be in custom claims from login
     if (!decoded.email && decoded.uid) {
@@ -32,7 +32,13 @@ export async function authGuard(req, res, next) {
       }
     }
     
-    console.log("🔍 AuthGuard - Final user object:", { uid: decoded.uid, email: decoded.email });
+    // Ensure app_user_id is available for doctor functions (optional for now)
+    if (!decoded.app_user_id && decoded.uid) {
+      console.log("⚠️ No app_user_id found in decoded token, but continuing with uid");
+      // Don't fail here, just log a warning
+    }
+    
+    console.log("🔍 AuthGuard - Final user object:", { uid: decoded.uid, email: decoded.email, app_user_id: decoded.app_user_id });
     req.user = decoded;
     next();
   } catch (e) {
