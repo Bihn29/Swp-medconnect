@@ -35,6 +35,8 @@ export default function AppointmentList() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [updatingAppointments, setUpdatingAppointments] = useState(new Set());
+  const [rescheduleInfo, setRescheduleInfo] = useState(null);
+  const [isRescheduleInfoOpen, setIsRescheduleInfoOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 1000; // Hiển thị tất cả appointments
@@ -84,6 +86,11 @@ export default function AppointmentList() {
   // Filter and sort appointments
   const filteredAppointments = appointments
     .filter((appointment) => {
+      // Exclude rescheduled appointments (they are replaced by new appointments)
+      if (appointment.status === "rescheduled" && appointment.rescheduledToId) {
+        return false;
+      }
+
       // Search filter
       const matchesSearch =
         !searchTerm ||
@@ -489,6 +496,23 @@ export default function AppointmentList() {
     }
   };
 
+  const handleViewRescheduleInfo = (appointment) => {
+    // Find original appointment from rescheduledFromId
+    const originalAppointment = appointments.find(
+      (apt) => apt._id === appointment.rescheduledFromId
+    );
+
+    if (originalAppointment) {
+      setRescheduleInfo({
+        originalAppointment,
+        newAppointment: appointment,
+      });
+      setIsRescheduleInfoOpen(true);
+    } else {
+      alert("Không tìm thấy thông tin lịch cũ");
+    }
+  };
+
   return (
     <Card className="appointment-list-card">
       <CardHeader className="appointment-list-header">
@@ -719,7 +743,18 @@ export default function AppointmentList() {
                       </Badge>
                     </td>
                     <td className="appointment-list-td appointment-list-reason">
-                      {apt.notes || apt.reason || "N/A"}
+                      <div>
+                        {apt.rescheduledFromId && (
+                          <Badge
+                            className="!bg-indigo-100 !text-indigo-700 !border-indigo-300 cursor-pointer"
+                            style={{ marginRight: 8 }}
+                            onClick={() => handleViewRescheduleInfo(apt)}
+                          >
+                            📅 Đã dời lịch
+                          </Badge>
+                        )}
+                        {apt.notes || apt.reason || "N/A"}
+                      </div>
                     </td>
                     <td className="appointment-list-td appointment-list-status">
                       <Badge
@@ -1018,7 +1053,7 @@ export default function AppointmentList() {
                               }
                             }}
                           >
-                            Không đến khám 
+                            Không đến khám
                           </Button>
                         </>
                       )}
@@ -1156,6 +1191,96 @@ export default function AppointmentList() {
                   {updatingAppointments.has(selectedAppointment?._id)
                     ? "Đang từ chối..."
                     : "Xác nhận từ chối"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Info Modal */}
+      {isRescheduleInfoOpen && rescheduleInfo && (
+        <div
+          className="appointment-detail-dialog-overlay"
+          onClick={() => setIsRescheduleInfoOpen(false)}
+        >
+          <div
+            className="appointment-detail-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="appointment-detail-dialog-header">
+              <h3 className="appointment-detail-dialog-title">
+                Chi tiết lịch dời
+              </h3>
+              <button
+                className="appointment-detail-dialog-close"
+                onClick={() => setIsRescheduleInfoOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="appointment-detail">
+              <div className="appointment-detail-item">
+                <p className="appointment-detail-label">Bệnh nhân</p>
+                <p className="appointment-detail-value">
+                  {rescheduleInfo.originalAppointment.patientId?.fullName ||
+                    "N/A"}
+                </p>
+              </div>
+
+              <div className="reschedule-details-box">
+                <h4 className="reschedule-section-title">Lịch cũ</h4>
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Thời gian</p>
+                  <p className="appointment-detail-value">
+                    {new Date(
+                      rescheduleInfo.originalAppointment.scheduledStart
+                    ).toLocaleDateString("vi-VN")}{" "}
+                    {new Date(
+                      rescheduleInfo.originalAppointment.scheduledStart
+                    ).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Trạng thái</p>
+                  <p className="appointment-detail-value">
+                    {getStatusText(rescheduleInfo.originalAppointment.status)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="arrow-indicator">↓</div>
+
+              <div className="reschedule-details-box new-schedule">
+                <h4 className="reschedule-section-title">Lịch mới</h4>
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Thời gian</p>
+                  <p className="appointment-detail-value">
+                    {new Date(
+                      rescheduleInfo.newAppointment.scheduledStart
+                    ).toLocaleDateString("vi-VN")}{" "}
+                    {new Date(
+                      rescheduleInfo.newAppointment.scheduledStart
+                    ).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Trạng thái</p>
+                  <p className="appointment-detail-value">
+                    {getStatusText(rescheduleInfo.newAppointment.status)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="appointment-detail-actions">
+                <Button onClick={() => setIsRescheduleInfoOpen(false)}>
+                  Đóng
                 </Button>
               </div>
             </div>

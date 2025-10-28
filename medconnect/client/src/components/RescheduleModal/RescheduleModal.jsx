@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, Button, Space, message, DatePicker } from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
 import { api } from "../../lib/api";
 import "./RescheduleModal.scss";
 
@@ -9,6 +10,64 @@ const { TextArea } = Input;
 export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState([]); // Array of booked time strings like "2025-10-31T09:00"
+  const [availableSlots, setAvailableSlots] = useState([]);
+
+  // Fetch booked appointments của bác sĩ khi modal mở
+  useEffect(() => {
+    if (visible && appointment?.doctorId?._id) {
+      fetchBookedSlots();
+    }
+  }, [visible, appointment]);
+
+  const fetchBookedSlots = async () => {
+    try {
+      // Fetch all appointments and filter by doctor
+      const response = await api.get(`/api/appointments?limit=1000`);
+
+      if (response.success && response.data?.appointments) {
+        // Filter appointments for this doctor
+        const doctorAppointments = response.data.appointments.filter(
+          (apt) => apt.doctorId?._id === appointment.doctorId._id
+        );
+
+        // Extract booked times and convert to strings
+        const booked = doctorAppointments
+          .filter((apt) => {
+            // Chỉ lấy appointments đang active (không bị cancel, reject, no_show)
+            const activeStatuses = [
+              "pending_doctor",
+              "accepted",
+              "in_progress",
+              "done",
+            ];
+            return activeStatuses.includes(apt.status);
+          })
+          .map((apt) => {
+            const date = new Date(apt.scheduledStart);
+            return date.toISOString().slice(0, 16); // Format: "2025-10-31T09:00"
+          });
+
+        setBookedSlots(booked);
+        console.log(
+          "📋 Booked slots loaded for doctor:",
+          appointment.doctorId._id,
+          booked
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching booked slots:", error);
+      message.warning(
+        "Không thể tải thông tin lịch đã book. Vui lòng kiểm tra thủ công."
+      );
+    }
+  };
+
+  const isSlotBooked = (dateTimeString) => {
+    if (!dateTimeString) return false;
+    const normalized = dateTimeString.slice(0, 16); // "2025-10-31T09:00"
+    return bookedSlots.includes(normalized);
+  };
 
   const handleSubmit = async (values) => {
     try {
@@ -54,10 +113,11 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
     return current && current < tomorrow;
   };
 
-  const disabledTime = (current) => {
+  const disabledTime = (current, type) => {
     if (!current) return {};
 
-    const hour = current.hour();
+    const selectedDate = dayjs(current);
+    const selectedDateString = selectedDate.format("YYYY-MM-DD");
 
     return {
       disabledHours: () => {
@@ -78,7 +138,24 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
         if (selectedHour === 17) {
           return Array.from({ length: 60 }, (_, i) => i).filter((m) => m > 0);
         }
-        return [];
+
+        // Check if this specific time slot is already booked
+        const disabledMinutes = [];
+        const dateString = `${selectedDateString}T${String(
+          selectedHour
+        ).padStart(2, "0")}:00`;
+
+        // Check each 30-minute interval in this hour
+        [0, 30].forEach((minute) => {
+          const timeString = `${selectedDateString}T${String(
+            selectedHour
+          ).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+          if (isSlotBooked(timeString)) {
+            disabledMinutes.push(minute);
+          }
+        });
+
+        return disabledMinutes;
       },
     };
   };
@@ -149,6 +226,16 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
                   if (selectedTime <= now) {
                     return Promise.reject(
                       new Error("Thời gian mới phải trong tương lai")
+                    );
+                  }
+
+                  // Check if this time slot is already booked
+                  const selectedTimeString = value.format("YYYY-MM-DDTHH:mm");
+                  if (isSlotBooked(selectedTimeString)) {
+                    return Promise.reject(
+                      new Error(
+                        "Thời gian này đã có người khám khác. Vui lòng chọn thời gian khác."
+                      )
                     );
                   }
 

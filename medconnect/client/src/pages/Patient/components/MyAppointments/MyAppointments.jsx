@@ -41,7 +41,17 @@ export function MyAppointments() {
       try {
         setLoading(true);
         const res = await api.get("/api/patients/me/appointments?limit=20");
+        console.log("📋 Appointments response:", res);
         if (res.success) {
+          // Debug: Log clinic info for each appointment
+          res.data.appointments?.forEach((apt, index) => {
+            console.log(`Appointment ${index + 1}:`, {
+              id: apt._id,
+              clinicId: apt.clinicId,
+              clinicName: apt.clinicId?.name,
+              mode: apt.mode,
+            });
+          });
           setAppointments(res.data.appointments || []);
         } else {
           message.error("Không thể tải lịch hẹn");
@@ -364,9 +374,23 @@ export function MyAppointments() {
                       style={{ display: "flex", alignItems: "center", gap: 6 }}
                     >
                       <MapPin size={14} />{" "}
-                      {a.mode === "online"
-                        ? "Khám online"
-                        : a.clinicId?.name || "Phòng khám"}
+                      {(() => {
+                        if (a.mode === "online") {
+                          return "Khám online";
+                        }
+                        // Debug log
+                        if (!a.clinicId?.name) {
+                          console.warn(
+                            `⚠️ Appointment ${a._id} missing clinic info:`,
+                            {
+                              clinicId: a.clinicId,
+                              clinicName: a.clinicId?.name,
+                              mode: a.mode,
+                            }
+                          );
+                        }
+                        return a.clinicId?.name || "Phòng khám";
+                      })()}
                     </span>
                     {feeText && (
                       <span style={{ marginLeft: 8, fontWeight: 600 }}>
