@@ -212,12 +212,20 @@ export async function getDoctorAppointments(req, res) {
     const appointments = await Appointment.find(filter)
       .populate("patientId", "fullName dob gender phone")
       .populate("slotId")
+      .populate("rescheduledToId", "scheduledStart scheduledEnd status")
       .sort({ scheduledStart: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
     const total = await Appointment.countDocuments(filter);
+
+    // Debug log
+    console.log("📋 Found appointments:", appointments.length);
+    if (appointments.length > 0) {
+      console.log("🔍 First appointment mode:", appointments[0].mode);
+      console.log("🔍 First appointment status:", appointments[0].status);
+    }
 
     return ok(res, {
       appointments,
@@ -1612,6 +1620,7 @@ export async function getAllAppointments(req, res) {
       .populate("patientId", "fullName dob gender phone")
       .populate("doctorId", "fullName licenseNo")
       .populate("slotId")
+      .populate("rescheduledToId", "scheduledStart scheduledEnd status")
       .sort({ scheduledStart: -1 })
       .skip(skip)
       .limit(parseInt(limit))

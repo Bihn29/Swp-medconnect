@@ -1,8 +1,8 @@
 /* Reschedule Requests Page Styles */
 .reschedule-requests-page {
   padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
 
   .page-header {
     margin-bottom: 32px;
@@ -191,6 +191,11 @@
         font-size: 14px;
         color: #374151;
         line-height: 1.5;
+        white-space: normal;
+        overflow: visible;
+        max-height: none;
+        word-wrap: break-word;
+        word-break: break-word;
       }
     }
 
@@ -224,10 +229,12 @@
   .reject-btn {
     background: #ef4444;
     border-color: #ef4444;
+    color: white;
 
     &:hover {
       background: #dc2626;
       border-color: #dc2626;
+      color: white;
     }
   }
 

@@ -23,14 +23,24 @@ export function RescheduleRequests() {
   const fetchRequests = async () => {
     try {
       setLoading(true);
+      console.log("🔍 Fetching reschedule requests...");
       const response = await api.get("/api/reschedule/requests");
+      console.log("📋 Reschedule requests response:", response);
+
       if (response.success) {
         setRequests(response.data.requests);
+        console.log(
+          `✅ Loaded ${response.data.requests.length} reschedule requests`
+        );
       } else {
+        console.error(
+          "❌ Failed to fetch reschedule requests:",
+          response.message
+        );
         message.error("Không thể tải danh sách yêu cầu dời lịch");
       }
     } catch (error) {
-      console.error("Error fetching reschedule requests:", error);
+      console.error("❌ Error fetching reschedule requests:", error);
       message.error("Có lỗi xảy ra khi tải danh sách");
     } finally {
       setLoading(false);
@@ -89,7 +99,13 @@ export function RescheduleRequests() {
   };
 
   const formatDateTime = (dateTime) => {
+    if (!dateTime) return "Không xác định";
+
     const date = new Date(dateTime);
+    if (isNaN(date.getTime())) {
+      return "Không xác định";
+    }
+
     return date.toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",

@@ -49,7 +49,7 @@ const TimeSlotSelection = () => {
   const [timeSlots, setTimeSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
-  const [selectedMode, setSelectedMode] = useState("online");
+  const [selectedMode, setSelectedMode] = useState("offline");
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [defaultClinic, setDefaultClinic] = useState(null);
   const [clinicLoading, setClinicLoading] = useState(false);

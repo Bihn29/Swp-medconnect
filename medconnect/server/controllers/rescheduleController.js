@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import RescheduleRequest from "../models/rescheduleRequest.model.js";
 import Appointment from "../models/appointment.model.js";
+import Doctor from "../models/doctor.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import { createAppointmentNotification } from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
@@ -142,14 +143,20 @@ export async function requestReschedule(req, res) {
  */
 export async function getRescheduleRequests(req, res) {
   try {
-    const doctorId = req.user.app_user_id;
+    const userId = req.user.app_user_id;
     const { status, page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;
 
+    // Find doctor by userId
+    const doctor = await Doctor.findOne({ userId });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Doctor not found");
+    }
+
     // Find doctor's appointments
-    const doctorAppointments = await Appointment.find({ doctorId }).select(
-      "_id"
-    );
+    const doctorAppointments = await Appointment.find({
+      doctorId: doctor._id,
+    }).select("_id");
     const appointmentIds = doctorAppointments.map((apt) => apt._id);
 
     // Build filter
@@ -162,12 +169,48 @@ export async function getRescheduleRequests(req, res) {
     const requests = await RescheduleRequest.find(filter)
       .populate("requestedBy", "fullName email")
       .populate("reviewedBy", "fullName")
+      .populate({
+        path: "originalAppointmentId",
+        populate: [
+          {
+            path: "patientId",
+            populate: { path: "userId", select: "fullName" },
+          },
+          {
+            path: "doctorId",
+            populate: { path: "userId", select: "fullName" },
+          },
+          { path: "clinicId", select: "name" },
+        ],
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
     const total = await RescheduleRequest.countDocuments(filter);
+
+    // Manually populate metadata for each request if not already populated
+    for (let i = 0; i < requests.length; i++) {
+      if (!requests[i].metadata || !requests[i].metadata.originalDateTime) {
+        const originalAppointment = requests[i].originalAppointmentId;
+
+        if (originalAppointment) {
+          requests[i].metadata = {
+            patientName:
+              originalAppointment.patientId?.userId?.fullName || "Bệnh nhân",
+            doctorName:
+              originalAppointment.doctorId?.userId?.fullName || "Bác sĩ",
+            originalDateTime: originalAppointment.scheduledStart,
+            clinicName: originalAppointment.clinicId?.name || "Phòng khám",
+          };
+        }
+      }
+    }
+
+    console.log(
+      `🔍 Found ${requests.length} reschedule requests for doctor ${doctor._id}`
+    );
 
     return ok(res, {
       requests,
@@ -190,7 +233,13 @@ export async function getRescheduleRequests(req, res) {
 export async function approveReschedule(req, res) {
   try {
     const { requestId } = req.params;
-    const doctorId = req.user.app_user_id;
+    const userId = req.user.app_user_id;
+
+    // Find doctor by userId
+    const doctor = await Doctor.findOne({ userId });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Doctor not found");
+    }
 
     // Find reschedule request
     const request = await RescheduleRequest.findById(requestId).populate(
@@ -218,7 +267,7 @@ export async function approveReschedule(req, res) {
     const originalAppointment = request.originalAppointmentId;
 
     // Check if doctor owns this appointment
-    if (originalAppointment.doctorId.toString() !== doctorId) {
+    if (originalAppointment.doctorId.toString() !== doctor._id.toString()) {
       return fail(
         res,
         403,
@@ -238,7 +287,7 @@ export async function approveReschedule(req, res) {
         {
           status: "rescheduled",
           rescheduledToId: null, // Will be set after creating new appointment
-          rescheduledBy: doctorId,
+          rescheduledBy: doctor._id,
           rescheduledAt: new Date(),
           rescheduleReason: request.reason,
         },
@@ -246,29 +295,33 @@ export async function approveReschedule(req, res) {
       );
 
       // Create new appointment
+      const appointmentDuration =
+        originalAppointment.scheduledEnd.getTime() -
+        originalAppointment.scheduledStart.getTime();
       const newAppointmentData = {
-        ...originalAppointment.toObject(),
-        _id: new mongoose.Types.ObjectId(),
+        patientId: originalAppointment.patientId,
+        doctorId: originalAppointment.doctorId,
+        clinicId: originalAppointment.clinicId,
+        slotId: originalAppointment.slotId,
         scheduledStart: request.newDateTime,
-        scheduledEnd: new Date(request.newDateTime.getTime() + 30 * 60000), // +30 minutes
+        scheduledEnd: new Date(
+          request.newDateTime.getTime() + appointmentDuration
+        ),
+        mode: originalAppointment.mode,
         status: "accepted",
+        reasonForVisit: originalAppointment.reasonForVisit,
         rescheduledFromId: originalAppointment._id,
-        rescheduledToId: null,
-        rescheduleReason: null,
-        rescheduledBy: null,
-        rescheduledAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      const newAppointment = await Appointment.create([newAppointmentData], {
-        session,
-      });
+      const newAppointment = new Appointment(newAppointmentData);
+      await newAppointment.save({ session });
 
       // Update original appointment with new appointment ID
       await Appointment.findByIdAndUpdate(
         originalAppointment._id,
-        { rescheduledToId: newAppointment[0]._id },
+        { rescheduledToId: newAppointment._id },
         { session }
       );
 
@@ -277,7 +330,7 @@ export async function approveReschedule(req, res) {
         requestId,
         {
           status: "approved",
-          reviewedBy: doctorId,
+          reviewedBy: doctor._id,
           reviewedAt: new Date(),
         },
         { session }
@@ -294,7 +347,7 @@ export async function approveReschedule(req, res) {
           {
             reason: request.reason,
             newDateTime: request.newDateTime,
-            approvedBy: doctorId,
+            approvedBy: doctor._id,
           }
         );
         console.log(
@@ -309,7 +362,7 @@ export async function approveReschedule(req, res) {
 
       return ok(res, {
         message: "Reschedule request approved successfully",
-        newAppointment: newAppointment[0],
+        newAppointment: newAppointment,
         originalAppointment: originalAppointment._id,
       });
     } catch (error) {
@@ -331,7 +384,13 @@ export async function rejectReschedule(req, res) {
   try {
     const { requestId } = req.params;
     const { reviewNotes } = req.body;
-    const doctorId = req.user.app_user_id;
+    const userId = req.user.app_user_id;
+
+    // Find doctor by userId
+    const doctor = await Doctor.findOne({ userId });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Doctor not found");
+    }
 
     // Find reschedule request
     const request = await RescheduleRequest.findById(requestId).populate(
@@ -359,7 +418,7 @@ export async function rejectReschedule(req, res) {
     const originalAppointment = request.originalAppointmentId;
 
     // Check if doctor owns this appointment
-    if (originalAppointment.doctorId.toString() !== doctorId) {
+    if (originalAppointment.doctorId.toString() !== doctor._id.toString()) {
       return fail(
         res,
         403,
@@ -373,7 +432,7 @@ export async function rejectReschedule(req, res) {
       requestId,
       {
         status: "rejected",
-        reviewedBy: doctorId,
+        reviewedBy: doctor._id,
         reviewedAt: new Date(),
         reviewNotes: reviewNotes || "Request rejected by doctor",
       },
@@ -387,7 +446,7 @@ export async function rejectReschedule(req, res) {
         "reschedule_rejected",
         {
           reason: request.reason,
-          rejectedBy: doctorId,
+          rejectedBy: doctor._id,
           reviewNotes: reviewNotes,
         }
       );

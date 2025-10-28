@@ -9,7 +9,6 @@ import {
   Clock,
   MapPin,
   Phone,
-  MessageCircle,
   Video,
   X,
   VideoIcon,
@@ -380,12 +379,8 @@ export function MyAppointments() {
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {a.status === "done" ? (
-                  // Appointments đã hoàn thành có nút nhắn tin và đánh giá
+                  // Appointments đã hoàn thành có nút đánh giá
                   <>
-                    <Button variant="secondary">
-                      <MessageCircle size={16} style={{ marginRight: 6 }} />{" "}
-                      Nhắn tin
-                    </Button>
                     <Button
                       variant="secondary"
                       onClick={() => handleShowReview(a)}
@@ -430,10 +425,6 @@ export function MyAppointments() {
                     <Button variant="secondary">
                       <Phone size={16} style={{ marginRight: 6 }} /> Gọi
                     </Button>
-                    <Button variant="secondary">
-                      <MessageCircle size={16} style={{ marginRight: 6 }} />{" "}
-                      Nhắn tin
-                    </Button>
                     <Button
                       variant="secondary"
                       onClick={() => handleShowDetail(a._id)}
@@ -462,8 +453,8 @@ export function MyAppointments() {
                       }}
                     />
 
-                    {/* Cancel button - only show for pending appointments */}
-                    {a.status === "pending_doctor" && (
+                    {/* Cancel button - show for pending and accepted appointments */}
+                    {["pending_doctor", "accepted"].includes(a.status) && (
                       <Button
                         variant="ghost"
                         style={{ color: "#dc2626", borderColor: "#fecaca" }}
