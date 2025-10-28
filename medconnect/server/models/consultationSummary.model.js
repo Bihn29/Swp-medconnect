@@ -57,10 +57,10 @@ const ConsultationSummarySchema = new Schema(
     // 🩻 Hình ảnh chẩn đoán
     imagingResults: [
       {
-        type: String, // "X-ray", "Ultrasound", ...
-        conclusion: String,
-        imageUrl: String,
-        performedAt: Date,
+        type: { type: String, default: '' }, // "X-ray", "Ultrasound", ...
+        conclusion: { type: String, default: '' },
+        imageUrl: { type: String, default: '' },
+        performedAt: { type: Date, default: Date.now },
       },
     ],
 
