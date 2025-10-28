@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Search } from "lucide-react";
+import { NotificationCenter } from "../../../../components/NotificationCenter/NotificationCenter";
 import "./PatientHeader.scss";
 
 export function PatientHeader() {
@@ -43,6 +44,11 @@ export function PatientHeader() {
               />
             </div>
           </form>
+        </div>
+
+        {/* Right Section - Notifications */}
+        <div className="header-right">
+          <NotificationCenter />
         </div>
       </div>
     </header>

@@ -16,7 +16,6 @@ import Profile from "../pages/Auth/Profile";
 // Patient Components
 import PatientDashboard from "../pages/Patient/PatientDashboard";
 import PatientSettings from "../pages/Patient/PatientSettings.jsx";
-import PatientVideoCallPage from "../pages/Patient/VideoCallPage";
 import AppointmentBooking from "../pages/Appointment/AppointmentBooking";
 import AppointmentBookingHome from "../pages/Appointment/AppointmentBookingHome";
 import SpecializationSelection from "../pages/Appointment/SpecializationSelection";
@@ -25,17 +24,17 @@ import TimeSlotSelection from "../pages/Appointment/TimeSlotSelection";
 
 // Doctor Components
 import DoctorDashboard from "../pages/Doctor/DoctorDashboard/DoctorDashboard";
-import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage";
 import AppointmentList from "../pages/Doctor/AppointmentList/AppointmentList";
 import AppointmentDetail from "../pages/Doctor/AppointmentDetail/AppointmentDetail";
 import CalendarView from "../pages/Doctor/Calendar/CalendarView";
 import ConsultationRecords from "../pages/Doctor/ConsultationRecords/ConsultationRecords";
 import ProfileSettings from "../pages/Doctor/ProfileSettings/ProfileSettings";
 import ScheduleManagement from "../pages/Doctor/ScheduleManagement/ScheduleManagement";
-import Notifications from "../pages/Doctor/Notifications/Notifications";
 import Feedback from "../pages/Doctor/Feedback/Feedback";
 import OfflineConsultationPage from "../pages/Doctor/OfflineConsultationPage/OfflineConsultationPage";
 import OnlineConsultationPage from "../pages/Doctor/OnlineConsultationPage/OnlineConsultationPage";
+import { RescheduleRequests } from "../pages/Doctor/components/RescheduleRequests/RescheduleRequests";
+import { Notifications } from "../pages/Doctor/components/Notifications/Notifications";
 
 // Admin Components
 import AdminDashboard from "../pages/Admin/AdminDashboard";
@@ -58,14 +57,11 @@ export const privateRoutes = (
       <Route element={<PatientMiddleware />}>
         <Route path="/benh-nhan" element={<PatientDashboard />} />
         <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
-        <Route
-          path="/benh-nhan/video-call/:appointmentId"
-          element={<PatientVideoCallPage />}
-        />
         <Route path="/search-doctors" element={<PatientDashboard />} />
         <Route path="/my-appointments" element={<PatientDashboard />} />
         <Route path="/tu-van-truc-tuyen" element={<PatientDashboard />} />
         <Route path="/medical-records" element={<PatientDashboard />} />
+        <Route path="/thong-bao" element={<PatientDashboard />} />
       </Route>
     </Route>
 
@@ -77,18 +73,18 @@ export const privateRoutes = (
           {/* Main doctor dashboard */}
           <Route path="/bac-si" element={<DoctorDashboard />} />
 
-          {/* Video Call Routes */}
-          <Route
-            path="/bac-si/video-call/:appointmentId"
-            element={<DoctorVideoCallPage />}
-          />
-
           {/* ==================== APPOINTMENT MANAGEMENT ==================== */}
           {/* Doctor appointment management routes */}
           <Route path="/bac-si/lich-hen" element={<AppointmentList />} />
           <Route path="/bac-si/lich-hen/:id" element={<AppointmentDetail />} />
-          <Route path="/bac-si/kham-truc-tiep/:appointmentId" element={<OfflineConsultationPage />} />
-          <Route path="/bac-si/tu-van-truc-tuyen/:appointmentId" element={<OnlineConsultationPage />} />
+          <Route
+            path="/bac-si/kham-truc-tiep/:appointmentId"
+            element={<OfflineConsultationPage />}
+          />
+          <Route
+            path="/bac-si/tu-van-truc-tuyen/:appointmentId"
+            element={<OnlineConsultationPage />}
+          />
 
           {/* ==================== SCHEDULE MANAGEMENT ==================== */}
           {/* Doctor schedule and calendar routes */}
@@ -107,6 +103,13 @@ export const privateRoutes = (
           {/* Doctor notifications and feedback routes */}
           <Route path="/bac-si/thong-bao" element={<Notifications />} />
           <Route path="/bac-si/danh-gia" element={<Feedback />} />
+
+          {/* ==================== RESCHEDULE MANAGEMENT ==================== */}
+          {/* Doctor reschedule request management */}
+          <Route
+            path="/bac-si/yeu-cau-doi-lich"
+            element={<RescheduleRequests />}
+          />
         </Route>
       </Route>
     </Route>

@@ -114,19 +114,6 @@ export function UpcomingAppointments() {
     }
   };
 
-  const canJoinVideoCall = (appointment) => {
-    const now = new Date();
-    const startTime = new Date(appointment.scheduledStart);
-    const endTime = new Date(appointment.scheduledEnd);
-
-    return (
-      appointment.mode === "online" &&
-      appointment.status === "accepted" &&
-      now >= startTime &&
-      now <= endTime
-    );
-  };
-
   if (loading) {
     return (
       <Card className="medical-card fade-in">
@@ -226,7 +213,12 @@ export function UpcomingAppointments() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-semibold text-foreground">
-                      {appointment.doctorId?.fullName || "Bác sĩ"}
+                      {(() => {
+                        const fullName = appointment.doctorId?.fullName;
+                        return fullName?.startsWith("BS.")
+                          ? fullName
+                          : `BS. ${fullName}`;
+                      })() || "Bác sĩ"}
                     </h4>
                     <p className="text-sm text-muted-foreground">
                       {appointment.doctorId?.specializationIds?.[0]?.name ||
@@ -274,17 +266,6 @@ export function UpcomingAppointments() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-2">
-                  {canJoinVideoCall(appointment) && (
-                    <Button
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <VideoCameraOutlined
-                        style={{ fontSize: "16px", marginRight: "6px" }}
-                      />
-                      Tham gia ngay
-                    </Button>
-                  )}
                   {appointment.status === "pending_doctor" && (
                     <Button size="sm" variant="outline" disabled>
                       <CalendarOutlined

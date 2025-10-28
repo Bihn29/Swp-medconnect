@@ -8,7 +8,7 @@ import {
   getDoctorTimeSlots,
   bookAppointment,
   getPatientAppointments,
-  cancelPatientAppointment,
+  cancelAppointment,
   getAppointmentDetails,
   getPatientConsultationSummaries,
   getPatientConsultationAdvice,
@@ -44,7 +44,7 @@ router.get("/me/appointments", authGuard, getPatientAppointments);
 router.put(
   "/me/appointments/:appointmentId/cancel",
   authGuard,
-  cancelPatientAppointment
+  cancelAppointment
 );
 // Get appointment details by ID
 router.get("/me/appointments/:appointmentId", authGuard, getAppointmentDetails);

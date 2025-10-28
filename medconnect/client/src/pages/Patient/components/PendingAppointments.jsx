@@ -23,33 +23,40 @@ import {
 import { usePatientAppointments } from "../../../hooks/usePatientAppointments";
 
 export function PendingAppointments() {
-  const { pendingAppointments, loading, error, refreshAppointments } = usePatientAppointments();
+  const { pendingAppointments, loading, error, refreshAppointments } =
+    usePatientAppointments();
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
+    return date.toLocaleDateString("vi-VN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     });
   };
 
   const formatTime = (startTime, endTime) => {
     const start = new Date(startTime);
     const end = new Date(endTime);
-    return `${start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
+    return `${start.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })} - ${end.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
   };
 
   const getTimeUntilExpiry = (expiryDate) => {
     const now = new Date();
     const expiry = new Date(expiryDate);
     const diffMs = expiry - now;
-    
+
     if (diffMs <= 0) return "Đã hết hạn";
-    
+
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (diffHours > 0) {
       return `Còn ${diffHours}h ${diffMinutes}m`;
     } else {
@@ -66,7 +73,7 @@ export function PendingAppointments() {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8">
-          <LoadingOutlined style={{ fontSize: '24px' }} />
+          <LoadingOutlined style={{ fontSize: "24px" }} />
           <span className="ml-2">Đang tải dữ liệu...</span>
         </CardContent>
       </Card>
@@ -97,8 +104,8 @@ export function PendingAppointments() {
         <CardTitle className="text-xl font-semibold">
           Lịch hẹn chờ xác nhận
         </CardTitle>
-        <Badge 
-          variant="secondary" 
+        <Badge
+          variant="secondary"
           className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
         >
           {pendingAppointments.length} lịch hẹn
@@ -107,9 +114,14 @@ export function PendingAppointments() {
       <CardContent className="space-y-4">
         {pendingAppointments.length === 0 ? (
           <div className="text-center py-8">
-            <CalendarOutlined style={{ fontSize: '48px', color: '#ccc' }} />
-            <p className="text-muted-foreground mt-4">Không có lịch hẹn chờ xác nhận</p>
-            <Button className="mt-4" onClick={() => window.location.href = '/appointment'}>
+            <CalendarOutlined style={{ fontSize: "48px", color: "#ccc" }} />
+            <p className="text-muted-foreground mt-4">
+              Không có lịch hẹn chờ xác nhận
+            </p>
+            <Button
+              className="mt-4"
+              onClick={() => (window.location.href = "/appointment")}
+            >
               Đặt lịch ngay
             </Button>
           </div>
@@ -125,7 +137,10 @@ export function PendingAppointments() {
                   alt={appointment.doctorId?.fullName}
                 />
                 <AvatarFallback className="bg-primary/10 text-primary">
-                  {appointment.doctorId?.fullName?.split(" ").pop()?.charAt(0) || "BS"}
+                  {appointment.doctorId?.fullName
+                    ?.split(" ")
+                    .pop()
+                    ?.charAt(0) || "BS"}
                 </AvatarFallback>
               </Avatar>
 
@@ -133,15 +148,21 @@ export function PendingAppointments() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-semibold text-foreground">
-                      {appointment.doctorId?.fullName || "Bác sĩ"}
+                      {(() => {
+                        const fullName = appointment.doctorId?.fullName;
+                        return fullName?.startsWith("BS.")
+                          ? fullName
+                          : `BS. ${fullName}`;
+                      })() || "Bác sĩ"}
                     </h4>
                     <p className="text-sm text-muted-foreground">
-                      {appointment.doctorId?.specializationIds?.[0]?.name || "Chuyên khoa"}
+                      {appointment.doctorId?.specializationIds?.[0]?.name ||
+                        "Chuyên khoa"}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <ExclamationCircleOutlined 
-                      style={{ fontSize: "16px", color: "#f59e0b" }} 
+                    <ExclamationCircleOutlined
+                      style={{ fontSize: "16px", color: "#f59e0b" }}
                     />
                     <span className="text-xs text-amber-600 font-medium">
                       {getTimeUntilExpiry(appointment.autoExpireAt)}
@@ -156,7 +177,12 @@ export function PendingAppointments() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <ClockCircleOutlined style={{ fontSize: "16px" }} />
-                    <span>{formatTime(appointment.scheduledStart, appointment.scheduledEnd)}</span>
+                    <span>
+                      {formatTime(
+                        appointment.scheduledStart,
+                        appointment.scheduledEnd
+                      )}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {appointment.mode === "online" ? (
@@ -165,8 +191,8 @@ export function PendingAppointments() {
                       <EnvironmentOutlined style={{ fontSize: "16px" }} />
                     )}
                     <span>
-                      {appointment.mode === "online" 
-                        ? "Video call" 
+                      {appointment.mode === "online"
+                        ? "Video call"
                         : appointment.clinicId?.name || "Phòng khám"}
                     </span>
                   </div>
@@ -187,7 +213,8 @@ export function PendingAppointments() {
                 {appointment.reason && (
                   <div className="bg-muted/50 p-3 rounded-md">
                     <p className="text-sm">
-                      <span className="font-medium">Lý do khám:</span> {appointment.reason}
+                      <span className="font-medium">Lý do khám:</span>{" "}
+                      {appointment.reason}
                     </p>
                   </div>
                 )}
