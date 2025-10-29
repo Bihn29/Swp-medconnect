@@ -1065,15 +1065,26 @@ export async function getAppointmentDetails(req, res) {
     })
       .populate({
         path: "doctorId",
-        select: "fullName name specializationIds phone avatarUrl",
-        populate: {
-          path: "specializationIds",
-          select: "name",
-        },
+        select: "fullName name specializationIds avatarUrl",
+        populate: [
+          {
+            path: "specializationIds",
+            select: "name",
+          },
+          {
+            path: "userId",
+            select: "phone fullName",
+          },
+        ],
       })
       .populate("clinicId", "name address")
       .populate("slotId", "startAt endAt")
       .lean();
+
+    // Map phone from userId to doctorId for easier access
+    if (appointment?.doctorId?.userId?.phone) {
+      appointment.doctorId.phone = appointment.doctorId.userId.phone;
+    }
 
     if (!appointment) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");

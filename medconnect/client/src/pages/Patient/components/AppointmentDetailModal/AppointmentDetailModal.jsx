@@ -177,12 +177,14 @@ const AppointmentDetailModal = ({ visible, onClose, appointmentId }) => {
                   "Chưa xác định"}
               </Text>
             </div>
-            {appointment.doctorId?.phone && (
-              <div>
-                <PhoneOutlined style={{ marginRight: 8, color: "#52c41a" }} />
-                <Text>{appointment.doctorId.phone}</Text>
-              </div>
-            )}
+            <div>
+              <PhoneOutlined style={{ marginRight: 8, color: "#52c41a" }} />
+              <Text>
+                {appointment.doctorId?.phone ||
+                  appointment.doctorId?.userId?.phone ||
+                  "Chưa cập nhật"}
+              </Text>
+            </div>
           </Space>
         </Card>
 

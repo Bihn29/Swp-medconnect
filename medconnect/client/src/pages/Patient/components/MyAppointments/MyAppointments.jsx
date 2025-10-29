@@ -4,15 +4,7 @@ import { Button } from "../../../../components/ui/Button";
 import { api } from "../../../../lib/api";
 import { Spin, message, Modal } from "antd";
 import { useNavigate } from "react-router-dom";
-import {
-  Calendar,
-  Clock,
-  MapPin,
-  Phone,
-  Video,
-  X,
-  VideoIcon,
-} from "lucide-react";
+import { Calendar, Clock, MapPin, Video, X, VideoIcon } from "lucide-react";
 import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 import ReviewModal from "../ReviewModal/ReviewModal";
 import { RescheduleButton } from "../../../../components/RescheduleButton/RescheduleButton";
@@ -465,9 +457,6 @@ export function MyAppointments() {
                       </Button>
                     ) : null}
 
-                    <Button variant="secondary">
-                      <Phone size={16} style={{ marginRight: 6 }} /> Gọi
-                    </Button>
                     <Button
                       variant="secondary"
                       onClick={() => handleShowDetail(a._id)}
