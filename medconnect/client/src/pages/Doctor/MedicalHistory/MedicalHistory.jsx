@@ -61,9 +61,352 @@ export default function MedicalHistory() {
     }
   };
 
-  const handleDownload = () => {
-    console.log("Downloading medical history...");
-    // Implement download functionality
+  const formatDateForDoc = (date) => {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+
+  const generateDocHTML = (record, type) => {
+    if (type === "medical") {
+      const patientName = record.patientId?.fullName || "N/A";
+      const patientPhone = record.patientId?.phone || "N/A";
+      const visitDate = formatDateForDoc(record.visitDate || record.createdAt);
+  return `
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:v="urn:schemas-microsoft-com:vml" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<meta name="ProgId" content="Word.Document">
+<meta name="Generator" content="Microsoft Word">
+<meta name="Originator" content="Microsoft Word">
+<title>Hồ sơ khám bệnh</title>
+<style>
+  :root{
+    --ink:#1f2937;
+    --muted:#6b7280;
+    --border:#e5e7eb;
+    --accent:#0ea5e9;
+    --bg:#ffffff;
+    --chip-bg:#eef6ff;
+    --chip-text:#0b5fb8;
+  }
+  *{box-sizing:border-box}
+  html,body{background:#fff}
+  body{font-family:"Times New Roman",serif; color:var(--ink); margin:32px; line-height:1.45; font-size:13.5pt}
+  h1{font-size:20pt; margin:0 0 8px; letter-spacing:.3px}
+  .sub{color:var(--muted); font-size:11pt}
+  .header{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding-bottom:12px; border-bottom:2px solid #000}
+  .brand h2{margin:0; font-size:13pt; font-weight:600}
+  .meta{text-align:right}
+  .section{margin-top:18px; border:1px solid var(--border); border-radius:10px; padding:14px 16px; background:var(--bg); page-break-inside:avoid}
+  .section h2{font-size:14.5pt; margin:0 0 10px; color:#111; border-left:3px solid var(--accent); padding-left:10px}
+  .kv{width:100%; border-collapse:collapse}
+  .kv td{padding:8px 10px; border:1px solid var(--border); vertical-align:top}
+  .kv td.key{background:#f9fafb; font-weight:700; width:220px}
+  .table{width:100%; border-collapse:collapse; font-size:13pt}
+  .table th,.table td{border:1px solid var(--border); padding:8px 10px; vertical-align:top}
+  .table th{background:#f3f4f6; text-align:left; font-weight:700}
+  .table.zebra tbody tr:nth-child(odd){background:#fafafa}
+  .chips{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{background:var(--chip-bg); color:var(--chip-text); border:1px solid #d6e8ff; padding:6px 10px; border-radius:999px; font-size:12pt}
+  .muted{color:var(--muted)}
+  .note{padding:10px 12px; background:#f9fafb; border:1px dashed var(--border); border-radius:8px}
+  .sign{display:flex; gap:28px; margin-top:24px}
+  .sign .box{flex:1; text-align:center; padding-top:40px}
+  .sign .label{display:block; margin-top:6px; color:var(--muted); font-size:11.5pt}
+  img{max-width:520px; margin:10px 0; display:block}
+  /* In A4 */
+  @page{size:A4; margin:20mm}
+  @media print{
+    body{margin:0; font-size:12pt}
+    .section{page-break-inside:avoid}
+    .header{border-bottom:1px solid #000}
+    .note{border-color:#ddd}
+  }
+  /* Word VML behaviors */
+  v:*{behavior:url(#default#VML)} o:*{behavior:url(#default#VML)} w:*{behavior:url(#default#VML)}
+</style>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/><w:ValidateAgainstSchemas/></w:WordDocument></xml><![endif]-->
+</head>
+<body>
+
+  <div class="header">
+    <div class="brand">
+      <h1>HỒ SƠ KHÁM BỆNH</h1>
+      <div class="sub">Mã hồ sơ: ${record._id || "—"}</div>
+    </div>
+    <div class="meta">
+      <div class="sub">Ngày tạo: ${formatDateForDoc(new Date())}</div>
+      ${record.mode ? `<div class="sub">Hình thức: ${record.mode === "online" ? "Trực tuyến" : "Trực tiếp"}</div>` : "" }
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Thông tin bệnh nhân</h2>
+    <table class="kv">
+      <tr><td class="key">Họ và tên</td><td>${patientName}</td></tr>
+      <tr><td class="key">Số điện thoại</td><td>${patientPhone}</td></tr>
+      <tr><td class="key">Ngày khám</td><td>${visitDate}</td></tr>
+      ${record.patientId?.dob ? `<tr><td class="key">Ngày sinh</td><td>${formatDate(record.patientId.dob)}</td></tr>` : ""}
+      ${record.patientId?.gender ? `<tr><td class="key">Giới tính</td><td>${record.patientId.gender === "male" ? "Nam" : record.patientId.gender === "female" ? "Nữ" : record.patientId.gender}</td></tr>` : ""}
+    </table>
+  </div>
+
+  ${record.reasonForVisit ? `
+  <div class="section">
+    <h2>Lý do khám</h2>
+    <div class="note">${record.reasonForVisit}</div>
+  </div>` : ""}
+
+  <div class="section">
+    <h2>Chẩn đoán</h2>
+    ${record.diagnoses?.length ? `
+      <div class="chips">
+        ${record.diagnoses.map(d => `<span class="chip">${d.name || d}</span>`).join("")}
+      </div>` : `<span class="muted">Không có</span>`}
+  </div>
+
+  <div class="section">
+    <h2>Đơn thuốc</h2>
+    ${record.medications?.length ? `
+      <table class="table zebra">
+        <thead><tr><th>Tên thuốc</th><th>Số lượng</th><th>Hướng dẫn</th></tr></thead>
+        <tbody>
+          ${record.medications.map(m => `
+            <tr>
+              <td>${m.name || "—"}</td>
+              <td>${m.quantity || "—"}</td>
+              <td>${m.instruction || "—"}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>` : `<span class="muted">Không có đơn thuốc</span>`}
+  </div>
+
+  ${record.treatmentResult || record.summaryText || record.treatmentMethod || record.followUpInstructions || record.nextAppointmentDate ? `
+  <div class="section">
+    <h2>Kết quả & Hướng dẫn</h2>
+    ${record.treatmentResult ? `<p><strong>Kết quả điều trị:</strong> ${
+      record.treatmentResult === "recovered" ? "Khỏi" :
+      record.treatmentResult === "improved" ? "Cải thiện" :
+      record.treatmentResult === "unchanged" ? "Không thay đổi" :
+      record.treatmentResult
+    }</p>` : ""}
+    ${record.summaryText ? `<p><strong>Tóm tắt:</strong> ${record.summaryText}</p>` : ""}
+    ${record.treatmentMethod ? `<p><strong>Phương pháp điều trị:</strong> ${record.treatmentMethod}</p>` : ""}
+    ${record.followUpInstructions ? `<p><strong>Hướng dẫn theo dõi:</strong> ${record.followUpInstructions}</p>` : ""}
+    ${record.nextAppointmentDate ? `<p><strong>Lịch hẹn tái khám:</strong> ${formatDate(record.nextAppointmentDate)}</p>` : ""}
+  </div>` : ""}
+
+  ${record.vitals ? `
+  <div class="section">
+    <h2>Chỉ số sinh học</h2>
+    <table class="kv">
+      ${record.vitals.height ? `<tr><td class="key">Chiều cao</td><td>${record.vitals.height} cm</td></tr>` : ""}
+      ${record.vitals.weight ? `<tr><td class="key">Cân nặng</td><td>${record.vitals.weight} kg</td></tr>` : ""}
+      ${record.vitals.bloodPressure ? `<tr><td class="key">Huyết áp</td><td>${record.vitals.bloodPressure}</td></tr>` : ""}
+      ${record.vitals.heartRate ? `<tr><td class="key">Nhịp tim</td><td>${record.vitals.heartRate} bpm</td></tr>` : ""}
+      ${record.vitals.temperature ? `<tr><td class="key">Nhiệt độ</td><td>${record.vitals.temperature}°C</td></tr>` : ""}
+    </table>
+  </div>` : ""}
+
+  ${record.labResults?.length ? `
+  <div class="section">
+    <h2>Kết quả xét nghiệm</h2>
+    <table class="table zebra">
+      <thead><tr><th>Xét nghiệm</th><th>Kết quả</th></tr></thead>
+      <tbody>
+        ${record.labResults.map(l => `<tr><td>${l.testName || "Xét nghiệm"}</td><td>${l.result || "N/A"}</td></tr>`).join("")}
+      </tbody>
+    </table>
+  </div>` : ""}
+
+  <div class="sign">
+    <div class="box">
+      <div><strong>Bệnh nhân</strong></div>
+      <span class="label">(Ký và ghi rõ họ tên)</span>
+    </div>
+    <div class="box">
+      <div><strong>Bác sĩ phụ trách</strong></div>
+      <span class="label">${record.doctorName ? "(" + record.doctorName + ")" : "(Ký và ghi rõ họ tên)"}</span>
+    </div>
+  </div>
+
+</body>
+</html>`;
+} else {
+  const patientName = record.patientId?.fullName || "N/A";
+  const patientPhone = record.patientId?.phone || "N/A";
+  const appointmentDate = formatDateForDoc(record.appointmentDate || record.createdAt);
+  return `
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:v="urn:schemas-microsoft-com:vml" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<meta name="ProgId" content="Word.Document">
+<meta name="Generator" content="Microsoft Word">
+<meta name="Originator" content="Microsoft Word">
+<title>Buổi tư vấn</title>
+<style>
+  :root{
+    --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb; --accent:#0ea5e9; --bg:#ffffff;
+    --chip-bg:#eef6ff; --chip-text:#0b5fb8;
+  }
+  *{box-sizing:border-box}
+  body{font-family:"Times New Roman",serif; color:var(--ink); margin:32px; line-height:1.45; font-size:13.5pt}
+  h1{font-size:20pt; margin:0 0 8px}
+  .sub{color:var(--muted); font-size:11pt}
+  .header{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding-bottom:12px; border-bottom:2px solid #000}
+  .section{margin-top:18px; border:1px solid var(--border); border-radius:10px; padding:14px 16px; background:var(--bg); page-break-inside:avoid}
+  .section h2{font-size:14.5pt; margin:0 0 10px; color:#111; border-left:3px solid var(--accent); padding-left:10px}
+  .kv{width:100%; border-collapse:collapse}
+  .kv td{padding:8px 10px; border:1px solid var(--border)}
+  .kv td.key{background:#f9fafb; font-weight:700; width:220px}
+  .chips{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{background:var(--chip-bg); color:var(--chip-text); border:1px solid #d6e8ff; padding:6px 10px; border-radius:999px; font-size:12pt}
+  .table{width:100%; border-collapse:collapse}
+  .table th,.table td{border:1px solid var(--border); padding:8px 10px}
+  .table th{background:#f3f4f6; text-align:left}
+  .note{padding:10px 12px; background:#f9fafb; border:1px dashed var(--border); border-radius:8px}
+  .sign{display:flex; gap:28px; margin-top:24px}
+  .sign .box{flex:1; text-align:center; padding-top:40px}
+  .sign .label{display:block; margin-top:6px; color:var(--muted); font-size:11.5pt}
+  @page{size:A4; margin:20mm}
+  @media print{ body{margin:0; font-size:12pt} .section{page-break-inside:avoid} }
+  v:*{behavior:url(#default#VML)} o:*{behavior:url(#default#VML)} w:*{behavior:url(#default#VML)}
+</style>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/><w:ValidateAgainstSchemas/></w:WordDocument></xml><![endif]-->
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>BUỔI TƯ VẤN</h1>
+      <div class="sub">Mã phiên: ${record._id || "—"}</div>
+    </div>
+    <div class="sub" style="text-align:right">
+      Ngày tạo: ${formatDateForDoc(new Date())}<br/>
+      Hình thức: ${record.mode === "online" ? "Trực tuyến" : "Trực tiếp"}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Thông tin bệnh nhân</h2>
+    <table class="kv">
+      <tr><td class="key">Họ và tên</td><td>${patientName}</td></tr>
+      <tr><td class="key">Số điện thoại</td><td>${patientPhone}</td></tr>
+      <tr><td class="key">Ngày tư vấn</td><td>${appointmentDate}</td></tr>
+      ${record.patientId?.dob ? `<tr><td class="key">Ngày sinh</td><td>${formatDate(record.patientId.dob)}</td></tr>` : ""}
+      ${record.patientId?.gender ? `<tr><td class="key">Giới tính</td><td>${record.patientId.gender === "male" ? "Nam" : record.patientId.gender === "female" ? "Nữ" : record.patientId.gender}</td></tr>` : ""}
+    </table>
+  </div>
+
+  ${record.notes ? `
+  <div class="section">
+    <h2>Tóm tắt buổi tư vấn</h2>
+    <div class="note">${record.notes}</div>
+  </div>` : ""}
+
+  ${record.diagnoses?.length ? `
+  <div class="section">
+    <h2>Chẩn đoán tham khảo</h2>
+    <div class="chips">
+      ${record.diagnoses.map(d => `<span class="chip">${d.name || d}</span>`).join("")}
+    </div>
+  </div>` : ""}
+
+  ${record.medications?.length ? `
+  <div class="section">
+    <h2>Đơn thuốc</h2>
+    <table class="table">
+      <thead><tr><th>Tên thuốc</th><th>Số lượng</th><th>Hướng dẫn</th></tr></thead>
+      <tbody>
+        ${record.medications.map(m => `
+          <tr>
+            <td>${m.name || "—"}</td>
+            <td>${m.quantity || "—"}</td>
+            <td>${m.instruction || "—"}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+  </div>` : ""}
+
+  <div class="sign">
+    <div class="box">
+      <div><strong>Người được tư vấn</strong></div>
+      <span class="label">(Ký và ghi rõ họ tên)</span>
+    </div>
+    <div class="box">
+      <div><strong>Chuyên gia tư vấn</strong></div>
+      <span class="label">${record.doctorName ? "(" + record.doctorName + ")" : "(Ký và ghi rõ họ tên)"}</span>
+    </div>
+  </div>
+
+</body>
+</html>`;
+  }
+  };
+
+  const handleDownload = async (record) => {
+    try {
+      let htmlContent = '';
+      let fileName = '';
+      
+      if (activeTab === "medical" && record) {
+        htmlContent = generateDocHTML(record, "medical");
+        fileName = `ho-so-kham-${record.visitDate ? new Date(record.visitDate).toISOString().split('T')[0] : 'unknown'}.doc`;
+      } else if (activeTab === "consultation" && record) {
+        htmlContent = generateDocHTML(record, "consultation");
+        fileName = `tu-van-${record.appointmentDate ? new Date(record.appointmentDate).toISOString().split('T')[0] : 'unknown'}.doc`;
+      } else {
+        return;
+      }
+
+      // Create blob with HTML content that Word can open
+      // Use both UTF-8 BOM and proper HTML structure for better image support
+      const blob = new Blob(['\ufeff', htmlContent], { 
+        type: 'application/msword;charset=utf-8' 
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      alert("Có lỗi khi tải xuống file. Vui lòng thử lại.");
+    }
+  };
+
+  const handleDownloadFile = async (fileUrl, fileName) => {
+    try {
+      const fullUrl = getImageUrl(fileUrl);
+      const response = await fetch(fullUrl);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName || fileUrl.split('/').pop() || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      alert("Có lỗi khi tải xuống file");
+    }
   };
 
   const handleViewDetails = (recordId, record) => {
@@ -136,10 +479,6 @@ export default function MedicalHistory() {
               Quản lý và xem lịch sử khám bệnh và tư vấn
             </p>
           </div>
-          <button className="download-button" onClick={handleDownload}>
-            <Download className="download-icon" />
-            Tải xuống
-          </button>
       </div>
       </div>
 
@@ -237,15 +576,25 @@ export default function MedicalHistory() {
                             </div>
                           </div>
                         </div>
-                        <button
-                          className={`view-details-button ${
-                            activeButton === summary._id ? "active" : ""
-                          }`}
-                          onClick={() => handleViewDetails(summary._id, summary)}
-                        >
-                          <Eye className="view-icon" />
-                          Xem chi tiết
-                        </button>
+                        <div className="card-actions">
+                          <button
+                            className={`view-details-button ${
+                              activeButton === summary._id ? "active" : ""
+                            }`}
+                            onClick={() => handleViewDetails(summary._id, summary)}
+                          >
+                            <Eye className="view-icon" />
+                            Xem chi tiết
+                          </button>
+                          <button
+                            className="download-button-card"
+                            onClick={() => handleDownload(summary)}
+                            title="Tải xuống hồ sơ"
+                          >
+                            <Download className="download-icon" />
+                            Tải xuống
+                          </button>
+                        </div>
                       </div>
 
                       <div className="card-content">
@@ -310,9 +659,9 @@ export default function MedicalHistory() {
                                     </div>
                                   ))}
                                 </div>
-                              </div>
-                            );
-                          }
+      </div>
+    );
+  }
                           return null;
                         })()}
 
@@ -322,7 +671,7 @@ export default function MedicalHistory() {
                             // Chỉ hiển thị những item có imageUrl thực sự
                             const validImagingResults = summary.imagingResults?.filter(img => img.imageUrl && img.imageUrl.trim() !== '') || [];
                             if (validImagingResults.length > 0) {
-                              return (
+    return (
                                 <div className="documents-list">
                                   {validImagingResults.map((img, index) => (
                                     <div key={`img-${index}`} className="document-item">
@@ -330,19 +679,31 @@ export default function MedicalHistory() {
                                       <span className="document-text">
                                         {img.type ? `${img.type}${img.conclusion ? ` - ${img.conclusion}` : ''}` : img.conclusion || `Hình ảnh ${index + 1}`}
                                       </span>
-                                      <a
-                                        href={getImageUrl(img.imageUrl)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="document-link"
-                                      >
-                                        Xem hình ảnh
-                                      </a>
+                                      <div className="document-actions">
+                                        <a
+                                          href={getImageUrl(img.imageUrl)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="document-link"
+                                        >
+                                          Xem hình ảnh
+                                        </a>
+                                        <button
+                                          className="download-file-button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadFile(img.imageUrl, `${img.type || 'hinh-anh'}-${index + 1}.${img.imageUrl.split('.').pop() || 'png'}`);
+                                          }}
+                                          title="Tải xuống hình ảnh"
+                                        >
+                                          <FileDown className="download-icon-small" />
+                                        </button>
+                                      </div>
                                     </div>
                                   ))}
-                                </div>
-                              );
-                            }
+      </div>
+    );
+  }
                             return (
                               <div className="content-value" style={{ color: '#9ca3af', fontStyle: 'italic' }}>
                                 Không có hình ảnh chẩn đoán
@@ -394,7 +755,7 @@ export default function MedicalHistory() {
                       : "Không có đơn thuốc";
 
 
-                  return (
+  return (
                     <div key={advice._id} className="history-card consultation-card">
                       <div className="card-header">
                         <div className="card-title-section">
@@ -426,16 +787,26 @@ export default function MedicalHistory() {
                             </div>
                           </div>
                         </div>
-                        <button
-                          className={`view-details-button ${
-                            activeButton === advice._id ? "active" : ""
-                          }`}
-                          onClick={() => handleViewDetails(advice._id, advice)}
-                        >
-                          <Eye className="view-icon" />
-                          Xem chi tiết
-                        </button>
-                      </div>
+                        <div className="card-actions">
+        <button
+                            className={`view-details-button ${
+                              activeButton === advice._id ? "active" : ""
+                            }`}
+                            onClick={() => handleViewDetails(advice._id, advice)}
+                          >
+                            <Eye className="view-icon" />
+                            Xem chi tiết
+        </button>
+        <button
+                            className="download-button-card"
+                            onClick={() => handleDownload(advice)}
+                            title="Tải xuống hồ sơ"
+        >
+                            <Download className="download-icon" />
+                            Tải xuống
+        </button>
+                        </div>
+      </div>
 
                       <div className="card-content">
                         {advice.notes && (
@@ -459,15 +830,15 @@ export default function MedicalHistory() {
                                   {" "}+ {advice.diagnoses.length - 1} chẩn đoán khác
                                 </span>
                               )}
-                            </div>
-                          </div>
+              </div>
+              </div>
                         )}
 
                         {medicationsText !== "Không có đơn thuốc" && (
                           <div className="content-item">
                             <div className="content-label">Thuốc kê đơn:</div>
                             <div className="content-value">{medicationsText}</div>
-                          </div>
+              </div>
                         )}
 
                         <div className="content-item">
@@ -476,16 +847,27 @@ export default function MedicalHistory() {
                             <div className="documents-list">
                               <div className="document-item">
                                 <FileText className="document-icon" />
-                                <a
-                                  href={getImageUrl(advice.attachmentUrl)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="document-link"
-                                >
-                                  {advice.attachmentUrl.split('/').pop() || advice.attachmentUrl}
-                                </a>
-                                <FileDown className="download-icon" />
-                              </div>
+                                <div className="document-actions">
+                                  <a
+                                    href={getImageUrl(advice.attachmentUrl)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="document-link"
+                                  >
+                                    {advice.attachmentUrl.split('/').pop() || advice.attachmentUrl}
+                                  </a>
+                                  <button
+                                    className="download-file-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadFile(advice.attachmentUrl, advice.attachmentUrl.split('/').pop() || 'file.pdf');
+                                    }}
+                                    title="Tải xuống file"
+                                  >
+                                    <FileDown className="download-icon-small" />
+                                  </button>
+              </div>
+            </div>
                             </div>
                           ) : (
                             <div className="content-value" style={{ color: '#9ca3af', fontStyle: 'italic' }}>
@@ -536,7 +918,7 @@ export default function MedicalHistory() {
                         <span>
                           {selectedSummary.patientId?.phone || "N/A"}
                         </span>
-                      </div>
+                    </div>
                       {selectedSummary.patientId?.dob && (
                         <div className="detail-item">
                           <strong>Ngày sinh:</strong>
@@ -597,7 +979,7 @@ export default function MedicalHistory() {
                           {selectedSummary.diagnoses.map((diagnosis, index) => (
                             <div key={index} className="diagnosis-item">
                               <strong>{diagnosis.name || "Không xác định"}</strong>
-                            </div>
+                  </div>
                           ))}
                         </div>
                   </div>
@@ -606,7 +988,7 @@ export default function MedicalHistory() {
                   {/* Vitals */}
                   {selectedSummary.vitals && (
                     <div className="detail-section">
-                      <h4>Chỉ số sinh tồn</h4>
+                      <h4>Chỉ số sinh học</h4>
                       <div className="vitals-grid">
                         {selectedSummary.vitals.height && (
                           <div className="vital-item">
@@ -657,7 +1039,7 @@ export default function MedicalHistory() {
                                   {lab.performedAt && (
                                     <span className="lab-date">
                                       {formatDate(lab.performedAt)}
-                                    </span>
+                    </span>
                                   )}
                                 </div>
                                 <div className="lab-result">
@@ -705,36 +1087,61 @@ export default function MedicalHistory() {
                                     const fullImageUrl = getImageUrl(img.imageUrl);
                                     return (
                                       <>
-                                        <a
-                                          href={fullImageUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="imaging-image-link"
-                                        >
-                                          <img
-                                            src={fullImageUrl}
-                                            alt={img.type || img.conclusion || `Hình ảnh ${index + 1}`}
-                                            className="imaging-image"
-                                            onError={(e) => {
-                                              e.target.style.display = 'none';
-                                              if (e.target.nextSibling) {
-                                                e.target.nextSibling.style.display = 'block';
-                                              }
-                                            }}
-                                          />
-                                        </a>
-                                        <div className="imaging-image-fallback" style={{ display: 'none' }}>
-                                          <p style={{ color: '#6b7280', marginBottom: '0.5rem' }}>
-                                            Không thể tải hình ảnh
-                                          </p>
+                                        <div className="imaging-image-wrapper">
                                           <a
                                             href={fullImageUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="document-link"
+                                            className="imaging-image-link"
                                           >
-                                            Mở link hình ảnh
+                                            <img
+                                              src={fullImageUrl}
+                                              alt={img.type || img.conclusion || `Hình ảnh ${index + 1}`}
+                                              className="imaging-image"
+                                              onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                if (e.target.nextSibling) {
+                                                  e.target.nextSibling.style.display = 'block';
+                                                }
+                                              }}
+                                            />
                                           </a>
+                                          <button
+                                            className="download-image-button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDownloadFile(img.imageUrl, `${img.type || 'hinh-anh'}-${index + 1}.${img.imageUrl.split('.').pop() || 'png'}`);
+                                            }}
+                                            title="Tải xuống hình ảnh"
+                                          >
+                                            <Download className="download-icon" />
+                                            Tải xuống
+                                          </button>
+                    </div>
+                                        <div className="imaging-image-fallback" style={{ display: 'none' }}>
+                                          <p style={{ color: '#6b7280', marginBottom: '0.5rem' }}>
+                                            Không thể tải hình ảnh
+                                          </p>
+                                          <div className="document-actions">
+                                            <a
+                                              href={fullImageUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="document-link"
+                                            >
+                                              Mở link hình ảnh
+                                            </a>
+                                            <button
+                                              className="download-file-button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDownloadFile(img.imageUrl, `${img.type || 'hinh-anh'}-${index + 1}.${img.imageUrl.split('.').pop() || 'png'}`);
+                                              }}
+                                              title="Tải xuống hình ảnh"
+                                            >
+                                              <FileDown className="download-icon-small" />
+                                            </button>
+                                          </div>
                                         </div>
                                       </>
                                     );
@@ -751,7 +1158,7 @@ export default function MedicalHistory() {
                         </div>
                       );
                     })()}
-                  </div>
+                    </div>
 
                   {/* Medications */}
                   {selectedSummary.medications &&
@@ -763,7 +1170,7 @@ export default function MedicalHistory() {
                             <div key={index} className="medication-item">
                               <div className="med-name">
                                 <strong>{med.name || "N/A"}</strong>
-                              </div>
+                    </div>
                               <div className="med-details">
                                 <span>Số lượng: {med.quantity || "N/A"}</span>
                               </div>
@@ -794,7 +1201,7 @@ export default function MedicalHistory() {
                         <div className="summary-text">
                           <strong>Tóm tắt:</strong>
                           <p>{selectedSummary.summaryText}</p>
-                        </div>
+                    </div>
                       )}
                       {selectedSummary.treatmentMethod && (
                         <div className="treatment-method">
@@ -871,7 +1278,7 @@ export default function MedicalHistory() {
                         <strong>Hình thức:</strong>
                         <span>{selectedAdvice.mode === "online" ? "Trực tuyến" : "Trực tiếp"}</span>
                       </div>
-                    </div>
+                      </div>
                     </div>
 
                   {/* Notes/Summary */}
@@ -880,7 +1287,7 @@ export default function MedicalHistory() {
                       <h4>Tóm tắt buổi tư vấn</h4>
                       <div className="summary-text">
                         <p>{selectedAdvice.notes}</p>
-                      </div>
+                    </div>
                     </div>
                   )}
 
@@ -893,7 +1300,7 @@ export default function MedicalHistory() {
                           {selectedAdvice.diagnoses.map((diagnosis, index) => (
                             <div key={index} className="diagnosis-item">
                               <strong>{diagnosis.name || "Không xác định"}</strong>
-                            </div>
+                    </div>
                           ))}
                         </div>
                       </div>
@@ -931,22 +1338,33 @@ export default function MedicalHistory() {
                       <div className="documents-list">
                         <div className="document-item">
                           <FileText className="document-icon" />
-                          <a
-                            href={getImageUrl(selectedAdvice.attachmentUrl)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="document-link"
-                          >
-                            {selectedAdvice.attachmentUrl.split('/').pop() || selectedAdvice.attachmentUrl}
-                          </a>
-                          <FileDown className="download-icon" />
-                        </div>
+                          <div className="document-actions">
+                            <a
+                              href={getImageUrl(selectedAdvice.attachmentUrl)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="document-link"
+                            >
+                              {selectedAdvice.attachmentUrl.split('/').pop() || selectedAdvice.attachmentUrl}
+                            </a>
+                            <button
+                              className="download-file-button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadFile(selectedAdvice.attachmentUrl, selectedAdvice.attachmentUrl.split('/').pop() || 'file.pdf');
+                              }}
+                              title="Tải xuống file"
+                            >
+                              <FileDown className="download-icon-small" />
+                            </button>
+                    </div>
+                  </div>
                       </div>
                     ) : (
                       <div style={{ color: '#9ca3af', fontStyle: 'italic', padding: '1rem' }}>
                         Không có file đính kèm
-                      </div>
-                    )}
+              </div>
+            )}
                   </div>
               </div>
             )}
