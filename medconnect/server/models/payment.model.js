@@ -66,7 +66,7 @@ const PaymentSchema = new Schema(
 
     gateway: {
       type: String,
-      enum: ["vnpay", "momo", "vietqr"],
+      enum: ["vnpay", "momo", "vietqr", "payos"],
       required: true,
     },
     method: { type: String, enum: ["qr", "card", "bank"], required: true },
@@ -85,6 +85,9 @@ const PaymentSchema = new Schema(
       default: "initiated",
     },
 
+    // PayOS orderCode để tracking và webhook lookup
+    orderCode: { type: Number, unique: true, sparse: true, index: true },
+    
     providerTxnId: String,
     authorizedAt: Date,
     authorizationExpiresAt: Date,

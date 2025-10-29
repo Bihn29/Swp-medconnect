@@ -21,6 +21,7 @@ import AppointmentBookingHome from "../pages/Appointment/AppointmentBookingHome"
 import SpecializationSelection from "../pages/Appointment/SpecializationSelection";
 import DoctorSelection from "../pages/Appointment/DoctorSelection";
 import TimeSlotSelection from "../pages/Appointment/TimeSlotSelection";
+import PaymentResult from "../pages/Appointment/PaymentResult";
 import PatientVideoCallPage from "../pages/Patient/VideoCallPage";
 
 // Doctor Components
@@ -144,6 +145,8 @@ export const privateRoutes = (
           element={<TimeSlotSelection />}
         />
         <Route path="/dat-lich/:doctorId" element={<AppointmentBooking />} />
+        {/* Payment result route - handles both success and failed */}
+        <Route path="/dat-lich/payment-result" element={<PaymentResult />} />
       </Route>
     </Route>
 
