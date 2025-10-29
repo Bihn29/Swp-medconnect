@@ -172,19 +172,80 @@ const TimeSlotSelection = () => {
         appointmentData.clinicId = defaultClinic._id;
       }
 
+      // Step 1: Create appointment
       const response = await api.post(
         "/api/patients/appointments",
         appointmentData
       );
 
       if (response.success) {
-        message.success("Đặt lịch khám thành công! Đang chờ bác sĩ xác nhận.");
-        navigate("/benh-nhan", {
-          state: {
-            message: "Đặt lịch khám thành công!",
-            appointment: response.data.appointment,
-          },
-        });
+        const appointment = response.data.appointment;
+        
+        // Step 2: Create payment link
+        try {
+          // Import payment service
+          const { createPayOSPayment } = await import("../../services/payService");
+          
+          // TODO: Get doctor rate from API instead of hardcoding
+          // Should query Doctor_rates table based on:
+          // - doctorId
+          // - mode (online/offline)
+          // - clinicId (if offline)
+          // For now, using default consultation fee
+          const consultationFee = 10000; //  (có thể thay đổi số tiền ở đây)
+          
+          const paymentResponse = await createPayOSPayment({
+            appointmentId: appointment._id,
+            amount: consultationFee,
+            description: `Kham benh MedConnect`, // Max 25 ký tự
+          });
+
+          if (paymentResponse.success && paymentResponse.data.payUrl) {
+            message.success("Đang chuyển đến trang thanh toán...");
+            
+            // Redirect to PayOS payment page
+            window.location.href = paymentResponse.data.payUrl;
+          } else {
+            // Payment link creation failed - need to cancel appointment
+            message.error("Không thể tạo link thanh toán. Đang hủy đặt lịch...");
+            
+            // Try to cancel the appointment using the correct endpoint
+            try {
+              await api.put(`/api/patients/me/appointments/${appointment._id}/cancel`, {
+                cancelReason: "Không thể tạo link thanh toán"
+              });
+              console.log("Appointment cancelled - payment link creation failed");
+            } catch (cancelError) {
+              console.error("Error canceling appointment:", cancelError);
+            }
+            
+            setTimeout(() => {
+              navigate("/dat-lich/chon-thoi-gian", {
+                state: { doctor, specialization },
+              });
+            }, 2000);
+          }
+        } catch (paymentError) {
+          console.error("Error creating payment:", paymentError);
+          message.error("Có lỗi xảy ra khi tạo thanh toán. Đang hủy đặt lịch...");
+          
+          // Rollback - cancel the appointment that was just created
+          try {
+            await api.put(`/api/patients/me/appointments/${appointment._id}/cancel`, {
+              cancelReason: "Lỗi khi tạo thanh toán"
+            });
+            console.log("Appointment cancelled due to payment error");
+          } catch (cancelError) {
+            console.error("Error canceling appointment:", cancelError);
+          }
+          
+          // Navigate back to time selection after 2 seconds
+          setTimeout(() => {
+            navigate("/dat-lich/chon-thoi-gian", {
+              state: { doctor, specialization },
+            });
+          }, 2000);
+        }
       } else {
         message.error(response.message || "Có lỗi xảy ra khi đặt lịch");
       }

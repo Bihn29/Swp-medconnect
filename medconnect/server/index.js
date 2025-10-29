@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 dotenv.config();
 import apiRouter from "./routes/api.router.js";
 import { initializeFirebase } from "./config/firebase.js";
+import { startAppointmentCleanupJob } from "./services/appointmentCleanupService.js";
 
 // Initialize Firebase Admin SDK (will exit process if config missing)
 initializeFirebase();
@@ -77,6 +78,9 @@ mongoose
   .connect(process.env.MONGODB_URL || "mongodb://localhost:27017/MedConnect")
   .then(() => {
     console.log("✅ Kết nối đến MongoDB thành công");
+    
+    // Khởi động cron job tự động hủy appointments chưa thanh toán
+    startAppointmentCleanupJob();
   })
   .catch((err) => {
     console.error("❌ Lỗi kết nối đến MongoDB:", err.message);

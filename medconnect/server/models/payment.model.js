@@ -66,7 +66,7 @@ const PaymentSchema = new Schema(
 
     gateway: {
       type: String,
-      enum: ["vnpay", "momo", "vietqr"],
+      enum: ["vnpay", "momo", "vietqr", "payos"],
       required: true,
     },
     method: { type: String, enum: ["qr", "card", "bank"], required: true },

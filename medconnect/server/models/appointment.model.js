@@ -76,6 +76,15 @@ const AppointmentSchema = new Schema(
       unique: true,
       sparse: true,
     },
+    paymentStatus: {
+      type: String,
+      enum: ["unpaid", "paid", "refunded"],
+      default: "unpaid",
+    },
+    paymentDeadline: {
+      type: Date,
+      // Deadline cho thanh toán (10 phút từ khi tạo appointment)
+    },
   },
   { timestamps: true, versionKey: false, collection: "Appointments" }
 );
@@ -104,6 +113,7 @@ AppointmentSchema.index({ patientId: 1, scheduledStart: 1 });
 AppointmentSchema.index({ status: 1, scheduledStart: 1 });
 AppointmentSchema.index({ mode: 1, scheduledStart: 1 });
 AppointmentSchema.index({ clinicId: 1, scheduledStart: 1 });
+AppointmentSchema.index({ paymentStatus: 1, paymentDeadline: 1 });
 
 // KHÓA SLOT 1-1 khi còn hiệu lực (slot không thể bị book hai lần, bất kể online/offline)
 AppointmentSchema.index(
