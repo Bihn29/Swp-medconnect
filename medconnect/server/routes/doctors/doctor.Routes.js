@@ -13,6 +13,8 @@ import {
   getConsultationRecords,
   createConsultationSummary,
   createConsultationAdvice,
+  getDoctorConsultationSummaries,
+  getDoctorConsultationAdvice,
   createPrescription,
   getDoctorReviews,
   getPublicDoctorReviews,
@@ -58,6 +60,8 @@ router.get("/me/appointments/:appointmentId", getDoctorAppointmentDetail);
 router.get("/me/dashboard/stats", getDoctorDashboardStats);
 router.put("/me/appointments/:appointmentId/status", updateAppointmentStatus);
 router.get("/me/consultation-records", getConsultationRecords);
+router.get("/me/consultation-summaries", getDoctorConsultationSummaries);
+router.get("/me/consultation-advice", getDoctorConsultationAdvice);
 router.post("/me/consultation-summaries", createConsultationSummary);
 router.post("/me/consultation-advice", createConsultationAdvice);
 router.post("/me/prescriptions", createPrescription);

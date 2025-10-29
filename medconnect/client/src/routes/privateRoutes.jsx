@@ -28,7 +28,7 @@ import PatientVideoCallPage from "../pages/Patient/VideoCallPage";
 import DoctorDashboard from "../pages/Doctor/DoctorDashboard/DoctorDashboard";
 import AppointmentList from "../pages/Doctor/AppointmentList/AppointmentList";
 import AppointmentDetail from "../pages/Doctor/AppointmentDetail/AppointmentDetail";
-import ConsultationRecords from "../pages/Doctor/ConsultationRecords/ConsultationRecords";
+import MedicalHistory from "../pages/Doctor/MedicalHistory/MedicalHistory";
 import ProfileSettings from "../pages/Doctor/ProfileSettings/ProfileSettings";
 import ScheduleManagement from "../pages/Doctor/ScheduleManagement/ScheduleManagement";
 import Feedback from "../pages/Doctor/Feedback/Feedback";
@@ -36,7 +36,7 @@ import OfflineConsultationPage from "../pages/Doctor/OfflineConsultationPage/Off
 import OnlineConsultationPage from "../pages/Doctor/OnlineConsultationPage/OnlineConsultationPage";
 import { RescheduleRequests } from "../pages/Doctor/components/RescheduleRequests/RescheduleRequests";
 import { Notifications } from "../pages/Doctor/components/Notifications/Notifications";
-import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage";
+import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage/DoctorVideoCallPage";
 
 // Admin Components
 import AdminDashboard from "../pages/Admin/AdminDashboard";
@@ -99,7 +99,7 @@ export const privateRoutes = (
 
           {/* ==================== MEDICAL RECORDS ==================== */}
           {/* Doctor medical records and consultation routes */}
-          <Route path="/bac-si/ho-so-kham" element={<ConsultationRecords />} />
+          <Route path="/bac-si/ho-so-kham" element={<MedicalHistory />} />
 
           {/* ==================== SETTINGS & PROFILE ==================== */}
           {/* Doctor settings and profile management */}

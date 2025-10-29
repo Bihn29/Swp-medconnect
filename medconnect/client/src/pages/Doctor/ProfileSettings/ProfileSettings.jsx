@@ -413,7 +413,7 @@ const ProfileSettings = () => {
                     content={`${doctorInfo?.education?.[0]?.degree || "Bác sĩ Đa khoa"} - ${doctorInfo?.education?.[0]?.school || "ĐH Y Dược"}`}
                   />
                   <InfoCard icon={Calendar} title="Năm kinh nghiệm" content={`${formData.yearsExperience || 0} năm`} />
-                  <InfoCard icon={Award} title="Chứng chỉ hành nghề" content={`Số ${formData.licenseNo || "N/A"}`} />
+                  <InfoCard icon={Award} title="Chứng chỉ hành nghề" content={`Số ${formData.licenseNo || "Không có"}`} />
                 </div>
               </div>
 
