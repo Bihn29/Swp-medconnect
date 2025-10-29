@@ -35,7 +35,7 @@ import OfflineConsultationPage from "../pages/Doctor/OfflineConsultationPage/Off
 import OnlineConsultationPage from "../pages/Doctor/OnlineConsultationPage/OnlineConsultationPage";
 import { RescheduleRequests } from "../pages/Doctor/components/RescheduleRequests/RescheduleRequests";
 import { Notifications } from "../pages/Doctor/components/Notifications/Notifications";
-import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage";
+import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage/DoctorVideoCallPage";
 
 // Admin Components
 import AdminDashboard from "../pages/Admin/AdminDashboard";

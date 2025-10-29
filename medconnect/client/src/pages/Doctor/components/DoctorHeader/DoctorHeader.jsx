@@ -8,7 +8,7 @@ export function DoctorHeader() {
       <div className="doctor-header-content">
         {/* Left Section - Title */}
         <div className="doctor-header-left">
-          <h1 className="doctor-header-title">Dashboard Bác Sĩ</h1>
+          <h1 className="doctor-header-title"></h1>
         </div>
 
         {/* Right Section - Notifications */}
