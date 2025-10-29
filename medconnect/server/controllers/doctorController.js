@@ -6,6 +6,7 @@ import Appointment from "../models/appointment.model.js";
 import Specialization from "../models/specialization.model.js";
 import Clinic from "../models/clinic.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
+import ConsultationAdvice from "../models/consultationAdvice.model.js";
 import Prescription from "../models/prescription.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import DoctorScheduleRule from "../models/Doctor_schedule_rules.model.js";
@@ -999,6 +1000,116 @@ export async function createConsultationAdvice(req, res) {
     return ok(res, { advice });
   } catch (e) {
     console.error("❌ createConsultationAdvice error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Get doctor's consultation summaries (medical history)
+ */
+export async function getDoctorConsultationSummaries(req, res) {
+  try {
+    // Use email-based authentication
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Get consultation summaries for this doctor
+    const summaries = await ConsultationSummary.find({
+      doctorId: doctor._id,
+    })
+      .populate("patientId", "fullName dob gender phone")
+      .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
+      .populate("clinicId", "name address")
+      .sort({ visitDate: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await ConsultationSummary.countDocuments({
+      doctorId: doctor._id,
+    });
+
+    return ok(res, {
+      summaries,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (e) {
+    console.error("❌ getDoctorConsultationSummaries error:", e);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Get doctor's consultation advice (consultation history)
+ */
+export async function getDoctorConsultationAdvice(req, res) {
+  try {
+    // Use email-based authentication
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Get consultation advice for this doctor
+    const advice = await ConsultationAdvice.find({
+      doctorId: doctor._id,
+    })
+      .populate("patientId", "fullName dob gender phone")
+      .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
+      .populate("clinicId", "name address")
+      .sort({ appointmentDate: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await ConsultationAdvice.countDocuments({
+      doctorId: doctor._id,
+    });
+
+    return ok(res, {
+      advice,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (e) {
+    console.error("❌ getDoctorConsultationAdvice error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
