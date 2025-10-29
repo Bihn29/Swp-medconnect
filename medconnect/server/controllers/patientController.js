@@ -122,25 +122,62 @@ export async function cancelAppointment(req, res) {
 export async function getCurrentPatientProfile(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
 
-    if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
+    let user;
+
+    if (appUserId) {
+      // Use app_user_id if available
+      user = await User.findById(appUserId).lean();
+    } else {
+      // Fall back to email-based lookup (compatible with Google login)
+      const userEmail = claims.email;
+      if (!userEmail) {
+        console.log("❌ No app_user_id or email found in token");
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+
+      console.log("🔍 Looking up user by email:", userEmail);
+      user = await User.findOne({ email: userEmail }).lean();
+
+      if (user) {
+        appUserId = user._id;
+      }
     }
 
-    // Find user by app_user_id
-    const user = await User.findById(appUserId).lean();
     if (!user) {
       return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
     }
 
-    // Find patient profile
-    const patient = await Patient.findOne({ userId: appUserId }).lean();
+    console.log("👤 Found user:", {
+      _id: user._id,
+      email: user.email,
+      fullName: user.fullName,
+    });
+
+    // Find patient profile, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId }).lean();
+
+    if (!patient) {
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+
+      await newPatient.save();
+      patient = newPatient.toObject();
+      console.log("Created patient profile:", patient._id);
+    }
 
     // Combine user and patient data
     const profileData = {
@@ -220,15 +257,27 @@ export async function getCurrentPatientProfile(req, res) {
 export async function updatePatientProfile(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
+
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
 
     if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+      // Fall back to email-based lookup
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+
+      const user = await User.findOne({ email: userEmail }).lean();
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+      appUserId = user._id;
     }
 
     const updateData = req.body;
@@ -530,15 +579,44 @@ export async function getDoctorTimeSlots(req, res) {
       .sort({ startAt: 1 })
       .lean();
 
+    // Get all appointments using these slots to check if they're really available
+    const slotIds = timeSlots.map((slot) => slot._id);
+    const appointments = await Appointment.find({
+      slotId: { $in: slotIds },
+      status: {
+        $in: [
+          "pending_doctor",
+          "accepted",
+          "in_progress",
+          // Exclude cancelled, rejected, no_show, done, rescheduled
+        ],
+      },
+    })
+      .select("slotId")
+      .lean();
+
+    // Create a set of booked slot IDs
+    const bookedSlotIds = new Set(
+      appointments.map((apt) => apt.slotId?.toString())
+    );
+
+    // Filter out slots that are booked by active appointments
+    const reallyAvailableSlots = timeSlots.filter(
+      (slot) => !bookedSlotIds.has(slot._id.toString())
+    );
+
     // Format time slots for frontend
-    const formattedSlots = timeSlots.map((slot) => ({
+    const formattedSlots = reallyAvailableSlots.map((slot) => ({
       _id: slot._id,
+      startAt: slot.startAt, // Keep original for datetime calculation
+      endAt: slot.endAt,
       startTime: slot.startAt.toTimeString().slice(0, 5), // HH:MM format
       endTime: slot.endAt.toTimeString().slice(0, 5),
       timeRange: `${slot.startAt.toTimeString().slice(0, 5)} - ${slot.endAt
         .toTimeString()
         .slice(0, 5)}`,
-      available: slot.status === "available",
+      available: true,
+      status: "available",
     }));
 
     return ok(res, { timeSlots: formattedSlots });
@@ -608,12 +686,23 @@ export async function bookAppointment(req, res) {
     // Get or create patient profile
     let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found. Please complete your profile first."
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const user = await User.findById(appUserId);
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     // Verify the time slot exists and is available
@@ -717,26 +806,49 @@ export async function bookAppointment(req, res) {
 export async function getPatientAppointments(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
 
-    if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
+    let user;
+
+    if (appUserId) {
+      user = await User.findById(appUserId).lean();
+    } else {
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      user = await User.findOne({ email: userEmail }).lean();
+      if (user) {
+        appUserId = user._id;
+      }
     }
 
-    // Find patient by user ID
-    const patient = await Patient.findOne({ userId: appUserId });
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+    }
+
+    // Find patient by user ID, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found"
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     const { status, page = 1, limit = 50 } = req.query;
@@ -745,6 +857,15 @@ export async function getPatientAppointments(req, res) {
     if (status) {
       query.status = status;
     }
+
+    // Exclude rescheduled appointments (they are replaced by new appointments)
+    // Only exclude if status is "rescheduled" AND has rescheduledToId
+    query.$nor = [
+      {
+        status: "rescheduled",
+        rescheduledToId: { $exists: true, $ne: null },
+      },
+    ];
 
     // Debug: Log query and count
     console.log("Patient appointments query:", query);
@@ -762,6 +883,10 @@ export async function getPatientAppointments(req, res) {
       })
       .populate("slotId", "startAt endAt")
       .populate("clinicId", "name address")
+      .populate({
+        path: "rescheduledFromId",
+        select: "scheduledStart scheduledEnd status",
+      })
       .sort({ scheduledStart: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
@@ -802,29 +927,52 @@ export async function getPatientAppointments(req, res) {
 export async function cancelPatientAppointment(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
 
-    if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
+    let user;
+
+    if (appUserId) {
+      user = await User.findById(appUserId).lean();
+    } else {
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      user = await User.findOne({ email: userEmail }).lean();
+      if (user) {
+        appUserId = user._id;
+      }
+    }
+
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
     }
 
     const { appointmentId } = req.params;
     const { cancelReason } = req.body;
 
-    // Find patient by user ID
-    const patient = await Patient.findOne({ userId: appUserId });
+    // Find patient by user ID, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found"
-      );
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     // Find appointment belonging to this patient
@@ -917,7 +1065,7 @@ export async function getAppointmentDetails(req, res) {
     })
       .populate({
         path: "doctorId",
-        select: "fullName specializationIds phone avatarUrl",
+        select: "fullName name specializationIds phone avatarUrl",
         populate: {
           path: "specializationIds",
           select: "name",
@@ -930,6 +1078,15 @@ export async function getAppointmentDetails(req, res) {
     if (!appointment) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
     }
+
+    console.log("✅ Patient appointment detail fetched:", {
+      appointmentId: appointment._id.toString(),
+      status: appointment.status,
+      hasDoctor: !!appointment.doctorId,
+      doctorName: appointment.doctorId?.fullName || appointment.doctorId?.name,
+      doctorIdValue: appointment.doctorId,
+      appointmentData: JSON.stringify(appointment, null, 2),
+    });
 
     return ok(res, appointment);
   } catch (error) {
@@ -1088,26 +1245,53 @@ export async function getPatientConsultationSummaries(req, res) {
 export async function getPatientConsultationAdvice(req, res) {
   try {
     const claims = req.user || {};
-    const appUserId = claims.app_user_id;
 
-    if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
+    // Try to get app_user_id first, fall back to email-based lookup
+    let appUserId = claims.app_user_id;
+    let user;
+
+    if (appUserId) {
+      user = await User.findById(appUserId).lean();
+    } else {
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+
+      user = await User.findOne({ email: userEmail }).lean();
+      if (user) {
+        appUserId = user._id;
+      }
     }
 
-    // Find patient by user ID
-    const patient = await Patient.findOne({ userId: appUserId });
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+    }
+
+    // Find patient by user ID, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId });
     if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found"
+      // Create a basic patient profile if it doesn't exist
+      console.log(
+        "Creating new patient profile for consultation advice:",
+        appUserId
       );
+
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
     }
 
     const { page = 1, limit = 20 } = req.query;
@@ -1163,33 +1347,105 @@ export async function getPatientConsultationAdvice(req, res) {
         });
       }
 
-      // Format duration
-      const duration = advice.durationMinutes
-        ? `${advice.durationMinutes} phút`
-        : "Không xác định";
+      // Get date/time from appointment if available, otherwise from advice
+      const appointmentStart = advice.appointmentId?.scheduledStart;
+      const appointmentEnd = advice.appointmentId?.scheduledEnd;
+      const adviceDate = advice.appointmentDate;
+
+      // Use appointment date/time as primary source
+      const consultationDateTime = appointmentStart || adviceDate;
+
+      // Safe date handling - format with date and time
+      let formattedDate = "Không xác định";
+      let formattedDateTime = null; // For full date+time display
+
+      if (appointmentStart) {
+        formattedDate = new Date(appointmentStart).toLocaleDateString("vi-VN");
+        formattedDateTime = new Date(appointmentStart).toLocaleString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      } else if (adviceDate) {
+        formattedDate = new Date(adviceDate).toLocaleDateString("vi-VN");
+        formattedDateTime = new Date(adviceDate).toLocaleString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      // Calculate duration
+      let duration = "Không xác định";
+      if (advice.durationMinutes) {
+        // If durationMinutes exists in advice (from old data)
+        duration = `${advice.durationMinutes} phút`;
+      } else if (appointmentStart && appointmentEnd) {
+        // Calculate from appointment time
+        const start = new Date(appointmentStart);
+        const end = new Date(appointmentEnd);
+        const diffMs = end.getTime() - start.getTime();
+        const diffMinutes = Math.round(diffMs / (1000 * 60));
+        if (diffMinutes > 0) {
+          duration = `${diffMinutes} phút`;
+        }
+      } else if (advice.startedAt && advice.endedAt) {
+        // Calculate from startedAt/endedAt if available
+        const start = new Date(advice.startedAt);
+        const end = new Date(advice.endedAt);
+        const diffMs = end.getTime() - start.getTime();
+        const diffMinutes = Math.round(diffMs / (1000 * 60));
+        if (diffMinutes > 0) {
+          duration = `${diffMinutes} phút`;
+        }
+      }
+
+      // Safe summary handling - check if summary exists and is a string
+      const summaryText = advice.summary || advice.notes || "Không có tóm tắt";
+      const summaryString =
+        typeof summaryText === "string" ? summaryText : String(summaryText);
+      const topic =
+        summaryString.length > 100
+          ? summaryString.substring(0, 100) + "..."
+          : summaryString;
+
+      // Get mode from appointment or advice
+      const mode = advice.appointmentId?.mode || advice.mode || "offline";
 
       return {
         id: advice._id,
-        type: advice.mode === "online" ? "Video Call" : "Chat",
-        date: new Date(advice.startedAt).toLocaleDateString("vi-VN"),
+        type: mode === "online" ? "Video Call" : "Chat",
+        date: formattedDate,
+        dateTime: formattedDateTime || formattedDate, // Full date+time for display
         doctor: `BS. ${advice.doctorId?.fullName || "Không xác định"}`,
         specialty:
           advice.doctorId?.specializationIds?.[0]?.name || "Không xác định",
         duration: duration,
-        topic:
-          advice.summary.substring(0, 100) +
-          (advice.summary.length > 100 ? "..." : ""),
-        summary: advice.summary,
+        topic: topic,
+        summary: summaryString,
         documents: documents,
         // Full details for modal
         fullDetails: {
           adviceType: advice.adviceType,
-          summary: advice.summary,
-          startedAt: advice.startedAt,
-          endedAt: advice.endedAt,
-          durationMinutes: advice.durationMinutes,
-          diagnoses: advice.diagnoses,
-          medications: advice.medications,
+          summary: summaryString,
+          startedAt: appointmentStart || advice.startedAt || adviceDate,
+          endedAt: appointmentEnd || advice.endedAt,
+          durationMinutes:
+            advice.durationMinutes ||
+            (appointmentStart && appointmentEnd
+              ? Math.round(
+                  (new Date(appointmentEnd).getTime() -
+                    new Date(appointmentStart).getTime()) /
+                    (1000 * 60)
+                )
+              : null),
+          consultationDateTime: consultationDateTime,
+          diagnoses: advice.diagnoses || [],
+          medications: advice.medications || [],
           attachmentUrl: advice.attachmentUrl,
           notes: advice.notes,
           appointment: advice.appointmentId,

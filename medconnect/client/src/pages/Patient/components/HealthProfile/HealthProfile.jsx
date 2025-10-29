@@ -320,7 +320,7 @@ export function HealthProfile() {
                           <div className="card-meta">
                             <div className="meta-item">
                               <Calendar className="meta-icon" />
-                              <span>{record.date}</span>
+                              <span>{record.dateTime || record.date}</span>
                             </div>
                             <div className="meta-item">
                               <User className="meta-icon" />
@@ -353,7 +353,11 @@ export function HealthProfile() {
 
                       <div className="content-item">
                         <div className="content-label">Thời gian:</div>
-                        <div className="content-value">{record.duration}</div>
+                        <div className="content-value">
+                          {record.dateTime
+                            ? `${record.dateTime} (${record.duration})`
+                            : record.duration}
+                        </div>
                       </div>
 
                       <div className="content-item">

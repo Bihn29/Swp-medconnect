@@ -334,7 +334,12 @@ export function MyAppointments() {
                 </div>
                 <div>
                   <div
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
                   >
                     <span style={{ fontWeight: 700 }}>{doctorName}</span>
                     <span
@@ -348,6 +353,20 @@ export function MyAppointments() {
                     >
                       {status.label}
                     </span>
+                    {a.rescheduledFromId && (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          background: "#6366f1",
+                          color: "#ffffff",
+                        }}
+                        title="Lịch hẹn này đã được dời từ lịch cũ"
+                      >
+                        📅 Đã dời lịch
+                      </span>
+                    )}
                   </div>
                   <div style={{ color: "#334155", marginTop: 2 }}>
                     {specialty}

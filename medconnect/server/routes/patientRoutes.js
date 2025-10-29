@@ -13,6 +13,9 @@ import {
   getPatientConsultationSummaries,
   getPatientConsultationAdvice,
 } from "../controllers/patientController.js";
+import Patient from "../models/patient.model.js";
+import User from "../models/user.model.js";
+import Appointment from "../models/appointment.model.js";
 
 const router = express.Router();
 
@@ -49,6 +52,79 @@ router.put(
 // Get appointment details by ID
 router.get("/me/appointments/:appointmentId", authGuard, getAppointmentDetails);
 
+// Get patient stats (for dashboard)
+router.get("/me/stats", authGuard, async (req, res) => {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return res.status(401).json({
+        success: false,
+        error: { code: "UNAUTHORIZED" },
+        message: "User ID not found in token"
+      });
+    }
+
+    // Find patient by user ID, create if not exists
+    let patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      // Create a basic patient profile if it doesn't exist
+      console.log("Creating new patient profile for user:", appUserId);
+      const user = await User.findById(appUserId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "USER_NOT_FOUND" },
+          message: "User not found"
+        });
+      }
+      
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+      
+      await newPatient.save();
+      patient = newPatient;
+      console.log("Created patient profile:", patient._id);
+    }
+
+    // Get appointment counts by status
+    const totalAppointments = await Appointment.countDocuments({ patientId: patient._id });
+    const pendingAppointments = await Appointment.countDocuments({ 
+      patientId: patient._id, 
+      status: 'pending_doctor' 
+    });
+    const completedAppointments = await Appointment.countDocuments({ 
+      patientId: patient._id, 
+      status: 'done' 
+    });
+    const cancelledAppointments = await Appointment.countDocuments({ 
+      patientId: patient._id, 
+      status: 'cancelled' 
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalAppointments,
+        pendingAppointments,
+        completedAppointments,
+        cancelledAppointments
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching patient stats:", error);
+    res.status(500).json({
+      success: false,
+      error: { code: "SERVER_ERROR" },
+      message: "Internal server error"
+    });
+  }
+});
 // Get patient's consultation summaries (medical history)
 router.get(
   "/me/consultation-summaries",

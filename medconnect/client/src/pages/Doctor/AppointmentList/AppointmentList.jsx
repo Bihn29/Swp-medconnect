@@ -361,13 +361,24 @@ export default function AppointmentList() {
 
   const handleComplete = (appointment) => {
     console.log("🔍 handleComplete called with appointment:", appointment);
+    console.log("🔍 Appointment ID:", appointment?._id);
     console.log("🔍 Appointment mode:", appointment?.mode);
     console.log("🔍 Appointment status:", appointment?.status);
-    console.log(
-      "🔍 Full appointment object:",
-      JSON.stringify(appointment, null, 2)
-    );
-    console.log("🔍 Current time:", new Date().toISOString());
+    console.log("🔍 Rescheduled from ID:", appointment?.rescheduledFromId);
+
+    // Validate appointment data
+    if (!appointment?._id) {
+      alert("Lỗi: Không tìm thấy ID của lịch hẹn");
+      return;
+    }
+
+    // If this is a rescheduled appointment, make sure we're using the NEW appointment ID
+    if (appointment.rescheduledFromId) {
+      console.log(
+        "✅ This is a rescheduled appointment. Using new appointment ID:",
+        appointment._id
+      );
+    }
 
     // Navigate to the appropriate consultation page based on mode
     if (appointment?.mode === "offline") {
@@ -376,12 +387,14 @@ export default function AppointmentList() {
         `/bac-si/kham-truc-tiep/${appointment._id}`
       );
       navigate(`/bac-si/kham-truc-tiep/${appointment._id}`);
-    } else {
+    } else if (appointment?.mode === "online") {
       console.log(
         "✅ Navigating to ONLINE consultation:",
         `/bac-si/tu-van-truc-tuyen/${appointment._id}`
       );
       navigate(`/bac-si/tu-van-truc-tuyen/${appointment._id}`);
+    } else {
+      alert("Lỗi: Không xác định được loại khám (online/offline)");
     }
   };
 
@@ -497,10 +510,55 @@ export default function AppointmentList() {
   };
 
   const handleViewRescheduleInfo = (appointment) => {
-    // Find original appointment from rescheduledFromId
-    const originalAppointment = appointments.find(
-      (apt) => apt._id === appointment.rescheduledFromId
+    console.log("🔍 handleViewRescheduleInfo - appointment:", appointment);
+    console.log("🔍 rescheduledFromId:", appointment.rescheduledFromId);
+    console.log(
+      "🔍 Type of rescheduledFromId:",
+      typeof appointment.rescheduledFromId
     );
+
+    // Check if rescheduledFromId is already populated (object) or just an ID (string)
+    let originalAppointment = null;
+
+    if (!appointment.rescheduledFromId) {
+      alert("Không tìm thấy thông tin lịch cũ (rescheduledFromId không có)");
+      return;
+    }
+
+    // If rescheduledFromId is already populated (object with _id and other fields)
+    if (
+      typeof appointment.rescheduledFromId === "object" &&
+      appointment.rescheduledFromId._id
+    ) {
+      originalAppointment = appointment.rescheduledFromId;
+      console.log("✅ Using populated rescheduledFromId object");
+    } else {
+      // If it's just an ID (string or ObjectId), find it in the appointments list
+      const rescheduledFromIdStr =
+        typeof appointment.rescheduledFromId === "string"
+          ? appointment.rescheduledFromId
+          : appointment.rescheduledFromId.toString();
+
+      originalAppointment = appointments.find(
+        (apt) => apt._id?.toString() === rescheduledFromIdStr
+      );
+
+      if (!originalAppointment) {
+        console.log(
+          "⚠️ Original appointment not found in list, trying to fetch..."
+        );
+        // If not found in list, it might be because it's filtered out
+        // We can still show what we have from rescheduledFromId if it's populated
+        if (typeof appointment.rescheduledFromId === "object") {
+          originalAppointment = appointment.rescheduledFromId;
+        } else {
+          alert(
+            "Không tìm thấy thông tin lịch cũ. Lịch cũ có thể đã bị lọc bỏ do trạng thái 'rescheduled'."
+          );
+          return;
+        }
+      }
+    }
 
     if (originalAppointment) {
       setRescheduleInfo({
@@ -1061,30 +1119,9 @@ export default function AppointmentList() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={async () => {
-                            try {
-                              await updateAppointmentStatus(
-                                selectedAppointment._id,
-                                "done"
-                              );
-                              alert("Đã hoàn thành khám bệnh");
-                              setIsDetailDialogOpen(false);
-                              // Refresh appointments
-                              const updatedAppointments =
-                                await getDoctorAppointmentsWithFallback({
-                                  limit: 1000,
-                                });
-                              if (
-                                updatedAppointments.success &&
-                                updatedAppointments.data?.appointments
-                              ) {
-                                setAppointments(
-                                  updatedAppointments.data.appointments
-                                );
-                              }
-                            } catch (error) {
-                              alert("Có lỗi xảy ra: " + error.message);
-                            }
+                          onClick={() => {
+                            setIsDetailDialogOpen(false);
+                            handleComplete(selectedAppointment);
                           }}
                         >
                           Hoàn thành khám

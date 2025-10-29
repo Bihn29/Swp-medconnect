@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Form, Input, Button, Space, message, DatePicker } from "antd";
+import {
+  Modal,
+  Form,
+  Input,
+  Button,
+  Space,
+  message,
+  DatePicker,
+  Spin,
+} from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { api } from "../../lib/api";
@@ -10,78 +19,116 @@ const { TextArea } = Input;
 export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [bookedSlots, setBookedSlots] = useState([]); // Array of booked time strings like "2025-10-31T09:00"
-  const [availableSlots, setAvailableSlots] = useState([]);
+  const [timeSlotsLoading, setTimeSlotsLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
 
-  // Fetch booked appointments của bác sĩ khi modal mở
+  // Reset form and date when modal opens/closes
   useEffect(() => {
-    if (visible && appointment?.doctorId?._id) {
-      fetchBookedSlots();
+    if (visible) {
+      form.resetFields();
+      setSelectedDate(null);
+      setSelectedTimeSlot(null);
+      setAvailableTimeSlots([]);
+      // Set tomorrow as default date
+      const tomorrow = dayjs().add(1, "day");
+      setSelectedDate(tomorrow);
+      form.setFieldsValue({ selectedDate: tomorrow });
     }
-  }, [visible, appointment]);
+  }, [visible, form]);
 
-  const fetchBookedSlots = async () => {
+  // Fetch time slots when date changes
+  useEffect(() => {
+    if (visible && selectedDate && appointment?.doctorId?._id) {
+      fetchTimeSlots();
+    }
+  }, [visible, selectedDate, appointment]);
+
+  const fetchTimeSlots = async () => {
+    if (!selectedDate || !appointment?.doctorId?._id) return;
+
     try {
-      // Fetch all appointments and filter by doctor
-      const response = await api.get(`/api/appointments?limit=1000`);
+      setTimeSlotsLoading(true);
+      const dateStr = selectedDate.format("YYYY-MM-DD");
+      const doctorId = appointment.doctorId._id || appointment.doctorId;
 
-      if (response.success && response.data?.appointments) {
-        // Filter appointments for this doctor
-        const doctorAppointments = response.data.appointments.filter(
-          (apt) => apt.doctorId?._id === appointment.doctorId._id
-        );
+      console.log("🔍 Fetching time slots for reschedule:", {
+        doctorId,
+        date: dateStr,
+      });
 
-        // Extract booked times and convert to strings
-        const booked = doctorAppointments
-          .filter((apt) => {
-            // Chỉ lấy appointments đang active (không bị cancel, reject, no_show)
-            const activeStatuses = [
-              "pending_doctor",
-              "accepted",
-              "in_progress",
-              "done",
-            ];
-            return activeStatuses.includes(apt.status);
-          })
-          .map((apt) => {
-            const date = new Date(apt.scheduledStart);
-            return date.toISOString().slice(0, 16); // Format: "2025-10-31T09:00"
-          });
+      const response = await api.get(
+        `/api/patients/doctors/${doctorId}/time-slots?date=${dateStr}`
+      );
 
-        setBookedSlots(booked);
+      if (response.success && response.data?.timeSlots) {
+        // Backend already filters out booked slots, so use all returned slots
+        setAvailableTimeSlots(response.data.timeSlots);
         console.log(
-          "📋 Booked slots loaded for doctor:",
-          appointment.doctorId._id,
-          booked
+          "✅ Available time slots loaded:",
+          response.data.timeSlots.length,
+          "slots available"
         );
+      } else {
+        setAvailableTimeSlots([]);
+        console.log("⚠️ No time slots found for this date");
       }
     } catch (error) {
-      console.error("Error fetching booked slots:", error);
-      message.warning(
-        "Không thể tải thông tin lịch đã book. Vui lòng kiểm tra thủ công."
-      );
+      console.error("Error fetching time slots:", error);
+      message.error("Không thể tải khung giờ khám. Vui lòng thử lại.");
+      setAvailableTimeSlots([]);
+    } finally {
+      setTimeSlotsLoading(false);
     }
   };
 
-  const isSlotBooked = (dateTimeString) => {
-    if (!dateTimeString) return false;
-    const normalized = dateTimeString.slice(0, 16); // "2025-10-31T09:00"
-    return bookedSlots.includes(normalized);
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    setSelectedTimeSlot(null);
+    form.setFieldsValue({ selectedTimeSlot: null });
+    form.setFieldsValue({ selectedDate: date });
+  };
+
+  const handleTimeSlotSelect = (slot) => {
+    setSelectedTimeSlot(slot);
+    // Convert slot time to dayjs and set to form
+    if (slot.startAt) {
+      const slotDateTime = dayjs(slot.startAt);
+      form.setFieldsValue({ newDateTime: slotDateTime });
+    }
   };
 
   const handleSubmit = async (values) => {
     try {
       setLoading(true);
 
+      if (!selectedTimeSlot) {
+        message.error("Vui lòng chọn một khung giờ khám");
+        return;
+      }
+
+      // Use selectedTimeSlot.startAt as newDateTime
+      const newDateTime = selectedTimeSlot.startAt
+        ? new Date(selectedTimeSlot.startAt).toISOString()
+        : values.newDateTime?.toISOString();
+
+      if (!newDateTime) {
+        message.error("Vui lòng chọn thời gian mới");
+        return;
+      }
+
       const response = await api.post("/api/reschedule/request", {
         appointmentId: appointment._id,
-        newDateTime: values.newDateTime.toISOString(),
+        newDateTime: newDateTime,
         reason: values.reason,
       });
 
       if (response.success) {
         message.success("Yêu cầu dời lịch đã được gửi thành công");
         form.resetFields();
+        setSelectedDate(null);
+        setSelectedTimeSlot(null);
         onSuccess();
       } else {
         message.error(response.message || "Có lỗi xảy ra khi gửi yêu cầu");
@@ -105,59 +152,27 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
     });
   };
 
-  const disabledDate = (current) => {
-    // Disable dates before tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    return current && current < tomorrow;
+  const formatTimeSlot = (slot) => {
+    if (!slot.startTime && slot.startAt) {
+      const start = new Date(slot.startAt);
+      const end = slot.endAt
+        ? new Date(slot.endAt)
+        : new Date(start.getTime() + 30 * 60 * 1000);
+      return `${start.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })} - ${end.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    }
+    return slot.timeRange || slot.startTime || "N/A";
   };
 
-  const disabledTime = (current, type) => {
-    if (!current) return {};
-
-    const selectedDate = dayjs(current);
-    const selectedDateString = selectedDate.format("YYYY-MM-DD");
-
-    return {
-      disabledHours: () => {
-        // Disable hours outside 8 AM - 5 PM
-        const disabledHours = [];
-        for (let i = 0; i < 24; i++) {
-          if (i < 8 || i > 17) {
-            disabledHours.push(i);
-          }
-        }
-        return disabledHours;
-      },
-      disabledMinutes: (selectedHour) => {
-        // Disable minutes before 8:30 AM and after 5:00 PM
-        if (selectedHour === 8) {
-          return Array.from({ length: 60 }, (_, i) => i).filter((m) => m < 30);
-        }
-        if (selectedHour === 17) {
-          return Array.from({ length: 60 }, (_, i) => i).filter((m) => m > 0);
-        }
-
-        // Check if this specific time slot is already booked
-        const disabledMinutes = [];
-        const dateString = `${selectedDateString}T${String(
-          selectedHour
-        ).padStart(2, "0")}:00`;
-
-        // Check each 30-minute interval in this hour
-        [0, 30].forEach((minute) => {
-          const timeString = `${selectedDateString}T${String(
-            selectedHour
-          ).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-          if (isSlotBooked(timeString)) {
-            disabledMinutes.push(minute);
-          }
-        });
-
-        return disabledMinutes;
-      },
-    };
+  const disabledDate = (current) => {
+    // Disable dates before tomorrow
+    const tomorrow = dayjs().add(1, "day").startOf("day");
+    return current && current < tomorrow;
   };
 
   return (
@@ -211,49 +226,97 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
           layout="vertical"
           className="reschedule-form"
         >
+          {/* Date Selection */}
           <Form.Item
-            name="newDateTime"
-            label="Thời gian mới"
-            rules={[
-              { required: true, message: "Vui lòng chọn thời gian mới" },
-              {
-                validator: (_, value) => {
-                  if (!value) return Promise.resolve();
-
-                  const selectedTime = value.toDate();
-                  const now = new Date();
-
-                  if (selectedTime <= now) {
-                    return Promise.reject(
-                      new Error("Thời gian mới phải trong tương lai")
-                    );
-                  }
-
-                  // Check if this time slot is already booked
-                  const selectedTimeString = value.format("YYYY-MM-DDTHH:mm");
-                  if (isSlotBooked(selectedTimeString)) {
-                    return Promise.reject(
-                      new Error(
-                        "Thời gian này đã có người khám khác. Vui lòng chọn thời gian khác."
-                      )
-                    );
-                  }
-
-                  return Promise.resolve();
-                },
-              },
-            ]}
+            name="selectedDate"
+            label="Chọn ngày"
+            rules={[{ required: true, message: "Vui lòng chọn ngày" }]}
           >
             <DatePicker
-              showTime
-              format="DD/MM/YYYY HH:mm"
-              placeholder="Chọn ngày và giờ mới"
+              format="DD/MM/YYYY"
+              placeholder="Chọn ngày mới"
               disabledDate={disabledDate}
-              disabledTime={disabledTime}
               style={{ width: "100%" }}
-              minuteStep={30}
+              value={selectedDate}
+              onChange={handleDateChange}
             />
           </Form.Item>
+
+          {/* Hidden field for newDateTime - will be set when slot is selected */}
+          <Form.Item
+            name="newDateTime"
+            hidden
+            rules={[
+              { required: true, message: "Vui lòng chọn khung giờ khám" },
+            ]}
+          >
+            <Input type="hidden" />
+          </Form.Item>
+
+          {/* Time Slots Selection */}
+          {selectedDate && (
+            <Form.Item
+              label="Chọn khung giờ khám"
+              required
+              help={
+                !selectedTimeSlot
+                  ? "Vui lòng chọn một khung giờ từ danh sách bên dưới"
+                  : `Đã chọn: ${formatTimeSlot(selectedTimeSlot)}`
+              }
+            >
+              {timeSlotsLoading ? (
+                <div style={{ textAlign: "center", padding: "20px 0" }}>
+                  <Spin />
+                  <div style={{ marginTop: 8 }}>Đang tải khung giờ...</div>
+                </div>
+              ) : availableTimeSlots.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "40px 20px",
+                    color: "#999",
+                    border: "1px dashed #d9d9d9",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <CalendarOutlined style={{ fontSize: 32, marginBottom: 8 }} />
+                  <div>Không có khung giờ khám vào ngày này</div>
+                  <div style={{ fontSize: 12, marginTop: 4 }}>
+                    Vui lòng chọn ngày khác
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fill, minmax(140px, 1fr))",
+                    gap: "8px",
+                    marginTop: "8px",
+                  }}
+                >
+                  {availableTimeSlots.map((slot) => (
+                    <Button
+                      key={slot._id || slot.startTime}
+                      type={
+                        selectedTimeSlot?._id === slot._id ||
+                        selectedTimeSlot?.startTime === slot.startTime
+                          ? "primary"
+                          : "default"
+                      }
+                      onClick={() => handleTimeSlotSelect(slot)}
+                      style={{
+                        height: "auto",
+                        padding: "8px 12px",
+                      }}
+                    >
+                      {formatTimeSlot(slot)}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </Form.Item>
+          )}
 
           <Form.Item
             name="reason"

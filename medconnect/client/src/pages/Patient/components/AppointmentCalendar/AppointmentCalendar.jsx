@@ -109,7 +109,7 @@ export function AppointmentCalendar() {
         </CardHeader>
         <CardContent>
           <div className="flex justify-center items-center min-h-[300px]">
-            <Spin size="large" tip="Đang tải lịch hẹn..." />
+            <Spin size="large" />
           </div>
         </CardContent>
       </Card>
