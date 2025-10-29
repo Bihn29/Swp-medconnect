@@ -79,8 +79,9 @@ mongoose
   .then(() => {
     console.log("✅ Kết nối đến MongoDB thành công");
     
-    // Khởi động cron job tự động hủy appointments chưa thanh toán
-    startAppointmentCleanupJob();
+    // Tắt cron job tự động hủy appointments - không giới hạn thời gian thanh toán
+    // startAppointmentCleanupJob();
+    console.log("ℹ️  Auto-cancel appointments is disabled - no payment deadline");
   })
   .catch((err) => {
     console.error("❌ Lỗi kết nối đến MongoDB:", err.message);

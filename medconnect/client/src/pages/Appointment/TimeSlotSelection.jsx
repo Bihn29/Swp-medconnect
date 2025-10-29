@@ -186,12 +186,7 @@ const TimeSlotSelection = () => {
           // Import payment service
           const { createPayOSPayment } = await import("../../services/payService");
           
-          // TODO: Get doctor rate from API instead of hardcoding
-          // Should query Doctor_rates table based on:
-          // - doctorId
-          // - mode (online/offline)
-          // - clinicId (if offline)
-          // For now, using default consultation fee
+          
           const consultationFee = 10000; //  (có thể thay đổi số tiền ở đây)
           
           const paymentResponse = await createPayOSPayment({

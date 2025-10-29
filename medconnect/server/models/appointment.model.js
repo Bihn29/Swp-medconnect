@@ -83,7 +83,14 @@ const AppointmentSchema = new Schema(
     },
     paymentDeadline: {
       type: Date,
-      // Deadline cho thanh toán (10 phút từ khi tạo appointment)
+      // Deadline cho thanh toán (10 phút từ khi tạo appointment - đủ thời gian cho quá trình thanh toán và xử lý)
+    },
+    
+    // Lưu orderCode tạm khi tạo payment link (chưa thanh toán)
+    pendingOrderCode: {
+      type: Number,
+      sparse: true,
+      index: true,
     },
   },
   { timestamps: true, versionKey: false, collection: "Appointments" }

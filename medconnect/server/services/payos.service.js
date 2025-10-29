@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import Appointment from "../models/appointment.model.js";
 import Payment from "../models/payment.model.js";
-import TempOrder from "../models/TempOrder.js";
 import Patient from "../models/patient.model.js";
 import Doctor from "../models/doctor.model.js";
 import Clinic from "../models/clinic.model.js";
@@ -41,7 +40,7 @@ export const createPayosPaymentLink = async (userId, paymentData) => {
   if (!appointment) throw new Error("Appointment not found");
   
   // Kiểm tra xem patient có thuộc về user này không
-  const patient = await Patient.findOne({ userId: userId });
+  const patient = await Patient.findOne({ userId: userId }).populate("userId");
   if (!patient) throw new Error("Patient not found");
   
   if (appointment.patientId._id.toString() !== patient._id.toString()) {
@@ -53,23 +52,18 @@ export const createPayosPaymentLink = async (userId, paymentData) => {
     throw new Error("Cannot pay for cancelled appointment");
   }
 
-  // Kiểm tra xem đã có payment chưa
+  // Tạo orderCode 10 chữ số (int)
+  const orderCode = Number(String(Date.now()).slice(-10));
+
+  // Kiểm tra xem đã thanh toán thành công chưa
   const existingPayment = await Payment.findOne({ appointmentId });
   if (existingPayment && ["captured", "authorized"].includes(existingPayment.status)) {
     throw new Error("Appointment already paid");
   }
 
-  // Tạo orderCode 10 chữ số (int)
-  const orderCode = Number(String(Date.now()).slice(-10));
-
-  // Lưu thông tin tạm vào TempOrder
-  await TempOrder.create({
-    orderCode,
-    userId,
-    appointmentId,
-    amount,
-    description,
-  });
+  // Lưu orderCode vào appointment (chưa tạo payment record)
+  appointment.pendingOrderCode = orderCode;
+  await appointment.save();
 
   const payosPaymentData = {
     orderCode,
@@ -103,31 +97,32 @@ export const handlePayosWebhook = async (webhookBody) => {
       return { ignored: true, message: "Not an appointment payment" };
     }
 
-    // Tìm TempOrder
-    const tempOrder = await TempOrder.findOne({ orderCode });
-    if (!tempOrder) {
-      // Idempotent: có thể đã xử lý trước đó
-      console.log(`⚠️ TempOrder not found for orderCode: ${orderCode}. Possibly already processed.`);
+    // Tìm Appointment bằng pendingOrderCode
+    const appointment = await Appointment.findOne({ pendingOrderCode: orderCode })
+      .populate("patientId")
+      .populate("doctorId")
+      .populate("clinicId");
+
+    if (!appointment) {
+      console.log(`⚠️ Appointment not found for orderCode: ${orderCode}. Possibly already processed.`);
       return { already: true, orderCode };
+    }
+
+    // Kiểm tra xem đã có payment chưa (idempotent)
+    const existingPayment = await Payment.findOne({ appointmentId: appointment._id });
+    if (existingPayment && existingPayment.status === "captured") {
+      console.log(`ℹ️ Payment already captured for appointment: ${appointment._id}`);
+      return { already: true, orderCode, paymentId: existingPayment._id };
     }
 
     const isPaid = String(code) === "00" || verified.success === true || String(data.code) === "00";
 
     if (isPaid) {
-      const appointment = await Appointment.findById(tempOrder.appointmentId)
-        .populate("patientId")
-        .populate("doctorId")
-        .populate("clinicId");
-
-      if (!appointment) {
-        await TempOrder.deleteOne({ orderCode });
-        throw new Error("Appointment not found at webhook");
-      }
-
+      // Lấy thông tin patient và doctor
       const patient = await Patient.findById(appointment.patientId._id).populate("userId");
       const doctor = await Doctor.findById(appointment.doctorId._id);
 
-      // Tạo Payment record
+      // TẠO Payment record MỚI khi thanh toán thành công
       const invoiceNumber = `INV-PAYOS-${orderCode}`;
       
       const payment = new Payment({
@@ -149,7 +144,7 @@ export const handlePayosWebhook = async (webhookBody) => {
         },
         items: [
           {
-            description: tempOrder.description || "Medical Consultation",
+            description: "Medical Consultation",
             quantity: 1,
             unitPrice: parseInt(amount),
             lineTotal: parseInt(amount),
@@ -160,7 +155,8 @@ export const handlePayosWebhook = async (webhookBody) => {
         total: parseInt(amount),
         gateway: "payos",
         method: "qr",
-        status: "captured",
+        status: "captured", // Lưu luôn với status captured
+        orderCode: orderCode,
         providerTxnId: String(orderCode),
         paidAt: new Date(),
         capturedAt: new Date(),
@@ -171,10 +167,8 @@ export const handlePayosWebhook = async (webhookBody) => {
       // Cập nhật trạng thái thanh toán của appointment
       appointment.paymentStatus = "paid";
       appointment.paymentId = payment._id;
+      appointment.pendingOrderCode = undefined; // Xóa pendingOrderCode
       await appointment.save();
-
-      // Xóa TempOrder
-      await TempOrder.deleteOne({ orderCode });
 
       console.log(`✅ Payment processed successfully for appointment ${appointment._id}`);
       return { 
@@ -184,8 +178,7 @@ export const handlePayosWebhook = async (webhookBody) => {
         paymentId: payment._id 
       };
     } else {
-      // Payment failed
-      await TempOrder.deleteOne({ orderCode });
+      // Payment failed - không tạo payment record, chỉ log
       console.log(`❌ Payment failed for orderCode: ${orderCode}`);
       return { paid: false, orderCode };
     }
@@ -219,8 +212,12 @@ export const cancelPaymentLink = async (orderCode) => {
   try {
     const result = await payos.paymentRequests.cancel(orderCode);
     
-    // Xóa TempOrder nếu có
-    await TempOrder.deleteOne({ orderCode });
+    // Xóa pendingOrderCode trong appointment nếu có
+    const appointment = await Appointment.findOne({ pendingOrderCode: orderCode });
+    if (appointment) {
+      appointment.pendingOrderCode = undefined;
+      await appointment.save();
+    }
     
     return result;
   } catch (error) {

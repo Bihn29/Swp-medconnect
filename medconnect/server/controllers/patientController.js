@@ -714,7 +714,7 @@ export async function bookAppointment(req, res) {
       scheduledEnd: new Date(scheduledEnd),
       status: "pending_doctor", // Waiting for doctor approval
       paymentStatus: "unpaid", // Initially unpaid
-      paymentDeadline: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes to pay
+      // paymentDeadline không set - không giới hạn thời gian thanh toán
       reason: reason,
       autoExpireAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours from now
     });

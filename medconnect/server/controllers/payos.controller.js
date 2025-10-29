@@ -87,6 +87,9 @@ export const handlePayosWebhookController = async (req, res) => {
 /**
  * Controller kiểm tra trạng thái thanh toán
  * GET /api/payments/payos/check-status/:orderCode
+ * 
+ * FALLBACK MECHANISM: Nếu thanh toán thành công nhưng webhook chưa xử lý
+ * (do localhost không nhận được webhook), tự động xử lý payment
  */
 export const checkPaymentStatusController = async (req, res) => {
   try {
@@ -99,7 +102,30 @@ export const checkPaymentStatusController = async (req, res) => {
       });
     }
 
+    // 1. Check với PayOS
     const paymentInfo = await checkPaymentStatus(Number(orderCode));
+    
+    // 2. Nếu thanh toán thành công, tự động xử lý (fallback cho webhook)
+    if (paymentInfo && (paymentInfo.status === "PAID" || paymentInfo.status === "paid")) {
+      try {
+        // Gọi webhook handler để xử lý payment
+        const webhookData = {
+          data: {
+            orderCode: Number(orderCode),
+            description: paymentInfo.description || `MedConnect ${orderCode}`,
+            code: "00",
+            amount: paymentInfo.amount,
+          },
+          success: true
+        };
+        
+        const result = await handlePayosWebhook(webhookData);
+        console.log(`✅ Auto-processed payment via check-status: ${orderCode}`, result);
+      } catch (webhookError) {
+        // Nếu webhook handler lỗi (có thể đã xử lý rồi), ignore
+        console.log(`ℹ️ Webhook handler result for ${orderCode}:`, webhookError.message);
+      }
+    }
 
     return res.status(200).json({
       success: true,

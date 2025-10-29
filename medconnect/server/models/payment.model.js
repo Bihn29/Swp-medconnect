@@ -85,6 +85,9 @@ const PaymentSchema = new Schema(
       default: "initiated",
     },
 
+    // PayOS orderCode để tracking và webhook lookup
+    orderCode: { type: Number, unique: true, sparse: true, index: true },
+    
     providerTxnId: String,
     authorizedAt: Date,
     authorizationExpiresAt: Date,

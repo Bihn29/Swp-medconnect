@@ -10,7 +10,7 @@ let cronJob = null;
 
 /**
  * Khởi động cron job để tự động hủy appointments chưa thanh toán
- * Chạy mỗi 2 phút
+ * Chạy mỗi 5 phút
  */
 export function startAppointmentCleanupJob() {
   if (cronJob) {
@@ -18,8 +18,8 @@ export function startAppointmentCleanupJob() {
     return;
   }
 
-  // Chạy mỗi 2 phút
-  cronJob = cron.schedule("*/2 * * * *", async () => {
+  // Chạy mỗi 5 phút
+  cronJob = cron.schedule("*/5 * * * *", async () => {
     console.log("\n⏰ [Cron] Running appointment cleanup job...");
     try {
       const result = await cancelUnpaidAppointments();
@@ -29,7 +29,7 @@ export function startAppointmentCleanupJob() {
     }
   });
 
-  console.log("✅ Appointment cleanup cron job started (runs every 2 minutes)");
+  console.log("✅ Appointment cleanup cron job started (runs every 5 minutes)");
 }
 
 /**
