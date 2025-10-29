@@ -16,7 +16,6 @@ import Profile from "../pages/Auth/Profile";
 // Patient Components
 import PatientDashboard from "../pages/Patient/PatientDashboard";
 import PatientSettings from "../pages/Patient/PatientSettings.jsx";
-import AppointmentBooking from "../pages/Appointment/AppointmentBooking";
 import AppointmentBookingHome from "../pages/Appointment/AppointmentBookingHome";
 import SpecializationSelection from "../pages/Appointment/SpecializationSelection";
 import DoctorSelection from "../pages/Appointment/DoctorSelection";
@@ -139,7 +138,6 @@ export const privateRoutes = (
       {/* ==================== PATIENT-SPECIFIC ROUTES ==================== */}
       {/* Routes that require patient role specifically */}
       <Route element={<PatientMiddleware />}>
-        <Route path="/dat-lich-kham" element={<AppointmentBooking />} />
         {/* Appointment booking routes */}
         <Route path="/dat-lich" element={<AppointmentBookingHome />} />
         <Route
@@ -151,7 +149,6 @@ export const privateRoutes = (
           path="/dat-lich/chon-thoi-gian"
           element={<TimeSlotSelection />}
         />
-        <Route path="/dat-lich/:doctorId" element={<AppointmentBooking />} />
       </Route>
     </Route>
 

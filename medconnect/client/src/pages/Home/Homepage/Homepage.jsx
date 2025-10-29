@@ -231,7 +231,7 @@ const Homepage = () => {
                 placeholder="Tìm bệnh viện"
                 size="large"
                 prefix={<SearchOutlined style={{ color: "#45c3d2" }} />}
-                onClick={() => navigate("/tim-kiem")}
+                onClick={() => navigate("/danh-sach-bac-si")}
                 readOnly
                 style={{
                   borderRadius: "25px",

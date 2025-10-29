@@ -42,16 +42,14 @@ const Header = () => {
   ];
 
   // Chọn categories dựa trên trang hiện tại
-  const isSearchPage = location.pathname === "/tim-kiem";
   const isDoctorPage = location.pathname === "/danh-sach-bac-si";
   const isSpecialtyPage = location.pathname === "/chuyen-khoa";
   const isFacilityPage = location.pathname === "/co-so-y-te";
   const isPackagePage = location.pathname === "/goi-kham";
-  const isAppointmentPage = location.pathname === "/dat-lich-kham";
+  const isAppointmentPage = location.pathname.startsWith("/dat-lich");
   const isDoctorDashboard = location.pathname.startsWith("/bac-si");
 
   const useSearchCategories =
-    isSearchPage ||
     isDoctorPage ||
     isSpecialtyPage ||
     isFacilityPage ||
@@ -161,7 +159,7 @@ const Header = () => {
     const currentPath = location.pathname;
 
     // Nếu đang ở trang appointment, highlight "Bác sĩ" vì appointment thường đến từ trang bác sĩ
-    if (currentPath === "/dat-lich-kham") {
+    if (currentPath.startsWith("/dat-lich")) {
       setActiveCat("doctor");
     } else if (currentPath === "/chuyen-khoa") {
       setActiveCat("specialty");
@@ -295,8 +293,8 @@ const Header = () => {
             </Link>
           ))}
 
-          {/* Search (Ant Design) */}
-          {showSearch && (
+          {/* Search (Ant Design) - REMOVED */}
+          {/* {showSearch && (
             <div
               className="header__search"
               onClick={() => navigate("/tim-kiem")}
@@ -308,7 +306,7 @@ const Header = () => {
                 prefix={<SearchOutlined style={{ color: "#45c3d2" }} />}
               />
             </div>
-          )}
+          )} */}
         </nav>
 
         {/* Right */}
