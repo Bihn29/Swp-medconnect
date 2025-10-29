@@ -238,7 +238,7 @@ const Header = () => {
 
     // profile shortcut
     if (key === "profile") {
-      navigate("/profile");
+      navigate("/benh-nhan/cai-dat");
       return;
     }
 

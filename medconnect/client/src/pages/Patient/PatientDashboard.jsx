@@ -1,17 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { auth } from "../../lib/firebase";
-import { Spin } from "antd";
-import { useUserProfile } from "../../hooks/useUserProfile";
-import { AppSidebar } from "./components/AppSidebar/AppSidebar";
-import { PatientHeader } from "./components/PatientHeader/PatientHeader";
+import React from "react";
+import { useLocation } from "react-router-dom";
 import { WelcomeSection } from "./components/WelcomeSection/WelcomeSection";
 import { StatsCards } from "./components/StatsCards/StatsCards";
 import { UpcomingAppointments } from "./components/UpcomingAppointments/UpcomingAppointments";
 import { CurrentConsultation } from "./components/CurrentConsultation/CurrentConsultation";
 import { AppointmentCalendar } from "./components/AppointmentCalendar/AppointmentCalendar";
 import { QuickActions } from "./components/QuickActions/QuickActions";
-import { Settings } from "./components/Settings/Settings";
 import { DoctorSearch } from "./components/DoctorSearch/DoctorSearch";
 import { MyAppointments } from "./components/MyAppointments/MyAppointments";
 import { HealthProfile } from "./components/HealthProfile/HealthProfile";
@@ -38,45 +32,7 @@ import "./PatientDashboard.scss";
  */
 
 export default function PatientDashboard() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
   const location = useLocation();
-  const {
-    userProfile,
-    loading: profileLoading,
-    error: profileError,
-    refreshProfile,
-  } = useUserProfile();
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  if (loading || profileLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Spin size="large">
-          <div style={{ padding: "50px" }}>
-            <div style={{ textAlign: "center", marginTop: "20px" }}>
-              Đang tải dữ liệu người dùng...
-            </div>
-          </div>
-        </Spin>
-      </div>
-    );
-  }
-
-  // Redirect if no user
-  if (!user) {
-    navigate("/login");
-    return null;
-  }
 
   // Render different content based on current route
   const renderContent = () => {
@@ -91,8 +47,6 @@ export default function PatientDashboard() {
         return <HealthProfile />;
       case "/thong-bao":
         return <Notifications />;
-      case "/benh-nhan/cai-dat":
-        return <Settings />;
       default:
         // Default dashboard home
         return (
@@ -116,15 +70,5 @@ export default function PatientDashboard() {
     }
   };
 
-  return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      <AppSidebar />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <PatientHeader />
-        <main style={{ flex: 1, overflow: "auto" }} className="main-content">
-          {renderContent()}
-        </main>
-      </div>
-    </div>
-  );
+  return renderContent();
 }

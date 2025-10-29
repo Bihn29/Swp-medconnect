@@ -3,6 +3,7 @@ import { Route } from "react-router-dom";
 // Layouts
 import DefaultLayout from "../layouts/DefaultLayout/DefaultLayout";
 import DoctorLayout from "../layouts/DoctorLayout/DoctorLayout";
+import PatientLayout from "../layouts/PatientLayout/PatientLayout";
 
 // Middlewares
 import AuthMiddleware from "../middlewares/AuthMiddleware";
@@ -50,21 +51,25 @@ import AdminLayout from "../layouts/AdminLayout/AdminLayout";
  */
 export const privateRoutes = (
   <>
-    {/* ==================== PATIENT DASHBOARD (NO DEFAULT LAYOUT) ==================== */}
-    {/* Patient dashboard with custom layout (no default header/footer) */}
-
+    {/* ==================== PATIENT ROUTES (WITH PATIENT LAYOUT) ==================== */}
+    {/* Patient routes with PatientLayout (includes Sidebar and Header) */}
     <Route element={<AuthMiddleware />}>
       <Route element={<PatientMiddleware />}>
-        <Route path="/benh-nhan" element={<PatientDashboard />} />
-        <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
+        {/* Fullscreen patient video call route (no PatientLayout) */}
         <Route
           path="/benh-nhan/video-call/:appointmentId"
           element={<PatientVideoCallPage />}
         />
-        <Route path="/search-doctors" element={<PatientDashboard />} />
-        <Route path="/my-appointments" element={<PatientDashboard />} />
-        <Route path="/medical-records" element={<PatientDashboard />} />
-        <Route path="/thong-bao" element={<PatientDashboard />} />
+
+        <Route element={<PatientLayout />}>
+          {/* Main patient dashboard and related routes */}
+          <Route path="/benh-nhan" element={<PatientDashboard />} />
+          <Route path="/search-doctors" element={<PatientDashboard />} />
+          <Route path="/my-appointments" element={<PatientDashboard />} />
+          <Route path="/medical-records" element={<PatientDashboard />} />
+          <Route path="/thong-bao" element={<PatientDashboard />} />
+          <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
+        </Route>
       </Route>
     </Route>
 
