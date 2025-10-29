@@ -308,7 +308,7 @@ export default function OfflineConsultationPage() {
                 {appointment?.patientId?.fullName ||
                   appointment?.patient?.fullName ||
                   appointment?.patientName ||
-                  "N/A"}
+                  "Không có"}
               </strong>
             </p>
           </div>

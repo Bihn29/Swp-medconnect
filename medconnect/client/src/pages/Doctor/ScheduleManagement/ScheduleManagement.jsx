@@ -367,7 +367,7 @@ export default function ScheduleManagement() {
       // Sử dụng appointmentId từ slot (đã được populate từ backend)
       if (!slot || !slot.appointmentId) {
         console.error("❌❌❌ handleVideoCall - No slot or appointmentId");
-        alert(`Không tìm thấy lịch hẹn cho slot này. Slot ID: ${slot?.id || 'N/A'}, Patient: ${slot?.patientName || 'N/A'}`);
+        alert(`Không tìm thấy lịch hẹn cho slot này. Slot ID: ${slot?.id || 'Không có'}, Patient: ${slot?.patientName || 'Không có'}`);
         return;
       }
 

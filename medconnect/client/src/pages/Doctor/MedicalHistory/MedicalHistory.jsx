@@ -62,7 +62,7 @@ export default function MedicalHistory() {
   };
 
   const formatDateForDoc = (date) => {
-    if (!date) return "N/A";
+    if (!date) return "Không có";
     return new Date(date).toLocaleDateString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
@@ -75,13 +75,13 @@ export default function MedicalHistory() {
 
   const generateDocHTML = (record, type) => {
     if (type === "medical") {
-      const patientName = record.patientId?.fullName || "N/A";
-      const patientPhone = record.patientId?.phone || "N/A";
+      const patientName = record.patientId?.fullName || "Không có";
+      const patientPhone = record.patientId?.phone || "Không có";
       const visitDate = formatDateForDoc(record.visitDate || record.createdAt);
   return `
 <!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:v="urn:schemas-microsoft-com:vml" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
+<head></head>
 <meta charset="utf-8">
 <meta name="ProgId" content="Word.Document">
 <meta name="Generator" content="Microsoft Word">
@@ -181,9 +181,9 @@ export default function MedicalHistory() {
         <tbody>
           ${record.medications.map(m => `
             <tr>
-              <td>${m.name || "—"}</td>
-              <td>${m.quantity || "—"}</td>
-              <td>${m.instruction || "—"}</td>
+              <td>${m.name || "Không có"}</td>
+              <td>${m.quantity || "Không có"}</td>
+              <td>${m.instruction || "Không có"}</td>
             </tr>`).join("")}
         </tbody>
       </table>` : `<span class="muted">Không có đơn thuốc</span>`}
@@ -222,7 +222,7 @@ export default function MedicalHistory() {
     <table class="table zebra">
       <thead><tr><th>Xét nghiệm</th><th>Kết quả</th></tr></thead>
       <tbody>
-        ${record.labResults.map(l => `<tr><td>${l.testName || "Xét nghiệm"}</td><td>${l.result || "N/A"}</td></tr>`).join("")}
+        ${record.labResults.map(l => `<tr><td>${l.testName || "Xét nghiệm"}</td><td>${l.result || "Không có"}</td></tr>`).join("")}
       </tbody>
     </table>
   </div>` : ""}
@@ -241,8 +241,8 @@ export default function MedicalHistory() {
 </body>
 </html>`;
 } else {
-  const patientName = record.patientId?.fullName || "N/A";
-  const patientPhone = record.patientId?.phone || "N/A";
+  const patientName = record.patientId?.fullName || "Không có";
+  const patientPhone = record.patientId?.phone || "Không có";
   const appointmentDate = formatDateForDoc(record.appointmentDate || record.createdAt);
   return `
 <!DOCTYPE html>
@@ -329,9 +329,9 @@ export default function MedicalHistory() {
       <tbody>
         ${record.medications.map(m => `
           <tr>
-            <td>${m.name || "—"}</td>
-            <td>${m.quantity || "—"}</td>
-            <td>${m.instruction || "—"}</td>
+              <td>${m.name || "Không có"}</td>
+              <td>${m.quantity || "Không có"}</td>
+              <td>${m.instruction || "Không có"}</td>
           </tr>`).join("")}
       </tbody>
     </table>
@@ -435,7 +435,7 @@ export default function MedicalHistory() {
 
 
   const formatDate = (date) => {
-    if (!date) return "N/A";
+    if (!date) return "Không có";
     return new Date(date).toLocaleDateString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
@@ -444,7 +444,7 @@ export default function MedicalHistory() {
   };
 
   const formatDateTime = (date) => {
-    if (!date) return "N/A";
+    if (!date) return "Không có";
     return new Date(date).toLocaleDateString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
@@ -547,7 +547,7 @@ export default function MedicalHistory() {
                       ? summary.medications
                           .map(
                             (med) =>
-                              `${med.name || "N/A"} - ${med.quantity || "N/A"} - ${med.instruction || ""}`
+                              `${med.name || "Không có"} - ${med.quantity || "Không có"} - ${med.instruction || ""}`
                           )
                           .join(", ")
                       : "Không có đơn thuốc";
@@ -571,7 +571,7 @@ export default function MedicalHistory() {
                               </div>
                               <div className="meta-item">
                                 <User className="meta-icon" />
-                                <span>SĐT: {summary.patientId?.phone || "N/A"}</span>
+                                <span>SĐT: {summary.patientId?.phone || "Không có"}</span>
                               </div>
                             </div>
                           </div>
@@ -749,7 +749,7 @@ export default function MedicalHistory() {
                       ? advice.medications
                           .map(
                             (med) =>
-                              `${med.name || "N/A"} - ${med.quantity || "N/A"} - ${med.instruction || ""}`
+                              `${med.name || "Không có"} - ${med.quantity || "Không có"} - ${med.instruction || ""}`
                           )
                           .join(", ")
                       : "Không có đơn thuốc";
@@ -777,7 +777,7 @@ export default function MedicalHistory() {
                               </div>
                               <div className="meta-item">
                                 <User className="meta-icon" />
-                                <span>SĐT: {advice.patientId?.phone || "N/A"}</span>
+                                <span>SĐT: {advice.patientId?.phone || "Không có"}</span>
                               </div>
                               <div className="meta-item">
                                 <span className="consultation-type">
@@ -910,13 +910,13 @@ export default function MedicalHistory() {
                       <div className="detail-item">
                         <strong>Bệnh nhân:</strong>
                         <span>
-                          {selectedSummary.patientId?.fullName || "N/A"}
+                          {selectedSummary.patientId?.fullName || "Không có"}
                         </span>
                       </div>
                       <div className="detail-item">
                         <strong>Số điện thoại:</strong>
                         <span>
-                          {selectedSummary.patientId?.phone || "N/A"}
+                          {selectedSummary.patientId?.phone || "Không có"}
                         </span>
                     </div>
                       {selectedSummary.patientId?.dob && (
@@ -1169,10 +1169,10 @@ export default function MedicalHistory() {
                           {selectedSummary.medications.map((med, index) => (
                             <div key={index} className="medication-item">
                               <div className="med-name">
-                                <strong>{med.name || "N/A"}</strong>
+                                <strong>{med.name || "Không có"}</strong>
                     </div>
                               <div className="med-details">
-                                <span>Số lượng: {med.quantity || "N/A"}</span>
+                                <span>Số lượng: {med.quantity || "Không có"}</span>
                               </div>
                               {med.instruction && (
                                 <div className="med-instruction">
@@ -1237,13 +1237,13 @@ export default function MedicalHistory() {
                       <div className="detail-item">
                         <strong>Bệnh nhân:</strong>
                         <span>
-                          {selectedAdvice.patientId?.fullName || "N/A"}
+                          {selectedAdvice.patientId?.fullName || "Không có"}
                         </span>
                       </div>
                       <div className="detail-item">
                         <strong>Số điện thoại:</strong>
                         <span>
-                          {selectedAdvice.patientId?.phone || "N/A"}
+                          {selectedAdvice.patientId?.phone || "Không có"}
                         </span>
                       </div>
                       {selectedAdvice.patientId?.dob && (
@@ -1315,10 +1315,10 @@ export default function MedicalHistory() {
                           {selectedAdvice.medications.map((med, index) => (
                             <div key={index} className="medication-item">
                               <div className="med-name">
-                                <strong>{med.name || "N/A"}</strong>
+                                <strong>{med.name || "Không có"}</strong>
                               </div>
                               <div className="med-details">
-                                <span>Số lượng: {med.quantity || "N/A"}</span>
+                                <span>Số lượng: {med.quantity || "Không có"}</span>
                               </div>
                               {med.instruction && (
                                 <div className="med-instruction">
