@@ -808,7 +808,7 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
 }
 
 .appointment-list-card .bg-purple-500 {
-  background-color: #8b5cf6 !important; // Tím - Chờ bác sĩ xác nhận
+  background-color: #45c3d2 !important; // Xanh teal - Chờ bác sĩ xác nhận
 }
 
 .appointment-list-card .bg-red-500 {
@@ -848,7 +848,7 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
 }
 
 .appointment-list-card [data-status="pending_doctor"] {
-  background-color: #8b5cf6 !important;
+  background-color: #45c3d2 !important;
   color: white !important;
 }
 

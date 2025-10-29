@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Phone, Mail, MapPin, Paperclip, Calendar, Clock, User } from "lucide-react";
+import {
+  ArrowLeft,
+  Phone,
+  Mail,
+  MapPin,
+  Paperclip,
+  Calendar,
+  Clock,
+  User,
+} from "lucide-react";
 import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";
@@ -37,22 +46,34 @@ export default function AppointmentDetail({ appointmentId, onBack }) {
     const date = new Date(dateTimeString);
     return {
       date: date.toLocaleDateString("vi-VN"),
-      time: date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+      time: date.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
   };
 
   const getStatusBadge = (status) => {
     switch (status?.toLowerCase()) {
       case "pending":
-        return { label: "Chờ xác nhận", className: "bg-yellow-100 text-yellow-700" };
+        return {
+          label: "Chờ xác nhận",
+          className: "bg-yellow-100 text-yellow-700",
+        };
       case "accepted":
-        return { label: "Đã xác nhận", className: "bg-green-100 text-green-700" };
+        return {
+          label: "Đã xác nhận",
+          className: "bg-green-100 text-green-700",
+        };
       case "rejected":
         return { label: "Đã từ chối", className: "bg-red-100 text-red-700" };
       case "completed":
         return { label: "Hoàn thành", className: "bg-blue-100 text-blue-700" };
       default:
-        return { label: "Không xác định", className: "bg-gray-100 text-gray-700" };
+        return {
+          label: "Không xác định",
+          className: "bg-gray-100 text-gray-700",
+        };
     }
   };
 
@@ -61,9 +82,15 @@ export default function AppointmentDetail({ appointmentId, onBack }) {
       case "online":
         return { label: "Trực tuyến", className: "bg-teal-100 text-teal-700" };
       case "offline":
-        return { label: "Tại phòng khám", className: "bg-purple-100 text-purple-700" };
+        return {
+          label: "Tại phòng khám",
+          className: "bg-cyan-100 text-cyan-700",
+        };
       default:
-        return { label: "Không xác định", className: "bg-gray-100 text-gray-700" };
+        return {
+          label: "Không xác định",
+          className: "bg-gray-100 text-gray-700",
+        };
     }
   };
 
@@ -108,12 +135,8 @@ export default function AppointmentDetail({ appointmentId, onBack }) {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-4xl font-bold text-gray-900">Chi tiết lịch hẹn</h1>
         <div className="flex gap-2">
-          <Badge className={typeBadge.className}>
-            {typeBadge.label}
-          </Badge>
-          <Badge className={statusBadge.className}>
-            {statusBadge.label}
-          </Badge>
+          <Badge className={typeBadge.className}>{typeBadge.label}</Badge>
+          <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
         </div>
       </div>
 
@@ -133,12 +156,12 @@ export default function AppointmentDetail({ appointmentId, onBack }) {
                 {appointment.patientId?.email || "N/A"}
               </p>
             </div>
-            
+
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4" />
               {appointment.patientId?.phone || "N/A"}
             </div>
-            
+
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Mail className="w-4 h-4" />
               {appointment.patientId?.email || "N/A"}
@@ -165,20 +188,20 @@ export default function AppointmentDetail({ appointmentId, onBack }) {
               <span className="font-medium">Ngày:</span>
               <span>{date}</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-gray-500" />
               <span className="font-medium">Giờ:</span>
               <span>{time}</span>
             </div>
-            
+
             <div>
               <span className="font-medium">Loại khám:</span>
               <Badge className={`ml-2 ${typeBadge.className}`}>
                 {typeBadge.label}
               </Badge>
             </div>
-            
+
             <div>
               <span className="font-medium">Trạng thái:</span>
               <Badge className={`ml-2 ${statusBadge.className}`}>
@@ -197,18 +220,21 @@ export default function AppointmentDetail({ appointmentId, onBack }) {
                 <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
                   Chấp nhận lịch hẹn
                 </Button>
-                <Button variant="outline" className="w-full border-red-600 text-red-600 hover:bg-red-50">
+                <Button
+                  variant="outline"
+                  className="w-full border-red-600 text-red-600 hover:bg-red-50"
+                >
                   Từ chối lịch hẹn
                 </Button>
               </>
             )}
-            
+
             {appointment.status === "accepted" && (
               <Button className="w-full bg-teal-600 hover:bg-teal-700 text-white">
                 Bắt đầu khám
               </Button>
             )}
-            
+
             {appointment.status === "completed" && (
               <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                 Xem tóm tắt khám
@@ -244,7 +270,10 @@ export default function AppointmentDetail({ appointmentId, onBack }) {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {appointment.attachments.map((attachment, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4">
+              <div
+                key={index}
+                className="border border-gray-200 rounded-lg p-4"
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <Paperclip className="w-4 h-4 text-gray-500" />
                   <span className="font-medium text-sm">{attachment.name}</span>
