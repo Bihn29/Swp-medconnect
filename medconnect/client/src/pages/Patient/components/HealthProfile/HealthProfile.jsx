@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Download,
   Heart,
   Activity,
   Droplets,
@@ -77,11 +76,6 @@ export function HealthProfile() {
     },
   ]);
 
-  const handleDownload = () => {
-    console.log("Downloading health profile...");
-    // Implement download functionality
-  };
-
   const handleViewDetails = (recordId) => {
     console.log("Viewing details for record:", recordId);
 
@@ -134,10 +128,6 @@ export function HealthProfile() {
               Theo dõi và quản lý thông tin sức khỏe của bạn
             </p>
           </div>
-          <button className="download-button" onClick={handleDownload}>
-            <Download className="download-icon" />
-            Tải xuống
-          </button>
         </div>
       </div>
 
