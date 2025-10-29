@@ -66,10 +66,6 @@ function WelcomeSection() {
     navigate("/dat-lich");
   };
 
-  const handleOnlineConsultation = () => {
-    navigate("/tu-van-truc-tuyen");
-  };
-
   const handleFindDoctor = () => {
     navigate("/search-doctors");
   };
@@ -183,55 +179,6 @@ function WelcomeSection() {
               }}
             />
             Đặt lịch ngay
-          </button>
-
-          {/* Tư vấn online button */}
-          <button
-            onClick={handleOnlineConsultation}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.375rem",
-              padding: "0.625rem 0.875rem",
-              backgroundColor: "#ffffff",
-              color: "#374151",
-              border: "1px solid #d1d5db",
-              borderRadius: "0.5rem",
-              fontSize: "0.875rem",
-              fontWeight: "500",
-              cursor: "pointer",
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-              position: "relative",
-              overflow: "hidden",
-              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-            }}
-            onMouseOver={(e) => {
-              e.target.style.backgroundColor = "#f9fafb";
-              e.target.style.transform = "translateY(-2px) scale(1.02)";
-              e.target.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.15)";
-              e.target.style.borderColor = "#3b82f6";
-            }}
-            onMouseOut={(e) => {
-              e.target.style.backgroundColor = "#ffffff";
-              e.target.style.transform = "translateY(0) scale(1)";
-              e.target.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)";
-              e.target.style.borderColor = "#d1d5db";
-            }}
-            onMouseDown={(e) => {
-              e.target.style.transform = "translateY(0) scale(0.98)";
-            }}
-            onMouseUp={(e) => {
-              e.target.style.transform = "translateY(-2px) scale(1.02)";
-            }}
-          >
-            <Video
-              style={{
-                width: "0.875rem",
-                height: "0.875rem",
-                transition: "transform 0.3s ease",
-              }}
-            />
-            Tư vấn online
           </button>
 
           {/* Tìm bác sĩ button */}

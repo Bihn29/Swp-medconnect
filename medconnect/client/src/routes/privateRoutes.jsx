@@ -58,10 +58,12 @@ export const privateRoutes = (
       <Route element={<PatientMiddleware />}>
         <Route path="/benh-nhan" element={<PatientDashboard />} />
         <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
-        <Route path="/benh-nhan/video-call/:appointmentId" element={<PatientVideoCallPage />} />
+        <Route
+          path="/benh-nhan/video-call/:appointmentId"
+          element={<PatientVideoCallPage />}
+        />
         <Route path="/search-doctors" element={<PatientDashboard />} />
         <Route path="/my-appointments" element={<PatientDashboard />} />
-        <Route path="/tu-van-truc-tuyen" element={<PatientDashboard />} />
         <Route path="/medical-records" element={<PatientDashboard />} />
         <Route path="/thong-bao" element={<PatientDashboard />} />
       </Route>
@@ -72,7 +74,10 @@ export const privateRoutes = (
     <Route element={<AuthMiddleware />}>
       <Route element={<DoctorMiddleware />}>
         {/* Fullscreen doctor video call route (no DoctorLayout) */}
-        <Route path="/bac-si/video-call/:appointmentId" element={<DoctorVideoCallPage />} />
+        <Route
+          path="/bac-si/video-call/:appointmentId"
+          element={<DoctorVideoCallPage />}
+        />
 
         <Route element={<DoctorLayout />}>
           {/* Main doctor dashboard */}
@@ -91,10 +96,13 @@ export const privateRoutes = (
             element={<OnlineConsultationPage />}
           />
 
-        {/* ==================== SCHEDULE MANAGEMENT ==================== */}
-        {/* Doctor schedule and calendar routes */}
-        <Route path="/bac-si/lich-lam-viec" element={<ScheduleManagement />} />
-        <Route path="/bac-si/quan-ly-lich" element={<ScheduleManagement />} />
+          {/* ==================== SCHEDULE MANAGEMENT ==================== */}
+          {/* Doctor schedule and calendar routes */}
+          <Route
+            path="/bac-si/lich-lam-viec"
+            element={<ScheduleManagement />}
+          />
+          <Route path="/bac-si/quan-ly-lich" element={<ScheduleManagement />} />
 
           {/* ==================== MEDICAL RECORDS ==================== */}
           {/* Doctor medical records and consultation routes */}
