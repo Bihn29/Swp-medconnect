@@ -160,6 +160,12 @@ export default function OnlineConsultationPage() {
       return;
     }
 
+    // Kiểm tra ghi chú tư vấn bắt buộc
+    if (!formData.notes || !formData.notes.trim()) {
+      alert("Vui lòng nhập ghi chú tư vấn!");
+      return;
+    }
+
     // Thêm thông báo xác nhận
     const confirmed = window.confirm(
       `Bạn có chắc chắn muốn hoàn thành tư vấn và lưu thông tin cho ${patientName}?`

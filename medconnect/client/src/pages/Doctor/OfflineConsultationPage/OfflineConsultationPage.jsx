@@ -203,6 +203,24 @@ export default function OfflineConsultationPage() {
       return;
     }
 
+    // Kiểm tra tóm tắt buổi khám bắt buộc
+    if (!formData.summaryText || !formData.summaryText.trim()) {
+      alert("Vui lòng nhập tóm tắt buổi khám!");
+      return;
+    }
+
+    // Kiểm tra phương pháp điều trị bắt buộc
+    if (!formData.treatmentMethod || !formData.treatmentMethod.trim()) {
+      alert("Vui lòng nhập phương pháp điều trị!");
+      return;
+    }
+
+    // Kiểm tra hướng dẫn theo dõi bắt buộc
+    if (!formData.followUpInstructions || !formData.followUpInstructions.trim()) {
+      alert("Vui lòng nhập hướng dẫn theo dõi!");
+      return;
+    }
+
     // Thêm thông báo xác nhận
     const confirmed = window.confirm(
       `Bạn có chắc chắn muốn hoàn thành khám bệnh và lưu thông tin cho ${patientName}?`
@@ -885,7 +903,7 @@ export default function OfflineConsultationPage() {
               <div className="form-section">
                 <h3 className="section-title">📝 Tóm Tắt Khám Bệnh</h3>
                 <div className="form-group">
-                  <label>Tóm tắt buổi khám</label>
+                  <label>Tóm tắt buổi khám *</label>
                   <textarea
                     className="form-textarea"
                     rows="6"
@@ -893,10 +911,11 @@ export default function OfflineConsultationPage() {
                     onChange={(e) =>
                       handleFieldChange("summaryText", e.target.value)
                     }
+                    required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Phương pháp điều trị</label>
+                  <label>Phương pháp điều trị *</label>
                   <textarea
                     className="form-textarea"
                     rows="4"
@@ -904,10 +923,11 @@ export default function OfflineConsultationPage() {
                     onChange={(e) =>
                       handleFieldChange("treatmentMethod", e.target.value)
                     }
+                    required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Hướng dẫn theo dõi</label>
+                  <label>Hướng dẫn theo dõi *</label>
                   <textarea
                     className="form-textarea"
                     rows="4"
@@ -915,6 +935,7 @@ export default function OfflineConsultationPage() {
                     onChange={(e) =>
                       handleFieldChange("followUpInstructions", e.target.value)
                     }
+                    required
                   />
                 </div>
                 <div className="form-group">
