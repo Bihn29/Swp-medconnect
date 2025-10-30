@@ -194,6 +194,15 @@ export default function OfflineConsultationPage() {
       appointment?.patientName ||
       "bệnh nhân";
 
+    // Kiểm tra chẩn đoán bắt buộc
+    const validDiagnoses = formData.diagnoses.filter(
+      (d) => d.name && d.name.trim()
+    );
+    if (validDiagnoses.length === 0) {
+      alert("Vui lòng nhập ít nhất một chẩn đoán!");
+      return;
+    }
+
     // Thêm thông báo xác nhận
     const confirmed = window.confirm(
       `Bạn có chắc chắn muốn hoàn thành khám bệnh và lưu thông tin cho ${patientName}?`
@@ -210,7 +219,7 @@ export default function OfflineConsultationPage() {
       visitDate: formData.visitDate ? new Date(formData.visitDate) : undefined,
       treatmentResult: formData.treatmentResult,
       consultationCategory: formData.consultationCategory,
-      diagnoses: formData.diagnoses.filter((d) => d.name && d.name.trim()),
+      diagnoses: validDiagnoses,
       vitals: formData.vitals,
       labResults: formData.labResults.filter((l) => l.testName || l.result),
       imagingResults: formData.imagingResults
@@ -494,7 +503,7 @@ export default function OfflineConsultationPage() {
             {/* Diagnosis Tab */}
             {activeTab === "diagnosis" && (
               <div className="form-section">
-                <h3 className="section-title">🔍 Chẩn Đoán Sơ Bộ</h3>
+                <h3 className="section-title">🔍 Chẩn Đoán Sơ Bộ *</h3>
                 {formData.diagnoses.map((diagnosis, index) => (
                   <div key={index} className="array-item">
                     <div className="item-header">
@@ -513,7 +522,7 @@ export default function OfflineConsultationPage() {
                       <div className="form-group">
                         <Input
                           type="text"
-                          placeholder="Chuẩn đoán...."
+                          placeholder="VD: Viêm phế quản cấp"
                           value={diagnosis.name}
                           onChange={(e) =>
                             handleArrayChange(
@@ -523,6 +532,7 @@ export default function OfflineConsultationPage() {
                               e.target.value
                             )
                           }
+                          required
                         />
                       </div>
                     </div>

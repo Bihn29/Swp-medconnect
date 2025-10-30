@@ -151,6 +151,15 @@ export default function OnlineConsultationPage() {
       appointment?.patientName ||
       "bệnh nhân";
 
+    // Kiểm tra chẩn đoán bắt buộc
+    const validDiagnoses = formData.diagnoses.filter(
+      (d) => d.name && d.name.trim()
+    );
+    if (validDiagnoses.length === 0) {
+      alert("Vui lòng nhập ít nhất một chẩn đoán!");
+      return;
+    }
+
     // Thêm thông báo xác nhận
     const confirmed = window.confirm(
       `Bạn có chắc chắn muốn hoàn thành tư vấn và lưu thông tin cho ${patientName}?`
@@ -164,7 +173,7 @@ export default function OnlineConsultationPage() {
       appointmentId: appointment._id,
       notes: formData.notes || undefined,
       attachmentUrl: formData.attachmentUrl || undefined,
-      diagnoses: formData.diagnoses.length > 0 ? formData.diagnoses : undefined,
+      diagnoses: validDiagnoses,
       medications: formData.medications.length > 0 ? formData.medications : undefined
     }
 
@@ -280,7 +289,7 @@ export default function OnlineConsultationPage() {
 
             {/* Diagnosis Section - Show by default */}
             <div className="form-section">
-              <h3 className="section-title">🔍 Chẩn Đoán sơ bộ</h3>
+              <h3 className="section-title">🔍 Chẩn Đoán sơ bộ *</h3>
               {formData.diagnoses.map((diagnosis, index) => (
                 <div key={index} className="array-item">
                   <div className="item-header">
@@ -291,8 +300,7 @@ export default function OnlineConsultationPage() {
                   </div>
                   <div className="item-content">
                     <div className="form-group">
-                      
-                      <Input type="text" placeholder="VD: Viêm phế quản cấp" value={diagnosis.name} onChange={(e) => handleArrayChange("diagnoses", index, "name", e.target.value)} />
+                      <Input type="text" placeholder="VD: Viêm phế quản cấp" value={diagnosis.name} onChange={(e) => handleArrayChange("diagnoses", index, "name", e.target.value)} required />
                     </div>
                   </div>
                 </div>
