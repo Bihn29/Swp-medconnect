@@ -33,6 +33,11 @@
   text-align: center;
 }
 
+.doctor-sidebar-profile-section {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
 .doctor-sidebar-logo {
   display: flex;
   align-items: center;
@@ -285,6 +290,10 @@
 
   .doctor-sidebar-header {
     padding: 1rem 0.5rem;
+  }
+
+  .doctor-sidebar-profile-section {
+    padding: 0.5rem;
   }
 
   .doctor-sidebar-title,
