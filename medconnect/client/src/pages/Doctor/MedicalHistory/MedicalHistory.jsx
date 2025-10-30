@@ -89,48 +89,37 @@ export default function MedicalHistory() {
 <title>Hồ sơ khám bệnh</title>
 <style>
   :root{
-    --ink:#1f2937;
-    --muted:#6b7280;
-    --border:#e5e7eb;
-    --accent:#0ea5e9;
-    --bg:#ffffff;
-    --chip-bg:#eef6ff;
-    --chip-text:#0b5fb8;
+    --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb; --accent:#0ea5e9; --bg:#ffffff;
+    --chip-bg:#eef6ff; --chip-text:#0b5fb8;
   }
   *{box-sizing:border-box}
-  html,body{background:#fff}
-  body{font-family:"Times New Roman",serif; color:var(--ink); margin:32px; line-height:1.45; font-size:13.5pt}
-  h1{font-size:20pt; margin:0 0 8px; letter-spacing:.3px}
-  .sub{color:var(--muted); font-size:11pt}
-  .header{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding-bottom:12px; border-bottom:2px solid #000}
-  .brand h2{margin:0; font-size:13pt; font-weight:600}
-  .meta{text-align:right}
-  .section{margin-top:18px; border:1px solid var(--border); border-radius:10px; padding:14px 16px; background:var(--bg); page-break-inside:avoid}
-  .section h2{font-size:14.5pt; margin:0 0 10px; color:#111; border-left:3px solid var(--accent); padding-left:10px}
-  .kv{width:100%; border-collapse:collapse}
-  .kv td{padding:8px 10px; border:1px solid var(--border); vertical-align:top}
-  .kv td.key{background:#f9fafb; font-weight:700; width:220px}
-  .table{width:100%; border-collapse:collapse; font-size:13pt}
-  .table th,.table td{border:1px solid var(--border); padding:8px 10px; vertical-align:top}
-  .table th{background:#f3f4f6; text-align:left; font-weight:700}
-  .table.zebra tbody tr:nth-child(odd){background:#fafafa}
-  .chips{display:flex; flex-wrap:wrap; gap:8px}
-  .chip{background:var(--chip-bg); color:var(--chip-text); border:1px solid #d6e8ff; padding:6px 10px; border-radius:999px; font-size:12pt}
-  .muted{color:var(--muted)}
-  .note{padding:10px 12px; background:#f9fafb; border:1px dashed var(--border); border-radius:8px}
-  .sign{display:flex; gap:28px; margin-top:24px}
-  .sign .box{flex:1; text-align:center; padding-top:40px}
-  .sign .label{display:block; margin-top:6px; color:var(--muted); font-size:11.5pt}
-  img{max-width:520px; margin:10px 0; display:block}
-  /* In A4 */
+  body{font-family:"Times New Roman",serif; color:var(--ink); margin:40px 50px; line-height:1.6; font-size:13pt}
+  h1{font-size:22pt; margin:0 0 12px; font-weight:bold}
+  .sub{color:var(--muted); font-size:11pt; margin-top:4px}
+  .header{display:flex; align-items:flex-start; justify-content:space-between; padding-bottom:16px; margin-bottom:20px; border-bottom:2px solid #000}
+  .section{margin-top:20px; margin-bottom:20px; border:1px solid var(--border); border-radius:8px; padding:18px 20px; background:var(--bg); page-break-inside:avoid}
+  .section h2{font-size:15pt; margin:0 0 12px; color:#111; border-left:4px solid var(--accent); padding-left:12px; font-weight:bold}
+  .kv{width:100%; border-collapse:collapse; margin-top:8px}
+  .kv td{padding:10px 12px; border:1px solid var(--border); vertical-align:top}
+  .kv td.key{background:#f9fafb; font-weight:700; width:200px}
+  .chips{display:flex; flex-wrap:wrap; gap:10px; margin-top:8px}
+  .chip{background:var(--chip-bg); color:var(--chip-text); border:1px solid #d6e8ff; padding:8px 14px; border-radius:999px; font-size:12pt}
+  .table{width:100%; border-collapse:collapse; margin-top:8px}
+  .table th,.table td{border:1px solid var(--border); padding:10px 12px; vertical-align:top}
+  .table th{background:#f3f4f6; text-align:left; font-weight:bold; font-size:12.5pt}
+  .table td{font-size:12.5pt}
+  .note{padding:12px 16px; background:#f9fafb; border:1px dashed var(--border); border-radius:8px; line-height:1.6; margin-top:8px}
+  p{margin:8px 0; line-height:1.6}
+  p strong{font-weight:bold}
+  .sign{display:flex; justify-content:space-between; align-items:flex-start; margin-top:40px; padding-top:20px}
+  .sign .box{width:45%; padding-top:60px; min-width:250px}
+  .sign .box.left{text-align:left}
+  .sign .box.right{text-align:right}
+  .sign .box.left,.sign .box.right{display:flex; flex-direction:column}
+  .sign .box strong{font-size:13.5pt; display:block; margin-bottom:8px}
+  .sign .label{display:block; margin-top:8px; color:var(--muted); font-size:11pt}
   @page{size:A4; margin:20mm}
-  @media print{
-    body{margin:0; font-size:12pt}
-    .section{page-break-inside:avoid}
-    .header{border-bottom:1px solid #000}
-    .note{border-color:#ddd}
-  }
-  /* Word VML behaviors */
+  @media print{ body{margin:0; font-size:12pt} .section{page-break-inside:avoid} }
   v:*{behavior:url(#default#VML)} o:*{behavior:url(#default#VML)} w:*{behavior:url(#default#VML)}
 </style>
 <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/><w:ValidateAgainstSchemas/></w:WordDocument></xml><![endif]-->
@@ -138,13 +127,13 @@ export default function MedicalHistory() {
 <body>
 
   <div class="header">
-    <div class="brand">
+    <div>
       <h1>HỒ SƠ KHÁM BỆNH</h1>
       <div class="sub">Mã hồ sơ: ${record._id || "—"}</div>
     </div>
-    <div class="meta">
-      <div class="sub">Ngày tạo: ${formatDateForDoc(new Date())}</div>
-      ${record.mode ? `<div class="sub">Hình thức: ${record.mode === "online" ? "Trực tuyến" : "Trực tiếp"}</div>` : "" }
+    <div class="sub" style="text-align:right">
+      Ngày tạo: ${formatDateForDoc(new Date())}<br/>
+      ${record.mode ? `Hình thức: ${record.mode === "online" ? "Trực tuyến" : "Trực tiếp"}` : "" }
     </div>
   </div>
 
@@ -165,29 +154,29 @@ export default function MedicalHistory() {
     <div class="note">${record.reasonForVisit}</div>
   </div>` : ""}
 
+  ${record.diagnoses?.length ? `
   <div class="section">
     <h2>Chẩn đoán</h2>
-    ${record.diagnoses?.length ? `
-      <div class="chips">
-        ${record.diagnoses.map(d => `<span class="chip">${d.name || d}</span>`).join("")}
-      </div>` : `<span class="muted">Không có</span>`}
-  </div>
+    <div class="chips">
+      ${record.diagnoses.map(d => `<span class="chip">${d.name || d}</span>`).join("")}
+    </div>
+  </div>` : ""}
 
+  ${record.medications?.length ? `
   <div class="section">
     <h2>Đơn thuốc</h2>
-    ${record.medications?.length ? `
-      <table class="table zebra">
-        <thead><tr><th>Tên thuốc</th><th>Số lượng</th><th>Hướng dẫn</th></tr></thead>
-        <tbody>
-          ${record.medications.map(m => `
-            <tr>
+    <table class="table">
+      <thead><tr><th>Tên thuốc</th><th>Số lượng</th><th>Hướng dẫn</th></tr></thead>
+      <tbody>
+        ${record.medications.map(m => `
+          <tr>
               <td>${m.name || "Không có"}</td>
               <td>${m.quantity || "Không có"}</td>
               <td>${m.instruction || "Không có"}</td>
-            </tr>`).join("")}
-        </tbody>
-      </table>` : `<span class="muted">Không có đơn thuốc</span>`}
-  </div>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+  </div>` : ""}
 
   ${record.treatmentResult || record.summaryText || record.treatmentMethod || record.followUpInstructions || record.nextAppointmentDate ? `
   <div class="section">
@@ -219,7 +208,7 @@ export default function MedicalHistory() {
   ${record.labResults?.length ? `
   <div class="section">
     <h2>Kết quả xét nghiệm</h2>
-    <table class="table zebra">
+    <table class="table">
       <thead><tr><th>Xét nghiệm</th><th>Kết quả</th></tr></thead>
       <tbody>
         ${record.labResults.map(l => `<tr><td>${l.testName || "Xét nghiệm"}</td><td>${l.result || "Không có"}</td></tr>`).join("")}
@@ -228,11 +217,11 @@ export default function MedicalHistory() {
   </div>` : ""}
 
   <div class="sign">
-    <div class="box">
+    <div class="box left">
       <div><strong>Bệnh nhân</strong></div>
       <span class="label">(Ký và ghi rõ họ tên)</span>
     </div>
-    <div class="box">
+    <div class="box right">
       <div><strong>Bác sĩ phụ trách</strong></div>
       <span class="label">${record.doctorName ? "(" + record.doctorName + ")" : "(Ký và ghi rõ họ tên)"}</span>
     </div>
@@ -274,9 +263,13 @@ export default function MedicalHistory() {
   .table th,.table td{border:1px solid var(--border); padding:8px 10px}
   .table th{background:#f3f4f6; text-align:left}
   .note{padding:10px 12px; background:#f9fafb; border:1px dashed var(--border); border-radius:8px}
-  .sign{display:flex; gap:28px; margin-top:24px}
-  .sign .box{flex:1; text-align:center; padding-top:40px}
-  .sign .label{display:block; margin-top:6px; color:var(--muted); font-size:11.5pt}
+  .sign{display:flex; justify-content:space-between; align-items:flex-start; margin-top:40px; padding-top:20px}
+  .sign .box{width:45%; padding-top:60px; min-width:250px}
+  .sign .box.left{text-align:left}
+  .sign .box.right{text-align:right}
+  .sign .box.left,.sign .box.right{display:flex; flex-direction:column}
+  .sign .box strong{font-size:13.5pt; display:block; margin-bottom:8px}
+  .sign .label{display:block; margin-top:8px; color:var(--muted); font-size:11pt}
   @page{size:A4; margin:20mm}
   @media print{ body{margin:0; font-size:12pt} .section{page-break-inside:avoid} }
   v:*{behavior:url(#default#VML)} o:*{behavior:url(#default#VML)} w:*{behavior:url(#default#VML)}
@@ -338,12 +331,12 @@ export default function MedicalHistory() {
   </div>` : ""}
 
   <div class="sign">
-    <div class="box">
+    <div class="box left">
       <div><strong>Người được tư vấn</strong></div>
       <span class="label">(Ký và ghi rõ họ tên)</span>
     </div>
-    <div class="box">
-      <div><strong>Chuyên gia tư vấn</strong></div>
+    <div class="box right">
+      <div><strong>Bác sĩ tư vấn</strong></div>
       <span class="label">${record.doctorName ? "(" + record.doctorName + ")" : "(Ký và ghi rõ họ tên)"}</span>
     </div>
   </div>
