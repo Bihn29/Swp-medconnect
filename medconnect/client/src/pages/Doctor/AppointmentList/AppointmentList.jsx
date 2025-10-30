@@ -119,30 +119,66 @@ export default function AppointmentList() {
       return matchesSearch && matchesStatus && matchesMode && matchesDate;
     })
     .sort((a, b) => {
-      let aValue, bValue;
-
-      switch (sortBy) {
-        case "scheduledStart":
-          aValue = new Date(a.scheduledStart);
-          bValue = new Date(b.scheduledStart);
-          break;
-        case "patientName":
-          aValue = a.patientId?.fullName || a.patient?.fullName || "";
-          bValue = b.patientId?.fullName || b.patient?.fullName || "";
-          break;
-        case "status":
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        default:
-          aValue = new Date(a.scheduledStart);
-          bValue = new Date(b.scheduledStart);
+      // Get current date (today) - set time to midnight for date comparison
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Get appointment dates
+      const aDate = new Date(a.scheduledStart);
+      const bDate = new Date(b.scheduledStart);
+      
+      // Set time to midnight for date comparison
+      const aDateOnly = new Date(aDate);
+      aDateOnly.setHours(0, 0, 0, 0);
+      const bDateOnly = new Date(bDate);
+      bDateOnly.setHours(0, 0, 0, 0);
+      
+      // Check if appointments are today
+      const aIsToday = aDateOnly.getTime() === today.getTime();
+      const bIsToday = bDateOnly.getTime() === today.getTime();
+      
+      // If sortBy is not scheduledStart, use original sorting logic
+      if (sortBy !== "scheduledStart") {
+        let aValue, bValue;
+        
+        switch (sortBy) {
+          case "patientName":
+            aValue = a.patientId?.fullName || a.patient?.fullName || "";
+            bValue = b.patientId?.fullName || b.patient?.fullName || "";
+            break;
+          case "status":
+            aValue = a.status;
+            bValue = b.status;
+            break;
+          default:
+            aValue = new Date(a.scheduledStart);
+            bValue = new Date(b.scheduledStart);
+        }
+        
+        if (sortOrder === "asc") {
+          return aValue > bValue ? 1 : -1;
+        } else {
+          return aValue < bValue ? 1 : -1;
+        }
       }
-
-      if (sortOrder === "asc") {
-        return aValue > bValue ? 1 : -1;
+      
+      // For scheduledStart sorting: prioritize today's appointments, then sort by time
+      if (aIsToday && !bIsToday) {
+        // a is today, b is not - a comes first
+        return -1;
+      } else if (!aIsToday && bIsToday) {
+        // a is not today, b is today - b comes first
+        return 1;
+      } else if (aIsToday && bIsToday) {
+        // Both are today - always sort by time ascending (morning to afternoon)
+        return aDate.getTime() - bDate.getTime(); // Earlier time first (sáng đến chiều)
       } else {
-        return aValue < bValue ? 1 : -1;
+        // Both are not today - use sortOrder setting
+        if (sortOrder === "asc") {
+          return aDate.getTime() - bDate.getTime(); // Earlier time first
+        } else {
+          return bDate.getTime() - aDate.getTime(); // Later time first
+        }
       }
     });
 
