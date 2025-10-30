@@ -453,7 +453,7 @@ export function HealthProfile() {
                   {/* Vitals */}
                   {selectedSummary.fullDetails.vitals && (
                     <div className="detail-section">
-                      <h4>Chỉ số sinh tồn</h4>
+                      <h4>Chỉ số sinh học</h4>
                       <div className="vitals-grid">
                         {selectedSummary.fullDetails.vitals.height && (
                           <div className="vital-item">

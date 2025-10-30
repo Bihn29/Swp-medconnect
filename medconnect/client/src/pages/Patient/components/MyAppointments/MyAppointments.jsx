@@ -4,7 +4,15 @@ import { Button } from "../../../../components/ui/Button";
 import { api } from "../../../../lib/api";
 import { Spin, message, Modal } from "antd";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Clock, MapPin, Video, X, VideoIcon } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Video,
+  X,
+  VideoIcon,
+  Eye,
+} from "lucide-react";
 import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 import ReviewModal from "../ReviewModal/ReviewModal";
 import { RescheduleButton } from "../../../../components/RescheduleButton/RescheduleButton";
@@ -300,7 +308,7 @@ export function MyAppointments() {
             <div
               key={a._id}
               style={{
-                border: "1px solid #e5e7eb",
+                border: "2px solid #cbd5e1",
                 borderRadius: 12,
                 background: "#fff",
                 padding: 16,
@@ -412,12 +420,20 @@ export function MyAppointments() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
                 {a.status === "done" ? (
                   // Appointments đã hoàn thành có nút đánh giá
                   <>
                     <Button
-                      variant="secondary"
+                      variant="default"
+                      size="sm"
                       onClick={() => handleShowReview(a)}
                     >
                       ⭐ Đánh giá
@@ -434,14 +450,13 @@ export function MyAppointments() {
                     {/* Video Call Button - Only show for accepted appointments */}
                     {a.status === "accepted" && a.mode === "online" ? (
                       <Button
-                        type="primary"
+                        variant="default"
+                        size="sm"
                         onClick={() =>
                           navigate(`/benh-nhan/video-call/${a._id}`)
                         }
                         style={{
-                          background: "#1890ff",
-                          borderColor: "#1890ff",
-                          color: "#fff",
+                          backgroundColor: "#1890ff",
                         }}
                       >
                         <VideoIcon size={16} style={{ marginRight: 6 }} />
@@ -451,16 +466,18 @@ export function MyAppointments() {
 
                     {/* Regular Video Button for other online appointments */}
                     {a.mode === "online" && a.status !== "accepted" ? (
-                      <Button variant="secondary">
+                      <Button variant="outline" size="sm" disabled>
                         <Video size={16} style={{ marginRight: 6 }} />
                         Chờ duyệt
                       </Button>
                     ) : null}
 
                     <Button
-                      variant="secondary"
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleShowDetail(a._id)}
                     >
+                      <Eye size={16} style={{ marginRight: 6 }} />
                       Chi tiết
                     </Button>
 
@@ -488,9 +505,13 @@ export function MyAppointments() {
                     {/* Cancel button - show for pending and accepted appointments */}
                     {["pending_doctor", "accepted"].includes(a.status) && (
                       <Button
-                        variant="ghost"
-                        style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                        variant="default"
+                        size="sm"
                         onClick={() => handleCancelAppointment(a._id)}
+                        style={{
+                          backgroundColor: "#dc2626",
+                          color: "#ffffff",
+                        }}
                       >
                         <X size={16} style={{ marginRight: 6 }} /> Hủy
                       </Button>

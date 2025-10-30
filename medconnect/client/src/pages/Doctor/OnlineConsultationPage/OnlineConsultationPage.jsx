@@ -219,7 +219,7 @@ export default function OnlineConsultationPage() {
           <div className="header-content">
             <h1>Hoàn thành tư vấn trực tuyến</h1>
             <p className="patient-info">
-              Bệnh nhân: <strong>{appointment?.patientId?.fullName || appointment?.patient?.fullName || appointment?.patientName || "N/A"}</strong>
+              Bệnh nhân: <strong>{appointment?.patientId?.fullName || appointment?.patient?.fullName || appointment?.patientName || "Không có"}</strong>
             </p>
           </div>
           <button className="back-btn" onClick={() => navigate("/bac-si/lich-hen")}>
@@ -237,7 +237,7 @@ export default function OnlineConsultationPage() {
                   <label>Bệnh nhân</label>
                   <Input
                     type="text"
-                    value={appointment?.patientId?.fullName || appointment?.patient?.fullName || appointment?.patientName || "N/A"}
+                    value={appointment?.patientId?.fullName || appointment?.patient?.fullName || appointment?.patientName || "Không có"}
                     disabled
                     className="disabled-input"
                   />
@@ -246,7 +246,7 @@ export default function OnlineConsultationPage() {
                   <label>Ngày khám</label>
                   <Input
                     type="text"
-                    value={appointment?.scheduledStart ? new Date(appointment.scheduledStart).toLocaleString('vi-VN') : "N/A"}
+                    value={appointment?.scheduledStart ? new Date(appointment.scheduledStart).toLocaleString('vi-VN') : "Không có"}
                     disabled
                     className="disabled-input"
                   />
@@ -256,7 +256,7 @@ export default function OnlineConsultationPage() {
                 <label>Lý do khám</label>
                 <Input
                   type="text"
-                  value={appointment?.reason || appointment?.notes || "N/A"}
+                  value={appointment?.reason || appointment?.notes || "Không có"}
                   disabled
                   className="disabled-input"
                 />

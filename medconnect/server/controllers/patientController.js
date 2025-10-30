@@ -199,31 +199,21 @@ export async function getCurrentPatientProfile(req, res) {
             dob: patient.dob,
             gender: patient.gender,
             ethnicity: patient.ethnicity,
-            nationality: patient.nationality,
             occupation: patient.occupation,
             citizenId: patient.citizenId,
             phone: patient.phone,
             email: patient.email,
             address: patient.address,
             houseNumber: patient.houseNumber,
-            // Bảo hiểm y tế
-            insuranceNumber: patient.insuranceNumber,
-            primaryClinic: patient.primaryClinic,
-            insuranceValidFrom: patient.insuranceValidFrom,
-            insuranceValidTo: patient.insuranceValidTo,
             // Người đại diện
             representativeName: patient.representativeName,
             representativeCitizenId: patient.representativeCitizenId,
             representativeRelation: patient.representativeRelation,
             representativePhone: patient.representativePhone,
-            // Liên hệ khẩn cấp
-            emergencyContactName: patient.emergencyContactName,
-            emergencyContactPhone: patient.emergencyContactPhone,
             // Thông tin y tế
             bloodType: patient.bloodType,
             allergyNotes: patient.allergyNotes,
             medicalHistory: patient.medicalHistory,
-            vaccinationHistory: patient.vaccinationHistory,
             // Ghi chú
             notes: patient.notes,
             // Legacy fields
@@ -319,17 +309,6 @@ export async function updatePatientProfile(req, res) {
       }
     }
 
-    // Validate insurance dates
-    if (updateData.insuranceValidFrom && updateData.insuranceValidTo) {
-      const fromDate = new Date(updateData.insuranceValidFrom);
-      const toDate = new Date(updateData.insuranceValidTo);
-
-      if (fromDate >= toDate) {
-        validationErrors.insuranceValidTo =
-          "Ngày hết hạn phải sau ngày có hiệu lực";
-      }
-    }
-
     // Validate citizen ID format
     if (updateData.citizenId && !/^[0-9]{9,12}$/.test(updateData.citizenId)) {
       validationErrors.citizenId = "CCCD/CMND phải có 9-12 chữ số";
@@ -355,47 +334,6 @@ export async function updatePatientProfile(req, res) {
         "Số điện thoại người đại diện không đúng định dạng";
     }
 
-    if (
-      updateData.emergencyContactPhone &&
-      !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(
-        updateData.emergencyContactPhone.replace(/\s/g, "")
-      )
-    ) {
-      validationErrors.emergencyContactPhone =
-        "Số điện thoại liên hệ khẩn cấp không đúng định dạng";
-    }
-
-    // Validate text length
-    if (updateData.allergyNotes && updateData.allergyNotes.length > 500) {
-      validationErrors.allergyNotes = "Ghi chú dị ứng không được quá 500 ký tự";
-    }
-
-    if (updateData.notes && updateData.notes.length > 1000) {
-      validationErrors.notes = "Ghi chú không được quá 1000 ký tự";
-    }
-
-    // Validate insurance number format
-    if (
-      updateData.insuranceNumber &&
-      !/^[0-9]{10,15}$/.test(updateData.insuranceNumber.replace(/\s/g, ""))
-    ) {
-      validationErrors.insuranceNumber = "Số thẻ BHYT phải có 10-15 chữ số";
-    }
-
-    // Validate primary clinic name
-    if (updateData.primaryClinic) {
-      if (updateData.primaryClinic.trim().length < 3) {
-        validationErrors.primaryClinic =
-          "Tên cơ sở y tế phải có ít nhất 3 ký tự";
-      } else if (updateData.primaryClinic.length > 200) {
-        validationErrors.primaryClinic =
-          "Tên cơ sở y tế không được quá 200 ký tự";
-      } else if (!/^[a-zA-ZÀ-ỹ\s\d\-.,()]+$/.test(updateData.primaryClinic)) {
-        validationErrors.primaryClinic =
-          "Tên cơ sở y tế chỉ được chứa chữ cái, số và ký tự đặc biệt cơ bản";
-      }
-    }
-
     // Validate representative name
     if (updateData.representativeName) {
       if (updateData.representativeName.trim().length < 2) {
@@ -410,18 +348,13 @@ export async function updatePatientProfile(req, res) {
       }
     }
 
-    // Validate emergency contact name
-    if (updateData.emergencyContactName) {
-      if (updateData.emergencyContactName.trim().length < 2) {
-        validationErrors.emergencyContactName =
-          "Họ tên người liên hệ khẩn cấp phải có ít nhất 2 ký tự";
-      } else if (updateData.emergencyContactName.length > 100) {
-        validationErrors.emergencyContactName =
-          "Họ tên người liên hệ khẩn cấp không được quá 100 ký tự";
-      } else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(updateData.emergencyContactName)) {
-        validationErrors.emergencyContactName =
-          "Họ tên chỉ được chứa chữ cái và khoảng trắng";
-      }
+    // Validate text length
+    if (updateData.allergyNotes && updateData.allergyNotes.length > 500) {
+      validationErrors.allergyNotes = "Ghi chú dị ứng không được quá 500 ký tự";
+    }
+
+    if (updateData.notes && updateData.notes.length > 1000) {
+      validationErrors.notes = "Ghi chú không được quá 1000 ký tự";
     }
 
     // Return validation errors if any
@@ -451,31 +384,21 @@ export async function updatePatientProfile(req, res) {
       dob: updateData.dob,
       gender: updateData.gender,
       ethnicity: updateData.ethnicity,
-      nationality: updateData.nationality,
       occupation: updateData.occupation,
       citizenId: updateData.citizenId,
       phone: updateData.phone,
       email: updateData.email,
       address: updateData.address,
       houseNumber: updateData.houseNumber,
-      // Bảo hiểm y tế
-      insuranceNumber: updateData.insuranceNumber,
-      primaryClinic: updateData.primaryClinic,
-      insuranceValidFrom: updateData.insuranceValidFrom,
-      insuranceValidTo: updateData.insuranceValidTo,
       // Người đại diện
       representativeName: updateData.representativeName,
       representativeCitizenId: updateData.representativeCitizenId,
       representativeRelation: updateData.representativeRelation,
       representativePhone: updateData.representativePhone,
-      // Liên hệ khẩn cấp
-      emergencyContactName: updateData.emergencyContactName,
-      emergencyContactPhone: updateData.emergencyContactPhone,
       // Thông tin y tế
       bloodType: updateData.bloodType,
       allergyNotes: updateData.allergyNotes,
       medicalHistory: updateData.medicalHistory,
-      vaccinationHistory: updateData.vaccinationHistory,
       // Ghi chú
       notes: updateData.notes,
     };
@@ -736,7 +659,7 @@ export async function bookAppointment(req, res) {
     //   return fail(res, 400, ERROR_CODES.PAYMENT_REQUIRED, "Payment is required for this appointment");
     // }
 
-    // Create appointment with pending_doctor status
+    // Create appointment with pending_doctor status and unpaid paymentStatus
     const appointment = new Appointment({
       patientId: patient._id,
       doctorId: doctorId,
@@ -746,10 +669,9 @@ export async function bookAppointment(req, res) {
       scheduledStart: new Date(scheduledStart),
       scheduledEnd: new Date(scheduledEnd),
       status: "pending_doctor", // Waiting for doctor approval
+      paymentStatus: "unpaid", // Initially unpaid
+      // paymentDeadline không set - không giới hạn thời gian thanh toán
       reason: reason,
-      // TODO: Comment out payment-related fields for now
-      // paymentId: paymentId,
-      // patientPaidAt: paymentId ? new Date() : undefined,
       autoExpireAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours from now
     });
 

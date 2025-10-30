@@ -11,6 +11,7 @@ import clinicRouter from "./clinicRoutes.js";
 import reviewRouter from "./reviewRoutes.js";
 import rescheduleRouter from "./rescheduleRoutes.js";
 import videoCallRouter from "./videoCallRoutes.js";
+import payosRouter from "./payos.routes.js";
 import { getAllAppointments } from "../controllers/doctorController.js";
 import { getAppointmentBySlotId } from "../controllers/appointmentController.js";
 
@@ -108,6 +109,10 @@ console.log("[router] mounted /api/reschedule");
 apiRouter.use("/video-calls", videoCallRouter);
 console.log("[router] mounted /api/video-calls");
 
+// PayOS payment routes
+apiRouter.use("/payments/payos", payosRouter);
+console.log("[router] mounted /api/payments/payos");
+
 //admin
 // apiRouter.use("/doctor", adminRouter);
 // //staff
@@ -115,9 +120,4 @@ console.log("[router] mounted /api/video-calls");
 // //common
 // apiRouter.use("/common", commonRouter);
 
-// common api
-//payment zalo
-// router.use("/zalo", paymentRouter);
-// //payment payos
-// router.use("/payos", payosRouter);
 export default apiRouter;

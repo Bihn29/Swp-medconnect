@@ -21,13 +21,14 @@ import AppointmentBookingHome from "../pages/Appointment/AppointmentBookingHome"
 import SpecializationSelection from "../pages/Appointment/SpecializationSelection";
 import DoctorSelection from "../pages/Appointment/DoctorSelection";
 import TimeSlotSelection from "../pages/Appointment/TimeSlotSelection";
+import PaymentResult from "../pages/Appointment/PaymentResult";
 import PatientVideoCallPage from "../pages/Patient/VideoCallPage";
 
 // Doctor Components
 import DoctorDashboard from "../pages/Doctor/DoctorDashboard/DoctorDashboard";
 import AppointmentList from "../pages/Doctor/AppointmentList/AppointmentList";
 import AppointmentDetail from "../pages/Doctor/AppointmentDetail/AppointmentDetail";
-import ConsultationRecords from "../pages/Doctor/ConsultationRecords/ConsultationRecords";
+import MedicalHistory from "../pages/Doctor/MedicalHistory/MedicalHistory";
 import ProfileSettings from "../pages/Doctor/ProfileSettings/ProfileSettings";
 import ScheduleManagement from "../pages/Doctor/ScheduleManagement/ScheduleManagement";
 import Feedback from "../pages/Doctor/Feedback/Feedback";
@@ -35,7 +36,7 @@ import OfflineConsultationPage from "../pages/Doctor/OfflineConsultationPage/Off
 import OnlineConsultationPage from "../pages/Doctor/OnlineConsultationPage/OnlineConsultationPage";
 import { RescheduleRequests } from "../pages/Doctor/components/RescheduleRequests/RescheduleRequests";
 import { Notifications } from "../pages/Doctor/components/Notifications/Notifications";
-import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage";
+import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage/DoctorVideoCallPage";
 
 // Admin Components
 import AdminDashboard from "../pages/Admin/AdminDashboard";
@@ -110,7 +111,7 @@ export const privateRoutes = (
 
           {/* ==================== MEDICAL RECORDS ==================== */}
           {/* Doctor medical records and consultation routes */}
-          <Route path="/bac-si/ho-so-kham" element={<ConsultationRecords />} />
+          <Route path="/bac-si/ho-so-kham" element={<MedicalHistory />} />
 
           {/* ==================== SETTINGS & PROFILE ==================== */}
           {/* Doctor settings and profile management */}
@@ -154,6 +155,8 @@ export const privateRoutes = (
           path="/dat-lich/chon-thoi-gian"
           element={<TimeSlotSelection />}
         />
+        {/* Payment result route - handles both success and failed */}
+        <Route path="/dat-lich/payment-result" element={<PaymentResult />} />
       </Route>
     </Route>
 

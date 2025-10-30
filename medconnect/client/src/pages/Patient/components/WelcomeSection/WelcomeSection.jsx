@@ -74,7 +74,7 @@ function WelcomeSection() {
     <div
       style={{
         backgroundColor: "#ffffff",
-        border: "1px solid #e5e7eb",
+        border: "2px solid #cbd5e1",
         borderRadius: "1rem",
         padding: "2.5rem",
         boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",

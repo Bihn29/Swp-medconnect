@@ -150,21 +150,21 @@ export default function AppointmentDetail({ appointmentId, onBack }) {
           <div className="space-y-4">
             <div>
               <h3 className="font-semibold text-gray-900">
-                {appointment.patientId?.fullName || "N/A"}
+                {appointment.patientId?.fullName || "Không có"}
               </h3>
               <p className="text-sm text-gray-600">
-                {appointment.patientId?.email || "N/A"}
+                {appointment.patientId?.email || "Không có"}
               </p>
             </div>
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4" />
-              {appointment.patientId?.phone || "N/A"}
+              {appointment.patientId?.phone || "Không có"}
             </div>
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Mail className="w-4 h-4" />
-              {appointment.patientId?.email || "N/A"}
+              {appointment.patientId?.email || "Không có"}
             </div>
 
             {appointment.patientId?.address && (

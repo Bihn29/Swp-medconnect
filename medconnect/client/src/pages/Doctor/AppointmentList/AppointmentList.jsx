@@ -766,7 +766,7 @@ export default function AppointmentList() {
                       >
                         {apt.patientId?.fullName ||
                           apt.patient?.fullName ||
-                          "N/A"}
+                          "Không có"}
                       </span>
                     </td>
                     <td className="appointment-list-td appointment-list-datetime">
@@ -811,7 +811,7 @@ export default function AppointmentList() {
                             📅 Đã dời lịch
                           </Badge>
                         )}
-                        {apt.notes || apt.reason || "N/A"}
+                        {apt.notes || apt.reason || "Không có"}
                       </div>
                     </td>
                     <td className="appointment-list-td appointment-list-status">
@@ -939,7 +939,7 @@ export default function AppointmentList() {
                     <p className="appointment-detail-value">
                       {selectedAppointment.patientId?.fullName ||
                         selectedAppointment.patient?.fullName ||
-                        "N/A"}
+                        "Không có"}
                     </p>
                   </div>
                   <div className="appointment-detail-item">
@@ -947,7 +947,7 @@ export default function AppointmentList() {
                     <p className="appointment-detail-value">
                       {selectedAppointment.patientId?.phone ||
                         selectedAppointment.patient?.phone ||
-                        "N/A"}
+                        "Không có"}
                     </p>
                   </div>
                   <div className="appointment-detail-item">
@@ -957,7 +957,7 @@ export default function AppointmentList() {
                         selectedAppointment.patientId?.userId?.email ||
                         selectedAppointment.patient?.email ||
                         selectedAppointment.patient?.user?.email ||
-                        "N/A"}
+                        "Không có"}
                     </p>
                   </div>
                   <div className="appointment-detail-item">
@@ -967,7 +967,7 @@ export default function AppointmentList() {
                         ? new Date(
                             selectedAppointment.patientId.dob
                           ).toLocaleDateString("vi-VN")
-                        : "N/A"}
+                        : "Không có"}
                     </p>
                   </div>
                   <div className="appointment-detail-item">
@@ -975,7 +975,7 @@ export default function AppointmentList() {
                     <p className="appointment-detail-value">
                       {selectedAppointment.patientId?.gender ||
                         selectedAppointment.patient?.gender ||
-                        "N/A"}
+                        "Không có"}
                     </p>
                   </div>
                   <div className="appointment-detail-item">
@@ -1003,7 +1003,7 @@ export default function AppointmentList() {
                     <p className="appointment-detail-value">
                       {selectedAppointment.notes ||
                         selectedAppointment.reason ||
-                        "N/A"}
+                        "Không có"}
                     </p>
                   </div>
                   <div className="appointment-detail-item">
@@ -1183,7 +1183,7 @@ export default function AppointmentList() {
                 <p className="appointment-reject-value">
                   {selectedAppointment?.patientId?.fullName ||
                     selectedAppointment?.patient?.fullName ||
-                    "N/A"}
+                    "Không có"}
                 </p>
               </div>
               <div className="appointment-reject-field">

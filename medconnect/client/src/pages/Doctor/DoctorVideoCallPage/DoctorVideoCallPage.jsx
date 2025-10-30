@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { message } from 'antd';
-import jitsiService from '../../services/jitsiService';
-import VideoCallAPI from '../../services/videoCallAPI';
+import jitsiService from '../../../services/jitsiService';
+import VideoCallAPI from '../../../services/videoCallAPI';
 import './DoctorVideoCallPage.css';
 
 const DoctorVideoCallPage = () => {
