@@ -17,6 +17,7 @@ import {
   Divider,
   Tag,
   Rate,
+  Checkbox,
 } from "antd";
 import {
   CalendarOutlined,
@@ -53,6 +54,12 @@ const TimeSlotSelection = () => {
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [defaultClinic, setDefaultClinic] = useState(null);
   const [clinicLoading, setClinicLoading] = useState(false);
+  const [bookingFor, setBookingFor] = useState("me"); // "me" or "family"
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const [selectedFamilyMember, setSelectedFamilyMember] = useState(null);
+  const [loadingFamilyMembers, setLoadingFamilyMembers] = useState(false);
+  const [familyForm] = Form.useForm();
+  const [addingFamilyMember, setAddingFamilyMember] = useState(false);
 
   useEffect(() => {
     if (location.state?.doctor) {
@@ -78,6 +85,12 @@ const TimeSlotSelection = () => {
       fetchDefaultClinic();
     }
   }, [doctor]);
+
+  useEffect(() => {
+    if (bookingFor === "family") {
+      fetchFamilyMembers();
+    }
+  }, [bookingFor]);
 
   const fetchTimeSlots = async () => {
     try {
@@ -128,6 +141,173 @@ const TimeSlotSelection = () => {
     }
   };
 
+  const fetchFamilyMembers = async () => {
+    try {
+      setLoadingFamilyMembers(true);
+      const response = await api.get("/api/patients/me/family-members");
+
+      if (response.success && response.data.familyMembers) {
+        setFamilyMembers(response.data.familyMembers);
+      } else {
+        message.error("Không thể tải danh sách người thân");
+        setFamilyMembers([]);
+      }
+    } catch (error) {
+      console.error("Error fetching family members:", error);
+      message.error("Có lỗi xảy ra khi tải danh sách người thân");
+      setFamilyMembers([]);
+    } finally {
+      setLoadingFamilyMembers(false);
+    }
+  };
+
+  const handleAddFamilyMember = async (values) => {
+    try {
+      setAddingFamilyMember(true);
+
+      const response = await api.post("/api/patients/me/family-members", {
+        fullName: values.fullName,
+        dob: values.dob.format("YYYY-MM-DD"),
+        gender: values.gender,
+        relationshipToOwner: values.relationshipToOwner,
+        phone: values.phone,
+        citizenId: values.citizenId,
+        address: values.address,
+        houseNumber: values.houseNumber,
+      });
+
+      if (response.success) {
+        message.success("Thêm người thân thành công!");
+
+        // Refresh family members list
+        await fetchFamilyMembers();
+
+        // Select the newly added member
+        const newPatientId = response.data.patient._id;
+        setSelectedFamilyMember(newPatientId);
+
+        // Automatically proceed with booking
+        setTimeout(async () => {
+          await proceedWithBooking(newPatientId);
+        }, 500);
+      } else {
+        message.error(response.message || "Thêm người thân thất bại");
+      }
+    } catch (error) {
+      console.error("Error adding family member:", error);
+      message.error("Có lỗi xảy ra khi thêm người thân");
+    } finally {
+      setAddingFamilyMember(false);
+    }
+  };
+
+  const proceedWithBooking = async (patientId) => {
+    try {
+      setLoading(true);
+
+      const appointmentData = {
+        doctorId: doctor._id,
+        slotId: selectedTimeSlot._id,
+        mode: selectedMode,
+        reason: form.getFieldValue("reason") || "",
+        patientId: patientId,
+        scheduledStart: selectedDate
+          .clone()
+          .hour(parseInt(selectedTimeSlot.startTime.split(":")[0]))
+          .minute(parseInt(selectedTimeSlot.startTime.split(":")[1]))
+          .toISOString(),
+        scheduledEnd: selectedDate
+          .clone()
+          .hour(parseInt(selectedTimeSlot.endTime.split(":")[0]))
+          .minute(parseInt(selectedTimeSlot.endTime.split(":")[1]))
+          .toISOString(),
+      };
+
+      // Add clinicId for offline appointments
+      if (selectedMode === "offline" && defaultClinic) {
+        appointmentData.clinicId = defaultClinic._id;
+      }
+
+      // Step 1: Create appointment
+      const response = await api.post(
+        "/api/patients/appointments",
+        appointmentData
+      );
+
+      if (response.success) {
+        const appointment = response.data.appointment;
+
+        // Step 2: Create payment link
+        try {
+          const { createPayOSPayment } = await import(
+            "../../services/payService"
+          );
+
+          const consultationFee = 10000;
+
+          const paymentResponse = await createPayOSPayment({
+            appointmentId: appointment._id,
+            amount: consultationFee,
+            description: `Kham benh MedConnect`,
+          });
+
+          if (paymentResponse.success && paymentResponse.data.payUrl) {
+            message.success("Đang chuyển đến trang thanh toán...");
+            window.location.href = paymentResponse.data.payUrl;
+          } else {
+            message.error(
+              "Không thể tạo link thanh toán. Đang hủy đặt lịch..."
+            );
+            try {
+              await api.put(
+                `/api/patients/me/appointments/${appointment._id}/cancel`,
+                {
+                  cancelReason: "Không thể tạo link thanh toán",
+                }
+              );
+            } catch (cancelError) {
+              console.error("Error canceling appointment:", cancelError);
+            }
+
+            setTimeout(() => {
+              navigate("/dat-lich/chon-thoi-gian", {
+                state: { doctor, specialization },
+              });
+            }, 2000);
+          }
+        } catch (paymentError) {
+          console.error("Error creating payment:", paymentError);
+          message.error(
+            "Có lỗi xảy ra khi tạo thanh toán. Đang hủy đặt lịch..."
+          );
+          try {
+            await api.put(
+              `/api/patients/me/appointments/${appointment._id}/cancel`,
+              {
+                cancelReason: "Lỗi khi tạo thanh toán",
+              }
+            );
+          } catch (cancelError) {
+            console.error("Error canceling appointment:", cancelError);
+          }
+
+          setTimeout(() => {
+            navigate("/dat-lich/chon-thoi-gian", {
+              state: { doctor, specialization },
+            });
+          }, 2000);
+        }
+      } else {
+        message.error(response.message || "Có lỗi xảy ra khi đặt lịch");
+      }
+    } catch (error) {
+      console.error("Error booking appointment:", error);
+      message.error("Có lỗi xảy ra khi đặt lịch. Vui lòng thử lại!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDateChange = (date) => {
     setSelectedDate(date);
     setSelectedTimeSlot(null);
@@ -172,6 +352,11 @@ const TimeSlotSelection = () => {
         appointmentData.clinicId = defaultClinic._id;
       }
 
+      // Add patientId for family member booking
+      if (bookingFor === "family" && selectedFamilyMember) {
+        appointmentData.patientId = selectedFamilyMember;
+      }
+
       // Step 1: Create appointment
       const response = await api.post(
         "/api/patients/appointments",
@@ -180,15 +365,16 @@ const TimeSlotSelection = () => {
 
       if (response.success) {
         const appointment = response.data.appointment;
-        
+
         // Step 2: Create payment link
         try {
           // Import payment service
-          const { createPayOSPayment } = await import("../../services/payService");
-          
-          
+          const { createPayOSPayment } = await import(
+            "../../services/payService"
+          );
+
           const consultationFee = 10000; //  (có thể thay đổi số tiền ở đây)
-          
+
           const paymentResponse = await createPayOSPayment({
             appointmentId: appointment._id,
             amount: consultationFee,
@@ -197,23 +383,30 @@ const TimeSlotSelection = () => {
 
           if (paymentResponse.success && paymentResponse.data.payUrl) {
             message.success("Đang chuyển đến trang thanh toán...");
-            
+
             // Redirect to PayOS payment page
             window.location.href = paymentResponse.data.payUrl;
           } else {
             // Payment link creation failed - need to cancel appointment
-            message.error("Không thể tạo link thanh toán. Đang hủy đặt lịch...");
-            
+            message.error(
+              "Không thể tạo link thanh toán. Đang hủy đặt lịch..."
+            );
+
             // Try to cancel the appointment using the correct endpoint
             try {
-              await api.put(`/api/patients/me/appointments/${appointment._id}/cancel`, {
-                cancelReason: "Không thể tạo link thanh toán"
-              });
-              console.log("Appointment cancelled - payment link creation failed");
+              await api.put(
+                `/api/patients/me/appointments/${appointment._id}/cancel`,
+                {
+                  cancelReason: "Không thể tạo link thanh toán",
+                }
+              );
+              console.log(
+                "Appointment cancelled - payment link creation failed"
+              );
             } catch (cancelError) {
               console.error("Error canceling appointment:", cancelError);
             }
-            
+
             setTimeout(() => {
               navigate("/dat-lich/chon-thoi-gian", {
                 state: { doctor, specialization },
@@ -222,18 +415,23 @@ const TimeSlotSelection = () => {
           }
         } catch (paymentError) {
           console.error("Error creating payment:", paymentError);
-          message.error("Có lỗi xảy ra khi tạo thanh toán. Đang hủy đặt lịch...");
-          
+          message.error(
+            "Có lỗi xảy ra khi tạo thanh toán. Đang hủy đặt lịch..."
+          );
+
           // Rollback - cancel the appointment that was just created
           try {
-            await api.put(`/api/patients/me/appointments/${appointment._id}/cancel`, {
-              cancelReason: "Lỗi khi tạo thanh toán"
-            });
+            await api.put(
+              `/api/patients/me/appointments/${appointment._id}/cancel`,
+              {
+                cancelReason: "Lỗi khi tạo thanh toán",
+              }
+            );
             console.log("Appointment cancelled due to payment error");
           } catch (cancelError) {
             console.error("Error canceling appointment:", cancelError);
           }
-          
+
           // Navigate back to time selection after 2 seconds
           setTimeout(() => {
             navigate("/dat-lich/chon-thoi-gian", {
@@ -449,6 +647,186 @@ const TimeSlotSelection = () => {
                     onFinish={handleBookingSubmit}
                     className="booking-form"
                   >
+                    {/* Booking For Selection */}
+                    <Form.Item label="Đặt khám cho">
+                      <div className="booking-for-buttons">
+                        <Button
+                          type={bookingFor === "me" ? "primary" : "default"}
+                          onClick={() => {
+                            setBookingFor("me");
+                            setSelectedFamilyMember(null);
+                          }}
+                          className="booking-button"
+                        >
+                          Đặt khám cho tôi
+                        </Button>
+                        <Button
+                          type={bookingFor === "family" ? "primary" : "default"}
+                          onClick={() => {
+                            setBookingFor("family");
+                            setSelectedFamilyMember(null); // Clear any previous selection
+                          }}
+                          className="booking-button"
+                        >
+                          Đặt khám hộ người thân
+                        </Button>
+                      </div>
+                    </Form.Item>
+
+                    {/* Family Member Form - Show inline when booking for family */}
+                    {bookingFor === "family" && (
+                      <div>
+                        <Title level={5} style={{ marginBottom: 16 }}>
+                          Thông tin người thân
+                        </Title>
+                        <Form
+                          form={familyForm}
+                          layout="vertical"
+                          onFinish={handleAddFamilyMember}
+                          className="family-member-form"
+                        >
+                          <Form.Item
+                            label="Họ và tên"
+                            name="fullName"
+                            rules={[
+                              {
+                                required: true,
+                                message: "Vui lòng nhập họ tên!",
+                              },
+                            ]}
+                          >
+                            <Input placeholder="Nhập họ và tên" />
+                          </Form.Item>
+
+                          <Form.Item
+                            label="Số CCCD/CMND"
+                            name="citizenId"
+                            rules={[
+                              {
+                                required: true,
+                                message: "Vui lòng nhập số CCCD!",
+                              },
+                            ]}
+                          >
+                            <Input placeholder="Nhập số CCCD/CMND" />
+                          </Form.Item>
+
+                          <Row gutter={16}>
+                            <Col span={12}>
+                              <Form.Item
+                                label="Ngày sinh"
+                                name="dob"
+                                rules={[
+                                  {
+                                    required: true,
+                                    message: "Vui lòng chọn ngày sinh!",
+                                  },
+                                ]}
+                              >
+                                <DatePicker
+                                  style={{ width: "100%" }}
+                                  format="DD/MM/YYYY"
+                                  placeholder="Chọn ngày sinh"
+                                  disabledDate={(current) =>
+                                    current && current > new Date()
+                                  }
+                                />
+                              </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                              <Form.Item
+                                label="Giới tính"
+                                name="gender"
+                                rules={[
+                                  {
+                                    required: true,
+                                    message: "Vui lòng chọn giới tính!",
+                                  },
+                                ]}
+                              >
+                                <Select placeholder="Chọn giới tính">
+                                  <Option value="male">Nam</Option>
+                                  <Option value="female">Nữ</Option>
+                                  <Option value="other">Khác</Option>
+                                </Select>
+                              </Form.Item>
+                            </Col>
+                          </Row>
+
+                          <Form.Item
+                            label="Mối quan hệ"
+                            name="relationshipToOwner"
+                            rules={[
+                              {
+                                required: true,
+                                message: "Vui lòng chọn mối quan hệ!",
+                              },
+                            ]}
+                          >
+                            <Select placeholder="Chọn mối quan hệ">
+                              <Option value="father">Cha</Option>
+                              <Option value="mother">Mẹ</Option>
+                              <Option value="spouse">Vợ/Chồng</Option>
+                              <Option value="child">Con</Option>
+                              <Option value="grandparent">Ông/Bà</Option>
+                              <Option value="other">Khác</Option>
+                            </Select>
+                          </Form.Item>
+
+                          <Form.Item
+                            label="Số điện thoại"
+                            name="phone"
+                            rules={[
+                              {
+                                required: true,
+                                message: "Vui lòng nhập số điện thoại!",
+                              },
+                              {
+                                pattern: /^[0-9]{10}$/,
+                                message: "Số điện thoại không hợp lệ!",
+                              },
+                            ]}
+                          >
+                            <Input placeholder="Nhập số điện thoại" />
+                          </Form.Item>
+
+                          <Form.Item
+                            label="Địa chỉ"
+                            name="address"
+                            rules={[
+                              {
+                                required: true,
+                                message: "Vui lòng nhập địa chỉ!",
+                              },
+                            ]}
+                          >
+                            <Input placeholder="Nhập địa chỉ" />
+                          </Form.Item>
+
+                          <Form.Item label="Số nhà" name="houseNumber">
+                            <Input placeholder="Nhập số nhà (nếu có)" />
+                          </Form.Item>
+
+                          <Form.Item
+                            name="agreement"
+                            valuePropName="checked"
+                            rules={[
+                              {
+                                required: true,
+                                message:
+                                  "Vui lòng xác nhận chịu trách nhiệm về thông tin cung cấp!",
+                              },
+                            ]}
+                          >
+                            <Checkbox>
+                              Người đặt hộ chịu trách nhiệm về thông tin cung
+                              cấp
+                            </Checkbox>
+                          </Form.Item>
+                        </Form>
+                      </div>
+                    )}
+
                     {/* Mode Selection */}
                     <Form.Item
                       name="mode"

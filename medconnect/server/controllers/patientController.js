@@ -574,6 +574,7 @@ export async function bookAppointment(req, res) {
       reason,
       scheduledStart,
       scheduledEnd,
+      patientId, // Optional: specific patient ID for family member booking
     } = req.body;
 
     // Validate required fields
@@ -606,26 +607,45 @@ export async function bookAppointment(req, res) {
       );
     }
 
-    // Get or create patient profile
-    let patient = await Patient.findOne({ userId: appUserId });
-    if (!patient) {
-      // Create a basic patient profile if it doesn't exist
-      console.log("Creating new patient profile for user:", appUserId);
-      const user = await User.findById(appUserId);
-      if (!user) {
-        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
-      }
-
-      const newPatient = new Patient({
-        userId: appUserId,
-        fullName: user.fullName || "Chưa cập nhật",
-        phone: user.phone || "",
-        isComplete: false,
+    // Get patient profile
+    let patient;
+    if (patientId) {
+      // If patientId is provided, use that patient (for family member booking)
+      patient = await Patient.findOne({
+        _id: patientId,
+        userId: appUserId, // Verify the patient belongs to this user
       });
 
-      await newPatient.save();
-      patient = newPatient;
-      console.log("Created patient profile:", patient._id);
+      if (!patient) {
+        return fail(
+          res,
+          403,
+          ERROR_CODES.UNAUTHORIZED,
+          "Patient not found or does not belong to you"
+        );
+      }
+    } else {
+      // Otherwise, get or create the user's own patient profile
+      patient = await Patient.findOne({ userId: appUserId });
+      if (!patient) {
+        // Create a basic patient profile if it doesn't exist
+        console.log("Creating new patient profile for user:", appUserId);
+        const user = await User.findById(appUserId);
+        if (!user) {
+          return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+        }
+
+        const newPatient = new Patient({
+          userId: appUserId,
+          fullName: user.fullName || "Chưa cập nhật",
+          phone: user.phone || "",
+          isComplete: false,
+        });
+
+        await newPatient.save();
+        patient = newPatient;
+        console.log("Created patient profile:", patient._id);
+      }
     }
 
     // Verify the time slot exists and is available
@@ -1399,6 +1419,128 @@ export async function getPatientConsultationAdvice(req, res) {
     });
   } catch (error) {
     console.error("Error fetching patient consultation advice:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Get all family members (all patients under the same userId)
+ */
+export async function getFamilyMembers(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    // Get all patients under this userId
+    const familyMembers = await Patient.find({ userId: appUserId })
+      .select("_id fullName dob gender relationshipToOwner phone avatarUrl")
+      .sort({ relationshipToOwner: 1, createdAt: 1 })
+      .lean();
+
+    return ok(res, {
+      familyMembers,
+    });
+  } catch (error) {
+    console.error("Error fetching family members:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Create a new family member patient profile
+ */
+export async function createFamilyMember(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    const {
+      fullName,
+      dob,
+      gender,
+      relationshipToOwner,
+      phone,
+      address,
+      houseNumber,
+      citizenId,
+      bloodType,
+      allergyNotes,
+      medicalHistory,
+    } = req.body;
+
+    // Validate required fields
+    if (!fullName || !dob || !gender || !relationshipToOwner) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Missing required fields: fullName, dob, gender, relationshipToOwner"
+      );
+    }
+
+    // Validate relationship (but allow all relationships even for family members)
+    const validRelationships = [
+      "self",
+      "father",
+      "mother",
+      "spouse",
+      "child",
+      "grandparent",
+      "other",
+    ];
+    if (!validRelationships.includes(relationshipToOwner)) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Invalid relationship");
+    }
+
+    // Validate gender enum
+    const validGenders = ["male", "female", "other"];
+    if (!validGenders.includes(gender)) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Invalid gender");
+    }
+
+    // Create new family member patient
+    const newPatient = new Patient({
+      userId: appUserId,
+      fullName,
+      dob: new Date(dob),
+      gender,
+      relationshipToOwner,
+      phone,
+      address,
+      houseNumber,
+      citizenId,
+      bloodType,
+      allergyNotes,
+      medicalHistory,
+      isComplete: false,
+    });
+
+    await newPatient.save();
+
+    return ok(res, {
+      message: "Family member created successfully",
+      patient: newPatient,
+    });
+  } catch (error) {
+    console.error("Error creating family member:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }
