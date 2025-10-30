@@ -367,6 +367,21 @@ export function MyAppointments() {
                         📅 Đã dời lịch
                       </span>
                     )}
+                    {a.patientId?.relationshipToOwner &&
+                      a.patientId.relationshipToOwner !== "self" && (
+                        <span
+                          style={{
+                            fontSize: 12,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                            background: "#f59e0b",
+                            color: "#ffffff",
+                          }}
+                          title="Lịch hẹn đã được đặt hộ"
+                        >
+                          👤 Đặt hộ
+                        </span>
+                      )}
                   </div>
                   <div style={{ color: "#334155", marginTop: 2 }}>
                     {specialty}

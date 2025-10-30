@@ -58,8 +58,6 @@ const TimeSlotSelection = () => {
   const [familyMembers, setFamilyMembers] = useState([]);
   const [selectedFamilyMember, setSelectedFamilyMember] = useState(null);
   const [loadingFamilyMembers, setLoadingFamilyMembers] = useState(false);
-  const [familyForm] = Form.useForm();
-  const [addingFamilyMember, setAddingFamilyMember] = useState(false);
 
   useEffect(() => {
     if (location.state?.doctor) {
@@ -161,153 +159,6 @@ const TimeSlotSelection = () => {
     }
   };
 
-  const handleAddFamilyMember = async (values) => {
-    try {
-      setAddingFamilyMember(true);
-
-      const response = await api.post("/api/patients/me/family-members", {
-        fullName: values.fullName,
-        dob: values.dob.format("YYYY-MM-DD"),
-        gender: values.gender,
-        relationshipToOwner: values.relationshipToOwner,
-        phone: values.phone,
-        citizenId: values.citizenId,
-        address: values.address,
-        houseNumber: values.houseNumber,
-      });
-
-      if (response.success) {
-        message.success("Thêm người thân thành công!");
-
-        // Refresh family members list
-        await fetchFamilyMembers();
-
-        // Select the newly added member
-        const newPatientId = response.data.patient._id;
-        setSelectedFamilyMember(newPatientId);
-
-        // Automatically proceed with booking
-        setTimeout(async () => {
-          await proceedWithBooking(newPatientId);
-        }, 500);
-      } else {
-        message.error(response.message || "Thêm người thân thất bại");
-      }
-    } catch (error) {
-      console.error("Error adding family member:", error);
-      message.error("Có lỗi xảy ra khi thêm người thân");
-    } finally {
-      setAddingFamilyMember(false);
-    }
-  };
-
-  const proceedWithBooking = async (patientId) => {
-    try {
-      setLoading(true);
-
-      const appointmentData = {
-        doctorId: doctor._id,
-        slotId: selectedTimeSlot._id,
-        mode: selectedMode,
-        reason: form.getFieldValue("reason") || "",
-        patientId: patientId,
-        scheduledStart: selectedDate
-          .clone()
-          .hour(parseInt(selectedTimeSlot.startTime.split(":")[0]))
-          .minute(parseInt(selectedTimeSlot.startTime.split(":")[1]))
-          .toISOString(),
-        scheduledEnd: selectedDate
-          .clone()
-          .hour(parseInt(selectedTimeSlot.endTime.split(":")[0]))
-          .minute(parseInt(selectedTimeSlot.endTime.split(":")[1]))
-          .toISOString(),
-      };
-
-      // Add clinicId for offline appointments
-      if (selectedMode === "offline" && defaultClinic) {
-        appointmentData.clinicId = defaultClinic._id;
-      }
-
-      // Step 1: Create appointment
-      const response = await api.post(
-        "/api/patients/appointments",
-        appointmentData
-      );
-
-      if (response.success) {
-        const appointment = response.data.appointment;
-
-        // Step 2: Create payment link
-        try {
-          const { createPayOSPayment } = await import(
-            "../../services/payService"
-          );
-
-          const consultationFee = 10000;
-
-          const paymentResponse = await createPayOSPayment({
-            appointmentId: appointment._id,
-            amount: consultationFee,
-            description: `Kham benh MedConnect`,
-          });
-
-          if (paymentResponse.success && paymentResponse.data.payUrl) {
-            message.success("Đang chuyển đến trang thanh toán...");
-            window.location.href = paymentResponse.data.payUrl;
-          } else {
-            message.error(
-              "Không thể tạo link thanh toán. Đang hủy đặt lịch..."
-            );
-            try {
-              await api.put(
-                `/api/patients/me/appointments/${appointment._id}/cancel`,
-                {
-                  cancelReason: "Không thể tạo link thanh toán",
-                }
-              );
-            } catch (cancelError) {
-              console.error("Error canceling appointment:", cancelError);
-            }
-
-            setTimeout(() => {
-              navigate("/dat-lich/chon-thoi-gian", {
-                state: { doctor, specialization },
-              });
-            }, 2000);
-          }
-        } catch (paymentError) {
-          console.error("Error creating payment:", paymentError);
-          message.error(
-            "Có lỗi xảy ra khi tạo thanh toán. Đang hủy đặt lịch..."
-          );
-          try {
-            await api.put(
-              `/api/patients/me/appointments/${appointment._id}/cancel`,
-              {
-                cancelReason: "Lỗi khi tạo thanh toán",
-              }
-            );
-          } catch (cancelError) {
-            console.error("Error canceling appointment:", cancelError);
-          }
-
-          setTimeout(() => {
-            navigate("/dat-lich/chon-thoi-gian", {
-              state: { doctor, specialization },
-            });
-          }, 2000);
-        }
-      } else {
-        message.error(response.message || "Có lỗi xảy ra khi đặt lịch");
-      }
-    } catch (error) {
-      console.error("Error booking appointment:", error);
-      message.error("Có lỗi xảy ra khi đặt lịch. Vui lòng thử lại!");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleDateChange = (date) => {
     setSelectedDate(date);
     setSelectedTimeSlot(null);
@@ -328,6 +179,42 @@ const TimeSlotSelection = () => {
   const handleBookingSubmit = async (values) => {
     try {
       setLoading(true);
+
+      let patientIdForBooking = null;
+
+      // If booking for family, create family member first
+      if (bookingFor === "family") {
+        try {
+          const familyResponse = await api.post(
+            "/api/patients/me/family-members",
+            {
+              fullName: values.fullName,
+              dob: values.dob ? values.dob.format("YYYY-MM-DD") : undefined,
+              gender: values.gender,
+              relationshipToOwner: values.relationshipToOwner,
+              phone: values.phone,
+              citizenId: values.citizenId,
+              address: values.address,
+              houseNumber: values.houseNumber,
+            }
+          );
+
+          if (familyResponse.success) {
+            message.success("Thêm người thân thành công!");
+            patientIdForBooking = familyResponse.data.patient._id;
+            await fetchFamilyMembers();
+          } else {
+            message.error(familyResponse.message || "Thêm người thân thất bại");
+            setLoading(false);
+            return;
+          }
+        } catch (error) {
+          console.error("Error adding family member:", error);
+          message.error("Có lỗi xảy ra khi thêm người thân");
+          setLoading(false);
+          return;
+        }
+      }
 
       // Prepare appointment data
       const appointmentData = {
@@ -353,8 +240,8 @@ const TimeSlotSelection = () => {
       }
 
       // Add patientId for family member booking
-      if (bookingFor === "family" && selectedFamilyMember) {
-        appointmentData.patientId = selectedFamilyMember;
+      if (bookingFor === "family" && patientIdForBooking) {
+        appointmentData.patientId = patientIdForBooking;
       }
 
       // Step 1: Create appointment
@@ -673,157 +560,149 @@ const TimeSlotSelection = () => {
                       </div>
                     </Form.Item>
 
-                    {/* Family Member Form - Show inline when booking for family */}
+                    {/* Family Member Fields - Show inline when booking for family */}
                     {bookingFor === "family" && (
                       <div>
                         <Title level={5} style={{ marginBottom: 16 }}>
                           Thông tin người thân
                         </Title>
-                        <Form
-                          form={familyForm}
-                          layout="vertical"
-                          onFinish={handleAddFamilyMember}
-                          className="family-member-form"
+                        <Form.Item
+                          label="Họ và tên"
+                          name="fullName"
+                          rules={[
+                            {
+                              required: true,
+                              message: "Vui lòng nhập họ tên!",
+                            },
+                          ]}
                         >
-                          <Form.Item
-                            label="Họ và tên"
-                            name="fullName"
-                            rules={[
-                              {
-                                required: true,
-                                message: "Vui lòng nhập họ tên!",
-                              },
-                            ]}
-                          >
-                            <Input placeholder="Nhập họ và tên" />
-                          </Form.Item>
+                          <Input placeholder="Nhập họ và tên" />
+                        </Form.Item>
 
-                          <Form.Item
-                            label="Số CCCD/CMND"
-                            name="citizenId"
-                            rules={[
-                              {
-                                required: true,
-                                message: "Vui lòng nhập số CCCD!",
-                              },
-                            ]}
-                          >
-                            <Input placeholder="Nhập số CCCD/CMND" />
-                          </Form.Item>
+                        <Form.Item
+                          label="Số CCCD/CMND"
+                          name="citizenId"
+                          rules={[
+                            {
+                              required: true,
+                              message: "Vui lòng nhập số CCCD!",
+                            },
+                          ]}
+                        >
+                          <Input placeholder="Nhập số CCCD/CMND" />
+                        </Form.Item>
 
-                          <Row gutter={16}>
-                            <Col span={12}>
-                              <Form.Item
-                                label="Ngày sinh"
-                                name="dob"
-                                rules={[
-                                  {
-                                    required: true,
-                                    message: "Vui lòng chọn ngày sinh!",
-                                  },
-                                ]}
-                              >
-                                <DatePicker
-                                  style={{ width: "100%" }}
-                                  format="DD/MM/YYYY"
-                                  placeholder="Chọn ngày sinh"
-                                  disabledDate={(current) =>
-                                    current && current > new Date()
-                                  }
-                                />
-                              </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                              <Form.Item
-                                label="Giới tính"
-                                name="gender"
-                                rules={[
-                                  {
-                                    required: true,
-                                    message: "Vui lòng chọn giới tính!",
-                                  },
-                                ]}
-                              >
-                                <Select placeholder="Chọn giới tính">
-                                  <Option value="male">Nam</Option>
-                                  <Option value="female">Nữ</Option>
-                                  <Option value="other">Khác</Option>
-                                </Select>
-                              </Form.Item>
-                            </Col>
-                          </Row>
+                        <Row gutter={16}>
+                          <Col span={12}>
+                            <Form.Item
+                              label="Ngày sinh"
+                              name="dob"
+                              rules={[
+                                {
+                                  required: true,
+                                  message: "Vui lòng chọn ngày sinh!",
+                                },
+                              ]}
+                            >
+                              <DatePicker
+                                style={{ width: "100%" }}
+                                format="DD/MM/YYYY"
+                                placeholder="Chọn ngày sinh"
+                                disabledDate={(current) =>
+                                  current && current > new Date()
+                                }
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col span={12}>
+                            <Form.Item
+                              label="Giới tính"
+                              name="gender"
+                              rules={[
+                                {
+                                  required: true,
+                                  message: "Vui lòng chọn giới tính!",
+                                },
+                              ]}
+                            >
+                              <Select placeholder="Chọn giới tính">
+                                <Option value="male">Nam</Option>
+                                <Option value="female">Nữ</Option>
+                                <Option value="other">Khác</Option>
+                              </Select>
+                            </Form.Item>
+                          </Col>
+                        </Row>
 
-                          <Form.Item
-                            label="Mối quan hệ"
-                            name="relationshipToOwner"
-                            rules={[
-                              {
-                                required: true,
-                                message: "Vui lòng chọn mối quan hệ!",
-                              },
-                            ]}
-                          >
-                            <Select placeholder="Chọn mối quan hệ">
-                              <Option value="father">Cha</Option>
-                              <Option value="mother">Mẹ</Option>
-                              <Option value="spouse">Vợ/Chồng</Option>
-                              <Option value="child">Con</Option>
-                              <Option value="grandparent">Ông/Bà</Option>
-                              <Option value="other">Khác</Option>
-                            </Select>
-                          </Form.Item>
+                        <Form.Item
+                          label="Mối quan hệ"
+                          name="relationshipToOwner"
+                          rules={[
+                            {
+                              required: true,
+                              message: "Vui lòng chọn mối quan hệ!",
+                            },
+                          ]}
+                        >
+                          <Select placeholder="Chọn mối quan hệ">
+                            <Option value="father">Cha</Option>
+                            <Option value="mother">Mẹ</Option>
+                            <Option value="spouse">Vợ/Chồng</Option>
+                            <Option value="child">Con</Option>
+                            <Option value="grandparent">Ông/Bà</Option>
+                            <Option value="other">Khác</Option>
+                          </Select>
+                        </Form.Item>
 
-                          <Form.Item
-                            label="Số điện thoại"
-                            name="phone"
-                            rules={[
-                              {
-                                required: true,
-                                message: "Vui lòng nhập số điện thoại!",
-                              },
-                              {
-                                pattern: /^[0-9]{10}$/,
-                                message: "Số điện thoại không hợp lệ!",
-                              },
-                            ]}
-                          >
-                            <Input placeholder="Nhập số điện thoại" />
-                          </Form.Item>
+                        <Form.Item
+                          label="Số điện thoại"
+                          name="phone"
+                          rules={[
+                            {
+                              required: true,
+                              message: "Vui lòng nhập số điện thoại!",
+                            },
+                            {
+                              pattern: /^[0-9]{10}$/,
+                              message: "Số điện thoại không hợp lệ!",
+                            },
+                          ]}
+                        >
+                          <Input placeholder="Nhập số điện thoại" />
+                        </Form.Item>
 
-                          <Form.Item
-                            label="Địa chỉ"
-                            name="address"
-                            rules={[
-                              {
-                                required: true,
-                                message: "Vui lòng nhập địa chỉ!",
-                              },
-                            ]}
-                          >
-                            <Input placeholder="Nhập địa chỉ" />
-                          </Form.Item>
+                        <Form.Item
+                          label="Địa chỉ"
+                          name="address"
+                          rules={[
+                            {
+                              required: true,
+                              message: "Vui lòng nhập địa chỉ!",
+                            },
+                          ]}
+                        >
+                          <Input placeholder="Nhập địa chỉ" />
+                        </Form.Item>
 
-                          <Form.Item label="Số nhà" name="houseNumber">
-                            <Input placeholder="Nhập số nhà (nếu có)" />
-                          </Form.Item>
+                        <Form.Item label="Số nhà" name="houseNumber">
+                          <Input placeholder="Nhập số nhà (nếu có)" />
+                        </Form.Item>
 
-                          <Form.Item
-                            name="agreement"
-                            valuePropName="checked"
-                            rules={[
-                              {
-                                required: true,
-                                message:
-                                  "Vui lòng xác nhận chịu trách nhiệm về thông tin cung cấp!",
-                              },
-                            ]}
-                          >
-                            <Checkbox>
-                              Người đặt hộ chịu trách nhiệm về thông tin cung
-                              cấp
-                            </Checkbox>
-                          </Form.Item>
-                        </Form>
+                        <Form.Item
+                          name="agreement"
+                          valuePropName="checked"
+                          rules={[
+                            {
+                              required: true,
+                              message:
+                                "Vui lòng xác nhận chịu trách nhiệm về thông tin cung cấp!",
+                            },
+                          ]}
+                        >
+                          <Checkbox>
+                            Người đặt hộ chịu trách nhiệm về thông tin cung cấp
+                          </Checkbox>
+                        </Form.Item>
                       </div>
                     )}
 

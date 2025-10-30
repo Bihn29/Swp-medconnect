@@ -33,29 +33,24 @@ export async function cancelAppointment(req, res) {
     const { appointmentId } = req.params;
     const { cancelReason } = req.body;
 
-    // Find patient
-    const patient = await Patient.findOne({ userId: appUserId });
-    if (!patient) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.USER_NOT_FOUND,
-        "Patient profile not found"
-      );
-    }
-
-    // Find appointment
-    const appointment = await Appointment.findOne({
-      _id: appointmentId,
-      patientId: patient._id,
-    });
+    // Find appointment first
+    const appointment = await Appointment.findById(appointmentId);
 
     if (!appointment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
+    }
+
+    // Verify the appointment's patient belongs to this user (support family members)
+    const appointmentPatient = await Patient.findById(appointment.patientId);
+    if (
+      !appointmentPatient ||
+      appointmentPatient.userId.toString() !== appUserId.toString()
+    ) {
       return fail(
         res,
-        404,
-        ERROR_CODES.NOT_FOUND,
-        "Appointment not found or does not belong to this patient"
+        403,
+        ERROR_CODES.UNAUTHORIZED,
+        "Appointment does not belong to you"
       );
     }
 
@@ -775,9 +770,10 @@ export async function getPatientAppointments(req, res) {
       return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
     }
 
-    // Find patient by user ID, create if not exists
-    let patient = await Patient.findOne({ userId: appUserId });
-    if (!patient) {
+    // Find all patients for this user (including family members)
+    let patients = await Patient.find({ userId: appUserId });
+
+    if (!patients || patients.length === 0) {
       // Create a basic patient profile if it doesn't exist
       console.log("Creating new patient profile for user:", appUserId);
 
@@ -789,13 +785,17 @@ export async function getPatientAppointments(req, res) {
       });
 
       await newPatient.save();
-      patient = newPatient;
-      console.log("Created patient profile:", patient._id);
+      console.log("Created patient profile:", newPatient._id);
+
+      // Use the newly created patient
+      patients = [newPatient];
     }
 
     const { status, page = 1, limit = 50 } = req.query;
 
-    const query = { patientId: patient._id };
+    // Build query to get appointments for all patients belonging to this user
+    const patientIds = patients.map((p) => p._id);
+    const query = { patientId: { $in: patientIds } };
     if (status) {
       query.status = status;
     }
@@ -822,6 +822,10 @@ export async function getPatientAppointments(req, res) {
           path: "specializationIds",
           select: "name",
         },
+      })
+      .populate({
+        path: "patientId",
+        select: "fullName dob gender phone relationshipToOwner",
       })
       .populate("slotId", "startAt endAt")
       .populate("clinicId", "name address")
@@ -994,17 +998,8 @@ export async function getAppointmentDetails(req, res) {
       );
     }
 
-    // Find patient by userId
-    const patient = await Patient.findOne({ userId: appUserId });
-    if (!patient) {
-      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Patient not found");
-    }
-
-    // Get appointment with populated data
-    const appointment = await Appointment.findOne({
-      _id: appointmentId,
-      patientId: patient._id,
-    })
+    // Get appointment first
+    const appointment = await Appointment.findById(appointmentId)
       .populate({
         path: "doctorId",
         select: "fullName name specializationIds avatarUrl",
@@ -1019,17 +1014,39 @@ export async function getAppointmentDetails(req, res) {
           },
         ],
       })
+      .populate({
+        path: "patientId",
+        select: "fullName dob gender phone relationshipToOwner",
+        populate: {
+          path: "userId",
+          select: "fullName phone",
+        },
+      })
       .populate("clinicId", "name address")
       .populate("slotId", "startAt endAt")
       .lean();
 
+    if (!appointment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
+    }
+
+    // Verify the appointment belongs to any patient under this user (supports family members)
+    if (
+      !appointment.patientId ||
+      !appointment.patientId.userId ||
+      appointment.patientId.userId._id.toString() !== appUserId.toString()
+    ) {
+      return fail(
+        res,
+        403,
+        ERROR_CODES.UNAUTHORIZED,
+        "Appointment does not belong to you"
+      );
+    }
+
     // Map phone from userId to doctorId for easier access
     if (appointment?.doctorId?.userId?.phone) {
       appointment.doctorId.phone = appointment.doctorId.userId.phone;
-    }
-
-    if (!appointment) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
     }
 
     console.log("✅ Patient appointment detail fetched:", {
