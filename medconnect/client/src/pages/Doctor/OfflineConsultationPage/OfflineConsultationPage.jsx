@@ -188,6 +188,21 @@ export default function OfflineConsultationPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const patientName =
+      appointment?.patientId?.fullName ||
+      appointment?.patient?.fullName ||
+      appointment?.patientName ||
+      "bệnh nhân";
+
+    // Thêm thông báo xác nhận
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn hoàn thành khám bệnh và lưu thông tin cho ${patientName}?`
+    );
+
+    if (!confirmed) {
+      return; // Nếu người dùng không xác nhận, không thực hiện hành động
+    }
+
     const submitData = {
       appointmentId: appointment._id,
       summaryText: formData.summaryText,
