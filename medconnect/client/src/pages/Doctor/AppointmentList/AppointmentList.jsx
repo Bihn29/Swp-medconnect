@@ -423,6 +423,20 @@ export default function AppointmentList() {
   };
 
   const handleNoShow = async (appointment) => {
+    const patientName =
+      appointment.patientId?.fullName ||
+      appointment.patient?.fullName ||
+      "bệnh nhân";
+
+    // Thêm thông báo xác nhận
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn đánh dấu ${patientName} là không đến khám?`
+    );
+
+    if (!confirmed) {
+      return; // Nếu người dùng không xác nhận, không thực hiện hành động
+    }
+
     try {
       await updateAppointmentStatus(
         appointment._id,
@@ -437,13 +451,7 @@ export default function AppointmentList() {
         )
       );
 
-      alert(
-        `Đã đánh dấu ${
-          appointment.patientId?.fullName ||
-          appointment.patient?.fullName ||
-          "bệnh nhân"
-        } là không đến khám`
-      );
+      alert(`Đã đánh dấu ${patientName} là không đến khám`);
 
       // Refresh appointments list để đảm bảo đồng bộ
       setTimeout(async () => {
@@ -1050,13 +1058,27 @@ export default function AppointmentList() {
                             size="sm"
                             variant="destructive"
                             onClick={async () => {
+                              const patientName =
+                                selectedAppointment.patientId?.fullName ||
+                                selectedAppointment.patient?.fullName ||
+                                "bệnh nhân";
+
+                              // Thêm thông báo xác nhận
+                              const confirmed = window.confirm(
+                                `Bạn có chắc chắn muốn đánh dấu ${patientName} là không đến khám?`
+                              );
+
+                              if (!confirmed) {
+                                return; // Nếu người dùng không xác nhận, không thực hiện hành động
+                              }
+
                               try {
                                 await updateAppointmentStatus(
                                   selectedAppointment._id,
                                   "no_show",
                                   "Bệnh nhân không đến khám"
                                 );
-                                alert("Đã đánh dấu bệnh nhân không đến khám");
+                                alert(`Đã đánh dấu ${patientName} là không đến khám`);
                                 setIsDetailDialogOpen(false);
                                 // Refresh appointments
                                 const updatedAppointments =
