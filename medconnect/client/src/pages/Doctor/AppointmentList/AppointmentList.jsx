@@ -349,6 +349,20 @@ export default function AppointmentList() {
   };
 
   const handleStart = async (appointment) => {
+    const patientName =
+      appointment.patientId?.fullName ||
+      appointment.patient?.fullName ||
+      "bệnh nhân";
+
+    // Thêm thông báo xác nhận
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn bắt đầu khám cho ${patientName}?`
+    );
+
+    if (!confirmed) {
+      return; // Nếu người dùng không xác nhận, không thực hiện hành động
+    }
+
     try {
       await updateAppointmentStatus(appointment._id, "in_progress");
 
@@ -359,13 +373,7 @@ export default function AppointmentList() {
         )
       );
 
-      alert(
-        `Đã bắt đầu khám cho ${
-          appointment.patientId?.fullName ||
-          appointment.patient?.fullName ||
-          "bệnh nhân"
-        }`
-      );
+      alert(`Đã bắt đầu khám cho ${patientName}`);
 
       // Refresh appointments list để đảm bảo đồng bộ
       setTimeout(async () => {
@@ -997,12 +1005,26 @@ export default function AppointmentList() {
                             size="sm"
                             variant="secondary"
                             onClick={async () => {
+                              const patientName =
+                                selectedAppointment.patientId?.fullName ||
+                                selectedAppointment.patient?.fullName ||
+                                "bệnh nhân";
+
+                              // Thêm thông báo xác nhận
+                              const confirmed = window.confirm(
+                                `Bạn có chắc chắn muốn bắt đầu khám cho ${patientName}?`
+                              );
+
+                              if (!confirmed) {
+                                return; // Nếu người dùng không xác nhận, không thực hiện hành động
+                              }
+
                               try {
                                 await updateAppointmentStatus(
                                   selectedAppointment._id,
                                   "in_progress"
                                 );
-                                alert("Đã bắt đầu khám bệnh");
+                                alert(`Đã bắt đầu khám cho ${patientName}`);
                                 setIsDetailDialogOpen(false);
                                 // Refresh appointments
                                 const updatedAppointments =
