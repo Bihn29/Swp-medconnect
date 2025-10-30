@@ -1032,7 +1032,7 @@ export async function getDoctorConsultationSummaries(req, res) {
     const summaries = await ConsultationSummary.find({
       doctorId: doctor._id,
     })
-      .populate("patientId", "fullName dob gender phone")
+      .populate("patientId")
       .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
       .populate("clinicId", "name address")
       .sort({ visitDate: -1 })
@@ -1087,7 +1087,7 @@ export async function getDoctorConsultationAdvice(req, res) {
     const advice = await ConsultationAdvice.find({
       doctorId: doctor._id,
     })
-      .populate("patientId", "fullName dob gender phone")
+      .populate("patientId")
       .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
       .populate("clinicId", "name address")
       .sort({ appointmentDate: -1 })

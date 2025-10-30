@@ -74,276 +74,190 @@ export default function MedicalHistory() {
 
 
   const generateDocHTML = (record, type) => {
-    if (type === "medical") {
-      const patientName = record.patientId?.fullName || "Không có";
-      const patientPhone = record.patientId?.phone || "Không có";
-      const visitDate = formatDateForDoc(record.visitDate || record.createdAt);
-  return `
-<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:v="urn:schemas-microsoft-com:vml" xmlns="http://www.w3.org/TR/REC-html40">
-<head></head>
-<meta charset="utf-8">
-<meta name="ProgId" content="Word.Document">
-<meta name="Generator" content="Microsoft Word">
-<meta name="Originator" content="Microsoft Word">
-<title>Hồ sơ khám bệnh</title>
-<style>
-  :root{
-    --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb; --accent:#0ea5e9; --bg:#ffffff;
-    --chip-bg:#eef6ff; --chip-text:#0b5fb8;
-  }
-  *{box-sizing:border-box}
-  body{font-family:"Times New Roman",serif; color:var(--ink); margin:40px 50px; line-height:1.6; font-size:13pt}
-  h1{font-size:22pt; margin:0 0 12px; font-weight:bold}
-  .sub{color:var(--muted); font-size:11pt; margin-top:4px}
-  .header{display:flex; align-items:flex-start; justify-content:space-between; padding-bottom:16px; margin-bottom:20px; border-bottom:2px solid #000}
-  .section{margin-top:20px; margin-bottom:20px; border:1px solid var(--border); border-radius:8px; padding:18px 20px; background:var(--bg); page-break-inside:avoid}
-  .section h2{font-size:15pt; margin:0 0 12px; color:#111; border-left:4px solid var(--accent); padding-left:12px; font-weight:bold}
-  .kv{width:100%; border-collapse:collapse; margin-top:8px}
-  .kv td{padding:10px 12px; border:1px solid var(--border); vertical-align:top}
-  .kv td.key{background:#f9fafb; font-weight:700; width:200px}
-  .chips{display:flex; flex-wrap:wrap; gap:10px; margin-top:8px}
-  .chip{background:var(--chip-bg); color:var(--chip-text); border:1px solid #d6e8ff; padding:8px 14px; border-radius:999px; font-size:12pt}
-  .table{width:100%; border-collapse:collapse; margin-top:8px}
-  .table th,.table td{border:1px solid var(--border); padding:10px 12px; vertical-align:top}
-  .table th{background:#f3f4f6; text-align:left; font-weight:bold; font-size:12.5pt}
-  .table td{font-size:12.5pt}
-  .note{padding:12px 16px; background:#f9fafb; border:1px dashed var(--border); border-radius:8px; line-height:1.6; margin-top:8px}
-  p{margin:8px 0; line-height:1.6}
-  p strong{font-weight:bold}
-  .sign{display:flex; justify-content:space-between; align-items:flex-start; margin-top:40px; padding-top:20px}
-  .sign .box{width:45%; padding-top:60px; min-width:250px}
-  .sign .box.left{text-align:left}
-  .sign .box.right{text-align:right}
-  .sign .box.left,.sign .box.right{display:flex; flex-direction:column}
-  .sign .box strong{font-size:13.5pt; display:block; margin-bottom:8px}
-  .sign .label{display:block; margin-top:8px; color:var(--muted); font-size:11pt}
-  @page{size:A4; margin:20mm}
-  @media print{ body{margin:0; font-size:12pt} .section{page-break-inside:avoid} }
-  v:*{behavior:url(#default#VML)} o:*{behavior:url(#default#VML)} w:*{behavior:url(#default#VML)}
-</style>
-<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/><w:ValidateAgainstSchemas/></w:WordDocument></xml><![endif]-->
-</head>
-<body>
-
-  <div class="header">
-    <div>
-      <h1>HỒ SƠ KHÁM BỆNH</h1>
-      <div class="sub">Mã hồ sơ: ${record._id || "—"}</div>
-    </div>
-    <div class="sub" style="text-align:right">
-      Ngày tạo: ${formatDateForDoc(new Date())}<br/>
-      ${record.mode ? `Hình thức: ${record.mode === "online" ? "Trực tuyến" : "Trực tiếp"}` : "" }
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Thông tin bệnh nhân</h2>
-    <table class="kv">
-      <tr><td class="key">Họ và tên</td><td>${patientName}</td></tr>
-      <tr><td class="key">Số điện thoại</td><td>${patientPhone}</td></tr>
-      <tr><td class="key">Ngày khám</td><td>${visitDate}</td></tr>
-      ${record.patientId?.dob ? `<tr><td class="key">Ngày sinh</td><td>${formatDate(record.patientId.dob)}</td></tr>` : ""}
-      ${record.patientId?.gender ? `<tr><td class="key">Giới tính</td><td>${record.patientId.gender === "male" ? "Nam" : record.patientId.gender === "female" ? "Nữ" : record.patientId.gender}</td></tr>` : ""}
-    </table>
-  </div>
-
-  ${record.reasonForVisit ? `
-  <div class="section">
-    <h2>Lý do khám</h2>
-    <div class="note">${record.reasonForVisit}</div>
-  </div>` : ""}
-
-  ${record.diagnoses?.length ? `
-  <div class="section">
-    <h2>Chẩn đoán</h2>
-    <div class="chips">
-      ${record.diagnoses.map(d => `<span class="chip">${d.name || d}</span>`).join("")}
-    </div>
-  </div>` : ""}
-
-  ${record.medications?.length ? `
-  <div class="section">
-    <h2>Đơn thuốc</h2>
-    <table class="table">
-      <thead><tr><th>Tên thuốc</th><th>Số lượng</th><th>Hướng dẫn</th></tr></thead>
-      <tbody>
-        ${record.medications.map(m => `
+      const visitDate = formatDateForDoc(
+        type === "medical" 
+          ? (record.visitDate || record.createdAt) 
+          : (record.appointmentDate || record.createdAt)
+      );
+      return `
+      <!DOCTYPE html>
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:v="urn:schemas-microsoft-com:vml" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+      <meta charset="utf-8">
+      <meta name="ProgId" content="Word.Document">
+      <meta name="Generator" content="Microsoft Word">
+      <meta name="Originator" content="Microsoft Word">
+      <title>${type === "consultation" ? "Buổi tư vấn" : "Hồ sơ khám bệnh"}</title>
+      <style>
+        :root{
+          --ink:#111827; --muted:#6b7280; --border:#e5e7eb; --accent:#0ea5e9; --bg:#ffffff;
+          --chip-bg:#eef6ff; --chip-text:#0b5fb8;
+        }
+        *{box-sizing:border-box}
+        body{font-family:"Times New Roman",serif; color:var(--ink); margin:34px 40px; line-height:1.55; font-size:13.5pt}
+        /* Header */
+        .header{display:grid; grid-template-columns:1fr auto; align-items:center; gap:16px; padding-bottom:14px; margin-bottom:18px; border-bottom:2px solid #000}
+        .title{grid-column:1 / -1; text-align:center}
+        .title h1{font-size:22pt; margin:0 0 6px; font-weight:700; letter-spacing:.3px}
+        .subline{display:flex; justify-content:space-between; align-items:flex-end}
+        .sub-left{color:var(--muted); font-size:11pt}
+        .sub-right{color:var(--muted); font-size:11pt; text-align:right}
+        /* Sections */
+        .section{margin-top:18px; border:1px solid var(--border); border-radius:10px; padding:16px 18px; background:var(--bg); page-break-inside:avoid}
+        .section h2{font-size:15pt; margin:0 0 12px; color:#111; border-left:4px solid var(--accent); padding-left:12px; font-weight:700}
+        /* Two-column info layout */
+        .kv-2col{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+        .kv{width:100%; border-collapse:collapse}
+        .kv td{padding:9px 12px; border:1px solid var(--border); vertical-align:top}
+        .kv td.key{background:#f9fafb; font-weight:700; width:42%}
+        .kv td.value{text-align:justify}
+        /* Pills + tables */
+        .chips{display:flex; flex-wrap:wrap; gap:10px; margin-top:6px}
+        .chip{background:var(--chip-bg); color:var(--chip-text); border:1px solid #d6e8ff; padding:7px 12px; border-radius:999px; font-size:12pt}
+        .table{width:100%; border-collapse:collapse; margin-top:4px}
+        .table th,.table td{border:1px solid var(--border); padding:9px 12px; vertical-align:top}
+        .table th{background:#f3f4f6; text-align:left; font-weight:700; font-size:12.5pt}
+        .note{padding:12px 14px; background:#f9fafb; border:1px dashed var(--border); border-radius:8px; margin-top:4px; text-align:justify}
+        /* Signature (doctor only, right) */
+        .sign-right{display:flex; justify-content:flex-end; margin-top:32px; page-break-inside:avoid}
+        .sig-col{width:40%; min-width:280px; display:flex; flex-direction:column; align-items:center; padding:18px 14px; border:1px solid var(--border); border-radius:10px}
+        .sig-role{font-weight:700; margin-bottom:8px}
+        .sig-line{width:85%; border-top:1.6px solid #1f2937; margin-top:54px}
+        .sig-hint{font-size:11pt; color:var(--muted); margin-top:6px}
+        @page{size:A4; margin:18mm}
+        @media print{ body{margin:0; font-size:12pt} .section{page-break-inside:avoid} }
+        v:*{behavior:url(#default#VML)} o:*{behavior:url(#default#VML)} w:*{behavior:url(#default#VML)}
+      </style>
+      </head>
+      <body>
+      
+        <table style="width:100%; border-collapse:collapse; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:16px;">
           <tr>
-              <td>${m.name || "Không có"}</td>
-              <td>${m.quantity || "Không có"}</td>
-              <td>${m.instruction || "Không có"}</td>
-          </tr>`).join("")}
-      </tbody>
-    </table>
-  </div>` : ""}
-
-  ${record.treatmentResult || record.summaryText || record.treatmentMethod || record.followUpInstructions || record.nextAppointmentDate ? `
-  <div class="section">
-    <h2>Kết quả & Hướng dẫn</h2>
-    ${record.treatmentResult ? `<p><strong>Kết quả điều trị:</strong> ${
-      record.treatmentResult === "recovered" ? "Khỏi" :
-      record.treatmentResult === "improved" ? "Cải thiện" :
-      record.treatmentResult === "unchanged" ? "Không thay đổi" :
-      record.treatmentResult
-    }</p>` : ""}
-    ${record.summaryText ? `<p><strong>Tóm tắt:</strong> ${record.summaryText}</p>` : ""}
-    ${record.treatmentMethod ? `<p><strong>Phương pháp điều trị:</strong> ${record.treatmentMethod}</p>` : ""}
-    ${record.followUpInstructions ? `<p><strong>Hướng dẫn theo dõi:</strong> ${record.followUpInstructions}</p>` : ""}
-    ${record.nextAppointmentDate ? `<p><strong>Lịch hẹn tái khám:</strong> ${formatDate(record.nextAppointmentDate)}</p>` : ""}
-  </div>` : ""}
-
-  ${record.vitals ? `
-  <div class="section">
-    <h2>Chỉ số sinh học</h2>
-    <table class="kv">
-      ${record.vitals.height ? `<tr><td class="key">Chiều cao</td><td>${record.vitals.height} cm</td></tr>` : ""}
-      ${record.vitals.weight ? `<tr><td class="key">Cân nặng</td><td>${record.vitals.weight} kg</td></tr>` : ""}
-      ${record.vitals.bloodPressure ? `<tr><td class="key">Huyết áp</td><td>${record.vitals.bloodPressure}</td></tr>` : ""}
-      ${record.vitals.heartRate ? `<tr><td class="key">Nhịp tim</td><td>${record.vitals.heartRate} bpm</td></tr>` : ""}
-      ${record.vitals.temperature ? `<tr><td class="key">Nhiệt độ</td><td>${record.vitals.temperature}°C</td></tr>` : ""}
-    </table>
-  </div>` : ""}
-
-  ${record.labResults?.length ? `
-  <div class="section">
-    <h2>Kết quả xét nghiệm</h2>
-    <table class="table">
-      <thead><tr><th>Xét nghiệm</th><th>Kết quả</th></tr></thead>
-      <tbody>
-        ${record.labResults.map(l => `<tr><td>${l.testName || "Xét nghiệm"}</td><td>${l.result || "Không có"}</td></tr>`).join("")}
-      </tbody>
-    </table>
-  </div>` : ""}
-
-  <div class="sign">
-    <div class="box left">
-      <div><strong>Bệnh nhân</strong></div>
-      <span class="label">(Ký và ghi rõ họ tên)</span>
-    </div>
-    <div class="box right">
-      <div><strong>Bác sĩ phụ trách</strong></div>
-      <span class="label">${record.doctorName ? "(" + record.doctorName + ")" : "(Ký và ghi rõ họ tên)"}</span>
-    </div>
-  </div>
-
-</body>
-</html>`;
-} else {
-  const patientName = record.patientId?.fullName || "Không có";
-  const patientPhone = record.patientId?.phone || "Không có";
-  const appointmentDate = formatDateForDoc(record.appointmentDate || record.createdAt);
-  return `
-<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:v="urn:schemas-microsoft-com:vml" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta charset="utf-8">
-<meta name="ProgId" content="Word.Document">
-<meta name="Generator" content="Microsoft Word">
-<meta name="Originator" content="Microsoft Word">
-<title>Buổi tư vấn</title>
-<style>
-  :root{
-    --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb; --accent:#0ea5e9; --bg:#ffffff;
-    --chip-bg:#eef6ff; --chip-text:#0b5fb8;
-  }
-  *{box-sizing:border-box}
-  body{font-family:"Times New Roman",serif; color:var(--ink); margin:32px; line-height:1.45; font-size:13.5pt}
-  h1{font-size:20pt; margin:0 0 8px}
-  .sub{color:var(--muted); font-size:11pt}
-  .header{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding-bottom:12px; border-bottom:2px solid #000}
-  .section{margin-top:18px; border:1px solid var(--border); border-radius:10px; padding:14px 16px; background:var(--bg); page-break-inside:avoid}
-  .section h2{font-size:14.5pt; margin:0 0 10px; color:#111; border-left:3px solid var(--accent); padding-left:10px}
-  .kv{width:100%; border-collapse:collapse}
-  .kv td{padding:8px 10px; border:1px solid var(--border)}
-  .kv td.key{background:#f9fafb; font-weight:700; width:220px}
-  .chips{display:flex; flex-wrap:wrap; gap:8px}
-  .chip{background:var(--chip-bg); color:var(--chip-text); border:1px solid #d6e8ff; padding:6px 10px; border-radius:999px; font-size:12pt}
-  .table{width:100%; border-collapse:collapse}
-  .table th,.table td{border:1px solid var(--border); padding:8px 10px}
-  .table th{background:#f3f4f6; text-align:left}
-  .note{padding:10px 12px; background:#f9fafb; border:1px dashed var(--border); border-radius:8px}
-  .sign{display:flex; justify-content:space-between; align-items:flex-start; margin-top:40px; padding-top:20px}
-  .sign .box{width:45%; padding-top:60px; min-width:250px}
-  .sign .box.left{text-align:left}
-  .sign .box.right{text-align:right}
-  .sign .box.left,.sign .box.right{display:flex; flex-direction:column}
-  .sign .box strong{font-size:13.5pt; display:block; margin-bottom:8px}
-  .sign .label{display:block; margin-top:8px; color:var(--muted); font-size:11pt}
-  @page{size:A4; margin:20mm}
-  @media print{ body{margin:0; font-size:12pt} .section{page-break-inside:avoid} }
-  v:*{behavior:url(#default#VML)} o:*{behavior:url(#default#VML)} w:*{behavior:url(#default#VML)}
-</style>
-<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/><w:ValidateAgainstSchemas/></w:WordDocument></xml><![endif]-->
-</head>
-<body>
-
-  <div class="header">
-    <div>
-      <h1>BUỔI TƯ VẤN</h1>
-      <div class="sub">Mã phiên: ${record._id || "—"}</div>
-    </div>
-    <div class="sub" style="text-align:right">
-      Ngày tạo: ${formatDateForDoc(new Date())}<br/>
-      Hình thức: ${record.mode === "online" ? "Trực tuyến" : "Trực tiếp"}
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Thông tin bệnh nhân</h2>
-    <table class="kv">
-      <tr><td class="key">Họ và tên</td><td>${patientName}</td></tr>
-      <tr><td class="key">Số điện thoại</td><td>${patientPhone}</td></tr>
-      <tr><td class="key">Ngày tư vấn</td><td>${appointmentDate}</td></tr>
-      ${record.patientId?.dob ? `<tr><td class="key">Ngày sinh</td><td>${formatDate(record.patientId.dob)}</td></tr>` : ""}
-      ${record.patientId?.gender ? `<tr><td class="key">Giới tính</td><td>${record.patientId.gender === "male" ? "Nam" : record.patientId.gender === "female" ? "Nữ" : record.patientId.gender}</td></tr>` : ""}
-    </table>
-  </div>
-
-  ${record.notes ? `
-  <div class="section">
-    <h2>Tóm tắt buổi tư vấn</h2>
-    <div class="note">${record.notes}</div>
-  </div>` : ""}
-
-  ${record.diagnoses?.length ? `
-  <div class="section">
-    <h2>Chẩn đoán tham khảo</h2>
-    <div class="chips">
-      ${record.diagnoses.map(d => `<span class="chip">${d.name || d}</span>`).join("")}
-    </div>
-  </div>` : ""}
-
-  ${record.medications?.length ? `
-  <div class="section">
-    <h2>Đơn thuốc</h2>
-    <table class="table">
-      <thead><tr><th>Tên thuốc</th><th>Số lượng</th><th>Hướng dẫn</th></tr></thead>
-      <tbody>
-        ${record.medications.map(m => `
+            <td>
+              <h1 style="margin:0; font-size:22pt; font-weight:700; letter-spacing:.3px;">${type === "consultation" ? "BUỔI TƯ VẤN" : "HỒ SƠ KHÁM BỆNH"}</h1>
+              <div style="color:#6b7280; font-size:11pt;">Mã hồ sơ: ${record._id || "—"}</div>
+            </td>
+            <td align="right" style="color:#6b7280; font-size:11pt;">
+              Ngày tạo: ${formatDateForDoc(new Date())}
+              ${record.mode ? `<br/>Hình thức: ${record.mode === "online" ? "Trực tuyến" : "Trực tiếp"}` : ""}
+            </td>
+          </tr>
+        </table>
+      
+        <div class="section">
+          <h2>Thông tin bệnh nhân</h2>
+          <div class="kv-2col">
+            <!-- Cột 1: nhân thân -->
+            <table class="kv">
+              <tr><td class="key">Họ và tên</td><td class="value">${record.patientId?.fullName || "—"}</td></tr>
+              <tr><td class="key">Số điện thoại</td><td class="value">${record.patientId?.phone || "—"}</td></tr>
+              <tr><td class="key">${type === "consultation" ? "Ngày tư vấn" : "Ngày khám"}</td><td class="value">${visitDate}</td></tr>
+              ${record.patientId?.dob ? `<tr><td class="key">Ngày sinh</td><td class="value">${formatDate(record.patientId.dob)}</td></tr>` : ""}
+              ${record.patientId?.gender ? `<tr><td class="key">Giới tính</td><td class="value">${record.patientId.gender==="male"?"Nam":record.patientId.gender==="female"?"Nữ":record.patientId.gender}</td></tr>` : ""}
+              ${record.patientId?.email ? `<tr><td class="key">Email</td><td class="value">${record.patientId.email}</td></tr>` : ""}
+              ${record.patientId?.address || record.patientId?.houseNumber ? `
+                <tr><td class="key">Địa chỉ</td>
+                    <td class="value">${[record.patientId.houseNumber,record.patientId.address].filter(Boolean).join(", ")}</td></tr>` : ""}
+              ${record.patientId?.citizenId ? `<tr><td class="key">CCCD</td><td class="value">${record.patientId.citizenId}</td></tr>` : ""}
+            </table>
+      
+            <!-- Cột 2: nghề nghiệp/bảo hiểm/liên hệ -->
+            <table class="kv">
+              ${record.patientId?.occupation ? `<tr><td class="key">Nghề nghiệp</td><td class="value">${record.patientId.occupation}</td></tr>` : ""}
+              ${record.patientId?.ethnicity ? `<tr><td class="key">Dân tộc</td><td class="value">${record.patientId.ethnicity}</td></tr>` : ""}
+              ${record.patientId?.nationality ? `<tr><td class="key">Quốc tịch</td><td class="value">${record.patientId.nationality}</td></tr>` : ""}
+              ${record.patientId?.insuranceNumber ? `<tr><td class="key">Số BHYT</td><td class="value">${record.patientId.insuranceNumber}</td></tr>` : ""}
+              ${record.patientId?.primaryClinic ? `<tr><td class="key">Nơi đăng ký KCB</td><td class="value">${record.patientId.primaryClinic}</td></tr>` : ""}
+              ${(record.patientId?.insuranceValidFrom || record.patientId?.insuranceValidTo) ? `
+                <tr><td class="key">Hiệu lực BHYT</td>
+                    <td class="value">${record.patientId.insuranceValidFrom?formatDate(record.patientId.insuranceValidFrom):"—"} - ${record.patientId.insuranceValidTo?formatDate(record.patientId.insuranceValidTo):"—"}</td></tr>` : ""}
+              ${(record.patientId?.representativeName || record.patientId?.representativeRelation || record.patientId?.representativePhone) ? `
+                <tr><td class="key">Người đại diện</td>
+                    <td class="value">${[record.patientId.representativeName,record.patientId.representativeRelation,record.patientId.representativePhone].filter(Boolean).join(" | ")}</td></tr>` : ""}
+              ${(record.patientId?.emergencyContactName || record.patientId?.emergencyContactPhone) ? `
+                <tr><td class="key">Liên hệ khẩn cấp</td>
+                    <td class="value">${[record.patientId.emergencyContactName,record.patientId.emergencyContactPhone].filter(Boolean).join(" | ")}</td></tr>` : ""}
+              ${record.patientId?.bloodType ? `<tr><td class="key">Nhóm máu</td><td class="value">${record.patientId.bloodType}</td></tr>` : ""}
+              ${record.patientId?.allergyNotes ? `<tr><td class="key">Dị ứng</td><td class="value">${record.patientId.allergyNotes}</td></tr>` : ""}
+            </table>
+          </div>
+        </div>
+      
+        ${ (type !== "consultation" && record.reasonForVisit) ? `
+        <div class="section">
+          <h2>Lý do khám</h2>
+          <div class="note">${record.reasonForVisit}</div>
+        </div>` : ""}
+      
+        ${ (type === "consultation" && (record.notes || record.reasonForVisit)) ? `
+        <div class="section">
+          <h2>Tóm tắt buổi tư vấn</h2>
+          <div class="note">${record.notes || record.reasonForVisit}</div>
+        </div>` : ""}
+      
+        ${record.diagnoses?.length ? `
+        <div class="section">
+          <h2>${type === "consultation" ? "Chẩn đoán tham khảo" : "Chẩn đoán"}</h2>
+          <div class="chips">
+            ${record.diagnoses.map(d=>`<span class="chip">${d.name || d}</span>`).join("")}
+          </div>
+        </div>` : ""}
+      
+        ${record.medications?.length ? `
+        <div class="section">
+          <h2>Đơn thuốc</h2>
+          <table class="table">
+            <thead><tr><th>Tên thuốc</th><th>Số lượng</th><th>Hướng dẫn</th></tr></thead>
+            <tbody>
+              ${record.medications.map(m=>`
+                <tr>
+                  <td>${m.name || "—"}</td>
+                  <td>${m.quantity || "—"}</td>
+                  <td>${m.instruction || "—"}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>` : ""}
+      
+        ${(record.treatmentResult || record.summaryText || record.treatmentMethod || record.followUpInstructions || record.nextAppointmentDate) ? `
+        <div class="section">
+          <h2>Kết quả & Hướng dẫn</h2>
+          ${record.treatmentResult ? `<p><strong>Kết quả điều trị:</strong> ${
+            record.treatmentResult==="recovered"?"Khỏi":
+            record.treatmentResult==="improved"?"Cải thiện":
+            record.treatmentResult==="unchanged"?"Không thay đổi":
+            record.treatmentResult
+          }</p>`:""}
+          ${record.summaryText ? `<p><strong>Tóm tắt:</strong> ${record.summaryText}</p>`:""}
+          ${record.treatmentMethod ? `<p><strong>Phương pháp điều trị:</strong> ${record.treatmentMethod}</p>`:""}
+          ${record.followUpInstructions ? `<p><strong>Hướng dẫn theo dõi:</strong> ${record.followUpInstructions}</p>`:""}
+          ${record.nextAppointmentDate ? `<p><strong>Lịch hẹn tái khám:</strong> ${formatDate(record.nextAppointmentDate)}</p>`:""}
+        </div>` : ""}
+      
+        ${record.labResults?.length ? `
+        <div class="section">
+          <h2>Kết quả xét nghiệm</h2>
+          <table class="table">
+            <thead><tr><th>Xét nghiệm</th><th>Kết quả</th></tr></thead>
+            <tbody>
+              ${record.labResults.map(l=>`<tr><td>${l.testName || "Xét nghiệm"}</td><td>${l.result || "—"}</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </div>` : ""}
+      
+        <table style="width:100%; border-collapse:collapse; margin-top:28px;">
           <tr>
-              <td>${m.name || "Không có"}</td>
-              <td>${m.quantity || "Không có"}</td>
-              <td>${m.instruction || "Không có"}</td>
-          </tr>`).join("")}
-      </tbody>
-    </table>
-  </div>` : ""}
-
-  <div class="sign">
-    <div class="box left">
-      <div><strong>Người được tư vấn</strong></div>
-      <span class="label">(Ký và ghi rõ họ tên)</span>
-    </div>
-    <div class="box right">
-      <div><strong>Bác sĩ tư vấn</strong></div>
-      <span class="label">${record.doctorName ? "(" + record.doctorName + ")" : "(Ký và ghi rõ họ tên)"}</span>
-    </div>
-  </div>
-
-</body>
-</html>`;
-  }
+            <td></td>
+            <td align="right" style="width:40%; min-width:280px; border:1px solid #e5e7eb; border-radius:10px; padding:14px;">
+              <div style="font-weight:700; margin-bottom:8px;">${type === "consultation" ? "BÁC SĨ TƯ VẤN" : "BÁC SĨ PHỤ TRÁCH"}</div>
+              <div style="margin-top:54px; border-top:1.6px solid #1f2937; width:85%;"></div>
+              <div style="font-size:11pt; color:#6b7280; margin-top:6px;">(Ký và ghi rõ họ tên)</div>
+            </td>
+          </tr>
+        </table>
+      
+      </body>
+      </html>`;
   };
 
   const handleDownload = async (record) => {
