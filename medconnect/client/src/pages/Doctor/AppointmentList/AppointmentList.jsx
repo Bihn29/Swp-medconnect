@@ -397,6 +397,20 @@ export default function AppointmentList() {
   };
 
   const handleComplete = (appointment) => {
+    const patientName =
+      appointment.patientId?.fullName ||
+      appointment.patient?.fullName ||
+      "bệnh nhân";
+
+    // Thêm thông báo xác nhận
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn hoàn thành khám cho ${patientName}?`
+    );
+
+    if (!confirmed) {
+      return; // Nếu người dùng không xác nhận, không thực hiện hành động
+    }
+
     console.log("🔍 handleComplete called with appointment:", appointment);
     console.log("🔍 Appointment mode:", appointment?.mode);
     console.log("🔍 Appointment status:", appointment?.status);
