@@ -703,7 +703,7 @@ export async function bookAppointment(req, res) {
     //   return fail(res, 400, ERROR_CODES.PAYMENT_REQUIRED, "Payment is required for this appointment");
     // }
 
-    // Create appointment with pending_doctor status
+    // Create appointment with pending_doctor status and unpaid paymentStatus
     const appointment = new Appointment({
       patientId: patient._id,
       doctorId: doctorId,
@@ -713,10 +713,9 @@ export async function bookAppointment(req, res) {
       scheduledStart: new Date(scheduledStart),
       scheduledEnd: new Date(scheduledEnd),
       status: "pending_doctor", // Waiting for doctor approval
+      paymentStatus: "unpaid", // Initially unpaid
+      // paymentDeadline không set - không giới hạn thời gian thanh toán
       reason: reason,
-      // TODO: Comment out payment-related fields for now
-      // paymentId: paymentId,
-      // patientPaidAt: paymentId ? new Date() : undefined,
       autoExpireAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours from now
     });
 
