@@ -1250,6 +1250,13 @@ export async function getDoctorReviews(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
+    console.log("🔍 getDoctorReviews - Doctor found:", {
+      doctorId: doctor._id,
+      doctorName: doctor.fullName,
+      userId: user._id,
+      email: userEmail
+    });
+
     const { page = 1, limit = 20, rating, sortBy = "newest" } = req.query;
     const skip = (page - 1) * limit;
 
@@ -1257,6 +1264,25 @@ export async function getDoctorReviews(req, res) {
 
     if (rating) {
       filter.rating = parseInt(rating);
+    }
+
+    console.log("🔍 getDoctorReviews - Filter:", JSON.stringify(filter));
+    console.log("🔍 getDoctorReviews - Review collection name:", Review.collection.name);
+
+    // Check if there are any reviews in the collection
+    const allReviewsCount = await Review.countDocuments({});
+    console.log("🔍 getDoctorReviews - Total reviews in collection:", allReviewsCount);
+
+    // Check reviews for this specific doctor
+    const reviewsForDoctor = await Review.find({ doctorId: doctor._id }).limit(5).lean();
+    console.log("🔍 getDoctorReviews - Sample reviews for this doctor:", reviewsForDoctor.length);
+    if (reviewsForDoctor.length > 0) {
+      console.log("🔍 getDoctorReviews - Sample review:", {
+        _id: reviewsForDoctor[0]._id,
+        doctorId: reviewsForDoctor[0].doctorId,
+        rating: reviewsForDoctor[0].rating,
+        comment: reviewsForDoctor[0].comment
+      });
     }
 
     let sort = {};
@@ -1278,14 +1304,21 @@ export async function getDoctorReviews(req, res) {
     }
 
     const reviews = await Review.find(filter)
-      .populate("patientId", "fullName")
-      .populate("appointmentId", "scheduledStart mode")
+      .populate("patientId", "fullName avatarUrl phone")
+      .populate("appointmentId", "scheduledStart mode reason status")
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
     const total = await Review.countDocuments(filter);
+
+    console.log("🔍 getDoctorReviews - Query result:", {
+      reviewsFound: reviews.length,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
 
     return ok(res, {
       reviews,
@@ -1308,6 +1341,13 @@ export async function getDoctorReviews(req, res) {
 export async function getPublicDoctorReviews(req, res) {
   try {
     const { doctorId } = req.params;
+    
+    // If doctorId is "me", this should not be handled by public route
+    // It should be handled by the protected /me/reviews route instead
+    if (doctorId === "me") {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Invalid doctor ID");
+    }
+    
     const { page = 1, limit = 10, search, rating, sort = "newest" } = req.query;
     const skip = (page - 1) * limit;
 
