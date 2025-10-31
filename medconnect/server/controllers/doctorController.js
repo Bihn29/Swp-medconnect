@@ -309,31 +309,47 @@ export async function getDoctorDashboardStats(req, res) {
       today.getDate() + 1
     );
 
-    // Today's appointments
+    // Today's appointments (include: pending_doctor, accepted, in_progress, done, no_show)
+    // Exclude: cancelled, rejected (these are not considered "appointments")
     const todayAppointments = await Appointment.countDocuments({
       doctorId: doctor._id,
       scheduledStart: { $gte: startOfDay, $lt: endOfDay },
+      status: { $in: ["pending_doctor", "accepted", "in_progress", "done", "no_show"] },
     });
 
-    // Available slots today
-    const availableSlots = await Appointment.countDocuments({
+    // Available slots today = slots with status "available" + slots with cancelled/rejected appointments
+    // Get available slots (slots that are not booked)
+    const availableSlotsCount = await DoctorTimeSlot.countDocuments({
+      doctorId: doctor._id,
+      startAt: { $gte: startOfDay, $lt: endOfDay },
+      status: "available",
+    });
+
+    // Get slots with cancelled or rejected appointments (these count as available)
+    const cancelledRejectedSlots = await Appointment.countDocuments({
       doctorId: doctor._id,
       scheduledStart: { $gte: startOfDay, $lt: endOfDay },
-      status: { $in: ["pending", "confirmed"] },
+      status: { $in: ["cancelled", "rejected"] },
     });
 
-    // Pending appointments
+    // Total available slots = empty slots + cancelled/rejected slots
+    const availableSlots = availableSlotsCount + cancelledRejectedSlots;
+
+    // Pending appointments (appointments in today that need doctor's confirmation)
     const pendingAppointments = await Appointment.countDocuments({
       doctorId: doctor._id,
-      status: "pending",
+      scheduledStart: { $gte: startOfDay, $lt: endOfDay },
+      status: "pending_doctor",
     });
 
-    // Completed appointments this month
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    // All stats are for today only - removed weekly appointments calculation
+    // This field is no longer used as we only show today's data
+    const weeklyAppointments = 0;
+
+    // Completed appointments (all time - from beginning to now)
     const completedAppointments = await Appointment.countDocuments({
       doctorId: doctor._id,
       status: "done",
-      scheduledStart: { $gte: startOfMonth },
     });
 
     return ok(res, {
@@ -341,6 +357,7 @@ export async function getDoctorDashboardStats(req, res) {
         todayAppointments,
         availableSlots,
         pendingAppointments,
+        weeklyAppointments,
         completedAppointments,
       },
     });

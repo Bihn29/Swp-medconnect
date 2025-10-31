@@ -350,9 +350,7 @@ export default function Feedback() {
                 <div className="feedback-review-header">
                   <div className="feedback-review-patient-info">
                     <h3 className="feedback-review-patient-name">
-                      {review.patientId?.fullName || 
-                       (typeof review.patientId === 'string' ? 'Bệnh nhân' : 'Bệnh nhân') ||
-                       "Bệnh nhân"}
+                      Bệnh nhân
                     </h3>
                     <div className="feedback-review-meta">
                       <div className="feedback-review-rating">
