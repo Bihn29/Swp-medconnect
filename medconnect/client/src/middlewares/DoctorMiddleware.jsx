@@ -33,20 +33,17 @@ const DoctorMiddleware = () => {
   const isDoctor = userProfile?.role === "doctor";
 
   if (!isDoctor) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-          fontSize: "16px",
-          color: "#f5222d",
-        }}
-      >
-        Bạn không có quyền truy cập trang này. Vui lòng đăng nhập với tài khoản bác sĩ.
-      </div>
-    );
+    // Auto-redirect based on user role instead of showing error
+    const userRole = userProfile?.role || user?.role;
+
+    if (userRole === "patient" || userRole === "user" || !userRole) {
+      return <Navigate to="/benh-nhan/trang-chu" replace />;
+    } else if (userRole === "admin" || userRole === "ADMIN") {
+      return <Navigate to="/admin/trang-chu" replace />;
+    }
+
+    // Default: redirect to home if role is unknown
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

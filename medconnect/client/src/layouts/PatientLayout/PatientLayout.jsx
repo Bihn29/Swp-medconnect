@@ -48,27 +48,27 @@ const PatientLayout = () => {
   // Menu items
   const menuItems = [
     {
-      key: "/benh-nhan",
+      key: "/benh-nhan/trang-chu",
       icon: <HomeOutlined />,
       label: "Trang chủ",
     },
     {
-      key: "/search-doctors",
+      key: "/benh-nhan/tim-bac-si",
       icon: <SearchOutlined />,
       label: "Tìm bác sĩ",
     },
     {
-      key: "/my-appointments",
+      key: "/benh-nhan/lich-hen-cua-toi",
       icon: <CalendarOutlined />,
       label: "Lịch hẹn của tôi",
     },
     {
-      key: "/medical-records",
+      key: "/benh-nhan/ho-so-benh-an",
       icon: <FileTextOutlined />,
       label: "Hồ sơ khám bệnh",
     },
     {
-      key: "/family-health-records",
+      key: "/benh-nhan/ho-so-suc-khoe-gia-dinh",
       icon: <TeamOutlined />,
       label: "Hồ sơ khám bệnh người thân",
     },
@@ -78,7 +78,7 @@ const PatientLayout = () => {
       label: "Thanh toán",
     },
     {
-      key: "/thong-bao",
+      key: "/benh-nhan/thong-bao",
       icon: <BellOutlined />,
       label: "Thông báo",
     },

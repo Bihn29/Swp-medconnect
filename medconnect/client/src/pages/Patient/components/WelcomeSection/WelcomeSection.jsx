@@ -67,7 +67,7 @@ function WelcomeSection() {
   };
 
   const handleFindDoctor = () => {
-    navigate("/search-doctors");
+    navigate("/benh-nhan/tim-bac-si");
   };
 
   return (
