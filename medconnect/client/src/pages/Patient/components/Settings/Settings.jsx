@@ -22,28 +22,17 @@ export function Settings() {
     allergies: "",
     // Thông tin cá nhân bổ sung
     ethnicity: "",
-    nationality: "",
     occupation: "",
     citizenId: "",
     // Địa chỉ chi tiết (không có wardCode, districtCode, provinceCode)
     houseNumber: "",
-    // Bảo hiểm y tế
-    insuranceNumber: "",
-    primaryClinic: "",
-    insuranceValidFrom: "",
-    insuranceValidTo: "",
     // Người đại diện
     representativeName: "",
     representativeCitizenId: "",
     representativeRelation: "",
     representativePhone: "",
-    // Liên hệ khẩn cấp
-    emergencyContactName: "",
-    emergencyContactPhone: "",
     // Tiền sử y tế
     medicalHistory: [],
-    // Lịch sử tiêm chủng
-    vaccinationHistory: [],
     // Ghi chú
     notes: "",
     // Password change fields
@@ -92,30 +81,17 @@ export function Settings() {
         allergies: userProfile.allergyNotes || "",
         // Thông tin cá nhân bổ sung
         ethnicity: userProfile.ethnicity || "",
-        nationality: userProfile.nationality || "Vietnam",
         occupation: userProfile.occupation || "",
         citizenId: userProfile.citizenId || "",
         // Địa chỉ chi tiết
         houseNumber: userProfile.houseNumber || "",
-        // Bảo hiểm y tế
-        insuranceNumber: userProfile.insuranceNumber || "",
-        primaryClinic: userProfile.primaryClinic || "",
-        insuranceValidFrom: formatDateForDisplay(
-          userProfile.insuranceValidFrom
-        ),
-        insuranceValidTo: formatDateForDisplay(userProfile.insuranceValidTo),
         // Người đại diện
         representativeName: userProfile.representativeName || "",
         representativeCitizenId: userProfile.representativeCitizenId || "",
         representativeRelation: userProfile.representativeRelation || "",
         representativePhone: userProfile.representativePhone || "",
-        // Liên hệ khẩn cấp
-        emergencyContactName: userProfile.emergencyContactName || "",
-        emergencyContactPhone: userProfile.emergencyContactPhone || "",
         // Tiền sử y tế
         medicalHistory: userProfile.medicalHistory || [],
-        // Lịch sử tiêm chủng
-        vaccinationHistory: userProfile.vaccinationHistory || [],
         // Ghi chú
         notes: userProfile.notes || "",
       };
@@ -134,28 +110,17 @@ export function Settings() {
         allergies: "",
         // Thông tin cá nhân bổ sung
         ethnicity: "",
-        nationality: "Vietnam",
         occupation: "",
         citizenId: "",
         // Địa chỉ chi tiết
         houseNumber: "",
-        // Bảo hiểm y tế
-        insuranceNumber: "",
-        primaryClinic: "",
-        insuranceValidFrom: "",
-        insuranceValidTo: "",
         // Người đại diện
         representativeName: "",
         representativeCitizenId: "",
         representativeRelation: "",
         representativePhone: "",
-        // Liên hệ khẩn cấp
-        emergencyContactName: "",
-        emergencyContactPhone: "",
         // Tiền sử y tế
         medicalHistory: [],
-        // Lịch sử tiêm chủng
-        vaccinationHistory: [],
         // Ghi chú
         notes: "",
       });
@@ -241,45 +206,6 @@ export function Settings() {
         }
         break;
 
-      case "emergencyContactPhone":
-        if (
-          value &&
-          !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(value.replace(/\s/g, ""))
-        ) {
-          errors.emergencyContactPhone =
-            "Số điện thoại liên hệ khẩn cấp không đúng định dạng";
-        }
-        break;
-
-      case "allergies":
-        if (value && value.length > 500) {
-          errors.allergies = "Ghi chú dị ứng không được quá 500 ký tự";
-        }
-        break;
-
-      case "notes":
-        if (value && value.length > 1000) {
-          errors.notes = "Ghi chú không được quá 1000 ký tự";
-        }
-        break;
-
-      case "insuranceNumber":
-        if (value && !/^[0-9]{10,15}$/.test(value.replace(/\s/g, ""))) {
-          errors.insuranceNumber = "Số thẻ BHYT phải có 10-15 chữ số";
-        }
-        break;
-
-      case "primaryClinic":
-        if (value && value.trim().length < 3) {
-          errors.primaryClinic = "Tên cơ sở y tế phải có ít nhất 3 ký tự";
-        } else if (value && value.length > 200) {
-          errors.primaryClinic = "Tên cơ sở y tế không được quá 200 ký tự";
-        } else if (value && !/^[a-zA-ZÀ-ỹ\s\d\-.,()]+$/.test(value)) {
-          errors.primaryClinic =
-            "Tên cơ sở y tế chỉ được chứa chữ cái, số và ký tự đặc biệt cơ bản";
-        }
-        break;
-
       case "representativeName":
         if (value && value.trim().length < 2) {
           errors.representativeName =
@@ -293,16 +219,15 @@ export function Settings() {
         }
         break;
 
-      case "emergencyContactName":
-        if (value && value.trim().length < 2) {
-          errors.emergencyContactName =
-            "Họ tên người liên hệ khẩn cấp phải có ít nhất 2 ký tự";
-        } else if (value && value.length > 100) {
-          errors.emergencyContactName =
-            "Họ tên người liên hệ khẩn cấp không được quá 100 ký tự";
-        } else if (value && !/^[a-zA-ZÀ-ỹ\s]+$/.test(value)) {
-          errors.emergencyContactName =
-            "Họ tên chỉ được chứa chữ cái và khoảng trắng";
+      case "allergies":
+        if (value && value.length > 500) {
+          errors.allergies = "Ghi chú dị ứng không được quá 500 ký tự";
+        }
+        break;
+
+      case "notes":
+        if (value && value.length > 1000) {
+          errors.notes = "Ghi chú không được quá 1000 ký tự";
         }
         break;
 
@@ -400,51 +325,6 @@ export function Settings() {
       }
     }
 
-    // Validate insurance dates
-    if (formData.insuranceValidFrom && formData.insuranceValidTo) {
-      const fromDateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-      const toDateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-
-      if (
-        fromDateRegex.test(formData.insuranceValidFrom) &&
-        toDateRegex.test(formData.insuranceValidTo)
-      ) {
-        const [, fromDay, fromMonth, fromYear] =
-          formData.insuranceValidFrom.match(fromDateRegex);
-        const [, toDay, toMonth, toYear] =
-          formData.insuranceValidTo.match(toDateRegex);
-
-        const fromDate = new Date(fromYear, fromMonth - 1, fromDay);
-        const toDate = new Date(toYear, toMonth - 1, toDay);
-
-        if (fromDate >= toDate) {
-          errors.insuranceValidTo = "Ngày hết hạn phải sau ngày có hiệu lực";
-        }
-      }
-    }
-
-    // Validate representative phone
-    if (
-      formData.representativePhone &&
-      !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(
-        formData.representativePhone.replace(/\s/g, "")
-      )
-    ) {
-      errors.representativePhone =
-        "Số điện thoại người đại diện không đúng định dạng";
-    }
-
-    // Validate emergency contact phone
-    if (
-      formData.emergencyContactPhone &&
-      !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(
-        formData.emergencyContactPhone.replace(/\s/g, "")
-      )
-    ) {
-      errors.emergencyContactPhone =
-        "Số điện thoại liên hệ khẩn cấp không đúng định dạng";
-    }
-
     // Validate citizen ID format (Vietnamese CCCD/CMND)
     if (formData.citizenId && !/^[0-9]{9,12}$/.test(formData.citizenId)) {
       errors.citizenId = "CCCD/CMND phải có 9-12 chữ số";
@@ -459,34 +339,15 @@ export function Settings() {
         "CCCD/CMND người đại diện phải có 9-12 chữ số";
     }
 
-    // Validate allergy notes length
-    if (formData.allergies && formData.allergies.length > 500) {
-      errors.allergies = "Ghi chú dị ứng không được quá 500 ký tự";
-    }
-
-    // Validate notes length
-    if (formData.notes && formData.notes.length > 1000) {
-      errors.notes = "Ghi chú không được quá 1000 ký tự";
-    }
-
-    // Validate insurance number format
+    // Validate representative phone
     if (
-      formData.insuranceNumber &&
-      !/^[0-9]{10,15}$/.test(formData.insuranceNumber.replace(/\s/g, ""))
+      formData.representativePhone &&
+      !/^(\+84|84|0)[1-9][0-9]{8,9}$/.test(
+        formData.representativePhone.replace(/\s/g, "")
+      )
     ) {
-      errors.insuranceNumber = "Số thẻ BHYT phải có 10-15 chữ số";
-    }
-
-    // Validate primary clinic name
-    if (formData.primaryClinic) {
-      if (formData.primaryClinic.trim().length < 3) {
-        errors.primaryClinic = "Tên cơ sở y tế phải có ít nhất 3 ký tự";
-      } else if (formData.primaryClinic.length > 200) {
-        errors.primaryClinic = "Tên cơ sở y tế không được quá 200 ký tự";
-      } else if (!/^[a-zA-ZÀ-ỹ\s\d\-.,()]+$/.test(formData.primaryClinic)) {
-        errors.primaryClinic =
-          "Tên cơ sở y tế chỉ được chứa chữ cái, số và ký tự đặc biệt cơ bản";
-      }
+      errors.representativePhone =
+        "Số điện thoại người đại diện không đúng định dạng";
     }
 
     // Validate representative name
@@ -503,18 +364,14 @@ export function Settings() {
       }
     }
 
-    // Validate emergency contact name
-    if (formData.emergencyContactName) {
-      if (formData.emergencyContactName.trim().length < 2) {
-        errors.emergencyContactName =
-          "Họ tên người liên hệ khẩn cấp phải có ít nhất 2 ký tự";
-      } else if (formData.emergencyContactName.length > 100) {
-        errors.emergencyContactName =
-          "Họ tên người liên hệ khẩn cấp không được quá 100 ký tự";
-      } else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(formData.emergencyContactName)) {
-        errors.emergencyContactName =
-          "Họ tên chỉ được chứa chữ cái và khoảng trắng";
-      }
+    // Validate allergy notes length
+    if (formData.allergies && formData.allergies.length > 500) {
+      errors.allergies = "Ghi chú dị ứng không được quá 500 ký tự";
+    }
+
+    // Validate notes length
+    if (formData.notes && formData.notes.length > 1000) {
+      errors.notes = "Ghi chú không được quá 1000 ký tự";
     }
 
     return errors;
@@ -563,28 +420,17 @@ export function Settings() {
         allergyNotes: formData.allergies,
         // Thông tin cá nhân bổ sung
         ethnicity: formData.ethnicity,
-        nationality: formData.nationality,
         occupation: formData.occupation,
         citizenId: formData.citizenId,
         // Địa chỉ chi tiết
         houseNumber: formData.houseNumber,
-        // Bảo hiểm y tế
-        insuranceNumber: formData.insuranceNumber,
-        primaryClinic: formData.primaryClinic,
-        insuranceValidFrom: formatDateForAPI(formData.insuranceValidFrom),
-        insuranceValidTo: formatDateForAPI(formData.insuranceValidTo),
         // Người đại diện
         representativeName: formData.representativeName,
         representativeCitizenId: formData.representativeCitizenId,
         representativeRelation: formData.representativeRelation,
         representativePhone: formData.representativePhone,
-        // Liên hệ khẩn cấp
-        emergencyContactName: formData.emergencyContactName,
-        emergencyContactPhone: formData.emergencyContactPhone,
         // Tiền sử y tế
         medicalHistory: formData.medicalHistory,
-        // Lịch sử tiêm chủng
-        vaccinationHistory: formData.vaccinationHistory,
         // Ghi chú
         notes: formData.notes,
       };
@@ -834,19 +680,6 @@ export function Settings() {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Quốc tịch</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.nationality}
-                      onChange={(e) =>
-                        handleInputChange("nationality", e.target.value)
-                      }
-                      placeholder="Nhập quốc tịch"
-                    />
-                  </div>
-
-                  <div className="form-group">
                     <label className="form-label">Nghề nghiệp</label>
                     <input
                       type="text"
@@ -946,243 +779,6 @@ export function Settings() {
               </div>
             </div>
 
-            {/* Bảo hiểm y tế */}
-            <div className="form-section">
-              <h3 className="section-subtitle">Bảo hiểm y tế</h3>
-              <div className="form-grid">
-                <div className="form-column">
-                  <div className="form-group">
-                    <label className="form-label">Số thẻ BHYT</label>
-                    <input
-                      type="text"
-                      className={`form-input ${
-                        fieldErrors.insuranceNumber ? "error" : ""
-                      }`}
-                      value={formData.insuranceNumber}
-                      onChange={(e) =>
-                        handleInputChange("insuranceNumber", e.target.value)
-                      }
-                      placeholder="Nhập số thẻ BHYT"
-                    />
-                    {fieldErrors.insuranceNumber && (
-                      <div className="error-text">
-                        {fieldErrors.insuranceNumber}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">
-                      Cơ sở y tế đăng ký KCB ban đầu
-                    </label>
-                    <input
-                      type="text"
-                      className={`form-input ${
-                        fieldErrors.primaryClinic ? "error" : ""
-                      }`}
-                      value={formData.primaryClinic}
-                      onChange={(e) =>
-                        handleInputChange("primaryClinic", e.target.value)
-                      }
-                      placeholder="Nhập tên cơ sở y tế"
-                    />
-                    {fieldErrors.primaryClinic && (
-                      <div className="error-text">
-                        {fieldErrors.primaryClinic}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="form-column">
-                  <div className="form-group">
-                    <label className="form-label">BHYT có hiệu lực từ</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.insuranceValidFrom}
-                      onChange={(e) =>
-                        handleInputChange("insuranceValidFrom", e.target.value)
-                      }
-                      placeholder="DD/MM/YYYY"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">BHYT có hiệu lực đến</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.insuranceValidTo}
-                      onChange={(e) =>
-                        handleInputChange("insuranceValidTo", e.target.value)
-                      }
-                      placeholder="DD/MM/YYYY"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Người đại diện */}
-            <div className="form-section">
-              <h3 className="section-subtitle">Người đại diện (nếu có)</h3>
-              <div className="form-grid">
-                <div className="form-column">
-                  <div className="form-group">
-                    <label className="form-label">Họ tên người đại diện</label>
-                    <input
-                      type="text"
-                      className={`form-input ${
-                        fieldErrors.representativeName ? "error" : ""
-                      }`}
-                      value={formData.representativeName}
-                      onChange={(e) =>
-                        handleInputChange("representativeName", e.target.value)
-                      }
-                      placeholder="Nhập họ tên người đại diện"
-                    />
-                    {fieldErrors.representativeName && (
-                      <div className="error-text">
-                        {fieldErrors.representativeName}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">
-                      Số CCCD/CMND người đại diện
-                    </label>
-                    <input
-                      type="text"
-                      className={`form-input ${
-                        fieldErrors.representativeCitizenId ? "error" : ""
-                      }`}
-                      value={formData.representativeCitizenId}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "representativeCitizenId",
-                          e.target.value
-                        )
-                      }
-                      placeholder="Nhập số CCCD/CMND"
-                    />
-                    {fieldErrors.representativeCitizenId && (
-                      <div className="error-text">
-                        {fieldErrors.representativeCitizenId}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="form-column">
-                  <div className="form-group">
-                    <label className="form-label">Mối quan hệ</label>
-                    <select
-                      className="form-input"
-                      value={formData.representativeRelation}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "representativeRelation",
-                          e.target.value
-                        )
-                      }
-                    >
-                      <option value="">Chọn mối quan hệ</option>
-                      <option value="father">Cha</option>
-                      <option value="mother">Mẹ</option>
-                      <option value="spouse">Vợ/Chồng</option>
-                      <option value="child">Con</option>
-                      <option value="grandparent">Ông/Bà</option>
-                      <option value="other">Khác</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">
-                      Số điện thoại người đại diện
-                    </label>
-                    <input
-                      type="tel"
-                      className={`form-input ${
-                        fieldErrors.representativePhone ? "error" : ""
-                      }`}
-                      value={formData.representativePhone}
-                      onChange={(e) =>
-                        handleInputChange("representativePhone", e.target.value)
-                      }
-                      placeholder="Nhập số điện thoại"
-                    />
-                    {fieldErrors.representativePhone && (
-                      <div className="error-text">
-                        {fieldErrors.representativePhone}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Liên hệ khẩn cấp */}
-            <div className="form-section">
-              <h3 className="section-subtitle">Liên hệ khẩn cấp</h3>
-              <div className="form-grid">
-                <div className="form-column">
-                  <div className="form-group">
-                    <label className="form-label">
-                      Họ tên người liên hệ khẩn cấp
-                    </label>
-                    <input
-                      type="text"
-                      className={`form-input ${
-                        fieldErrors.emergencyContactName ? "error" : ""
-                      }`}
-                      value={formData.emergencyContactName}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "emergencyContactName",
-                          e.target.value
-                        )
-                      }
-                      placeholder="Nhập họ tên người liên hệ khẩn cấp"
-                    />
-                    {fieldErrors.emergencyContactName && (
-                      <div className="error-text">
-                        {fieldErrors.emergencyContactName}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="form-column">
-                  <div className="form-group">
-                    <label className="form-label">
-                      Số điện thoại liên hệ khẩn cấp
-                    </label>
-                    <input
-                      type="tel"
-                      className={`form-input ${
-                        fieldErrors.emergencyContactPhone ? "error" : ""
-                      }`}
-                      value={formData.emergencyContactPhone}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "emergencyContactPhone",
-                          e.target.value
-                        )
-                      }
-                      placeholder="Nhập số điện thoại"
-                    />
-                    {fieldErrors.emergencyContactPhone && (
-                      <div className="error-text">
-                        {fieldErrors.emergencyContactPhone}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Dị ứng và tiền sử y tế */}
             <div className="form-section">
               <h3 className="section-subtitle">Thông tin y tế bổ sung</h3>
@@ -1226,47 +822,6 @@ export function Settings() {
                 <div className="form-help-text">
                   Mỗi bệnh lý một dòng, ví dụ: Tiểu đường, Cao huyết áp, Hen
                   suyễn
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Lịch sử tiêm chủng</label>
-                <textarea
-                  className="form-textarea"
-                  placeholder="Nhập thông tin tiêm chủng (mỗi mũi tiêm một dòng)..."
-                  value={
-                    formData.vaccinationHistory
-                      ? formData.vaccinationHistory
-                          .map(
-                            (v) =>
-                              `${v.vaccineName || ""} - ${
-                                v.date
-                                  ? new Date(v.date).toLocaleDateString("vi-VN")
-                                  : ""
-                              } - ${v.place || ""}`
-                          )
-                          .join("\n")
-                      : ""
-                  }
-                  onChange={(e) => {
-                    const lines = e.target.value
-                      .split("\n")
-                      .filter((line) => line.trim());
-                    const vaccinationHistory = lines.map((line) => {
-                      const parts = line.split(" - ");
-                      return {
-                        vaccineName: parts[0] || "",
-                        date: parts[1] ? new Date(parts[1]) : null,
-                        place: parts[2] || "",
-                      };
-                    });
-                    handleInputChange("vaccinationHistory", vaccinationHistory);
-                  }}
-                  rows={4}
-                />
-                <div className="form-help-text">
-                  Định dạng: Tên vaccine - Ngày tiêm - Nơi tiêm (mỗi mũi tiêm
-                  một dòng)
                 </div>
               </div>
 

@@ -200,7 +200,7 @@ main.main-content {
 
 .form-input {
   padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 2px solid #cbd5e1;
   border-radius: 0.5rem;
   font-size: 0.875rem;
   color: #1f2937;
@@ -216,6 +216,7 @@ main.main-content {
 .form-input:focus {
   outline: none;
   border-color: #3b82f6;
+  border-width: 2px;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -225,7 +226,8 @@ main.main-content {
 }
 
 .form-input:hover {
-  border-color: #9ca3af;
+  border-color: #94a3b8;
+  border-width: 2px;
 }
 
 .error-text {
@@ -246,7 +248,7 @@ main.main-content {
 
 .form-textarea {
   padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 2px solid #cbd5e1;
   border-radius: 0.5rem;
   font-size: 0.875rem;
   color: #1f2937;
@@ -263,11 +265,13 @@ main.main-content {
 .form-textarea:focus {
   outline: none;
   border-color: #3b82f6;
+  border-width: 2px;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .form-textarea:hover {
-  border-color: #9ca3af;
+  border-color: #94a3b8;
+  border-width: 2px;
 }
 
 .form-textarea::placeholder {
@@ -400,7 +404,7 @@ main.main-content {
 .password-input {
   width: 100%;
   padding: 0.875rem 1rem 0.875rem 3rem !important;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #cbd5e1;
   border-radius: 0.75rem;
   font-size: 0.875rem;
   color: #1f2937;
@@ -412,11 +416,13 @@ main.main-content {
 .password-input:focus {
   outline: none;
   border-color: #3b82f6;
+  border-width: 2px;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .password-input:hover {
-  border-color: #9ca3af;
+  border-color: #94a3b8;
+  border-width: 2px;
 }
 
 .password-input.error {

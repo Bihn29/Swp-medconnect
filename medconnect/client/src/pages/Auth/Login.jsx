@@ -93,11 +93,7 @@ export default function Login() {
     const from = location.state?.from;
     const doctor = location.state?.doctor;
 
-    if (
-      from === "/dat-lich" ||
-      from === "/dat-lich-kham" ||
-      from === "/dat-lich/chon-thoi-gian"
-    ) {
+    if (from === "/dat-lich" || from === "/dat-lich/chon-thoi-gian") {
       // If coming from appointment booking, redirect back with doctor data
       if (from === "/dat-lich/chon-thoi-gian") {
         navigate("/dat-lich/chon-thoi-gian", {
@@ -107,7 +103,7 @@ export default function Login() {
           },
         });
       } else {
-        navigate("/dat-lich-kham", {
+        navigate("/dat-lich", {
           state: {
             doctor: doctor,
           },
@@ -271,9 +267,9 @@ export default function Login() {
       console.error("Login error:", err);
       // Handle both string and object error messages
       let errorMessage = "Không đăng nhập được";
-      if (typeof err?.message === 'string') {
+      if (typeof err?.message === "string") {
         errorMessage = err.message;
-      } else if (typeof err === 'string') {
+      } else if (typeof err === "string") {
         errorMessage = err;
       } else if (err?.response?.data?.message) {
         errorMessage = err.response.data.message;
@@ -353,9 +349,9 @@ export default function Login() {
       } catch (err) {
         // Handle both string and object error messages
         let errorMessage = "Lỗi đăng nhập Google";
-        if (typeof err?.message === 'string') {
+        if (typeof err?.message === "string") {
           errorMessage = err.message;
-        } else if (typeof err === 'string') {
+        } else if (typeof err === "string") {
           errorMessage = err;
         } else if (err?.response?.data?.message) {
           errorMessage = err.response.data.message;
@@ -439,7 +435,11 @@ export default function Login() {
           )}
 
           <div className="password-group">
-            <div className={`input-group ${!passwordValid && !passwordError ? 'no-validation-icon' : ''}`}>
+            <div
+              className={`input-group ${
+                !passwordValid && !passwordError ? "no-validation-icon" : ""
+              }`}
+            >
               <input
                 className={`login-input ${
                   passwordError
@@ -470,7 +470,7 @@ export default function Login() {
                   showPassword ? "bi-eye-fill" : "bi-eye-slash-fill"
                 } password-toggle`}
                 onClick={() => setShowPassword(!showPassword)}
-                style={{ cursor: 'pointer', zIndex: 10 }}
+                style={{ cursor: "pointer", zIndex: 10 }}
               />
             </div>
           </div>

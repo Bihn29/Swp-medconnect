@@ -28,7 +28,11 @@ export const createPayosPaymentLink = async (userId, paymentData) => {
     throw new Error("Invalid User ID");
   }
 
-  const { appointmentId, amount, description = "Payment for appointment" } = paymentData || {};
+  const {
+    appointmentId,
+    amount,
+    description = "Payment for appointment",
+  } = paymentData || {};
 
   if (!appointmentId) throw new Error("Appointment ID không được trống");
   if (!amount || amount <= 0) throw new Error("Số tiền không hợp lệ");
@@ -40,12 +44,18 @@ export const createPayosPaymentLink = async (userId, paymentData) => {
     .populate("clinicId");
 
   if (!appointment) throw new Error("Appointment not found");
-  
+
   // Kiểm tra xem patient có thuộc về user này không
+  // Support family member booking: patient should belong to the user OR any of user's patients
   const patient = await Patient.findOne({ userId: userId }).populate("userId");
   if (!patient) throw new Error("Patient not found");
-  
-  if (appointment.patientId._id.toString() !== patient._id.toString()) {
+
+  // Get the appointment's patient
+  const appointmentPatient = await Patient.findById(appointment.patientId._id);
+  if (!appointmentPatient) throw new Error("Appointment patient not found");
+
+  // Check if appointment's patient belongs to this user (support family members)
+  if (appointmentPatient.userId.toString() !== userId.toString()) {
     throw new Error("Unauthorized: Appointment does not belong to this user");
   }
 
@@ -59,7 +69,10 @@ export const createPayosPaymentLink = async (userId, paymentData) => {
 
   // Kiểm tra xem đã thanh toán thành công chưa
   const existingPayment = await Payment.findOne({ appointmentId });
-  if (existingPayment && ["captured", "authorized"].includes(existingPayment.status)) {
+  if (
+    existingPayment &&
+    ["captured", "authorized"].includes(existingPayment.status)
+  ) {
     throw new Error("Appointment already paid");
   }
 
@@ -101,33 +114,46 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
     }
 
     // Tìm Appointment bằng pendingOrderCode
-    const appointment = await Appointment.findOne({ pendingOrderCode: orderCode })
+    const appointment = await Appointment.findOne({
+      pendingOrderCode: orderCode,
+    })
       .populate("patientId")
       .populate("doctorId")
       .populate("clinicId");
 
     if (!appointment) {
-      console.log(`⚠️ Appointment not found for orderCode: ${orderCode}. Possibly already processed.`);
+      console.log(
+        `⚠️ Appointment not found for orderCode: ${orderCode}. Possibly already processed.`
+      );
       return { already: true, orderCode };
     }
 
     // Kiểm tra xem đã có payment chưa (idempotent)
-    const existingPayment = await Payment.findOne({ appointmentId: appointment._id });
+    const existingPayment = await Payment.findOne({
+      appointmentId: appointment._id,
+    });
     if (existingPayment && existingPayment.status === "captured") {
-      console.log(`ℹ️ Payment already captured for appointment: ${appointment._id}`);
+      console.log(
+        `ℹ️ Payment already captured for appointment: ${appointment._id}`
+      );
       return { already: true, orderCode, paymentId: existingPayment._id };
     }
 
-    const isPaid = String(code) === "00" || verified.success === true || String(data.code) === "00";
+    const isPaid =
+      String(code) === "00" ||
+      verified.success === true ||
+      String(data.code) === "00";
 
     if (isPaid) {
       // Lấy thông tin patient và doctor
-      const patient = await Patient.findById(appointment.patientId._id).populate("userId");
+      const patient = await Patient.findById(
+        appointment.patientId._id
+      ).populate("userId");
       const doctor = await Doctor.findById(appointment.doctorId._id);
 
       // TẠO Payment record MỚI khi thanh toán thành công
       const invoiceNumber = `INV-PAYOS-${orderCode}`;
-      
+
       const payment = new Payment({
         appointmentId: appointment._id,
         invoiceNumber,
@@ -567,4 +593,3 @@ async function sendPaymentConfirmationEmail(appointment, payment, patient, docto
     throw error;
   }
 }
-

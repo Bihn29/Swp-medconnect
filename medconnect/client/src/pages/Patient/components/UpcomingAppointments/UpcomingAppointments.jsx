@@ -81,7 +81,7 @@ export function UpcomingAppointments() {
           })
         );
 
-        setAppointments(transformedAppointments);
+        setAppointments(transformedAppointments.slice(0, 3));
       } else {
         message.error("Không thể tải danh sách lịch hẹn");
       }
@@ -108,7 +108,7 @@ export function UpcomingAppointments() {
       <div
         style={{
           backgroundColor: "#ffffff",
-          border: "1px solid #e5e7eb",
+          border: "2px solid #cbd5e1",
           borderRadius: "1rem",
           padding: "1.5rem",
           boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
@@ -130,7 +130,7 @@ export function UpcomingAppointments() {
     <div
       style={{
         backgroundColor: "#ffffff",
-        border: "1px solid #e5e7eb",
+        border: "2px solid #cbd5e1",
         borderRadius: "1rem",
         padding: "1.5rem",
         boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
@@ -214,7 +214,7 @@ export function UpcomingAppointments() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "1rem",
-                border: "1px solid #e5e7eb",
+                border: "2px solid #cbd5e1",
                 borderRadius: "0.75rem",
                 backgroundColor: "#ffffff",
               }}

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Button } from "antd";
-import { CalendarOutlined } from "@ant-design/icons";
+import { Button } from "../ui/Button";
+import { Calendar } from "lucide-react";
 import { RescheduleModal } from "../RescheduleModal/RescheduleModal";
 
 export function RescheduleButton({ appointment, onSuccess }) {
@@ -42,13 +42,8 @@ export function RescheduleButton({ appointment, onSuccess }) {
 
   if (!canReschedule()) {
     return (
-      <Button
-        type="primary"
-        size="small"
-        disabled
-        icon={<CalendarOutlined />}
-        title={getDisabledReason()}
-      >
+      <Button variant="default" size="sm" disabled title={getDisabledReason()}>
+        <Calendar size={16} style={{ marginRight: 6 }} />
         Dời lịch
       </Button>
     );
@@ -56,12 +51,8 @@ export function RescheduleButton({ appointment, onSuccess }) {
 
   return (
     <>
-      <Button
-        type="primary"
-        size="small"
-        onClick={() => setShowModal(true)}
-        icon={<CalendarOutlined />}
-      >
+      <Button variant="default" size="sm" onClick={() => setShowModal(true)}>
+        <Calendar size={16} style={{ marginRight: 6 }} />
         Dời lịch
       </Button>
 
