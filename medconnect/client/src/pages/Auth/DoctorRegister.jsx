@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { registerDoctor } from "../../lib/api.js";
+import { registerDoctor, getAllSpecializations } from "../../lib/api.js";
 import "./DoctorRegister.scss";
 
 export default function DoctorRegister() {
@@ -21,28 +21,8 @@ export default function DoctorRegister() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
-
-  const specialties = [
-    "Nội khoa",
-    "Ngoại khoa", 
-    "Sản phụ khoa",
-    "Nhi khoa",
-    "Tim mạch",
-    "Thần kinh",
-    "Da liễu",
-    "Mắt",
-    "Tai mũi họng",
-    "Răng hàm mặt",
-    "Chấn thương chỉnh hình",
-    "Ung bướu",
-    "Tâm thần",
-    "Phục hồi chức năng",
-    "Gây mê hồi sức",
-    "Xét nghiệm",
-    "Chẩn đoán hình ảnh",
-    "Dược",
-    "Khác"
-  ];
+  const [specialties, setSpecialties] = useState([]);
+  const [loadingSpecialties, setLoadingSpecialties] = useState(true);
 
   const toE164 = (raw, country = "+84") => {
     const num = String(raw || "").replace(/\D/g, "");
@@ -51,6 +31,51 @@ export default function DoctorRegister() {
     if (num.startsWith("+")) return num;
     return country + num;
   };
+
+  // Fetch specializations from database
+  useEffect(() => {
+    const fetchSpecializations = async () => {
+      try {
+        setLoadingSpecialties(true);
+        const response = await getAllSpecializations();
+        
+        // Handle different response formats
+        let specs = [];
+        if (response.success) {
+          // Format: { success: true, data: [...] }
+          if (Array.isArray(response.data)) {
+            specs = response.data;
+          } else if (response.data?.specializations) {
+            // Format: { success: true, data: { specializations: [...] } }
+            specs = response.data.specializations;
+          } else if (response.specializations) {
+            // Format: { success: true, specializations: [...] }
+            specs = response.specializations;
+          }
+        } else if (Array.isArray(response)) {
+          // Direct array response
+          specs = response;
+        }
+        
+        // Sort by name for better UX
+        specs.sort((a, b) => {
+          const nameA = a.name || "";
+          const nameB = b.name || "";
+          return nameA.localeCompare(nameB);
+        });
+        
+        setSpecialties(specs);
+      } catch (error) {
+        console.error("Error fetching specializations:", error);
+        // Fallback to empty array if API fails
+        setSpecialties([]);
+      } finally {
+        setLoadingSpecialties(false);
+      }
+    };
+
+    fetchSpecializations();
+  }, []);
 
   const isValidEmail = (v) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(v || "").trim());
@@ -192,13 +217,41 @@ export default function DoctorRegister() {
       // Parse error message from API response
       let errorMessage = "Có lỗi xảy ra khi đăng ký. Vui lòng thử lại.";
       try {
-        const errorData = JSON.parse(err.message);
-        errorMessage = errorData.message || errorMessage;
+        // Try to parse JSON error response
+        const errorText = err.message || "";
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          // If parsing fails, try to extract message from string
+          const match = errorText.match(/"message"\s*:\s*"([^"]+)"/);
+          if (match) {
+            errorData = { message: match[1] };
+          } else {
+            errorData = { message: errorText };
+          }
+        }
+        
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
       } catch (parseErr) {
         // If not JSON, use the error message as is
         if (err.message && err.message !== "[object Object]") {
           errorMessage = err.message;
         }
+      }
+      
+      // Map common error messages to Vietnamese
+      const errorMap = {
+        "Email already exists": "Email này đã được sử dụng. Vui lòng sử dụng email khác",
+        "Phone number already exists": "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác",
+        "Email này đã được sử dụng. Vui lòng sử dụng email khác": "Email này đã được sử dụng. Vui lòng sử dụng email khác",
+        "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác": "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác",
+      };
+      
+      if (errorMap[errorMessage]) {
+        errorMessage = errorMap[errorMessage];
       }
       
       setErrors({
@@ -354,11 +407,14 @@ export default function DoctorRegister() {
               name="specialty"
               value={formData.specialty}
               onChange={handleInputChange}
+              disabled={loadingSpecialties}
             >
-              <option value="">Chọn chuyên khoa</option>
+              <option value="">
+                {loadingSpecialties ? "Đang tải chuyên khoa..." : "Chọn chuyên khoa"}
+              </option>
               {specialties.map((specialty) => (
-                <option key={specialty} value={specialty}>
-                  {specialty}
+                <option key={specialty._id || specialty.id || specialty.name} value={specialty._id || specialty.id || specialty.name}>
+                  {specialty.name}
                 </option>
               ))}
             </select>

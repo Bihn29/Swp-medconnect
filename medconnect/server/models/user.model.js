@@ -16,7 +16,7 @@ const UserSchema = new Schema(
       required: function () { return this.authProvider === "local"; },
     },
     role: { type: String, enum: ["patient", "doctor", "admin"], default: "patient" },
-    status: { type: String, enum: ["active", "blocked", "pending"], default: "active" },
+    status: { type: String, enum: ["active", "blocked", "pending", "rejected"], default: "active" },
     fullName: { type: String, trim: true },
     phone: { type: String, unique: true, sparse: true, trim: true },
     authProvider: { type: String, enum: ["local", "google", "phone"], default: "local" },

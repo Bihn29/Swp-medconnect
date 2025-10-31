@@ -244,7 +244,7 @@ const Header = () => {
 
     // dashboard shortcut
     if (key === "dashboard") {
-      navigate("/benh-nhan/trang-chu");
+      navigate("/benh-nhan/trang-chu", { replace: false });
       return;
     }
 

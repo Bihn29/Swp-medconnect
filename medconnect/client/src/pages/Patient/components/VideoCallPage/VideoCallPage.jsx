@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Typography, Button, Space, message, Spin } from "antd";
 import { ArrowLeftOutlined, VideoCameraOutlined } from "@ant-design/icons";
-import VideoCallManager from "../../components/VideoCall/VideoCallManager";
-import { api } from "../../lib/api";
+import VideoCallManager from "../../../../components/VideoCall/VideoCallManager";
+import { api } from "../../../../lib/api";
 import "./VideoCallPage.css";
 
 const { Title, Text } = Typography;

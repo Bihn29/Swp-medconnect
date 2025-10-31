@@ -12,15 +12,35 @@ import { ERROR_CODES } from "../constants/index.js";
  */
 export async function requestReschedule(req, res) {
   try {
-    const { appointmentId, newDateTime, reason } = req.body;
+    const { appointmentId, newDateTime, reason, mode, clinicId } = req.body;
     const userId = req.user.app_user_id;
 
-    if (!appointmentId || !newDateTime || !reason) {
+    if (!appointmentId || !newDateTime || !reason || !mode) {
       return fail(
         res,
         400,
         ERROR_CODES.INVALID_INPUT,
-        "Missing required fields: appointmentId, newDateTime, reason"
+        "Missing required fields: appointmentId, newDateTime, reason, mode"
+      );
+    }
+
+    // Validate mode
+    if (!["online", "offline"].includes(mode)) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Mode must be 'online' or 'offline'"
+      );
+    }
+
+    // If offline mode, clinicId is required
+    if (mode === "offline" && !clinicId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Clinic ID is required for offline appointments"
       );
     }
 
@@ -101,6 +121,8 @@ export async function requestReschedule(req, res) {
       requestedBy: userId,
       newDateTime: newDate,
       reason: reason.trim(),
+      mode: mode,
+      clinicId: mode === "offline" ? clinicId : undefined,
     });
 
     await rescheduleRequest.save();
@@ -337,14 +359,19 @@ export async function approveReschedule(req, res) {
       }
 
       // Create new appointment with the NEW time slot
+      // Use mode and clinicId from reschedule request if provided, otherwise use from original appointment
+      const newMode = request.mode || originalAppointment.mode;
       const newAppointmentData = {
         patientId: originalAppointment.patientId,
         doctorId: originalAppointment.doctorId,
-        clinicId: originalAppointment.clinicId,
+        clinicId:
+          newMode === "offline"
+            ? request.clinicId || originalAppointment.clinicId
+            : undefined,
         slotId: newTimeSlot._id, // Use the NEW slot, not the old one
         scheduledStart: newScheduledStart,
         scheduledEnd: newScheduledEnd,
-        mode: originalAppointment.mode,
+        mode: newMode,
         status: "accepted",
         reason:
           originalAppointment.reason || originalAppointment.reasonForVisit,

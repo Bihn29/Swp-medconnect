@@ -1050,10 +1050,18 @@ export async function getAllDoctors(req, res) {
 
     const total = await Doctor.countDocuments(filter);
 
-    console.log(`Found ${doctors.length} doctors out of ${total} total`); // Debug log
+    // Filter out picsum.photos URLs from avatarUrl
+    const cleanedDoctors = doctors.map(doctor => {
+      if (doctor.avatarUrl && doctor.avatarUrl.includes('picsum.photos')) {
+        doctor.avatarUrl = null;
+      }
+      return doctor;
+    });
+
+    console.log(`Found ${cleanedDoctors.length} doctors out of ${total} total`); // Debug log
 
     return ok(res, {
-      doctors,
+      doctors: cleanedDoctors,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

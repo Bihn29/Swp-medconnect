@@ -1,16 +1,16 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { WelcomeSection } from "./components/WelcomeSection/WelcomeSection";
-import { StatsCards } from "./components/StatsCards/StatsCards";
-import { UpcomingAppointments } from "./components/UpcomingAppointments/UpcomingAppointments";
-import { CurrentConsultation } from "./components/CurrentConsultation/CurrentConsultation";
-import { AppointmentCalendar } from "./components/AppointmentCalendar/AppointmentCalendar";
-import { QuickActions } from "./components/QuickActions/QuickActions";
-import { DoctorSearch } from "./components/DoctorSearch/DoctorSearch";
-import { MyAppointments } from "./components/MyAppointments/MyAppointments";
-import { HealthProfile } from "./components/HealthProfile/HealthProfile";
-import { FamilyHealthProfile } from "./components/FamilyHealthProfile/FamilyHealthProfile";
-import { Notifications } from "./components/Notifications/Notifications";
+import { WelcomeSection } from "../components/WelcomeSection/WelcomeSection";
+import { StatsCards } from "../components/StatsCards/StatsCards";
+import { UpcomingAppointments } from "../components/UpcomingAppointments/UpcomingAppointments";
+import { CurrentConsultation } from "../components/CurrentConsultation/CurrentConsultation";
+import { AppointmentCalendar } from "../components/AppointmentCalendar/AppointmentCalendar";
+import { QuickActions } from "../components/QuickActions/QuickActions";
+import { DoctorSearch } from "../components/DoctorSearch/DoctorSearch";
+import { MyAppointments } from "../components/MyAppointments/MyAppointments";
+import { HealthProfile } from "../components/HealthProfile/HealthProfile";
+import { FamilyHealthProfile } from "../components/FamilyHealthProfile/FamilyHealthProfile";
+import { Notifications } from "../components/Notifications/Notifications";
 import "./PatientDashboard.scss";
 
 /**
@@ -34,6 +34,13 @@ import "./PatientDashboard.scss";
 
 export default function PatientDashboard() {
   const location = useLocation();
+
+  // Force re-render and scroll to top when location changes
+  // This ensures content updates when navigating between different patient routes
+  useEffect(() => {
+    // Scroll to top when route changes
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   // Render different content based on current route
   const renderContent = () => {
