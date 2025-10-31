@@ -6,7 +6,7 @@ import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Appointment from "../models/appointment.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
 import ConsultationAdvice from "../models/consultationAdvice.model.js";
-import Notification from "../models/notification.model.js"; 
+import Notification from "../models/notification.model.js";
 import {
   createBookingNotification,
   createAppointmentNotification,
@@ -489,11 +489,12 @@ export async function getDoctorTimeSlots(req, res) {
     const endDate = new Date(date);
     endDate.setHours(23, 59, 59, 999);
 
-    // Get available time slots for the doctor on the specified date
+    // Get all time slots for the doctor on the specified date (both available and booked)
+    // We need to check both because cancelled appointments might leave slots as "booked"
     const timeSlots = await DoctorTimeSlot.find({
       doctorId: doctorId,
       startAt: { $gte: startDate, $lte: endDate },
-      status: "available",
+      status: { $in: ["available", "booked"] }, // Include both available and booked slots
     })
       .sort({ startAt: 1 })
       .lean();
@@ -507,22 +508,34 @@ export async function getDoctorTimeSlots(req, res) {
           "pending_doctor",
           "accepted",
           "in_progress",
-          // Exclude cancelled, rejected, no_show, done, rescheduled
+          "done",
+          // Exclude cancelled, rejected, no_show, rescheduled
+          // Include "done" to hide completed appointments
         ],
       },
     })
-      .select("slotId")
+      .select("slotId status")
       .lean();
 
-    // Create a set of booked slot IDs
+    // Create a set of booked slot IDs (only for active appointments)
     const bookedSlotIds = new Set(
       appointments.map((apt) => apt.slotId?.toString())
     );
 
-    // Filter out slots that are booked by active appointments
-    const reallyAvailableSlots = timeSlots.filter(
-      (slot) => !bookedSlotIds.has(slot._id.toString())
-    );
+    // Filter slots: include if slot status is "available" OR if slot is "booked" but no active appointment uses it
+    // This handles the case where appointment was cancelled but slot status wasn't updated
+    const reallyAvailableSlots = timeSlots.filter((slot) => {
+      // If slot is marked as available, include it (but check if it's really booked)
+      if (slot.status === "available") {
+        return !bookedSlotIds.has(slot._id.toString());
+      }
+      // If slot is marked as booked, include it ONLY if no active appointment is using it
+      // This means the appointment was cancelled but slot status wasn't updated
+      if (slot.status === "booked") {
+        return !bookedSlotIds.has(slot._id.toString());
+      }
+      return false;
+    });
 
     // Format time slots for frontend
     const formattedSlots = reallyAvailableSlots.map((slot) => ({
@@ -970,6 +983,24 @@ export async function cancelPatientAppointment(req, res) {
       .populate("doctorId", "fullName specializationIds avatarUrl")
       .populate("slotId", "startAt endAt")
       .populate("clinicId", "name address");
+
+    // Free up the time slot when appointment is cancelled
+    try {
+      if (appointment.slotId) {
+        await DoctorTimeSlot.findByIdAndUpdate(appointment.slotId, {
+          status: "available",
+        });
+        console.log(
+          `✅ Slot ${appointment.slotId} freed up after appointment cancellation`
+        );
+      }
+    } catch (slotError) {
+      console.error(
+        "Error updating slot status after cancellation:",
+        slotError
+      );
+      // Don't fail the request if slot update fails
+    }
 
     return ok(res, {
       appointment: updatedAppointment,

@@ -103,14 +103,21 @@ const PatientLayout = () => {
   };
 
   // Get user info for sidebar profile
+  // Use fallback values if userProfile is still loading
   const userInfo = {
-    name: userProfile?.fullName || userProfile?.displayName || "Người dùng",
-    email: userProfile?.email || "",
+    name:
+      userProfile?.fullName ||
+      userProfile?.displayName ||
+      user?.displayName ||
+      "Người dùng",
+    email: userProfile?.email || user?.email || "",
     role: userProfile?.role === "patient" ? "Bệnh nhân" : "Người dùng",
-    avatar: userProfile?.photoURL || userProfile?.avatar,
+    avatar: userProfile?.photoURL || userProfile?.avatar || user?.photoURL,
   };
 
-  if (loading || profileLoading) {
+  // Show loading only if we're still checking auth
+  // Don't block rendering if userProfile is still loading - it's not critical for layout
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spin size="large">
