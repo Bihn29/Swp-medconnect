@@ -26,7 +26,7 @@ export async function loginPassword(req, res) {
   try {
     const { identifier, password } = req.body || {};
     if (!identifier || !password) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing identifier or password");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Vui lòng nhập email/số điện thoại và mật khẩu");
     }
 
     console.log("[login] identifier:", identifier);
@@ -48,7 +48,7 @@ export async function loginPassword(req, res) {
 
     if (!user) {
       console.log("[login] user not found");
-      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Không tìm thấy người dùng");
     }
 
     // Check user status
@@ -58,7 +58,17 @@ export async function loginPassword(req, res) {
 
     if (user.status === "pending") {
       if (user.role === "doctor") {
-        return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản này đang chờ xác nhận");
+        // Check if doctor has been verified - auto sync User status
+        const Doctor = (await import("../models/doctor.model.js")).default;
+        const doctor = await Doctor.findOne({ userId: user._id });
+        if (doctor && doctor.isVerified) {
+          // Auto sync: doctor is verified but User status is still pending
+          user.status = "active";
+          await user.save();
+          console.log(`✅ Auto-synced User ${user._id} status to 'active' (doctor is verified)`);
+        } else {
+          return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản này đang chờ xác nhận");
+        }
       } else {
         return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản của bạn đang chờ kích hoạt. Vui lòng đợi thông báo từ email.");
       }
@@ -71,7 +81,7 @@ export async function loginPassword(req, res) {
     // 🔧 ĐÚNG THỨ TỰ so sánh: (plain, hash)
     const okPwd = await verifyPassword(user.passwordHash, password);
     if (!okPwd) {
-      return fail(res, 401, ERROR_CODES.INVALID_CREDENTIALS, "Invalid credentials");
+      return fail(res, 401, ERROR_CODES.INVALID_CREDENTIALS, "Email/số điện thoại hoặc mật khẩu không đúng");
     }
 
     const uid = `app_${user._id}`;
@@ -98,13 +108,13 @@ export async function googleLogin(req, res) {
   try {
     const { idToken } = req.body || {};
     if (!idToken) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing idToken");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu mã xác thực Google");
     }
 
     const decoded = await admin.auth().verifyIdToken(idToken, true);
     const email = decoded.email?.toLowerCase();
     if (!email) {
-      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Email not found in token");
+      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Không tìm thấy email trong mã xác thực");
     }
 
     const dbUser = await User.findOne({
@@ -112,7 +122,7 @@ export async function googleLogin(req, res) {
       status: "active",
     }).lean();
     if (!dbUser) {
-      return fail(res, 403, ERROR_CODES.FORBIDDEN, "User not found in DB");
+      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Không tìm thấy người dùng trong hệ thống");
     }
 
     const sessionCookie = await admin.auth().createSessionCookie(idToken, {
@@ -140,7 +150,7 @@ export async function createSession(req, res) {
   try {
     const { idToken } = req.body || {};
     if (!idToken) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing idToken");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu mã xác thực Google");
     }
 
     const sessionCookie = await admin.auth().createSessionCookie(idToken, {
@@ -191,25 +201,25 @@ export async function registerDoctor(req, res) {
     } = req.body || {};
 
     if (!fullName || !email || !phone || !password || !specialty) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing required fields");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Vui lòng điền đầy đủ thông tin bắt buộc");
     }
     
     // Get uploaded file info
     const licenseFile = req.file;
     if (!licenseFile) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "License image is required");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Vui lòng tải lên ảnh chứng chỉ hành nghề");
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
     if (!emailRegex.test(email)) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid email format");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Email không đúng định dạng");
     }
 
     // Validate phone format (Vietnamese)
     const phoneRegex = /^\+84\d{9}$/;
     if (!phoneRegex.test(phone)) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid phone format");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Số điện thoại không đúng định dạng (VD: 0xxxxxxxxx hoặc +84xxxxxxxxx)");
     }
 
     // Validate password length
@@ -218,7 +228,7 @@ export async function registerDoctor(req, res) {
         res,
         400,
         ERROR_CODES.BAD_REQUEST,
-        "Password must be at least 8 characters"
+        "Mật khẩu phải có ít nhất 8 ký tự"
       );
     }
 
@@ -227,13 +237,13 @@ export async function registerDoctor(req, res) {
       email: email.toLowerCase(),
     }).lean();
     if (existingUserByEmail) {
-      return fail(res, 409, ERROR_CODES.CONFLICT, "Email already exists");
+      return fail(res, 409, ERROR_CODES.CONFLICT, "Email này đã được sử dụng. Vui lòng sử dụng email khác");
     }
 
     // Normalize phone and check
     const normalizedPhone = toE164(phone);
     if (!normalizedPhone) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid phone format");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Số điện thoại không đúng định dạng");
     }
     const existingUserByPhone = await User.findOne({
       phone: normalizedPhone,
@@ -243,7 +253,7 @@ export async function registerDoctor(req, res) {
         res,
         409,
         ERROR_CODES.CONFLICT,
-        "Phone number already exists"
+        "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác"
       );
     }
 
@@ -263,7 +273,32 @@ export async function registerDoctor(req, res) {
     });
 
     if (!userDoc) {
-      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Failed to create user");
+      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Không thể tạo tài khoản. Vui lòng thử lại sau");
+    }
+
+    // Find specialization by ID or name
+    let specializationIds = [];
+    if (specialty) {
+      const Specialization = (await import("../models/specialization.model.js")).default;
+      try {
+        // Try to find by ID first (if it's a valid ObjectId)
+        const mongoose = (await import("mongoose")).default;
+        if (mongoose.Types.ObjectId.isValid(specialty)) {
+          const spec = await Specialization.findById(specialty);
+          if (spec) {
+            specializationIds = [spec._id];
+          }
+        } else {
+          // If not valid ObjectId, try to find by name
+          const spec = await Specialization.findOne({ name: specialty.trim() });
+          if (spec) {
+            specializationIds = [spec._id];
+          }
+        }
+      } catch (specError) {
+        console.warn("Error finding specialization:", specError);
+        // Continue without specialization - doctor can add it later
+      }
     }
 
     // Create doctor document
@@ -271,6 +306,7 @@ export async function registerDoctor(req, res) {
       userId: userDoc._id,
       fullName: fullName.trim(),
       licenseNo: licenseFile.filename, // Store uploaded file name
+      specializationIds: specializationIds, // Store specialization IDs
       isVerified: false, // Cần admin phê duyệt
       isActive: false, // Chưa được kích hoạt
       bio: "",
@@ -323,19 +359,19 @@ export async function register(req, res) {
     } = req.body || {};
 
     if (!fullName || !email || !phone || !password) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing required fields");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Vui lòng điền đầy đủ thông tin bắt buộc");
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
     if (!emailRegex.test(email)) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid email format");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Email không đúng định dạng");
     }
 
     // Validate phone format (Vietnamese)
     const phoneRegex = /^\+84\d{9}$/;
     if (!phoneRegex.test(phone)) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid phone format");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Số điện thoại không đúng định dạng");
     }
 
     // Validate password length
@@ -354,13 +390,13 @@ export async function register(req, res) {
       email: email.toLowerCase(),
     }).lean();
     if (existingUserByEmail) {
-      return fail(res, 409, ERROR_CODES.CONFLICT, "Email already exists");
+      return fail(res, 409, ERROR_CODES.CONFLICT, "Email này đã được sử dụng. Vui lòng sử dụng email khác");
     }
 
     // Normalize phone and check
     const normalizedPhone = toE164(phone);
     if (!normalizedPhone) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Invalid phone format");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Số điện thoại không đúng định dạng");
     }
     const existingUserByPhone = await User.findOne({
       phone: normalizedPhone,
@@ -370,7 +406,7 @@ export async function register(req, res) {
         res,
         409,
         ERROR_CODES.CONFLICT,
-        "Phone number already exists"
+        "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác"
       );
     }
 
@@ -388,7 +424,7 @@ export async function register(req, res) {
     });
 
     if (!userDoc) {
-      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Failed to create user");
+      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Không thể tạo tài khoản. Vui lòng thử lại sau");
     }
 
     // Create patient document when role is patient
@@ -449,7 +485,7 @@ export async function googleRegister(req, res) {
   try {
     const { idToken, fullName, role = "PATIENT" } = req.body || {};
     if (!idToken)
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Missing idToken");
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu mã xác thực Google");
 
     // verify idToken
     let decoded;
@@ -473,7 +509,7 @@ export async function googleRegister(req, res) {
 
     const email = decoded.email?.toLowerCase();
     if (!email)
-      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Email not found in token");
+      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Không tìm thấy email trong mã xác thực");
 
     const normalizedRole = (role || "patient").toLowerCase();
 

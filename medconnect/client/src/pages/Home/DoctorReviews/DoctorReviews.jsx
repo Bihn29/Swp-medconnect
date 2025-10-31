@@ -184,7 +184,11 @@ const DoctorReviews = () => {
                 <div className="doctor-avatar-section">
                   <Avatar
                     size={120}
-                    src={doctor.avatarUrl}
+                    src={
+                      doctor.avatarUrl && !doctor.avatarUrl.includes("picsum.photos")
+                        ? doctor.avatarUrl
+                        : undefined
+                    }
                     icon={<UserOutlined />}
                     className="doctor-avatar"
                   />

@@ -347,9 +347,16 @@ const DoctorList = () => {
         <Col flex="120px">
           <Avatar
             size={100}
-            src={doctor.avatarUrl || "/default-avatar.png"}
+            src={
+              doctor.avatarUrl && !doctor.avatarUrl.includes("picsum.photos")
+                ? doctor.avatarUrl
+                : "/default-avatar.png"
+            }
             icon={<UserOutlined />}
             style={{ borderRadius: "8px" }}
+            onError={() => {
+              // Avatar component will handle fallback to icon
+            }}
           />
         </Col>
         <Col flex="auto">
