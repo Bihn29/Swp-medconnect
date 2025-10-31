@@ -418,7 +418,7 @@ const Header = () => {
                   { type: "divider", key: "d1" },
                   // Only show profile and dashboard for non-admin users
                   ...(userProfile?.role !== "admin" &&
-                  userProfile?.role !== "ADMIN"
+                  userProfile?.role !== "ADMIN" && userProfile?.role !== ""
                     ? [
                         {
                           key: "profile",
