@@ -71,7 +71,7 @@ export function Notifications() {
 
   const markAllAsRead = async () => {
     try {
-      const response = await api.put("/api/notifications/mark-all-read");
+      const response = await api.put("/api/notifications/read-all");
       if (response.success) {
         setNotifications((prev) =>
           prev.map((notif) => ({ ...notif, isRead: true }))

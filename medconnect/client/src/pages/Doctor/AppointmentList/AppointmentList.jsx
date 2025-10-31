@@ -35,6 +35,11 @@ export default function AppointmentList() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [updatingAppointments, setUpdatingAppointments] = useState(new Set());
+  const [rescheduleInfo, setRescheduleInfo] = useState(null);
+  const [isRescheduleInfoOpen, setIsRescheduleInfoOpen] = useState(false);
+  const [representativeInfo, setRepresentativeInfo] = useState(null);
+  const [isRepresentativeInfoOpen, setIsRepresentativeInfoOpen] =
+    useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 1000; // Hiển thị tất cả appointments
@@ -81,9 +86,47 @@ export default function AppointmentList() {
     fetchAppointments();
   }, []);
 
+  const handleViewRepresentativeInfo = (appointment) => {
+    console.log("🔍 Viewing representative info for appointment:", appointment);
+    console.log("🔍 Patient data:", appointment.patientId);
+    console.log("🔍 User data (account owner):", appointment.patientId?.userId);
+    if (
+      appointment.patientId?.relationshipToOwner &&
+      appointment.patientId.relationshipToOwner !== "self"
+    ) {
+      // Thông tin người đặt hộ là thông tin của chủ account (User), không phải family member
+      const userInfo = appointment.patientId?.userId || {};
+      const representativeInfo = {
+        name: userInfo.fullName || "Không có",
+        phone: userInfo.phone || "Không có",
+        email: userInfo.email || "Không có",
+        relation:
+          appointment.patientId.representativeRelation ||
+          appointment.patientId.relationshipToOwner ||
+          "Không có",
+        citizenId: appointment.patientId.representativeCitizenId || "Không có",
+      };
+      console.log(
+        "✅ Representative info (account owner):",
+        representativeInfo
+      );
+      setRepresentativeInfo(representativeInfo);
+      setIsRepresentativeInfoOpen(true);
+    } else {
+      console.log(
+        "❌ No representative info found or relationshipToOwner is 'self'"
+      );
+    }
+  };
+
   // Filter and sort appointments
   const filteredAppointments = appointments
     .filter((appointment) => {
+      // Exclude rescheduled appointments (they are replaced by new appointments)
+      if (appointment.status === "rescheduled" && appointment.rescheduledToId) {
+        return false;
+      }
+
       // Search filter
       const matchesSearch =
         !searchTerm ||
@@ -354,13 +397,24 @@ export default function AppointmentList() {
 
   const handleComplete = (appointment) => {
     console.log("🔍 handleComplete called with appointment:", appointment);
+    console.log("🔍 Appointment ID:", appointment?._id);
     console.log("🔍 Appointment mode:", appointment?.mode);
     console.log("🔍 Appointment status:", appointment?.status);
-    console.log(
-      "🔍 Full appointment object:",
-      JSON.stringify(appointment, null, 2)
-    );
-    console.log("🔍 Current time:", new Date().toISOString());
+    console.log("🔍 Rescheduled from ID:", appointment?.rescheduledFromId);
+
+    // Validate appointment data
+    if (!appointment?._id) {
+      alert("Lỗi: Không tìm thấy ID của lịch hẹn");
+      return;
+    }
+
+    // If this is a rescheduled appointment, make sure we're using the NEW appointment ID
+    if (appointment.rescheduledFromId) {
+      console.log(
+        "✅ This is a rescheduled appointment. Using new appointment ID:",
+        appointment._id
+      );
+    }
 
     // Navigate to the appropriate consultation page based on mode
     if (appointment?.mode === "offline") {
@@ -369,12 +423,14 @@ export default function AppointmentList() {
         `/bac-si/kham-truc-tiep/${appointment._id}`
       );
       navigate(`/bac-si/kham-truc-tiep/${appointment._id}`);
-    } else {
+    } else if (appointment?.mode === "online") {
       console.log(
         "✅ Navigating to ONLINE consultation:",
         `/bac-si/tu-van-truc-tuyen/${appointment._id}`
       );
       navigate(`/bac-si/tu-van-truc-tuyen/${appointment._id}`);
+    } else {
+      alert("Lỗi: Không xác định được loại khám (online/offline)");
     }
   };
 
@@ -486,6 +542,68 @@ export default function AppointmentList() {
         pendingAppointments.forEach((apt) => newSet.delete(apt._id));
         return newSet;
       });
+    }
+  };
+
+  const handleViewRescheduleInfo = (appointment) => {
+    console.log("🔍 handleViewRescheduleInfo - appointment:", appointment);
+    console.log("🔍 rescheduledFromId:", appointment.rescheduledFromId);
+    console.log(
+      "🔍 Type of rescheduledFromId:",
+      typeof appointment.rescheduledFromId
+    );
+
+    // Check if rescheduledFromId is already populated (object) or just an ID (string)
+    let originalAppointment = null;
+
+    if (!appointment.rescheduledFromId) {
+      alert("Không tìm thấy thông tin lịch cũ (rescheduledFromId không có)");
+      return;
+    }
+
+    // If rescheduledFromId is already populated (object with _id and other fields)
+    if (
+      typeof appointment.rescheduledFromId === "object" &&
+      appointment.rescheduledFromId._id
+    ) {
+      originalAppointment = appointment.rescheduledFromId;
+      console.log("✅ Using populated rescheduledFromId object");
+    } else {
+      // If it's just an ID (string or ObjectId), find it in the appointments list
+      const rescheduledFromIdStr =
+        typeof appointment.rescheduledFromId === "string"
+          ? appointment.rescheduledFromId
+          : appointment.rescheduledFromId.toString();
+
+      originalAppointment = appointments.find(
+        (apt) => apt._id?.toString() === rescheduledFromIdStr
+      );
+
+      if (!originalAppointment) {
+        console.log(
+          "⚠️ Original appointment not found in list, trying to fetch..."
+        );
+        // If not found in list, it might be because it's filtered out
+        // We can still show what we have from rescheduledFromId if it's populated
+        if (typeof appointment.rescheduledFromId === "object") {
+          originalAppointment = appointment.rescheduledFromId;
+        } else {
+          alert(
+            "Không tìm thấy thông tin lịch cũ. Lịch cũ có thể đã bị lọc bỏ do trạng thái 'rescheduled'."
+          );
+          return;
+        }
+      }
+    }
+
+    if (originalAppointment) {
+      setRescheduleInfo({
+        originalAppointment,
+        newAppointment: appointment,
+      });
+      setIsRescheduleInfoOpen(true);
+    } else {
+      alert("Không tìm thấy thông tin lịch cũ");
     }
   };
 
@@ -677,15 +795,32 @@ export default function AppointmentList() {
                 filteredAppointments.map((apt) => (
                   <tr key={apt._id} className="appointment-list-row">
                     <td className="appointment-list-td appointment-list-patient">
-                      <span
-                        className="appointment-list-patient-name"
-                        onClick={() => handleViewDetails(apt)}
-                        style={{ cursor: "pointer", color: "#000000" }}
-                      >
-                        {apt.patientId?.fullName ||
-                          apt.patient?.fullName ||
-                          "Không có"}
-                      </span>
+                      <div>
+                        <span
+                          className="appointment-list-patient-name"
+                          onClick={() => handleViewDetails(apt)}
+                          style={{ cursor: "pointer", color: "#000000" }}
+                        >
+                          {apt.patientId?.fullName ||
+                            apt.patient?.fullName ||
+                            "Không có"}
+                        </span>
+                        {/* Hiển thị thông tin người đặt hộ nếu có */}
+                        {apt.patientId?.relationshipToOwner &&
+                          apt.patientId.relationshipToOwner !== "self" && (
+                            <div style={{ marginTop: "8px" }}>
+                              <Badge
+                                className="!bg-blue-100 !text-blue-700 !border-blue-300 cursor-pointer"
+                                style={{ marginBottom: 4 }}
+                                onClick={() =>
+                                  handleViewRepresentativeInfo(apt)
+                                }
+                              >
+                                👤 Đặt hộ
+                              </Badge>
+                            </div>
+                          )}
+                      </div>
                     </td>
                     <td className="appointment-list-td appointment-list-datetime">
                       {new Date(apt.scheduledStart).toLocaleDateString("vi-VN")}{" "}
@@ -719,7 +854,18 @@ export default function AppointmentList() {
                       </Badge>
                     </td>
                     <td className="appointment-list-td appointment-list-reason">
-                      {apt.notes || apt.reason || "Không có"}
+                      <div>
+                        {apt.rescheduledFromId && (
+                          <Badge
+                            className="!bg-indigo-100 !text-indigo-700 !border-indigo-300 cursor-pointer"
+                            style={{ marginRight: 8 }}
+                            onClick={() => handleViewRescheduleInfo(apt)}
+                          >
+                            📅 Đã dời lịch
+                          </Badge>
+                        )}
+                        {apt.notes || apt.reason || "Không có"}
+                      </div>
                     </td>
                     <td className="appointment-list-td appointment-list-status">
                       <Badge
@@ -1018,7 +1164,7 @@ export default function AppointmentList() {
                               }
                             }}
                           >
-                            Không đến khám 
+                            Không đến khám
                           </Button>
                         </>
                       )}
@@ -1137,6 +1283,186 @@ export default function AppointmentList() {
                     : "Xác nhận từ chối"}
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Info Modal */}
+      {isRescheduleInfoOpen && rescheduleInfo && (
+        <div
+          className="appointment-detail-dialog-overlay"
+          onClick={() => setIsRescheduleInfoOpen(false)}
+        >
+          <div
+            className="appointment-detail-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="appointment-detail-dialog-header">
+              <h3 className="appointment-detail-dialog-title">
+                Chi tiết lịch dời
+              </h3>
+              <button
+                className="appointment-detail-dialog-close"
+                onClick={() => setIsRescheduleInfoOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="appointment-detail">
+              <div className="appointment-detail-item">
+                <p className="appointment-detail-label">Bệnh nhân</p>
+                <p className="appointment-detail-value">
+                  {rescheduleInfo.originalAppointment.patientId?.fullName ||
+                    "N/A"}
+                </p>
+              </div>
+
+              <div className="reschedule-details-box">
+                <h4 className="reschedule-section-title">Lịch cũ</h4>
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Thời gian</p>
+                  <p className="appointment-detail-value">
+                    {new Date(
+                      rescheduleInfo.originalAppointment.scheduledStart
+                    ).toLocaleDateString("vi-VN")}{" "}
+                    {new Date(
+                      rescheduleInfo.originalAppointment.scheduledStart
+                    ).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Trạng thái</p>
+                  <p className="appointment-detail-value">
+                    {getStatusText(rescheduleInfo.originalAppointment.status)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="arrow-indicator">↓</div>
+
+              <div className="reschedule-details-box new-schedule">
+                <h4 className="reschedule-section-title">Lịch mới</h4>
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Thời gian</p>
+                  <p className="appointment-detail-value">
+                    {new Date(
+                      rescheduleInfo.newAppointment.scheduledStart
+                    ).toLocaleDateString("vi-VN")}{" "}
+                    {new Date(
+                      rescheduleInfo.newAppointment.scheduledStart
+                    ).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Trạng thái</p>
+                  <p className="appointment-detail-value">
+                    {getStatusText(rescheduleInfo.newAppointment.status)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="appointment-detail-actions">
+                <Button onClick={() => setIsRescheduleInfoOpen(false)}>
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Representative Info Modal */}
+      {isRepresentativeInfoOpen && representativeInfo && (
+        <div
+          className="appointment-detail-dialog-overlay"
+          onClick={() => setIsRepresentativeInfoOpen(false)}
+        >
+          <div
+            className="appointment-detail-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="appointment-detail-dialog-header">
+              <h3 className="appointment-detail-dialog-title">
+                Thông tin người đặt hộ
+              </h3>
+              <button
+                className="appointment-detail-dialog-close"
+                onClick={() => setIsRepresentativeInfoOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="appointment-detail">
+              {console.log(
+                "📋 Rendering modal with representativeInfo:",
+                representativeInfo
+              )}
+              <div className="appointment-detail-item">
+                <p className="appointment-detail-label">Họ và tên</p>
+                <p className="appointment-detail-value">
+                  {representativeInfo?.name || "Không có"}
+                </p>
+              </div>
+
+              {representativeInfo?.email && (
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Email</p>
+                  <p className="appointment-detail-value">
+                    {representativeInfo.email}
+                  </p>
+                </div>
+              )}
+
+              {representativeInfo?.phone && (
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Số điện thoại</p>
+                  <p className="appointment-detail-value">
+                    {representativeInfo.phone}
+                  </p>
+                </div>
+              )}
+
+              {representativeInfo?.relation && (
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">
+                    Mối quan hệ với bệnh nhân
+                  </p>
+                  <p className="appointment-detail-value">
+                    {(() => {
+                      const relationMap = {
+                        father: "Cha",
+                        mother: "Mẹ",
+                        spouse: "Vợ/Chồng",
+                        child: "Con",
+                        grandparent: "Ông/Bà",
+                        other: "Khác",
+                      };
+                      return (
+                        relationMap[representativeInfo.relation] ||
+                        representativeInfo.relation ||
+                        "Không có"
+                      );
+                    })()}
+                  </p>
+                </div>
+              )}
+
+              {representativeInfo?.citizenId &&
+                representativeInfo.citizenId !== "Không có" && (
+                  <div className="appointment-detail-item">
+                    <p className="appointment-detail-label">CCCD/CMND</p>
+                    <p className="appointment-detail-value">
+                      {representativeInfo.citizenId}
+                    </p>
+                  </div>
+                )}
             </div>
           </div>
         </div>

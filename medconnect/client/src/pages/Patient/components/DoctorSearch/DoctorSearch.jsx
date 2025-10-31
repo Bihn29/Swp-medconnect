@@ -161,11 +161,6 @@ export function DoctorSearch() {
     }
   };
 
-  const handleOnlineConsultation = (doctorId) => {
-    // Navigate to online consultation page
-    navigate(`/tu-van-truc-tuyen?doctorId=${doctorId}`);
-  };
-
   const clearAllFilters = () => {
     setSearchTerm("");
     setSelectedSpecialty("");
@@ -470,13 +465,6 @@ export function DoctorSearch() {
 
                   {/* Action Buttons */}
                   <div className="doctor-actions">
-                    <button
-                      className="action-button online-button"
-                      onClick={() => handleOnlineConsultation(doctor._id)}
-                    >
-                      <Video className="button-icon" />
-                      Online
-                    </button>
                     <button
                       className="action-button book-button"
                       onClick={() => handleBookAppointment(doctor._id)}

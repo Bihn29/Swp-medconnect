@@ -4,7 +4,6 @@ import { Card, CardContent } from "../../../../components/ui/Card";
 import { api } from "../../../../lib/api";
 import { Spin } from "antd";
 
-
 export function StatsCards() {
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,23 +15,23 @@ export function StatsCards() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch all appointments
       const response = await api.get("/api/patients/me/appointments");
-      
+
       if (response.success) {
         const appointments = response.data.appointments || [];
-        
+
         // Calculate stats
         const totalAppointments = appointments.length;
-        const pendingAppointments = appointments.filter(apt => 
-          apt.status === 'pending_doctor'
+        const pendingAppointments = appointments.filter(
+          (apt) => apt.status === "pending_doctor"
         ).length;
-        const completedAppointments = appointments.filter(apt => 
-          apt.status === 'done'
+        const completedAppointments = appointments.filter(
+          (apt) => apt.status === "done"
         ).length;
-        const cancelledAppointments = appointments.filter(apt => 
-          apt.status === 'cancelled'
+        const cancelledAppointments = appointments.filter(
+          (apt) => apt.status === "cancelled"
         ).length;
 
         const statsData = [
@@ -41,7 +40,10 @@ export function StatsCards() {
             value: totalAppointments.toString(),
             icon: Calendar,
             description: "Tất cả thời gian",
-            trend: totalAppointments > 0 ? `+${totalAppointments} lịch hẹn` : "Chưa có lịch hẹn",
+            trend:
+              totalAppointments > 0
+                ? `+${totalAppointments} lịch hẹn`
+                : "Chưa có lịch hẹn",
             trendUp: totalAppointments > 0,
           },
           {
@@ -49,7 +51,10 @@ export function StatsCards() {
             value: pendingAppointments.toString(),
             icon: Clock,
             description: "Chờ xác nhận",
-            trend: pendingAppointments > 0 ? `${pendingAppointments} lịch chờ` : "Không có lịch chờ",
+            trend:
+              pendingAppointments > 0
+                ? `${pendingAppointments} lịch chờ`
+                : "Không có lịch chờ",
             trendUp: null,
           },
           {
@@ -57,7 +62,10 @@ export function StatsCards() {
             value: completedAppointments.toString(),
             icon: CheckCircle2,
             description: "Đã khám xong",
-            trend: completedAppointments > 0 ? `${completedAppointments} lịch hoàn thành` : "Chưa có lịch hoàn thành",
+            trend:
+              completedAppointments > 0
+                ? `${completedAppointments} lịch hoàn thành`
+                : "Chưa có lịch hoàn thành",
             trendUp: completedAppointments > 0,
           },
           {
@@ -65,7 +73,10 @@ export function StatsCards() {
             value: cancelledAppointments.toString(),
             icon: XCircle,
             description: "Đã hủy",
-            trend: cancelledAppointments > 0 ? `${cancelledAppointments} lịch đã hủy` : "Không có lịch hủy",
+            trend:
+              cancelledAppointments > 0
+                ? `${cancelledAppointments} lịch đã hủy`
+                : "Không có lịch hủy",
             trendUp: false,
           },
         ];
@@ -128,7 +139,7 @@ export function StatsCards() {
             key={i}
             style={{
               backgroundColor: "#ffffff",
-              border: "1px solid #e5e7eb",
+              border: "2px solid #cbd5e1",
               borderRadius: "0.75rem",
               padding: "1.5rem",
               boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
@@ -159,7 +170,7 @@ export function StatsCards() {
             key={stat.title}
             style={{
               backgroundColor: "#ffffff",
-              border: "1px solid #e5e7eb",
+              border: "2px solid #cbd5e1",
               borderRadius: "0.75rem",
               padding: "1.5rem",
               boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
