@@ -67,73 +67,30 @@ function WelcomeSection() {
   };
 
   const handleFindDoctor = () => {
-    navigate("/search-doctors");
+    navigate("/benh-nhan/tim-bac-si");
   };
 
   return (
-    <div
-      style={{
-        backgroundColor: "#ffffff",
-        border: "2px solid #cbd5e1",
-        borderRadius: "1rem",
-        padding: "2.5rem",
-        boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
-        background:
-          "linear-gradient(to bottom right, #f8fafc 0%, #ffffff 100%)",
-        marginTop: "1rem",
-        width: "100%",
-        minHeight: "200px",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "2rem",
-          textAlign: "center",
-        }}
-      >
-        {/* Left side - Text content */}
-        <div
-          style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
-        >
-          <h2
-            style={{
-              fontSize: "2.25rem",
-              fontWeight: "700",
-              color: "#111827",
-              margin: 0,
-              lineHeight: 1.2,
-            }}
-          >
-            {greeting}, {userName}
-          </h2>
-          <p
-            style={{
-              fontSize: "1rem",
-              color: "#6b7280",
-              margin: 0,
-              lineHeight: 1.4,
-            }}
-          >
-            {loading
-              ? "Đang tải thông tin lịch hẹn..."
-              : todayAppointments > 0
-              ? `Hôm nay bạn có ${todayAppointments} lịch hẹn. Hãy chuẩn bị sẵn sàng cho buổi khám.`
-              : "Hôm nay bạn chưa có lịch hẹn nào. Hãy đặt lịch khám để được chăm sóc tốt nhất."}
-          </p>
+    <div className="welcome-section-container">
+      {/* Header with Gradient Background */}
+      <div className="welcome-header">
+        <div className="welcome-header-content">
+          <div className="welcome-header-text">
+            <h1 className="welcome-page-title">
+              {greeting}, {userName}
+            </h1>
+            <p className="welcome-page-subtitle">
+              {loading
+                ? "Đang tải thông tin lịch hẹn..."
+                : todayAppointments > 0
+                ? "Hãy chuẩn bị sẵn sàng cho buổi khám."
+                : "Hôm nay bạn chưa có lịch hẹn nào. Hãy đặt lịch khám để được chăm sóc tốt nhất."}
+            </p>
+          </div>
         </div>
 
-        {/* Right side - Action buttons */}
-        <div
-          style={{
-            display: "flex",
-            gap: "0.75rem",
-            flexShrink: 0,
-          }}
-        >
+        {/* Action buttons */}
+        <div className="welcome-actions-wrapper">
           {/* Đặt lịch ngay button */}
           <button
             onClick={handleBookAppointment}

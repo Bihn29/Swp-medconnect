@@ -64,13 +64,37 @@ export const privateRoutes = (
 
         <Route element={<PatientLayout />}>
           {/* Main patient dashboard and related routes */}
-          <Route path="/benh-nhan" element={<PatientDashboard />} />
+          <Route path="/benh-nhan/trang-chu" element={<PatientDashboard />} />
+          <Route path="/benh-nhan" element={<PatientDashboard />} />{" "}
+          {/* Legacy route for backward compatibility */}
+          <Route path="/benh-nhan/tim-bac-si" element={<PatientDashboard />} />
+          <Route
+            path="/benh-nhan/lich-hen-cua-toi"
+            element={<PatientDashboard />}
+          />
+          <Route
+            path="/benh-nhan/ho-so-benh-an"
+            element={<PatientDashboard />}
+          />
+          <Route
+            path="/benh-nhan/ho-so-suc-khoe-gia-dinh"
+            element={<PatientDashboard />}
+          />
+          <Route path="/benh-nhan/thong-bao" element={<PatientDashboard />} />
+          <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
+          {/* Legacy route redirects for backward compatibility */}
+          <Route path="/tim-bac-si" element={<PatientDashboard />} />
+          <Route path="/lich-hen-cua-toi" element={<PatientDashboard />} />
+          <Route path="/ho-so-benh-an" element={<PatientDashboard />} />
+          <Route
+            path="/ho-so-suc-khoe-gia-dinh"
+            element={<PatientDashboard />}
+          />
+          <Route path="/thong-bao" element={<PatientDashboard />} />
           <Route path="/search-doctors" element={<PatientDashboard />} />
           <Route path="/my-appointments" element={<PatientDashboard />} />
           <Route path="/medical-records" element={<PatientDashboard />} />
           <Route path="/family-health-records" element={<PatientDashboard />} />
-          <Route path="/thong-bao" element={<PatientDashboard />} />
-          <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
         </Route>
       </Route>
     </Route>
@@ -87,8 +111,9 @@ export const privateRoutes = (
 
         <Route element={<DoctorLayout />}>
           {/* Main doctor dashboard */}
-          <Route path="/bac-si" element={<DoctorDashboard />} />
-
+          <Route path="/bac-si/trang-chu" element={<DoctorDashboard />} />
+          <Route path="/bac-si" element={<DoctorDashboard />} />{" "}
+          {/* Legacy route for backward compatibility */}
           {/* ==================== APPOINTMENT MANAGEMENT ==================== */}
           {/* Doctor appointment management routes */}
           <Route path="/bac-si/lich-hen" element={<AppointmentList />} />
@@ -101,7 +126,6 @@ export const privateRoutes = (
             path="/bac-si/tu-van-truc-tuyen/:appointmentId"
             element={<OnlineConsultationPage />}
           />
-
           {/* ==================== SCHEDULE MANAGEMENT ==================== */}
           {/* Doctor schedule and calendar routes */}
           <Route
@@ -109,20 +133,16 @@ export const privateRoutes = (
             element={<ScheduleManagement />}
           />
           <Route path="/bac-si/quan-ly-lich" element={<ScheduleManagement />} />
-
           {/* ==================== MEDICAL RECORDS ==================== */}
           {/* Doctor medical records and consultation routes */}
           <Route path="/bac-si/ho-so-kham" element={<MedicalHistory />} />
-
           {/* ==================== SETTINGS & PROFILE ==================== */}
           {/* Doctor settings and profile management */}
           <Route path="/bac-si/cai-dat" element={<ProfileSettings />} />
-
           {/* ==================== NOTIFICATIONS & FEEDBACK ==================== */}
           {/* Doctor notifications and feedback routes */}
           <Route path="/bac-si/thong-bao" element={<Notifications />} />
           <Route path="/bac-si/danh-gia" element={<Feedback />} />
-
           {/* ==================== RESCHEDULE MANAGEMENT ==================== */}
           {/* Doctor reschedule request management */}
           <Route
@@ -165,8 +185,16 @@ export const privateRoutes = (
     {/* Admin routes with admin middleware protection */}
     <Route element={<AdminMiddleware />}>
       <Route element={<AdminLayout />}>
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/trang-chu" element={<AdminDashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />{" "}
+        {/* Legacy route for backward compatibility */}
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />{" "}
+        {/* Legacy route */}
+        <Route path="/admin/xac-minh-bac-si" element={<VerifyDoctors />} />
+        <Route path="/admin/nguoi-dung" element={<UserManagement />} />
+        <Route path="/admin/chuyen-khoa" element={<Specializations />} />
+        <Route path="/admin/lich-hen" element={<AppointmentManagement />} />
+        {/* Legacy route redirects for backward compatibility */}
         <Route path="/admin/verify-doctors" element={<VerifyDoctors />} />
         <Route path="/admin/users" element={<UserManagement />} />
         <Route path="/admin/specializations" element={<Specializations />} />

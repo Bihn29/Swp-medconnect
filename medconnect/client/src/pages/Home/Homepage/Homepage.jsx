@@ -18,12 +18,16 @@ import {
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import { useAuth } from "../../../hooks/useAuth";
+import { useUserProfile } from "../../../hooks/useUserProfile";
 import "./Homepage.css";
 
 const { Title, Paragraph } = Typography;
 
 const Homepage = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const { userProfile, loading: profileLoading } = useUserProfile();
   const [specializations, setSpecializations] = useState([]);
   const [featuredDoctors, setFeaturedDoctors] = useState([]);
   const [doctorsLoading, setDoctorsLoading] = useState(true);
@@ -145,7 +149,30 @@ const Homepage = () => {
       : "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145826-coxuongkhop.png", // fallback icon
   }));
 
+  // Redirect authenticated users to their dashboard
   useEffect(() => {
+    // Wait for auth and profile to load
+    if (authLoading || profileLoading) return;
+
+    // If user is authenticated, redirect to appropriate dashboard
+    if (user && userProfile) {
+      const userRole = userProfile?.role || user?.role;
+
+      if (userRole === "doctor") {
+        navigate("/bac-si/trang-chu", { replace: true });
+      } else if (userRole === "admin" || userRole === "ADMIN") {
+        navigate("/admin/trang-chu", { replace: true });
+      } else if (userRole === "patient" || userRole === "user" || !userRole) {
+        navigate("/benh-nhan/trang-chu", { replace: true });
+      }
+    }
+  }, [user, userProfile, authLoading, profileLoading, navigate]);
+
+  useEffect(() => {
+    // Only fetch data if user is not authenticated (guests can see homepage)
+    if (authLoading || profileLoading) return;
+    if (user && userProfile) return; // Will redirect, so no need to fetch
+
     const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
     let mounted = true;
 
@@ -177,7 +204,12 @@ const Homepage = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user, userProfile, authLoading, profileLoading]);
+
+  // Show loading or nothing while checking auth (will redirect if authenticated)
+  if (authLoading || profileLoading || (user && userProfile)) {
+    return null; // Will redirect, so show nothing
+  }
 
   return (
     <div className="homepage">

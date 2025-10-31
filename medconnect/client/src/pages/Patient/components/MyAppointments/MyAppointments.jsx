@@ -12,10 +12,13 @@ import {
   X,
   VideoIcon,
   Eye,
+  Search,
+  CheckCircle,
 } from "lucide-react";
 import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 import ReviewModal from "../ReviewModal/ReviewModal";
 import { RescheduleButton } from "../../../../components/RescheduleButton/RescheduleButton";
+import "./MyAppointments.scss";
 
 const STATUS = {
   confirmed: { label: "Đã xác nhận", tone: "#1d4ed8", text: "#ffffff" },
@@ -34,13 +37,15 @@ export function MyAppointments() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedAppointmentForReview, setSelectedAppointmentForReview] =
     useState(null);
+  const [doctorSearch, setDoctorSearch] = useState(""); // Filter by doctor name
   const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
-        const res = await api.get("/api/patients/me/appointments?limit=20");
+        // Fetch all appointments to match StatsCards behavior (no limit or large limit)
+        const res = await api.get("/api/patients/me/appointments?limit=1000");
         console.log("📋 Appointments response:", res);
         if (res.success) {
           // Debug: Log clinic info for each appointment
@@ -113,6 +118,18 @@ export function MyAppointments() {
     });
   };
 
+  // Filter appointments by doctor name
+  const filterByDoctorName = (appointmentList) => {
+    if (!doctorSearch.trim()) {
+      return appointmentList;
+    }
+    const searchLower = doctorSearch.toLowerCase().trim();
+    return appointmentList.filter((appointment) => {
+      const doctorName = appointment.doctorId?.fullName?.toLowerCase() || "";
+      return doctorName.includes(searchLower);
+    });
+  };
+
   // Phân chia appointments
   const upcomingAppointments = appointments.filter((appointment) =>
     ["pending_doctor", "accepted"].includes(appointment.status)
@@ -142,12 +159,21 @@ export function MyAppointments() {
     (appointment) => appointment.status === "cancelled"
   );
 
+  // Apply doctor search filter to current tab appointments
+  const filteredUpcomingAppointments = filterByDoctorName(upcomingAppointments);
+  const filteredCompletedAppointments = filterByDoctorName(
+    completedAppointments
+  );
+  const filteredCancelledAppointments = filterByDoctorName(
+    cancelledAppointments
+  );
+
   const currentAppointments =
     activeTab === "upcoming"
-      ? upcomingAppointments
+      ? filteredUpcomingAppointments
       : activeTab === "completed"
-      ? completedAppointments
-      : cancelledAppointments;
+      ? filteredCompletedAppointments
+      : filteredCancelledAppointments;
   const handleShowDetail = (appointmentId) => {
     setSelectedAppointmentId(appointmentId);
     setShowDetailModal(true);
@@ -182,114 +208,114 @@ export function MyAppointments() {
   }
 
   return (
-    <div
-      style={{
-        padding: 24,
-        minHeight: "100vh",
-        overflow: "hidden", // Ngăn scrollbar xuất hiện/biến mất
-      }}
-    >
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          backgroundColor: "#ffffff",
-          zIndex: 10,
-          paddingBottom: 16,
-        }}
-      >
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>
-          Lịch hẹn của tôi
-        </h1>
-        <p style={{ color: "#475569", marginTop: 8 }}>
-          Quản lý và theo dõi các lịch hẹn khám bệnh
-        </p>
+    <div className="my-appointments-container">
+      {/* Header with Gradient Background */}
+      <div className="my-appointments-header">
+        <div className="header-content-wrapper">
+          <div className="header-text-section">
+            <h1 className="page-title">Lịch hẹn của tôi</h1>
+            <p className="page-subtitle">
+              Quản lý và theo dõi các lịch hẹn khám bệnh
+            </p>
+          </div>
+          {/* Doctor Search Filter */}
+          <div className="doctor-search-filter-wrapper">
+            <Search
+              style={{
+                position: "absolute",
+                left: "0.875rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: "1.25rem",
+                height: "1.25rem",
+                color: "#64748b",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            />
+            <input
+              type="text"
+              style={{
+                flex: 1,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontSize: "0.875rem",
+                color: "#1e293b",
+                padding: 0,
+                margin: 0,
+                width: "100%",
+                minWidth: 0,
+              }}
+              placeholder="Tìm bác sĩ theo tên"
+              value={doctorSearch}
+              onChange={(e) => setDoctorSearch(e.target.value)}
+            />
+            {doctorSearch && (
+              <button
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0.25rem",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: "0.25rem",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                  transition: "all 0.2s ease",
+                  flexShrink: 0,
+                }}
+                onClick={() => setDoctorSearch("")}
+                title="Xóa bộ lọc"
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = "#f3f4f6";
+                  e.currentTarget.style.color = "#1e293b";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "#6b7280";
+                }}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
-        <div
-          style={{
-            marginTop: 12,
-            display: "flex",
-            backgroundColor: "#f1f5f9",
-            borderRadius: "12px",
-            padding: "4px",
-            width: "fit-content",
-          }}
-        >
+      {/* Section Header with Tabs */}
+      <div className="appointments-section-header">
+        <div className="appointments-tabs">
           <button
             onClick={() => setActiveTab("upcoming")}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "8px",
-              border:
-                activeTab === "upcoming"
-                  ? "2px solid #3b82f6"
-                  : "2px solid transparent",
-              backgroundColor:
-                activeTab === "upcoming" ? "#ffffff" : "transparent",
-              color: "#1e293b",
-              fontSize: "14px",
-              fontWeight: "500",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              outline: "none",
-            }}
+            className={`tab-button ${activeTab === "upcoming" ? "active" : ""}`}
           >
-            Sắp tới ({upcomingAppointments.length})
+            <Calendar size={16} style={{ marginRight: "0.5rem" }} />
+            Sắp tới ({filteredUpcomingAppointments.length})
           </button>
           <button
             onClick={() => setActiveTab("completed")}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "8px",
-              border:
-                activeTab === "completed"
-                  ? "2px solid #3b82f6"
-                  : "2px solid transparent",
-              backgroundColor:
-                activeTab === "completed" ? "#ffffff" : "transparent",
-              color: "#1e293b",
-              fontSize: "14px",
-              fontWeight: "500",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              outline: "none",
-            }}
+            className={`tab-button ${
+              activeTab === "completed" ? "active" : ""
+            }`}
           >
-            Đã khám ({completedAppointments.length})
+            <CheckCircle size={16} style={{ marginRight: "0.5rem" }} />
+            Đã khám ({filteredCompletedAppointments.length})
           </button>
           <button
             onClick={() => setActiveTab("cancelled")}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "8px",
-              border:
-                activeTab === "cancelled"
-                  ? "2px solid #3b82f6"
-                  : "2px solid transparent",
-              backgroundColor:
-                activeTab === "cancelled" ? "#ffffff" : "transparent",
-              color: "#1e293b",
-              fontSize: "14px",
-              fontWeight: "500",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              outline: "none",
-            }}
+            className={`tab-button ${
+              activeTab === "cancelled" ? "active" : ""
+            }`}
           >
-            Đã hủy ({cancelledAppointments.length})
+            <X size={16} style={{ marginRight: "0.5rem" }} />
+            Đã hủy ({filteredCancelledAppointments.length})
           </button>
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          overflow: "auto", // Cho phép scroll content
-          maxHeight: "calc(100vh - 200px)", // Giới hạn chiều cao
-        }}
-      >
+      <div className="appointments-content">
         {currentAppointments.map((a) => {
           const status = STATUS[a.status] || STATUS.confirmed;
           const doctorName = `BS. ${a.doctorId?.fullName || ""}`;
@@ -503,8 +529,9 @@ export function MyAppointments() {
                         // Refresh appointments after successful reschedule request
                         const load = async () => {
                           try {
+                            // Fetch all appointments to match StatsCards behavior
                             const res = await api.get(
-                              "/api/patients/me/appointments?limit=20"
+                              "/api/patients/me/appointments?limit=1000"
                             );
                             if (res.success) {
                               setAppointments(res.data.appointments || []);
@@ -537,6 +564,25 @@ export function MyAppointments() {
             </div>
           );
         })}
+        {currentAppointments.length === 0 && (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "3rem",
+              color: "#6b7280",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: "1rem" }}>
+              {doctorSearch
+                ? `Không tìm thấy lịch hẹn nào với bác sĩ "${doctorSearch}"`
+                : activeTab === "upcoming"
+                ? "Bạn chưa có lịch hẹn nào. Hãy đặt lịch khám để bắt đầu!"
+                : activeTab === "completed"
+                ? "Chưa có lịch hẹn đã khám"
+                : "Chưa có lịch hẹn đã hủy"}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Appointment Detail Modal */}

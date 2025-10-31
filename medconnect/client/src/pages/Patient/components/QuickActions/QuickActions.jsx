@@ -26,7 +26,7 @@ export function QuickActions() {
       description: "Xem lịch sử khám bệnh",
       icon: FileText,
       variant: "outline",
-      path: "/medical-records",
+      path: "/benh-nhan/ho-so-benh-an",
     },
     {
       title: "Cài đặt",

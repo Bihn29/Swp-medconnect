@@ -26,27 +26,27 @@ const AdminLayout = () => {
   // Menu items
   const menuItems = [
     {
-      key: "/admin",
+      key: "/admin/trang-chu",
       icon: <HomeOutlined />,
       label: "Tổng quan",
     },
     {
-      key: "/admin/verify-doctors",
+      key: "/admin/xac-minh-bac-si",
       icon: <SafetyCertificateOutlined />,
       label: "Xác minh bác sĩ",
     },
     {
-      key: "/admin/users",
+      key: "/admin/nguoi-dung",
       icon: <TeamOutlined />,
       label: "Quản lý người dùng",
     },
     {
-      key: "/admin/specializations",
+      key: "/admin/chuyen-khoa",
       icon: <MedicineBoxOutlined />,
       label: "Chuyên khoa",
     },
     {
-      key: "/admin/appointments",
+      key: "/admin/lich-hen",
       icon: <CalendarOutlined />,
       label: "Quản lý lịch hẹn",
     },
@@ -89,7 +89,7 @@ const AdminLayout = () => {
         className="admin-sider"
         width={280}
       >
-        <div 
+        <div
           className="admin-logo"
           onClick={() => navigate("/")}
           style={{ cursor: "pointer" }}
