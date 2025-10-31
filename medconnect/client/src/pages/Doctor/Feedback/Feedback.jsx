@@ -161,7 +161,7 @@ export default function Feedback() {
     return (
       <div className="feedback-container">
         <div className="feedback-header">
-          <h1 className="feedback-title">Đánh giá & Phản hồi</h1>
+          <h2 className="feedback-title">Đánh giá & Phản hồi</h2>
         </div>
         <div className="feedback-loading">
           <Spin size="large" tip="Đang tải đánh giá..." />
@@ -174,7 +174,7 @@ export default function Feedback() {
     return (
       <div className="feedback-container">
         <div className="feedback-header">
-          <h1 className="feedback-title">Đánh giá & Phản hồi</h1>
+          <h2 className="feedback-title">Đánh giá & Phản hồi</h2>
         </div>
         <div className="feedback-error">
           <div className="error-text">Có lỗi xảy ra khi tải đánh giá: {error}</div>
@@ -190,7 +190,7 @@ export default function Feedback() {
     <div className="feedback-container">
       <div className="feedback-header">
         <div>
-          <h1 className="feedback-title">Đánh giá & Phản hồi</h1>
+          <h2 className="feedback-title">Đánh giá & Phản hồi</h2>
           <p className="feedback-subtitle">Quản lý và phản hồi các đánh giá từ bệnh nhân</p>
         </div>
       </div>

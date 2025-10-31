@@ -392,9 +392,9 @@ export default function MedicalHistory() {
       <div className="health-profile-header">
         <div className="header-content">
           <div className="header-text">
-            <h1 className="page-title" style={{ color: "#000000" }}>
+            <h2 className="page-title" style={{ color: "#000000" }}>
               Hồ sơ khám
-            </h1>
+            </h2>
             <p className="page-subtitle">
               Quản lý và xem lịch sử khám bệnh và tư vấn
             </p>

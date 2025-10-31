@@ -47,23 +47,23 @@ $shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
 
 /* Header Section */
 .health-profile-header {
-  margin-top: 0;
-  margin-bottom: 2rem;
-  margin-left: -2rem;
-  margin-right: -2rem;
-  padding: 1.5rem 2rem;
-  width: calc(100% + 4rem);
+  margin: 0 !important;
+  margin-bottom: 2rem !important;
+  margin-left: -2rem !important;
+  margin-right: -2rem !important;
+  padding: 1.5rem 2rem !important;
+  width: calc(100% + 4rem) !important;
   background: linear-gradient(
     135deg,
     $primary-teal-light 0%,
     $accent-yellow-light 100%
-  );
-  border-radius: 0;
-  border: none;
-  border-bottom: 2px solid $gray-100;
-  box-sizing: border-box;
-  position: relative;
-  z-index: 1;
+  ) !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 2px solid $gray-100 !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 .header-content {
@@ -135,7 +135,7 @@ $shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
   font-size: 2.25rem;
   font-weight: 800;
   color: $gray-900;
-  margin: 0 0 0.5rem 0;
+  margin: 0;
   line-height: 1.2;
   letter-spacing: -0.03em;
   background: linear-gradient(
@@ -146,14 +146,23 @@ $shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-align: left;
+}
+
+// Support both h1 and h2 with page-title class
+h1.page-title,
+h2.page-title {
+  font-size: 2.25rem;
+  font-weight: 800;
 }
 
 .page-subtitle {
   font-size: 0.95rem;
   color: $gray-500;
-  margin: 0;
+  margin: 0.5rem 0 0 0;
   line-height: 1.4;
   font-weight: 500;
+  text-align: left;
 }
 
 .download-button {

@@ -93,41 +93,45 @@ export default function Notifications() {
   return (
     <div className="notifications-container">
       <div className="notifications-header">
-        <h1 className="notifications-title">
-          Thông báo
-          {unreadCount > 0 && (
-            <Badge className="ml-2 bg-red-100 text-red-700">
-              {unreadCount} chưa đọc
-            </Badge>
-          )}
-        </h1>
-        
-        <div className="notifications-actions">
-          <select 
-            value={filter} 
-            onChange={(e) => setFilter(e.target.value)}
-            className="w-40 px-3 py-2 border border-gray-300 rounded-md bg-white"
-          >
-            <option value="all">Tất cả</option>
-            <option value="unread">Chưa đọc</option>
-            <option value="appointment">Lịch hẹn</option>
-            <option value="payment">Thanh toán</option>
-            <option value="message">Tin nhắn</option>
-            <option value="video_call">Video call</option>
-          </select>
-          
-          {unreadCount > 0 && (
-            <Button
-              onClick={handleMarkAllAsRead}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              <CheckCheck className="w-4 h-4" />
-              Đọc tất cả
-            </Button>
-          )}
+        <div>
+          <h2 className="notifications-title">
+            Thông báo
+            {unreadCount > 0 && (
+              <Badge className="ml-2 bg-red-100 text-red-700">
+                {unreadCount} chưa đọc
+              </Badge>
+            )}
+          </h2>
+          <p className="notifications-subtitle">Thông báo hệ thống và cập nhật</p>
         </div>
+      </div>
+
+      {/* Actions */}
+      <div className="notifications-actions-bar">
+        <select 
+          value={filter} 
+          onChange={(e) => setFilter(e.target.value)}
+          className="notifications-filter-select"
+        >
+          <option value="all">Tất cả</option>
+          <option value="unread">Chưa đọc</option>
+          <option value="appointment">Lịch hẹn</option>
+          <option value="payment">Thanh toán</option>
+          <option value="message">Tin nhắn</option>
+          <option value="video_call">Video call</option>
+        </select>
+        
+        {unreadCount > 0 && (
+          <Button
+            onClick={handleMarkAllAsRead}
+            variant="outline"
+            size="sm"
+            className="notifications-mark-all-btn"
+          >
+            <CheckCheck className="w-4 h-4" />
+            Đánh dấu tất cả đã đọc
+          </Button>
+        )}
       </div>
 
       <div className="notifications-list">
