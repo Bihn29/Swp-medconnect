@@ -112,22 +112,22 @@
   .video-call-page-container {
     padding: 0 16px;
   }
-  
+
   .page-header {
     flex-direction: column;
     text-align: center;
     gap: 16px;
     padding: 20px;
   }
-  
+
   .back-button {
     align-self: flex-start;
   }
-  
+
   .page-title {
     font-size: 20px !important;
   }
-  
+
   .title-icon {
     font-size: 24px;
   }
@@ -137,15 +137,15 @@
   .video-call-page-container {
     padding: 0 12px;
   }
-  
+
   .page-header {
     padding: 16px;
   }
-  
+
   .page-title {
     font-size: 18px !important;
   }
-  
+
   .instruction-item {
     padding: 8px 0;
   }
