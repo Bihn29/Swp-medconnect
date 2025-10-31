@@ -234,7 +234,7 @@ const Package = () => {
       // If not logged in, redirect to login page
       navigate("/dang-nhap", {
         state: {
-          from: "/dat-lich-kham",
+          from: "/dat-lich",
           packageId: packageId,
           message: "Vui lòng đăng nhập để đặt lịch khám",
         },

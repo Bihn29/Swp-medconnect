@@ -15,7 +15,6 @@ const PatientSchema = new Schema(
     dob: Date,
     gender: { type: String, enum: ["male", "female", "other"] },
     ethnicity: String,
-    nationality: { type: String, default: "Vietnam" },
     occupation: String,
     citizenId: String, // CCCD / định danh cá nhân (không bắt buộc)
 
@@ -24,12 +23,6 @@ const PatientSchema = new Schema(
     email: String,
     address: String,
     houseNumber: String,
-
-    // 🩺 Bảo hiểm y tế (tuỳ chọn)
-    insuranceNumber: String,
-    primaryClinic: String,
-    insuranceValidFrom: Date,
-    insuranceValidTo: Date,
 
     // 👨‍👩‍👧 Người đại diện / chăm sóc (dành cho bệnh nhân không tự đăng ký)
     representativeName: String,
@@ -49,19 +42,6 @@ const PatientSchema = new Schema(
 
     // Cho phép nhập hoặc chọn nhiều bệnh mạn tính
     medicalHistory: [{ type: String, trim: true }],
-
-    // Lịch sử tiêm chủng (người dùng có thể nhập dần hoặc hệ thống gợi ý)
-    vaccinationHistory: [
-      {
-        vaccineName: String,
-        date: Date,
-        place: String,
-      },
-    ],
-
-    // 📛 Liên hệ khẩn cấp
-    emergencyContactName: String,
-    emergencyContactPhone: String,
 
     // ⚙️ Quản trị & liên thông (tối giản)
     relationshipToOwner: {

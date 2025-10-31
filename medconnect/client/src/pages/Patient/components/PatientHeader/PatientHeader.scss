@@ -38,7 +38,7 @@
 .icon-circle {
   width: 2.5rem;
   height: 2.5rem;
-  background: #3b82f6;
+  background: linear-gradient(135deg, #40cccc, #45c3d2);
   border-radius: 0.5rem;
   display: flex;
   align-items: center;
@@ -59,8 +59,8 @@
 
 .brand-name {
   font-size: 1.125rem;
-  font-weight: 700;
-  color: #1e293b;
+  font-weight: 600;
+  color: #000000;
   line-height: 1.2;
 }
 

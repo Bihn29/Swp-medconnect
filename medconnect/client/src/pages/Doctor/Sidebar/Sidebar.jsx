@@ -19,7 +19,7 @@ import "./Sidebar.scss";
 
 const menuItems = [
   {
-    label: "Dashboard",
+    label: "Trang chủ",
     subtitle: "Tổng quan hôm nay",
     icon: LayoutDashboard,
     id: "dashboard",

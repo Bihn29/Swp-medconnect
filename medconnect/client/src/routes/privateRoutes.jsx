@@ -3,6 +3,7 @@ import { Route } from "react-router-dom";
 // Layouts
 import DefaultLayout from "../layouts/DefaultLayout/DefaultLayout";
 import DoctorLayout from "../layouts/DoctorLayout/DoctorLayout";
+import PatientLayout from "../layouts/PatientLayout/PatientLayout";
 
 // Middlewares
 import AuthMiddleware from "../middlewares/AuthMiddleware";
@@ -16,18 +17,18 @@ import Profile from "../pages/Auth/Profile";
 // Patient Components
 import PatientDashboard from "../pages/Patient/PatientDashboard";
 import PatientSettings from "../pages/Patient/PatientSettings.jsx";
-import AppointmentBooking from "../pages/Appointment/AppointmentBooking";
 import AppointmentBookingHome from "../pages/Appointment/AppointmentBookingHome";
 import SpecializationSelection from "../pages/Appointment/SpecializationSelection";
 import DoctorSelection from "../pages/Appointment/DoctorSelection";
 import TimeSlotSelection from "../pages/Appointment/TimeSlotSelection";
+import PaymentResult from "../pages/Appointment/PaymentResult";
 import PatientVideoCallPage from "../pages/Patient/VideoCallPage";
 
 // Doctor Components
 import DoctorDashboard from "../pages/Doctor/DoctorDashboard/DoctorDashboard";
 import AppointmentList from "../pages/Doctor/AppointmentList/AppointmentList";
 import AppointmentDetail from "../pages/Doctor/AppointmentDetail/AppointmentDetail";
-import ConsultationRecords from "../pages/Doctor/ConsultationRecords/ConsultationRecords";
+import MedicalHistory from "../pages/Doctor/MedicalHistory/MedicalHistory";
 import ProfileSettings from "../pages/Doctor/ProfileSettings/ProfileSettings";
 import ScheduleManagement from "../pages/Doctor/ScheduleManagement/ScheduleManagement";
 import Feedback from "../pages/Doctor/Feedback/Feedback";
@@ -35,7 +36,7 @@ import OfflineConsultationPage from "../pages/Doctor/OfflineConsultationPage/Off
 import OnlineConsultationPage from "../pages/Doctor/OnlineConsultationPage/OnlineConsultationPage";
 import { RescheduleRequests } from "../pages/Doctor/components/RescheduleRequests/RescheduleRequests";
 import { Notifications } from "../pages/Doctor/components/Notifications/Notifications";
-import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage";
+import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage/DoctorVideoCallPage";
 
 // Admin Components
 import AdminDashboard from "../pages/Admin/AdminDashboard";
@@ -51,19 +52,26 @@ import AdminLayout from "../layouts/AdminLayout/AdminLayout";
  */
 export const privateRoutes = (
   <>
-    {/* ==================== PATIENT DASHBOARD (NO DEFAULT LAYOUT) ==================== */}
-    {/* Patient dashboard with custom layout (no default header/footer) */}
-
+    {/* ==================== PATIENT ROUTES (WITH PATIENT LAYOUT) ==================== */}
+    {/* Patient routes with PatientLayout (includes Sidebar and Header) */}
     <Route element={<AuthMiddleware />}>
       <Route element={<PatientMiddleware />}>
-        <Route path="/benh-nhan" element={<PatientDashboard />} />
-        <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
-        <Route path="/benh-nhan/video-call/:appointmentId" element={<PatientVideoCallPage />} />
-        <Route path="/search-doctors" element={<PatientDashboard />} />
-        <Route path="/my-appointments" element={<PatientDashboard />} />
-        <Route path="/tu-van-truc-tuyen" element={<PatientDashboard />} />
-        <Route path="/medical-records" element={<PatientDashboard />} />
-        <Route path="/thong-bao" element={<PatientDashboard />} />
+        {/* Fullscreen patient video call route (no PatientLayout) */}
+        <Route
+          path="/benh-nhan/video-call/:appointmentId"
+          element={<PatientVideoCallPage />}
+        />
+
+        <Route element={<PatientLayout />}>
+          {/* Main patient dashboard and related routes */}
+          <Route path="/benh-nhan" element={<PatientDashboard />} />
+          <Route path="/search-doctors" element={<PatientDashboard />} />
+          <Route path="/my-appointments" element={<PatientDashboard />} />
+          <Route path="/medical-records" element={<PatientDashboard />} />
+          <Route path="/family-health-records" element={<PatientDashboard />} />
+          <Route path="/thong-bao" element={<PatientDashboard />} />
+          <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
+        </Route>
       </Route>
     </Route>
 
@@ -72,7 +80,10 @@ export const privateRoutes = (
     <Route element={<AuthMiddleware />}>
       <Route element={<DoctorMiddleware />}>
         {/* Fullscreen doctor video call route (no DoctorLayout) */}
-        <Route path="/bac-si/video-call/:appointmentId" element={<DoctorVideoCallPage />} />
+        <Route
+          path="/bac-si/video-call/:appointmentId"
+          element={<DoctorVideoCallPage />}
+        />
 
         <Route element={<DoctorLayout />}>
           {/* Main doctor dashboard */}
@@ -91,14 +102,17 @@ export const privateRoutes = (
             element={<OnlineConsultationPage />}
           />
 
-        {/* ==================== SCHEDULE MANAGEMENT ==================== */}
-        {/* Doctor schedule and calendar routes */}
-        <Route path="/bac-si/lich-lam-viec" element={<ScheduleManagement />} />
-        <Route path="/bac-si/quan-ly-lich" element={<ScheduleManagement />} />
+          {/* ==================== SCHEDULE MANAGEMENT ==================== */}
+          {/* Doctor schedule and calendar routes */}
+          <Route
+            path="/bac-si/lich-lam-viec"
+            element={<ScheduleManagement />}
+          />
+          <Route path="/bac-si/quan-ly-lich" element={<ScheduleManagement />} />
 
           {/* ==================== MEDICAL RECORDS ==================== */}
           {/* Doctor medical records and consultation routes */}
-          <Route path="/bac-si/ho-so-kham" element={<ConsultationRecords />} />
+          <Route path="/bac-si/ho-so-kham" element={<MedicalHistory />} />
 
           {/* ==================== SETTINGS & PROFILE ==================== */}
           {/* Doctor settings and profile management */}
@@ -131,7 +145,6 @@ export const privateRoutes = (
       {/* ==================== PATIENT-SPECIFIC ROUTES ==================== */}
       {/* Routes that require patient role specifically */}
       <Route element={<PatientMiddleware />}>
-        <Route path="/dat-lich-kham" element={<AppointmentBooking />} />
         {/* Appointment booking routes */}
         <Route path="/dat-lich" element={<AppointmentBookingHome />} />
         <Route
@@ -143,7 +156,8 @@ export const privateRoutes = (
           path="/dat-lich/chon-thoi-gian"
           element={<TimeSlotSelection />}
         />
-        <Route path="/dat-lich/:doctorId" element={<AppointmentBooking />} />
+        {/* Payment result route - handles both success and failed */}
+        <Route path="/dat-lich/payment-result" element={<PaymentResult />} />
       </Route>
     </Route>
 

@@ -24,18 +24,33 @@ export function CurrentConsultation() {
       if (response.success) {
         // Filter for in_progress ONLINE appointments only
         const inProgressOnlineAppointments = response.data.appointments.filter(
-          (appointment) => appointment.status === "in_progress" && appointment.mode === "online"
+          (appointment) =>
+            appointment.status === "in_progress" &&
+            appointment.mode === "online"
         );
 
         if (inProgressOnlineAppointments.length > 0) {
           const appointment = inProgressOnlineAppointments[0];
-          console.log('🔍 Current Consultation - Appointment data:', appointment);
-          console.log('🔍 Current Consultation - Doctor data:', appointment.doctorId);
-          console.log('🔍 Current Consultation - Specialization:', appointment.doctorId?.specializationIds);
-          
+          console.log(
+            "🔍 Current Consultation - Appointment data:",
+            appointment
+          );
+          console.log(
+            "🔍 Current Consultation - Doctor data:",
+            appointment.doctorId
+          );
+          console.log(
+            "🔍 Current Consultation - Specialization:",
+            appointment.doctorId?.specializationIds
+          );
+
           setCurrentAppointment({
             id: appointment._id,
-            doctor: `BS. ${appointment.doctorId?.fullName || appointment.doctorId?.name || "Chưa xác định"}`,
+            doctor: `BS. ${
+              appointment.doctorId?.fullName ||
+              appointment.doctorId?.name ||
+              "Chưa xác định"
+            }`,
             specialty:
               appointment.doctorId?.specializationIds?.[0]?.name ||
               appointment.specialty ||
@@ -66,7 +81,10 @@ export function CurrentConsultation() {
 
   const handleJoinCall = () => {
     if (currentAppointment?.id) {
-      console.log('🎥 Patient joining video call for appointment:', currentAppointment.id);
+      console.log(
+        "🎥 Patient joining video call for appointment:",
+        currentAppointment.id
+      );
       // Open in same window, not new tab
       window.location.href = `/benh-nhan/video-call/${currentAppointment.id}`;
     }
@@ -148,7 +166,7 @@ export function CurrentConsultation() {
           alignItems: "center",
           justifyContent: "space-between",
           padding: "1rem",
-          border: "1px solid #e5e7eb",
+          border: "2px solid #cbd5e1",
           borderRadius: "0.75rem",
           backgroundColor: "#f9fafb",
         }}
@@ -318,4 +336,3 @@ export function CurrentConsultation() {
     </div>
   );
 }
-

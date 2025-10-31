@@ -8,10 +8,10 @@ import {
   Calendar,
   Clock,
   MapPin,
-  Phone,
   Video,
   X,
   VideoIcon,
+  Eye,
 } from "lucide-react";
 import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 import ReviewModal from "../ReviewModal/ReviewModal";
@@ -41,7 +41,17 @@ export function MyAppointments() {
       try {
         setLoading(true);
         const res = await api.get("/api/patients/me/appointments?limit=20");
+        console.log("📋 Appointments response:", res);
         if (res.success) {
+          // Debug: Log clinic info for each appointment
+          res.data.appointments?.forEach((apt, index) => {
+            console.log(`Appointment ${index + 1}:`, {
+              id: apt._id,
+              clinicId: apt.clinicId,
+              clinicName: apt.clinicId?.name,
+              mode: apt.mode,
+            });
+          });
           setAppointments(res.data.appointments || []);
         } else {
           message.error("Không thể tải lịch hẹn");
@@ -298,7 +308,7 @@ export function MyAppointments() {
             <div
               key={a._id}
               style={{
-                border: "1px solid #e5e7eb",
+                border: "2px solid #cbd5e1",
                 borderRadius: 12,
                 background: "#fff",
                 padding: 16,
@@ -324,7 +334,12 @@ export function MyAppointments() {
                 </div>
                 <div>
                   <div
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
                   >
                     <span style={{ fontWeight: 700 }}>{doctorName}</span>
                     <span
@@ -338,6 +353,35 @@ export function MyAppointments() {
                     >
                       {status.label}
                     </span>
+                    {a.rescheduledFromId && (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          background: "#6366f1",
+                          color: "#ffffff",
+                        }}
+                        title="Lịch hẹn này đã được dời từ lịch cũ"
+                      >
+                        📅 Đã dời lịch
+                      </span>
+                    )}
+                    {a.patientId?.relationshipToOwner &&
+                      a.patientId.relationshipToOwner !== "self" && (
+                        <span
+                          style={{
+                            fontSize: 12,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                            background: "#f59e0b",
+                            color: "#ffffff",
+                          }}
+                          title="Lịch hẹn đã được đặt hộ"
+                        >
+                          👤 Đặt hộ
+                        </span>
+                      )}
                   </div>
                   <div style={{ color: "#334155", marginTop: 2 }}>
                     {specialty}
@@ -364,9 +408,23 @@ export function MyAppointments() {
                       style={{ display: "flex", alignItems: "center", gap: 6 }}
                     >
                       <MapPin size={14} />{" "}
-                      {a.mode === "online"
-                        ? "Khám online"
-                        : a.clinicId?.name || "Phòng khám"}
+                      {(() => {
+                        if (a.mode === "online") {
+                          return "Khám online";
+                        }
+                        // Debug log
+                        if (!a.clinicId?.name) {
+                          console.warn(
+                            `⚠️ Appointment ${a._id} missing clinic info:`,
+                            {
+                              clinicId: a.clinicId,
+                              clinicName: a.clinicId?.name,
+                              mode: a.mode,
+                            }
+                          );
+                        }
+                        return a.clinicId?.name || "Phòng khám";
+                      })()}
                     </span>
                     {feeText && (
                       <span style={{ marginLeft: 8, fontWeight: 600 }}>
@@ -377,12 +435,20 @@ export function MyAppointments() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
                 {a.status === "done" ? (
                   // Appointments đã hoàn thành có nút đánh giá
                   <>
                     <Button
-                      variant="secondary"
+                      variant="default"
+                      size="sm"
                       onClick={() => handleShowReview(a)}
                     >
                       ⭐ Đánh giá
@@ -399,14 +465,13 @@ export function MyAppointments() {
                     {/* Video Call Button - Only show for accepted appointments */}
                     {a.status === "accepted" && a.mode === "online" ? (
                       <Button
-                        type="primary"
+                        variant="default"
+                        size="sm"
                         onClick={() =>
                           navigate(`/benh-nhan/video-call/${a._id}`)
                         }
                         style={{
-                          background: "#1890ff",
-                          borderColor: "#1890ff",
-                          color: "#fff",
+                          backgroundColor: "#1890ff",
                         }}
                       >
                         <VideoIcon size={16} style={{ marginRight: 6 }} />
@@ -416,19 +481,18 @@ export function MyAppointments() {
 
                     {/* Regular Video Button for other online appointments */}
                     {a.mode === "online" && a.status !== "accepted" ? (
-                      <Button variant="secondary">
+                      <Button variant="outline" size="sm" disabled>
                         <Video size={16} style={{ marginRight: 6 }} />
                         Chờ duyệt
                       </Button>
                     ) : null}
 
-                    <Button variant="secondary">
-                      <Phone size={16} style={{ marginRight: 6 }} /> Gọi
-                    </Button>
                     <Button
-                      variant="secondary"
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleShowDetail(a._id)}
                     >
+                      <Eye size={16} style={{ marginRight: 6 }} />
                       Chi tiết
                     </Button>
 
@@ -456,9 +520,13 @@ export function MyAppointments() {
                     {/* Cancel button - show for pending and accepted appointments */}
                     {["pending_doctor", "accepted"].includes(a.status) && (
                       <Button
-                        variant="ghost"
-                        style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                        variant="default"
+                        size="sm"
                         onClick={() => handleCancelAppointment(a._id)}
+                        style={{
+                          backgroundColor: "#dc2626",
+                          color: "#ffffff",
+                        }}
                       >
                         <X size={16} style={{ marginRight: 6 }} /> Hủy
                       </Button>

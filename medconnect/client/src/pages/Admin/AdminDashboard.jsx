@@ -69,7 +69,8 @@ const AdminDashboard = () => {
       title: "Bác sĩ đã xác minh",
       value: statsData.verifiedDoctors,
       change: `${statsData.pendingDoctors} đang chờ xác minh`,
-      changeValue: statsData.pendingDoctors > 0 ? `+${statsData.pendingDoctors}` : "",
+      changeValue:
+        statsData.pendingDoctors > 0 ? `+${statsData.pendingDoctors}` : "",
       icon: <SafetyCertificateOutlined />,
       color: "#52c41a",
       gradient: "linear-gradient(135deg, #52c41a 0%, #73d13d 100%)",
@@ -80,8 +81,8 @@ const AdminDashboard = () => {
       change: "Tổng số lịch hẹn trong tháng",
       changeValue: "",
       icon: <CalendarOutlined />,
-      color: "#722ed1",
-      gradient: "linear-gradient(135deg, #722ed1 0%, #9254de 100%)",
+      color: "#45c3d2",
+      gradient: "linear-gradient(135deg, #40CCCC 0%, #45c3d2 100%)",
     },
     {
       title: "Doanh thu",
@@ -137,16 +138,16 @@ const AdminDashboard = () => {
       <Row gutter={[24, 24]} className="stats-row">
         {statsCards.map((stat, index) => (
           <Col xs={24} sm={12} lg={6} key={index}>
-            <Card 
+            <Card
               className="stat-card"
-              style={{ 
+              style={{
                 background: stat.gradient,
-                border: 'none',
-                borderRadius: '16px',
-                overflow: 'hidden'
+                border: "none",
+                borderRadius: "16px",
+                overflow: "hidden",
               }}
             >
-              <div className="stat-icon" style={{ color: '#ffffff' }}>
+              <div className="stat-icon" style={{ color: "#ffffff" }}>
                 {stat.icon}
               </div>
               <div className="stat-content">
