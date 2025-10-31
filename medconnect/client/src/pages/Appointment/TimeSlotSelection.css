@@ -238,10 +238,19 @@
 }
 
 .time-slot-button:disabled {
-  background: #f5f5f5;
-  border-color: #d9d9d9;
-  color: #bfbfbf;
-  cursor: not-allowed;
+  background: #f5f5f5 !important;
+  border-color: #d9d9d9 !important;
+  color: #bfbfbf !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+  position: relative;
+}
+
+.time-slot-button:disabled:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: #d9d9d9 !important;
+  background: #f5f5f5 !important;
 }
 
 .form-header {

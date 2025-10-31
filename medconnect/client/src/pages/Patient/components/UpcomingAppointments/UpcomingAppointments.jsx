@@ -81,7 +81,7 @@ export function UpcomingAppointments() {
           })
         );
 
-        setAppointments(transformedAppointments);
+        setAppointments(transformedAppointments.slice(0, 3));
       } else {
         message.error("Không thể tải danh sách lịch hẹn");
       }

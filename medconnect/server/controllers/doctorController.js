@@ -226,10 +226,11 @@ export async function getDoctorAppointments(req, res) {
     const appointments = await Appointment.find(filter)
       .populate({
         path: "patientId",
-        select: "fullName dob gender phone email",
+        select:
+          "fullName dob gender phone email relationshipToOwner representativeName representativeRelation representativePhone representativeCitizenId",
         populate: {
           path: "userId",
-          select: "email phone",
+          select: "fullName email phone",
         },
       })
       .populate("slotId")
@@ -239,7 +240,8 @@ export async function getDoctorAppointments(req, res) {
         select: "scheduledStart scheduledEnd status patientId",
         populate: {
           path: "patientId",
-          select: "fullName dob gender phone email",
+          select:
+            "fullName dob gender phone email relationshipToOwner representativeName representativeRelation representativePhone representativeCitizenId",
           populate: {
             path: "userId",
             select: "email phone",
@@ -405,7 +407,8 @@ export async function getDoctorAppointmentDetail(req, res) {
     })
       .populate({
         path: "patientId",
-        select: "fullName dob gender phone",
+        select:
+          "fullName dob gender phone relationshipToOwner representativeName representativeRelation representativePhone representativeCitizenId",
       })
       .populate({
         path: "doctorId",
@@ -1070,7 +1073,12 @@ export async function getDoctorConsultationSummaries(req, res) {
     // Use email-based authentication
     const userEmail = req.user?.email;
     if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
     }
 
     const user = await User.findOne({ email: userEmail }).lean();
@@ -1125,7 +1133,12 @@ export async function getDoctorConsultationAdvice(req, res) {
     // Use email-based authentication
     const userEmail = req.user?.email;
     if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
     }
 
     const user = await User.findOne({ email: userEmail }).lean();
@@ -2289,7 +2302,7 @@ export async function getAllAppointments(req, res) {
         select: "fullName dob gender phone email",
         populate: {
           path: "userId",
-          select: "email phone",
+          select: "fullName email phone",
         },
       })
       .populate("doctorId", "fullName licenseNo")

@@ -65,14 +65,15 @@ export function AppSidebar() {
 
   const handleLogout = async () => {
     try {
+      // Navigate to homepage first, then sign out
+      // This prevents the brief login page flash
+      navigate("/", { replace: true });
+
       // Import auth from firebase
       const { auth } = await import("../../../../lib/firebase");
 
-      // Sign out from Firebase
-      await auth.signOut();
-
-      // Navigate to homepage
-      navigate("/", { replace: true });
+      // Sign out from Firebase (non-blocking)
+      auth.signOut().catch(console.error);
     } catch (error) {
       // Still navigate to homepage even if there's an error
       navigate("/", { replace: true });

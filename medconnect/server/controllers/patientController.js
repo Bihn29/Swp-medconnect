@@ -1501,6 +1501,12 @@ export async function createFamilyMember(req, res) {
       bloodType,
       allergyNotes,
       medicalHistory,
+      ethnicity,
+      occupation,
+      representativeName,
+      representativePhone,
+      representativeRelation,
+      representativeCitizenId,
     } = req.body;
 
     // Validate required fields
@@ -1533,6 +1539,21 @@ export async function createFamilyMember(req, res) {
       return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Invalid gender");
     }
 
+    // Get current user info to populate representative fields if not provided
+    let representativeInfo = {};
+    if (relationshipToOwner !== "self") {
+      const currentUser = await User.findById(appUserId).lean();
+      if (currentUser) {
+        // Use provided representative info or fallback to current user info
+        representativeInfo = {
+          representativeName: representativeName || currentUser.fullName || "",
+          representativePhone: representativePhone || currentUser.phone || "",
+          representativeRelation: representativeRelation || relationshipToOwner,
+          representativeCitizenId: representativeCitizenId || "",
+        };
+      }
+    }
+
     // Create new family member patient
     const newPatient = new Patient({
       userId: appUserId,
@@ -1547,6 +1568,9 @@ export async function createFamilyMember(req, res) {
       bloodType,
       allergyNotes,
       medicalHistory,
+      ethnicity,
+      occupation,
+      ...representativeInfo, // Spread representative info if relationshipToOwner !== "self"
       isComplete: false,
     });
 

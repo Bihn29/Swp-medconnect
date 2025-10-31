@@ -37,6 +37,9 @@ export default function AppointmentList() {
   const [updatingAppointments, setUpdatingAppointments] = useState(new Set());
   const [rescheduleInfo, setRescheduleInfo] = useState(null);
   const [isRescheduleInfoOpen, setIsRescheduleInfoOpen] = useState(false);
+  const [representativeInfo, setRepresentativeInfo] = useState(null);
+  const [isRepresentativeInfoOpen, setIsRepresentativeInfoOpen] =
+    useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 1000; // Hiển thị tất cả appointments
@@ -82,6 +85,39 @@ export default function AppointmentList() {
 
     fetchAppointments();
   }, []);
+
+  const handleViewRepresentativeInfo = (appointment) => {
+    console.log("🔍 Viewing representative info for appointment:", appointment);
+    console.log("🔍 Patient data:", appointment.patientId);
+    console.log("🔍 User data (account owner):", appointment.patientId?.userId);
+    if (
+      appointment.patientId?.relationshipToOwner &&
+      appointment.patientId.relationshipToOwner !== "self"
+    ) {
+      // Thông tin người đặt hộ là thông tin của chủ account (User), không phải family member
+      const userInfo = appointment.patientId?.userId || {};
+      const representativeInfo = {
+        name: userInfo.fullName || "Không có",
+        phone: userInfo.phone || "Không có",
+        email: userInfo.email || "Không có",
+        relation:
+          appointment.patientId.representativeRelation ||
+          appointment.patientId.relationshipToOwner ||
+          "Không có",
+        citizenId: appointment.patientId.representativeCitizenId || "Không có",
+      };
+      console.log(
+        "✅ Representative info (account owner):",
+        representativeInfo
+      );
+      setRepresentativeInfo(representativeInfo);
+      setIsRepresentativeInfoOpen(true);
+    } else {
+      console.log(
+        "❌ No representative info found or relationshipToOwner is 'self'"
+      );
+    }
+  };
 
   // Filter and sort appointments
   const filteredAppointments = appointments
@@ -759,15 +795,32 @@ export default function AppointmentList() {
                 filteredAppointments.map((apt) => (
                   <tr key={apt._id} className="appointment-list-row">
                     <td className="appointment-list-td appointment-list-patient">
-                      <span
-                        className="appointment-list-patient-name"
-                        onClick={() => handleViewDetails(apt)}
-                        style={{ cursor: "pointer", color: "#000000" }}
-                      >
-                        {apt.patientId?.fullName ||
-                          apt.patient?.fullName ||
-                          "Không có"}
-                      </span>
+                      <div>
+                        <span
+                          className="appointment-list-patient-name"
+                          onClick={() => handleViewDetails(apt)}
+                          style={{ cursor: "pointer", color: "#000000" }}
+                        >
+                          {apt.patientId?.fullName ||
+                            apt.patient?.fullName ||
+                            "Không có"}
+                        </span>
+                        {/* Hiển thị thông tin người đặt hộ nếu có */}
+                        {apt.patientId?.relationshipToOwner &&
+                          apt.patientId.relationshipToOwner !== "self" && (
+                            <div style={{ marginTop: "8px" }}>
+                              <Badge
+                                className="!bg-blue-100 !text-blue-700 !border-blue-300 cursor-pointer"
+                                style={{ marginBottom: 4 }}
+                                onClick={() =>
+                                  handleViewRepresentativeInfo(apt)
+                                }
+                              >
+                                👤 Đặt hộ
+                              </Badge>
+                            </div>
+                          )}
+                      </div>
                     </td>
                     <td className="appointment-list-td appointment-list-datetime">
                       {new Date(apt.scheduledStart).toLocaleDateString("vi-VN")}{" "}
@@ -1320,6 +1373,96 @@ export default function AppointmentList() {
                   Đóng
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Representative Info Modal */}
+      {isRepresentativeInfoOpen && representativeInfo && (
+        <div
+          className="appointment-detail-dialog-overlay"
+          onClick={() => setIsRepresentativeInfoOpen(false)}
+        >
+          <div
+            className="appointment-detail-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="appointment-detail-dialog-header">
+              <h3 className="appointment-detail-dialog-title">
+                Thông tin người đặt hộ
+              </h3>
+              <button
+                className="appointment-detail-dialog-close"
+                onClick={() => setIsRepresentativeInfoOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="appointment-detail">
+              {console.log(
+                "📋 Rendering modal with representativeInfo:",
+                representativeInfo
+              )}
+              <div className="appointment-detail-item">
+                <p className="appointment-detail-label">Họ và tên</p>
+                <p className="appointment-detail-value">
+                  {representativeInfo?.name || "Không có"}
+                </p>
+              </div>
+
+              {representativeInfo?.email && (
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Email</p>
+                  <p className="appointment-detail-value">
+                    {representativeInfo.email}
+                  </p>
+                </div>
+              )}
+
+              {representativeInfo?.phone && (
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">Số điện thoại</p>
+                  <p className="appointment-detail-value">
+                    {representativeInfo.phone}
+                  </p>
+                </div>
+              )}
+
+              {representativeInfo?.relation && (
+                <div className="appointment-detail-item">
+                  <p className="appointment-detail-label">
+                    Mối quan hệ với bệnh nhân
+                  </p>
+                  <p className="appointment-detail-value">
+                    {(() => {
+                      const relationMap = {
+                        father: "Cha",
+                        mother: "Mẹ",
+                        spouse: "Vợ/Chồng",
+                        child: "Con",
+                        grandparent: "Ông/Bà",
+                        other: "Khác",
+                      };
+                      return (
+                        relationMap[representativeInfo.relation] ||
+                        representativeInfo.relation ||
+                        "Không có"
+                      );
+                    })()}
+                  </p>
+                </div>
+              )}
+
+              {representativeInfo?.citizenId &&
+                representativeInfo.citizenId !== "Không có" && (
+                  <div className="appointment-detail-item">
+                    <p className="appointment-detail-label">CCCD/CMND</p>
+                    <p className="appointment-detail-value">
+                      {representativeInfo.citizenId}
+                    </p>
+                  </div>
+                )}
             </div>
           </div>
         </div>

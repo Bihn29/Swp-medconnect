@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import dayjs from "dayjs";
 import {
   Row,
   Col,
@@ -191,11 +192,15 @@ const TimeSlotSelection = () => {
               fullName: values.fullName,
               dob: values.dob ? values.dob.format("YYYY-MM-DD") : undefined,
               gender: values.gender,
+              ethnicity: values.ethnicity,
+              occupation: values.occupation,
+              bloodType: values.bloodType || "Unknown",
               relationshipToOwner: values.relationshipToOwner,
               phone: values.phone,
               citizenId: values.citizenId,
               address: values.address,
-              houseNumber: values.houseNumber,
+              allergyNotes: values.allergyNotes || "",
+              medicalHistory: values.medicalHistory || [],
             }
           );
 
@@ -342,6 +347,28 @@ const TimeSlotSelection = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of day
     return current && current < today;
+  };
+
+  const isSlotPassed = (slot) => {
+    if (!selectedDate || !slot.startTime) return false;
+
+    // Kiểm tra nếu ngày được chọn là ngày hôm nay
+    const today = dayjs();
+    const isToday = selectedDate.isSame(today, "day");
+
+    if (!isToday) return false;
+
+    // So sánh thời gian hiện tại với thời gian bắt đầu của slot
+    const now = dayjs();
+    const [hours, minutes] = slot.startTime.split(":").map(Number);
+    const slotTime = selectedDate
+      .hour(hours)
+      .minute(minutes)
+      .second(0)
+      .millisecond(0);
+
+    // Slot đã qua nếu thời gian bắt đầu đã nhỏ hơn thời gian hiện tại
+    return slotTime.isBefore(now);
   };
 
   const getSpecializationNames = (specializationIds) => {
@@ -494,22 +521,33 @@ const TimeSlotSelection = () => {
                     </div>
                   ) : (
                     <div className="time-slots-grid">
-                      {timeSlots.map((slot) => (
-                        <Button
-                          key={slot._id}
-                          type={
-                            selectedTimeSlot?._id === slot._id
-                              ? "primary"
-                              : "default"
-                          }
-                          disabled={!slot.available}
-                          onClick={() => handleTimeSlotSelect(slot)}
-                          className="time-slot-button"
-                          size="large"
-                        >
-                          {slot.timeRange}
-                        </Button>
-                      ))}
+                      {timeSlots
+                        .filter((slot) => {
+                          // Lọc bỏ các slot đã qua giờ theo thời gian thực - các slot này sẽ biến mất
+                          const isPassed = isSlotPassed(slot);
+                          // Chỉ hiển thị các slot chưa qua giờ (slot đã đặt lịch vẫn hiển thị nhưng disabled)
+                          return !isPassed;
+                        })
+                        .map((slot) => {
+                          // Slot đã đặt lịch sẽ hiển thị mờ và không nhấn được
+                          const isDisabled = !slot.available;
+                          return (
+                            <Button
+                              key={slot._id}
+                              type={
+                                selectedTimeSlot?._id === slot._id
+                                  ? "primary"
+                                  : "default"
+                              }
+                              disabled={isDisabled}
+                              onClick={() => handleTimeSlotSelect(slot)}
+                              className="time-slot-button"
+                              size="large"
+                            >
+                              {slot.timeRange}
+                            </Button>
+                          );
+                        })}
                     </div>
                   )}
                 </Card>
@@ -634,6 +672,36 @@ const TimeSlotSelection = () => {
                           </Col>
                         </Row>
 
+                        <Row gutter={16}>
+                          <Col span={12}>
+                            <Form.Item label="Dân tộc" name="ethnicity">
+                              <Input placeholder="Nhập dân tộc (nếu có)" />
+                            </Form.Item>
+                          </Col>
+                          <Col span={12}>
+                            <Form.Item label="Nghề nghiệp" name="occupation">
+                              <Input placeholder="Nhập nghề nghiệp (nếu có)" />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <Form.Item label="Nhóm máu" name="bloodType">
+                          <Select
+                            placeholder="Chọn nhóm máu (nếu có)"
+                            allowClear
+                          >
+                            <Option value="A+">A+</Option>
+                            <Option value="A-">A-</Option>
+                            <Option value="B+">B+</Option>
+                            <Option value="B-">B-</Option>
+                            <Option value="AB+">AB+</Option>
+                            <Option value="AB-">AB-</Option>
+                            <Option value="O+">O+</Option>
+                            <Option value="O-">O-</Option>
+                            <Option value="Unknown">Không rõ</Option>
+                          </Select>
+                        </Form.Item>
+
                         <Form.Item
                           label="Mối quan hệ"
                           name="relationshipToOwner"
@@ -684,8 +752,37 @@ const TimeSlotSelection = () => {
                           <Input placeholder="Nhập địa chỉ" />
                         </Form.Item>
 
-                        <Form.Item label="Số nhà" name="houseNumber">
-                          <Input placeholder="Nhập số nhà (nếu có)" />
+                        <Form.Item
+                          label="Ghi chú dị ứng"
+                          name="allergyNotes"
+                          rules={[
+                            {
+                              max: 500,
+                              message:
+                                "Ghi chú dị ứng không được vượt quá 500 ký tự!",
+                            },
+                          ]}
+                        >
+                          <TextArea
+                            rows={3}
+                            placeholder="Nhập thông tin dị ứng, tiền sử dị ứng thuốc, thức ăn (nếu có)"
+                            maxLength={500}
+                            showCount
+                          />
+                        </Form.Item>
+
+                        <Form.Item
+                          label="Tiền sử bệnh mạn tính"
+                          name="medicalHistory"
+                          tooltip="Nhập các bệnh mạn tính, ví dụ: Tiểu đường, Cao huyết áp, Hen suyễn..."
+                        >
+                          <Select
+                            mode="tags"
+                            placeholder="Nhập bệnh mạn tính (có thể nhập nhiều, nhấn Enter sau mỗi bệnh)"
+                            style={{ width: "100%" }}
+                            tokenSeparators={[","]}
+                            allowClear
+                          />
                         </Form.Item>
 
                         <Form.Item
