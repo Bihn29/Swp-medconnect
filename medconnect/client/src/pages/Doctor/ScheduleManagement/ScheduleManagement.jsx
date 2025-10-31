@@ -27,10 +27,13 @@ export default function ScheduleManagement() {
   // Booking states
   const [showBookSlot, setShowBookSlot] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null); // Ngày được chọn khi click ô trống
+  const [selectedTime, setSelectedTime] = useState(null); // Giờ được chọn khi click ô trống
   const [bookingData, setBookingData] = useState({
     patientName: "",
     patientPhone: "",
     reason: "",
+    mode: "online", // Hình thức khám: online hoặc offline
   });
 
   // Appointment detail modal states
@@ -447,12 +450,82 @@ export default function ScheduleManagement() {
     setLeaveData({ startDate: "", endDate: "", reason: "" });
   };
 
-  const handleBookSlot = () => {
-    console.log("Booking slot:", bookingData);
-    alert("Đặt lịch thành công!");
-    setShowBookSlot(false);
-    setBookingData({ patientName: "", patientPhone: "", reason: "" });
-    loadTimeSlots();
+  const handleBookSlot = async () => {
+    if (!bookingData.patientName || !bookingData.patientPhone || !bookingData.reason) {
+      alert("Vui lòng điền đầy đủ thông tin!");
+      return;
+    }
+
+    try {
+      // Tính toán scheduledStart và scheduledEnd từ selectedDate và selectedTime
+      let scheduledStart, scheduledEnd;
+      let slotId = null;
+
+      if (selectedSlot) {
+        // Nếu có selectedSlot (click vào slot available)
+        scheduledStart = selectedSlot.startAt;
+        scheduledEnd = selectedSlot.endAt;
+        slotId = selectedSlot.id || selectedSlot._id;
+      } else if (selectedDate && selectedTime) {
+        // Nếu click vào ô trống (không có slot)
+        const [hour, minute] = selectedTime.split(':').map(Number);
+        const startDateTime = new Date(`${selectedDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`);
+        const endDateTime = new Date(startDateTime);
+        endDateTime.setMinutes(endDateTime.getMinutes() + 20); // Slot 20 phút
+        
+        scheduledStart = startDateTime.toISOString();
+        scheduledEnd = endDateTime.toISOString();
+        
+        // Tìm slot trong timeSlots nếu có
+        const foundSlot = timeSlots.find(slot => {
+          const slotDate = new Date(slot.startAt);
+          return slotDate.toISOString().split('T')[0] === selectedDate &&
+                 slotDate.getHours() === hour &&
+                 slotDate.getMinutes() === minute;
+        });
+        
+        if (foundSlot) {
+          slotId = foundSlot.id || foundSlot._id;
+        }
+      } else {
+        alert("Thiếu thông tin ngày/giờ. Vui lòng thử lại!");
+        return;
+      }
+
+      // Tìm hoặc tạo patient profile từ số điện thoại
+      const apiModule = await import('../../../lib/api');
+      
+      // Tạo/tìm patient và appointment
+      const appointmentData = {
+        slotId: slotId, // Có thể null, backend sẽ tự tạo slot
+        patientName: bookingData.patientName,
+        patientPhone: bookingData.patientPhone,
+        reason: bookingData.reason,
+        mode: bookingData.mode,
+        scheduledStart: scheduledStart,
+        scheduledEnd: scheduledEnd,
+      };
+
+      console.log('🔍 Creating appointment:', appointmentData);
+
+      // Gọi API để tạo appointment (cần tạo endpoint riêng cho doctor)
+      const response = await apiModule.api.post('/api/doctors/me/appointments/create', appointmentData);
+
+      if (response.success) {
+        alert("Đặt lịch thành công!");
+        setShowBookSlot(false);
+        setBookingData({ patientName: "", patientPhone: "", reason: "", mode: "online" });
+        setSelectedSlot(null);
+        setSelectedDate(null);
+        setSelectedTime(null);
+        await loadTimeSlots();
+      } else {
+        alert("Lỗi khi đặt lịch: " + (response.message || "Unknown error"));
+      }
+    } catch (error) {
+      console.error('❌ Error booking slot:', error);
+      alert("Có lỗi xảy ra khi đặt lịch: " + error.message);
+    }
   };
 
   // Hàm xử lý gọi video - MỞ SANG TAB MỚI
@@ -738,14 +811,28 @@ export default function ScheduleManagement() {
                   {daysWithSlots.map((day, dayIndex) => {
                     const slot = processedSlots.slotsMap?.[day.fullDate]?.[time];
                     
-                    // Luôn render ô để giữ grid structure, nhưng bỏ dấu + và viền nếu không có slot
+                    // Nếu không có slot, vẫn render ô trống nhưng có thể click để đặt lịch
                     if (!slot) {
                       return (
                         <div 
                           key={`${dayIndex}-${timeIndex}`} 
                           className="slot-cell empty-no-border"
+                          onClick={() => {
+                            // Mở form đặt lịch khi click vào ô trống
+                            setSelectedDate(day.fullDate);
+                            setSelectedTime(time);
+                            setSelectedSlot(null);
+                            setBookingData({
+                              patientName: "",
+                              patientPhone: "",
+                              reason: "",
+                              mode: "online",
+                            });
+                            setShowBookSlot(true);
+                          }}
+                          style={{ cursor: 'pointer' }}
                         >
-                          {/* Không render gì cả - ô trống hoàn toàn */}
+                          {/* Ô trống - có thể click để đặt lịch */}
                         </div>
                       );
                     }
@@ -823,7 +910,7 @@ export default function ScheduleManagement() {
 
       {/* Book Slot Dialog */}
       <Dialog open={showBookSlot} onOpenChange={setShowBookSlot}>
-        <DialogContent>
+        <DialogContent className="book-slot-dialog">
           <DialogHeader>
             <DialogTitle>Đặt lịch khám</DialogTitle>
           </DialogHeader>
@@ -851,8 +938,39 @@ export default function ScheduleManagement() {
               placeholder="Nhập lý do khám..."
             />
           </div>
+          <div className="form-group">
+            <label>Hình thức khám:</label>
+            <div className="mode-checkboxes">
+              <label className="checkbox-option">
+                <input
+                  type="radio"
+                  name="mode"
+                  value="online"
+                  checked={bookingData.mode === "online"}
+                  onChange={(e) => setBookingData({...bookingData, mode: e.target.value})}
+                />
+                <span>Online</span>
+              </label>
+              <label className="checkbox-option">
+                <input
+                  type="radio"
+                  name="mode"
+                  value="offline"
+                  checked={bookingData.mode === "offline"}
+                  onChange={(e) => setBookingData({...bookingData, mode: e.target.value})}
+                />
+                <span>Offline</span>
+              </label>
+            </div>
+          </div>
           <div className="dialog-actions">
-            <Button onClick={() => setShowBookSlot(false)} variant="outline">
+            <Button onClick={() => {
+              setShowBookSlot(false);
+              setBookingData({ patientName: "", patientPhone: "", reason: "", mode: "online" });
+              setSelectedSlot(null);
+              setSelectedDate(null);
+              setSelectedTime(null);
+            }} variant="outline">
               Hủy
             </Button>
             <Button onClick={handleBookSlot} variant="primary">

@@ -28,7 +28,8 @@ import {
   getSearchDoctors,
   getSearchSpecializations,
   getSearchClinics,
-  uploadConsultationFile
+  uploadConsultationFile,
+  createAppointmentByDoctor
 } from "../../controllers/doctorController.js";
 
 const router = express.Router();
@@ -55,8 +56,16 @@ router.get("/me/profile", getCurrentDoctorProfile);
 router.put("/me/profile", updateDoctorProfile);
 router.get("/me/appointments", getDoctorAppointments);
 router.get("/me/appointments/:appointmentId", getDoctorAppointmentDetail);
+router.post("/me/appointments/create", createAppointmentByDoctor);
 router.get("/me/dashboard/stats", getDoctorDashboardStats);
-router.put("/me/appointments/:appointmentId/status", updateAppointmentStatus);
+router.put("/me/appointments/:appointmentId/status", (req, res, next) => {
+  console.log("==========================================");
+  console.log("📞 PUT /me/appointments/:appointmentId/status route hit");
+  console.log("📞 Params:", req.params);
+  console.log("📞 Body:", req.body);
+  console.log("📞 User:", req.user?.email);
+  next();
+}, updateAppointmentStatus);
 router.get("/me/consultation-records", getConsultationRecords);
 router.post("/me/consultation-summaries", createConsultationSummary);
 router.post("/me/consultation-advice", createConsultationAdvice);
