@@ -218,18 +218,37 @@ export const getAllDoctors = async (req, res) => {
       .select('userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications isVerified createdAt updatedAt')
       .sort({ createdAt: -1 });
 
-    const formattedDoctors = doctors.map(doctor => ({
-      id: doctor._id,
-      name: doctor.fullName || doctor.userId?.fullName || 'Chưa có tên',
-      email: doctor.userId?.email || 'Chưa có email',
-      specialty: doctor.specializationIds?.map(s => s.name).join(', ') || 'Chưa chọn chuyên khoa',
-      education: doctor.education?.map(edu => `${edu.degree} - ${edu.school}`).join(', ') || 'Chưa cập nhật',
-      experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
-      license: doctor.licenseNo || 'Chưa có giấy phép',
-      status: doctor.isVerified ? 'verified' : 'pending',
-      submittedDate: formatDate(doctor.createdAt),
-      avatar: doctor.avatarUrl || null
-    }));
+    const formattedDoctors = doctors.map(doctor => {
+      // Format specialty - handle null, undefined, or empty array
+      let specialty = 'Chưa chọn chuyên khoa';
+      if (doctor.specializationIds && Array.isArray(doctor.specializationIds) && doctor.specializationIds.length > 0) {
+        const specialtyNames = doctor.specializationIds
+          .filter(s => s && s.name) // Filter out null/undefined
+          .map(s => s.name);
+        if (specialtyNames.length > 0) {
+          specialty = specialtyNames.join(', ');
+        }
+      }
+      
+      // Filter out picsum.photos URLs - replace with null to use default avatar
+      let avatarUrl = doctor.avatarUrl || null;
+      if (avatarUrl && avatarUrl.includes('picsum.photos')) {
+        avatarUrl = null;
+      }
+      
+      return {
+        id: doctor._id,
+        name: doctor.fullName || doctor.userId?.fullName || 'Chưa có tên',
+        email: doctor.userId?.email || 'Chưa có email',
+        specialty: specialty,
+        education: doctor.education?.map(edu => `${edu.degree} - ${edu.school}`).join(', ') || 'Chưa cập nhật',
+        experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
+        license: doctor.licenseNo || 'Chưa có giấy phép',
+        status: doctor.isVerified ? 'verified' : 'pending',
+        submittedDate: formatDate(doctor.createdAt),
+        avatar: avatarUrl
+      };
+    });
     
     res.json({
       success: true,
@@ -248,23 +267,90 @@ export const getAllDoctors = async (req, res) => {
 export const getPendingDoctors = async (req, res) => {
   try {
     const pendingDoctors = await Doctor.find({ isVerified: false })
-      .populate('userId', 'fullName email')
+      .populate('userId', 'fullName email phone')
       .populate('specializationIds', 'name')
-      .select('userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications createdAt')
-      .sort({ createdAt: -1 });
+      .populate('clinicDefaultId', 'name address')
+      .select('userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications clinicDefaultId createdAt')
+      .sort({ createdAt: -1 })
+      .lean(); // Use lean() to convert to plain objects
 
-    const formattedDoctors = pendingDoctors.map(doctor => ({
-      id: doctor._id,
-      name: doctor.fullName || doctor.userId?.fullName || 'Chưa có tên',
-      specialty: doctor.specializationIds?.map(s => s.name).join(', ') || 'Chưa chọn chuyên khoa',
-      education: doctor.education?.map(edu => `${edu.degree} - ${edu.school}`).join(', ') || 'Chưa cập nhật',
-      experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
-      hospital: 'Chưa cập nhật', // Would need clinic integration
-      license: doctor.licenseNo || 'Chưa có giấy phép',
-      documents: [], // Would need document integration
-      submittedDate: formatDate(doctor.createdAt),
-      avatar: doctor.avatarUrl || null
-    }));
+    // Debug: log first doctor to check populate
+    if (pendingDoctors.length > 0) {
+      console.log('📋 Sample doctor specializationIds:', JSON.stringify(pendingDoctors[0].specializationIds));
+      console.log('📋 Sample doctor userId:', pendingDoctors[0].userId ? 'exists' : 'null');
+    }
+
+    // Format doctors data - license image comes from licenseNo field
+    const formattedDoctors = pendingDoctors.map((doctor) => {
+      try {
+        // Build license image URL - if licenseNo exists, it's a filename in uploads/doctors/
+        const licenseImageUrl = doctor.licenseNo 
+          ? `/server-uploads/doctors/${doctor.licenseNo}`
+          : null;
+
+        // Format specialty - handle null, undefined, or empty array
+        let specialty = 'Chưa chọn chuyên khoa';
+        if (doctor.specializationIds && Array.isArray(doctor.specializationIds) && doctor.specializationIds.length > 0) {
+          const specialtyNames = doctor.specializationIds
+            .filter(s => s && s && s.name) // Filter out null/undefined
+            .map(s => s.name)
+            .filter(name => name); // Filter out empty names
+          if (specialtyNames.length > 0) {
+            specialty = specialtyNames.join(', ');
+          }
+        }
+
+        // Filter out picsum.photos URLs - replace with null to use default avatar
+        let avatarUrl = doctor.avatarUrl || null;
+        if (avatarUrl && avatarUrl.includes('picsum.photos')) {
+          avatarUrl = null;
+        }
+
+        // Safe access to userId
+        const userId = doctor.userId || {};
+        const clinicDefaultId = doctor.clinicDefaultId || {};
+
+        return {
+          id: doctor._id?.toString() || null,
+          name: doctor.fullName || userId.fullName || 'Chưa có tên',
+          email: userId.email || 'Chưa có email',
+          phone: userId.phone || 'Chưa có số điện thoại',
+          specialty: specialty,
+          education: doctor.education && Array.isArray(doctor.education) && doctor.education.length > 0 
+            ? doctor.education.map(edu => `${edu?.degree || 'N/A'} - ${edu?.school || 'N/A'}`).join(', ')
+            : 'Chưa cập nhật',
+          experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
+          hospital: clinicDefaultId.name || 'Chưa cập nhật',
+          license: doctor.licenseNo || 'Chưa có giấy phép',
+          licenseImageUrl: licenseImageUrl,
+          bio: doctor.bio || 'Chưa có mô tả',
+          certifications: doctor.certifications && Array.isArray(doctor.certifications) && doctor.certifications.length > 0
+            ? doctor.certifications.map(cert => `${cert?.name || 'N/A'} - ${cert?.issuer || 'N/A'}`)
+            : [],
+          submittedDate: doctor.createdAt ? formatDate(doctor.createdAt) : 'Chưa có ngày',
+          avatar: avatarUrl
+        };
+      } catch (formatError) {
+        console.error('Error formatting doctor:', doctor._id, formatError);
+        // Return a minimal safe object
+        return {
+          id: doctor._id?.toString() || 'unknown',
+          name: 'Lỗi khi tải thông tin',
+          email: 'N/A',
+          phone: 'N/A',
+          specialty: 'N/A',
+          education: 'N/A',
+          experience: 'N/A',
+          hospital: 'N/A',
+          license: 'N/A',
+          licenseImageUrl: null,
+          bio: 'N/A',
+          certifications: [],
+          submittedDate: 'N/A',
+          avatar: null
+        };
+      }
+    });
     
     res.json({
       success: true,
@@ -272,9 +358,10 @@ export const getPendingDoctors = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching pending doctors:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh sách bác sĩ chờ xác minh'
+      message: 'Lỗi khi tải danh sách bác sĩ chờ xác minh: ' + (error.message || String(error))
     });
   }
 };
@@ -283,23 +370,62 @@ export const getPendingDoctors = async (req, res) => {
 export const getVerifiedDoctors = async (req, res) => {
   try {
     const verifiedDoctors = await Doctor.find({ isVerified: true })
-      .populate('userId', 'fullName email')
+      .populate('userId', 'fullName email phone')
       .populate('specializationIds', 'name')
-      .select('userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications updatedAt')
+      .populate('clinicDefaultId', 'name address')
+      .select('userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications clinicDefaultId updatedAt')
       .sort({ updatedAt: -1 });
 
-    const formattedDoctors = verifiedDoctors.map(doctor => ({
-      id: doctor._id,
-      name: doctor.fullName || doctor.userId?.fullName || 'Chưa có tên',
-      specialty: doctor.specializationIds?.map(s => s.name).join(', ') || 'Chưa chọn chuyên khoa',
-      education: doctor.education?.map(edu => `${edu.degree} - ${edu.school}`).join(', ') || 'Chưa cập nhật',
-      experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
-      hospital: 'Chưa cập nhật', // Would need clinic integration
-      license: doctor.licenseNo || 'Chưa có giấy phép',
-      verifiedDate: formatDate(doctor.updatedAt),
-      verifiedBy: 'Admin', // Would need to track who verified
-      avatar: doctor.avatarUrl || null
-    }));
+    // Debug: log first doctor to check populate
+    if (verifiedDoctors.length > 0) {
+      console.log('📋 Sample verified doctor specializationIds:', JSON.stringify(verifiedDoctors[0].specializationIds));
+    }
+
+    const formattedDoctors = verifiedDoctors.map(doctor => {
+      // Build license image URL - if licenseNo exists, it's a filename in uploads/doctors/
+      const licenseImageUrl = doctor.licenseNo 
+        ? `/server-uploads/doctors/${doctor.licenseNo}`
+        : null;
+      
+      // Format specialty - handle null, undefined, or empty array
+      let specialty = 'Chưa chọn chuyên khoa';
+      if (doctor.specializationIds && Array.isArray(doctor.specializationIds) && doctor.specializationIds.length > 0) {
+        const specialtyNames = doctor.specializationIds
+          .filter(s => s && s.name) // Filter out null/undefined
+          .map(s => s.name);
+        if (specialtyNames.length > 0) {
+          specialty = specialtyNames.join(', ');
+        }
+      }
+      
+      // Filter out picsum.photos URLs - replace with null to use default avatar
+      let avatarUrl = doctor.avatarUrl || null;
+      if (avatarUrl && avatarUrl.includes('picsum.photos')) {
+        avatarUrl = null;
+      }
+      
+      return {
+        id: doctor._id,
+        name: doctor.fullName || doctor.userId?.fullName || 'Chưa có tên',
+        email: doctor.userId?.email || 'Chưa có email',
+        phone: doctor.userId?.phone || 'Chưa có số điện thoại',
+        specialty: specialty,
+        education: doctor.education?.length > 0
+          ? doctor.education.map(edu => `${edu.degree || 'N/A'} - ${edu.school || 'N/A'}`).join(', ')
+          : 'Chưa cập nhật',
+        experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
+        hospital: doctor.clinicDefaultId?.name || 'Chưa cập nhật',
+        license: doctor.licenseNo || 'Chưa có giấy phép',
+        licenseImageUrl: licenseImageUrl,
+        bio: doctor.bio || 'Chưa có mô tả',
+        certifications: doctor.certifications?.length > 0
+          ? doctor.certifications.map(cert => `${cert.name || 'N/A'} - ${cert.issuer || 'N/A'}`)
+          : [],
+        verifiedDate: formatDate(doctor.updatedAt),
+        verifiedBy: 'Admin', // Would need to track who verified
+        avatar: avatarUrl
+      };
+    });
     
     res.json({
       success: true,
@@ -334,17 +460,228 @@ export const getRejectedDoctors = async (req, res) => {
   }
 };
 
+// Helper function: Send approval email to doctor
+async function sendDoctorApprovalEmail(doctor, user) {
+  try {
+    if (!user || !user.email) {
+      console.warn("⚠️ Doctor email not found, skipping approval email");
+      return;
+    }
+
+    const doctorName = doctor.fullName || user.fullName || "Bác sĩ";
+    const approvalDate = new Date().toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #059669; border-bottom: 2px solid #059669; padding-bottom: 10px;">
+          Tài khoản bác sĩ của bạn đã được phê duyệt
+        </h2>
+        <p>Xin chào <strong>${doctorName}</strong>,</p>
+        <p>Chúng tôi vui mừng thông báo rằng <strong style="color: #059669;">tài khoản bác sĩ của bạn đã được phê duyệt</strong> thành công bởi ban quản trị.</p>
+        
+        <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #047857;">Thông tin tài khoản:</h3>
+          <p style="margin: 8px 0;"><strong>Họ và tên:</strong> ${doctorName}</p>
+          <p style="margin: 8px 0;"><strong>Email đăng nhập:</strong> ${user.email}</p>
+          <p style="margin: 8px 0;"><strong>Ngày phê duyệt:</strong> ${approvalDate}</p>
+        </div>
+
+        <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #0284c7;">Hướng dẫn đăng nhập:</h3>
+          <p>Bạn có thể đăng nhập vào hệ thống MedConnect bằng:</p>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li><strong>Email:</strong> ${user.email}</li>
+            <li><strong>Mật khẩu:</strong> Mật khẩu bạn đã đăng ký</li>
+          </ul>
+          <p style="margin-top: 15px;">
+            <a href="${process.env.CLIENT_URL || "http://localhost:5173"}/auth/login" 
+               style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Đăng nhập ngay
+            </a>
+          </p>
+        </div>
+
+        <p style="margin-top: 30px;"><strong>Lưu ý:</strong></p>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+          <li>Đảm bảo bạn sử dụng đúng email và mật khẩu đã đăng ký</li>
+          <li>Nếu quên mật khẩu, bạn có thể sử dụng chức năng "Quên mật khẩu" trên trang đăng nhập</li>
+          <li>Vui lòng cập nhật đầy đủ thông tin hồ sơ sau khi đăng nhập</li>
+        </ul>
+        
+        <p style="margin-top: 30px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
+        
+        <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect - Đội ngũ quản trị</strong></p>
+      </div>
+    `;
+
+    const textContent = `
+Tài khoản bác sĩ của bạn đã được phê duyệt
+
+Xin chào ${doctorName},
+
+Chúng tôi vui mừng thông báo rằng tài khoản bác sĩ của bạn đã được phê duyệt thành công bởi ban quản trị.
+
+Thông tin tài khoản:
+- Họ và tên: ${doctorName}
+- Email đăng nhập: ${user.email}
+- Ngày phê duyệt: ${approvalDate}
+
+Hướng dẫn đăng nhập:
+Bạn có thể đăng nhập vào hệ thống MedConnect bằng:
+- Email: ${user.email}
+- Mật khẩu: Mật khẩu bạn đã đăng ký
+
+Link đăng nhập: ${process.env.CLIENT_URL || "http://localhost:5173"}/auth/login
+
+Lưu ý:
+- Đảm bảo bạn sử dụng đúng email và mật khẩu đã đăng ký
+- Nếu quên mật khẩu, bạn có thể sử dụng chức năng "Quên mật khẩu" trên trang đăng nhập
+- Vui lòng cập nhật đầy đủ thông tin hồ sơ sau khi đăng nhập
+
+Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.
+
+Trân trọng,
+MedConnect - Đội ngũ quản trị
+    `;
+
+    const { sendMail } = await import("../utils/email.js");
+    const emailResult = await sendMail({
+      to: user.email,
+      subject: "Tài khoản bác sĩ của bạn đã được phê duyệt - MedConnect",
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log(`✅ Approval email sent successfully to ${user.email}`);
+    console.log(`📧 Email result:`, { messageId: emailResult?.messageId });
+  } catch (error) {
+    console.error("❌ Error sending doctor approval email:", error);
+    // Không throw error để không ảnh hưởng đến flow chính
+  }
+}
+
+// Helper function: Send rejection email to doctor
+async function sendDoctorRejectionEmail(doctor, user, reason, rejectedBy) {
+  try {
+    if (!user || !user.email) {
+      console.warn("⚠️ Doctor email not found, skipping rejection email");
+      return;
+    }
+
+    const doctorName = doctor.fullName || user.fullName || "Bác sĩ";
+    const rejectionDate = new Date().toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const adminName = rejectedBy?.fullName || "Ban quản trị";
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #dc2626; border-bottom: 2px solid #dc2626; padding-bottom: 10px;">
+          Thông báo về đơn đăng ký tài khoản bác sĩ
+        </h2>
+        <p>Xin chào <strong>${doctorName}</strong>,</p>
+        <p>Chúng tôi rất tiếc phải thông báo rằng <strong style="color: #dc2626;">đơn đăng ký tài khoản bác sĩ của bạn đã không được phê duyệt</strong>.</p>
+        
+        <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #b91c1c;">Thông tin đơn đăng ký:</h3>
+          <p style="margin: 8px 0;"><strong>Họ và tên:</strong> ${doctorName}</p>
+          <p style="margin: 8px 0;"><strong>Email:</strong> ${user.email}</p>
+          <p style="margin: 8px 0;"><strong>Ngày xử lý:</strong> ${rejectionDate}</p>
+          <p style="margin: 8px 0;"><strong>Người xử lý:</strong> ${adminName}</p>
+        </div>
+
+        <div style="background-color: #fff7ed; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #d97706;">Lý do từ chối:</h3>
+          <div style="background-color: white; padding: 15px; border-radius: 4px; border: 1px solid #fcd34d;">
+            <p style="margin: 0; white-space: pre-wrap;">${reason || "Không có lý do cụ thể"}</p>
+          </div>
+        </div>
+
+        <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #0284c7;">Bước tiếp theo:</h3>
+          <p>Bạn có thể:</p>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Đăng ký lại với thông tin đã được cập nhật và tuân thủ các yêu cầu</li>
+            <li>Liên hệ với chúng tôi nếu bạn có thắc mắc về quyết định này</li>
+            <li>Kiểm tra lại các tài liệu đã gửi và đảm bảo chúng đáp ứng đầy đủ yêu cầu</li>
+          </ul>
+          <p style="margin-top: 15px;">
+            <a href="${process.env.CLIENT_URL || "http://localhost:5173"}/auth/doctor-register" 
+               style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Đăng ký lại
+            </a>
+          </p>
+        </div>
+        
+        <p style="margin-top: 30px;">Nếu bạn có bất kỳ câu hỏi hoặc cần hỗ trợ, vui lòng liên hệ với chúng tôi qua email hoặc số điện thoại hỗ trợ.</p>
+        
+        <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect - Đội ngũ quản trị</strong></p>
+      </div>
+    `;
+
+    const textContent = `
+Thông báo về đơn đăng ký tài khoản bác sĩ
+
+Xin chào ${doctorName},
+
+Chúng tôi rất tiếc phải thông báo rằng đơn đăng ký tài khoản bác sĩ của bạn đã không được phê duyệt.
+
+Thông tin đơn đăng ký:
+- Họ và tên: ${doctorName}
+- Email: ${user.email}
+- Ngày xử lý: ${rejectionDate}
+- Người xử lý: ${adminName}
+
+Lý do từ chối:
+${reason || "Không có lý do cụ thể"}
+
+Bước tiếp theo:
+Bạn có thể:
+- Đăng ký lại với thông tin đã được cập nhật và tuân thủ các yêu cầu
+- Liên hệ với chúng tôi nếu bạn có thắc mắc về quyết định này
+- Kiểm tra lại các tài liệu đã gửi và đảm bảo chúng đáp ứng đầy đủ yêu cầu
+
+Link đăng ký lại: ${process.env.CLIENT_URL || "http://localhost:5173"}/auth/doctor-register
+
+Nếu bạn có bất kỳ câu hỏi hoặc cần hỗ trợ, vui lòng liên hệ với chúng tôi.
+
+Trân trọng,
+MedConnect - Đội ngũ quản trị
+    `;
+
+    const { sendMail } = await import("../utils/email.js");
+    const emailResult = await sendMail({
+      to: user.email,
+      subject: "Thông báo về đơn đăng ký tài khoản bác sĩ - MedConnect",
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log(`✅ Rejection email sent successfully to ${user.email}`);
+    console.log(`📧 Email result:`, { messageId: emailResult?.messageId });
+  } catch (error) {
+    console.error("❌ Error sending doctor rejection email:", error);
+    // Không throw error để không ảnh hưởng đến flow chính
+  }
+}
+
 // Approve doctor
 export const approveDoctor = async (req, res) => {
   try {
     const { id } = req.params;
+    const { adminNotes } = req.body;
     
-    // Update doctor verification status in database
-    const doctor = await Doctor.findByIdAndUpdate(
-      id,
-      { isVerified: true },
-      { new: true }
-    );
+    // Find the doctor first and populate userId
+    const doctor = await Doctor.findById(id).populate('userId', 'fullName email');
     
     if (!doctor) {
       return res.status(404).json({
@@ -353,15 +690,77 @@ export const approveDoctor = async (req, res) => {
       });
     }
     
+    // Get reviewer User if available
+    let reviewer = null;
+    if (req.user?.email) {
+      reviewer = await User.findOne({ email: req.user.email });
+    }
+    
+    // Update doctor verification status with approval info
+    doctor.isVerified = true;
+    doctor.isActive = true;
+    doctor.approvedBy = reviewer ? reviewer._id : null;
+    doctor.approvedAt = new Date();
+    // Clear rejection info if exists
+    doctor.rejectedBy = null;
+    doctor.rejectedAt = null;
+    doctor.rejectionReason = null;
+    await doctor.save();
+    
+    // Verify the update was successful
+    const updatedDoctor = await Doctor.findById(id);
+    if (!updatedDoctor || !updatedDoctor.isVerified) {
+      console.error('⚠️ Warning: Doctor verification update may not have persisted');
+      await Doctor.updateOne(
+        { _id: id },
+        {
+          isVerified: true,
+          isActive: true,
+          approvedBy: reviewer ? reviewer._id : null,
+          approvedAt: new Date(),
+          $unset: { rejectedBy: "", rejectedAt: "", rejectionReason: "" }
+        }
+      );
+    }
+    
+    // Update User status to 'active' so doctor can login
+    if (doctor.userId) {
+      const user = await User.findByIdAndUpdate(
+        doctor.userId,
+        { status: 'active' },
+        { new: true }
+      );
+      console.log(`✅ Updated User ${doctor.userId} status to 'active'`);
+      
+      // Send approval email (don't block on error)
+      try {
+        console.log(`📧 Attempting to send approval email to: ${user.email || doctor.userId?.email}`);
+        await sendDoctorApprovalEmail(doctor, user || doctor.userId);
+        console.log(`✅ Approval email sent successfully to ${user.email || doctor.userId?.email}`);
+      } catch (emailError) {
+        console.error("❌ Failed to send approval email:", emailError);
+        console.error("❌ Error details:", {
+          message: emailError?.message,
+          cause: emailError?.cause?.message,
+          stack: emailError?.stack
+        });
+        // Continue even if email fails
+      }
+    }
+    
     res.json({
       success: true,
-      message: 'Đã phê duyệt bác sĩ thành công'
+      message: 'Đã phê duyệt bác sĩ thành công',
+      data: {
+        doctorId: id,
+        isVerified: true
+      }
     });
   } catch (error) {
     console.error('Error approving doctor:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi phê duyệt bác sĩ'
+      message: 'Lỗi khi phê duyệt bác sĩ: ' + error.message
     });
   }
 };
@@ -370,14 +769,18 @@ export const approveDoctor = async (req, res) => {
 export const rejectDoctor = async (req, res) => {
   try {
     const { id } = req.params;
+    const { reason } = req.body;
     
-    // For now, we'll just deactivate the doctor
-    // In a real system, you'd have proper rejection tracking
-    const doctor = await Doctor.findByIdAndUpdate(
-      id,
-      { isActive: false },
-      { new: true }
-    );
+    // Validate reason is required
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập lý do từ chối'
+      });
+    }
+    
+    // Find the doctor first and populate userId
+    const doctor = await Doctor.findById(id).populate('userId', 'fullName email');
     
     if (!doctor) {
       return res.status(404).json({
@@ -386,15 +789,50 @@ export const rejectDoctor = async (req, res) => {
       });
     }
     
+    // Get reviewer User if available
+    let reviewer = null;
+    if (req.user?.email) {
+      reviewer = await User.findOne({ email: req.user.email });
+    }
+    
+    // Update doctor with rejection info
+    doctor.isVerified = false;
+    doctor.isActive = false;
+    doctor.rejectedBy = reviewer ? reviewer._id : null;
+    doctor.rejectedAt = new Date();
+    doctor.rejectionReason = reason.trim();
+    // Clear approval info if exists
+    doctor.approvedBy = null;
+    doctor.approvedAt = null;
+    await doctor.save();
+    
+    // Update User status to 'rejected' (allows re-registration)
+    if (doctor.userId) {
+      const user = await User.findByIdAndUpdate(
+        doctor.userId,
+        { status: 'rejected' },
+        { new: true }
+      );
+      console.log(`✅ Updated User ${doctor.userId} status to 'rejected'`);
+      
+      // Send rejection email (don't block on error)
+      try {
+        await sendDoctorRejectionEmail(doctor, user || doctor.userId, reason, reviewer);
+      } catch (emailError) {
+        console.error("⚠️ Failed to send rejection email:", emailError);
+        // Continue even if email fails
+      }
+    }
+    
     res.json({
       success: true,
-      message: 'Đã từ chối bác sĩ'
+      message: 'Đã từ chối bác sĩ thành công'
     });
   } catch (error) {
     console.error('Error rejecting doctor:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi từ chối bác sĩ'
+      message: 'Lỗi khi từ chối bác sĩ: ' + error.message
     });
   }
 };

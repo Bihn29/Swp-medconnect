@@ -397,13 +397,18 @@ export function DoctorSearch() {
                 <div className="doctor-content">
                   {/* Doctor Avatar */}
                   <div>
-                    {doctor.avatarUrl ? (
+                    {doctor.avatarUrl && !doctor.avatarUrl.includes("picsum.photos") ? (
                       <img
                         src={doctor.avatarUrl}
                         alt={doctor.userId?.fullName || doctor.fullName}
                         className="avatar-image"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextElementSibling?.classList.remove('hidden');
+                        }}
                       />
-                    ) : (
+                    ) : null}
+                    {(!doctor.avatarUrl || doctor.avatarUrl.includes("picsum.photos")) && (
                       <User className="default-avatar" />
                     )}
                   </div>

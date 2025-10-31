@@ -97,7 +97,18 @@ export async function registerDoctor(doctorData) {
     credentials: "include",
     body: doctorData, // FormData will set Content-Type automatically
   });
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    const errorText = await r.text();
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = { message: errorText || "Có lỗi xảy ra khi đăng ký" };
+    }
+    const error = new Error(JSON.stringify(errorData));
+    error.response = errorData;
+    throw error;
+  }
   return r.json();
 }
 

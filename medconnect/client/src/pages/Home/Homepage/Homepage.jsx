@@ -844,8 +844,16 @@ const Homepage = () => {
                     }
                   >
                     <img
-                      src={doctor.avatarUrl || "/default-avatar.png"}
+                      src={
+                        doctor.avatarUrl && !doctor.avatarUrl.includes("picsum.photos")
+                          ? doctor.avatarUrl
+                          : "/default-avatar.png"
+                      }
                       alt={doctor.fullName}
+                      onError={(e) => {
+                        e.target.src = "/default-avatar.png";
+                        e.target.onerror = null; // Prevent infinite loop
+                      }}
                       style={{
                         width: "120px",
                         height: "120px",
