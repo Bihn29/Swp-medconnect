@@ -144,7 +144,11 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
   return (
     <aside className="doctor-sidebar">
       <div className="doctor-sidebar-header">
-        <div className="doctor-sidebar-logo">
+        <div
+          className="doctor-sidebar-logo"
+          onClick={() => navigate("/bac-si/trang-chu")}
+          style={{ cursor: "pointer" }}
+        >
           <div className="doctor-sidebar-logo-icon">
             <Plus className="doctor-sidebar-logo-plus" />
           </div>
