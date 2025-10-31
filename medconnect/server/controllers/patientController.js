@@ -663,21 +663,34 @@ export async function bookAppointment(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Time slot not found");
     }
 
-    if (timeSlot.status !== "available") {
-      return fail(
-        res,
-        400,
-        ERROR_CODES.INVALID_INPUT,
-        "Time slot is no longer available"
-      );
-    }
-
     if (timeSlot.doctorId.toString() !== doctorId) {
       return fail(
         res,
         400,
         ERROR_CODES.INVALID_INPUT,
         "Time slot does not belong to the selected doctor"
+      );
+    }
+
+    // Check if slot is really available by checking for active appointments
+    // A slot is available if it has no active appointments using it
+    // This handles the case where slot status is "booked" but the appointment was cancelled
+    const activeAppointments = await Appointment.find({
+      slotId: slotId,
+      status: {
+        $in: ["pending_doctor", "accepted", "in_progress", "done"],
+      },
+    })
+      .select("slotId status")
+      .lean();
+
+    // Slot is not available if there's an active appointment using it
+    if (activeAppointments.length > 0) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Time slot is no longer available"
       );
     }
 

@@ -15,14 +15,14 @@ import DoctorMiddleware from "../middlewares/DoctorMiddleware";
 import Profile from "../pages/Auth/Profile";
 
 // Patient Components
-import PatientDashboard from "../pages/Patient/PatientDashboard";
-import PatientSettings from "../pages/Patient/PatientSettings.jsx";
+import PatientDashboard from "../pages/Patient/PatientDashboard/PatientDashboard";
+import { Settings } from "../pages/Patient/components/Settings/Settings";
 import AppointmentBookingHome from "../pages/Appointment/AppointmentBookingHome";
 import SpecializationSelection from "../pages/Appointment/SpecializationSelection";
 import DoctorSelection from "../pages/Appointment/DoctorSelection";
 import TimeSlotSelection from "../pages/Appointment/TimeSlotSelection";
 import PaymentResult from "../pages/Appointment/PaymentResult";
-import PatientVideoCallPage from "../pages/Patient/VideoCallPage";
+import PatientVideoCallPage from "../pages/Patient/components/VideoCallPage/VideoCallPage";
 
 // Doctor Components
 import DoctorDashboard from "../pages/Doctor/DoctorDashboard/DoctorDashboard";
@@ -81,7 +81,7 @@ export const privateRoutes = (
             element={<PatientDashboard />}
           />
           <Route path="/benh-nhan/thong-bao" element={<PatientDashboard />} />
-          <Route path="/benh-nhan/cai-dat" element={<PatientSettings />} />
+          <Route path="/benh-nhan/cai-dat" element={<Settings />} />
           {/* Legacy route redirects for backward compatibility */}
           <Route path="/tim-bac-si" element={<PatientDashboard />} />
           <Route path="/lich-hen-cua-toi" element={<PatientDashboard />} />
