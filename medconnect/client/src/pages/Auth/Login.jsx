@@ -114,13 +114,13 @@ export default function Login() {
 
     switch ((role || "").toUpperCase()) {
       case "PATIENT":
-        navigate("/benh-nhan");
+        navigate("/benh-nhan/trang-chu");
         break;
       case "DOCTOR":
-        navigate("/bac-si");
+        navigate("/bac-si/trang-chu");
         break;
       case "ADMIN":
-        navigate("/admin");
+        navigate("/admin/trang-chu");
         break;
       default:
         navigate("/");

@@ -92,7 +92,7 @@ export function NotificationCenter() {
     if (location.pathname.startsWith("/bac-si")) {
       navigate("/bac-si/thong-bao");
     } else {
-      navigate("/thong-bao");
+      navigate("/benh-nhan/thong-bao");
     }
   };
 

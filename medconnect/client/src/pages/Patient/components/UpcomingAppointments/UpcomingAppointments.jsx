@@ -169,7 +169,7 @@ export function UpcomingAppointments() {
             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             position: "relative",
           }}
-          onClick={() => navigate("/my-appointments")}
+          onClick={() => navigate("/benh-nhan/lich-hen-cua-toi")}
           onMouseOver={(e) => {
             e.target.style.backgroundColor = "#f1f5f9";
             e.target.style.transform = "translateY(-1px)";

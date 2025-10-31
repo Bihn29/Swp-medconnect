@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { WelcomeSection } from "./components/WelcomeSection/WelcomeSection";
 import { StatsCards } from "./components/StatsCards/StatsCards";
@@ -35,21 +35,39 @@ import "./PatientDashboard.scss";
 export default function PatientDashboard() {
   const location = useLocation();
 
+  // Force re-render and scroll to top when location changes
+  // This ensures content updates when navigating between different patient routes
+  useEffect(() => {
+    // Scroll to top when route changes
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   // Render different content based on current route
   const renderContent = () => {
     const path = location.pathname;
 
     switch (path) {
-      case "/search-doctors":
+      case "/benh-nhan/tim-bac-si":
+      case "/tim-bac-si": // Legacy route support
+      case "/search-doctors": // Legacy route support
         return <DoctorSearch />;
-      case "/my-appointments":
+      case "/benh-nhan/lich-hen-cua-toi":
+      case "/lich-hen-cua-toi": // Legacy route support
+      case "/my-appointments": // Legacy route support
         return <MyAppointments />;
-      case "/medical-records":
+      case "/benh-nhan/ho-so-benh-an":
+      case "/ho-so-benh-an": // Legacy route support
+      case "/medical-records": // Legacy route support
         return <HealthProfile />;
-      case "/family-health-records":
+      case "/benh-nhan/ho-so-suc-khoe-gia-dinh":
+      case "/ho-so-suc-khoe-gia-dinh": // Legacy route support
+      case "/family-health-records": // Legacy route support
         return <FamilyHealthProfile />;
-      case "/thong-bao":
+      case "/benh-nhan/thong-bao":
+      case "/thong-bao": // Legacy route support
         return <Notifications />;
+      case "/benh-nhan/trang-chu":
+      case "/benh-nhan": // Legacy route support
       default:
         // Default dashboard home
         return (

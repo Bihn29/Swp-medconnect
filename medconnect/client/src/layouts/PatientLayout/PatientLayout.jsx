@@ -48,27 +48,27 @@ const PatientLayout = () => {
   // Menu items
   const menuItems = [
     {
-      key: "/benh-nhan",
+      key: "/benh-nhan/trang-chu",
       icon: <HomeOutlined />,
       label: "Trang chủ",
     },
     {
-      key: "/search-doctors",
+      key: "/benh-nhan/tim-bac-si",
       icon: <SearchOutlined />,
       label: "Tìm bác sĩ",
     },
     {
-      key: "/my-appointments",
+      key: "/benh-nhan/lich-hen-cua-toi",
       icon: <CalendarOutlined />,
       label: "Lịch hẹn của tôi",
     },
     {
-      key: "/medical-records",
+      key: "/benh-nhan/ho-so-benh-an",
       icon: <FileTextOutlined />,
       label: "Hồ sơ khám bệnh",
     },
     {
-      key: "/family-health-records",
+      key: "/benh-nhan/ho-so-suc-khoe-gia-dinh",
       icon: <TeamOutlined />,
       label: "Hồ sơ khám bệnh người thân",
     },
@@ -78,7 +78,7 @@ const PatientLayout = () => {
       label: "Thanh toán",
     },
     {
-      key: "/thong-bao",
+      key: "/benh-nhan/thong-bao",
       icon: <BellOutlined />,
       label: "Thông báo",
     },
@@ -103,14 +103,21 @@ const PatientLayout = () => {
   };
 
   // Get user info for sidebar profile
+  // Use fallback values if userProfile is still loading
   const userInfo = {
-    name: userProfile?.fullName || userProfile?.displayName || "Người dùng",
-    email: userProfile?.email || "",
+    name:
+      userProfile?.fullName ||
+      userProfile?.displayName ||
+      user?.displayName ||
+      "Người dùng",
+    email: userProfile?.email || user?.email || "",
     role: userProfile?.role === "patient" ? "Bệnh nhân" : "Người dùng",
-    avatar: userProfile?.photoURL || userProfile?.avatar,
+    avatar: userProfile?.photoURL || userProfile?.avatar || user?.photoURL,
   };
 
-  if (loading || profileLoading) {
+  // Show loading only if we're still checking auth
+  // Don't block rendering if userProfile is still loading - it's not critical for layout
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spin size="large">

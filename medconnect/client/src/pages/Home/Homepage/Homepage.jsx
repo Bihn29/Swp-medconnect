@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button, Input, Select, Card, Row, Col, Typography, Steps } from "antd";
 import {
   SearchOutlined,
@@ -18,12 +18,17 @@ import {
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import { useAuth } from "../../../hooks/useAuth";
+import { useUserProfile } from "../../../hooks/useUserProfile";
 import "./Homepage.css";
 
 const { Title, Paragraph } = Typography;
 
 const Homepage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, loading: authLoading } = useAuth();
+  const { userProfile, loading: profileLoading } = useUserProfile();
   const [specializations, setSpecializations] = useState([]);
   const [featuredDoctors, setFeaturedDoctors] = useState([]);
   const [doctorsLoading, setDoctorsLoading] = useState(true);
@@ -145,7 +150,34 @@ const Homepage = () => {
       : "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145826-coxuongkhop.png", // fallback icon
   }));
 
+  // Redirect only doctors to their dashboard (patients and admins can view homepage)
   useEffect(() => {
+    // Wait for auth and profile to load
+    if (authLoading || profileLoading) return;
+
+    // Only redirect doctors - patients and admins can stay on homepage
+    if (user && userProfile) {
+      const userRole = userProfile?.role || user?.role;
+
+      if (userRole === "doctor") {
+        navigate("/bac-si/trang-chu", { replace: true });
+      }
+      // Patient and admin can stay on homepage, no redirect
+    }
+  }, [user, userProfile, authLoading, profileLoading, navigate]);
+
+  useEffect(() => {
+    // Only fetch data if user is not a doctor (guests, patients, admins can see homepage)
+    if (authLoading || profileLoading) return;
+
+    // Check if user is a doctor - if so, will redirect, so no need to fetch
+    if (user && userProfile) {
+      const userRole = userProfile?.role || user?.role;
+      if (userRole === "doctor") {
+        return; // Will redirect, so no need to fetch
+      }
+    }
+
     const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
     let mounted = true;
 
@@ -177,7 +209,20 @@ const Homepage = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user, userProfile, authLoading, profileLoading]);
+
+  // Show loading while checking auth
+  if (authLoading || profileLoading) {
+    return null; // Loading
+  }
+
+  // If user is a doctor, show nothing (will redirect)
+  if (user && userProfile) {
+    const userRole = userProfile?.role || user?.role;
+    if (userRole === "doctor") {
+      return null; // Will redirect, so show nothing
+    }
+  }
 
   return (
     <div className="homepage">

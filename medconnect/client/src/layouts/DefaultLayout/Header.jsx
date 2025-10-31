@@ -244,13 +244,13 @@ const Header = () => {
 
     // dashboard shortcut
     if (key === "dashboard") {
-      navigate("/benh-nhan");
+      navigate("/benh-nhan/trang-chu", { replace: false });
       return;
     }
 
     // admin dashboard shortcut
     if (key === "admin") {
-      navigate("/admin/dashboard");
+      navigate("/admin/trang-chu");
       return;
     }
 

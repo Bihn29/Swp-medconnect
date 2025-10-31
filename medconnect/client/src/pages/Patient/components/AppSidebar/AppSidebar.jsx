@@ -36,21 +36,25 @@ export function AppSidebar() {
   }, []);
 
   const mainMenuItems = [
-    { icon: Home, label: "Trang chủ", href: "/benh-nhan" },
-    { icon: Search, label: "Tìm bác sĩ", href: "/search-doctors" },
+    { icon: Home, label: "Trang chủ", href: "/benh-nhan/trang-chu" },
+    { icon: Search, label: "Tìm bác sĩ", href: "/benh-nhan/tim-bac-si" },
     {
       icon: CalendarCheck,
       label: "Lịch hẹn của tôi",
-      href: "/my-appointments",
+      href: "/benh-nhan/lich-hen-cua-toi",
     },
-    { icon: FileText, label: "Hồ sơ khám bệnh", href: "/medical-records" },
+    {
+      icon: FileText,
+      label: "Hồ sơ khám bệnh",
+      href: "/benh-nhan/ho-so-benh-an",
+    },
     {
       icon: Users,
       label: "Hồ sơ khám bệnh người thân",
-      href: "/family-health-records",
+      href: "/benh-nhan/ho-so-suc-khoe-gia-dinh",
     },
     { icon: CreditCard, label: "Thanh toán", href: "/payments" },
-    { icon: Bell, label: "Thông báo", href: "/thong-bao" },
+    { icon: Bell, label: "Thông báo", href: "/benh-nhan/thong-bao" },
   ];
 
   const settingsMenuItems = [

@@ -30,68 +30,24 @@ const AdminMiddleware = () => {
   }
 
   // Check if user is an admin
-  const isAdmin = 
-    userProfile?.role === "admin" || 
+  const isAdmin =
+    userProfile?.role === "admin" ||
     userProfile?.role === "ADMIN" ||
     user?.role === "admin" ||
     user?.role === "ADMIN";
 
   if (!isAdmin) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-          fontSize: "16px",
-          color: "#f5222d",
-          textAlign: "center",
-          padding: "20px",
-        }}
-      >
-        <div style={{ marginBottom: "20px" }}>
-          <h2 style={{ color: "#f5222d", marginBottom: "10px" }}>
-            🔒 Truy cập bị từ chối
-          </h2>
-          <p>
-            Bạn không có quyền truy cập trang admin. Chỉ có tài khoản admin mới có thể truy cập.
-          </p>
-        </div>
-        
-        <div style={{ marginTop: "20px" }}>
-          <button
-            onClick={() => window.history.back()}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "#1890ff",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              marginRight: "10px",
-            }}
-          >
-            Quay lại
-          </button>
-          
-          <button
-            onClick={() => window.location.href = "/"}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "#52c41a",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
-          >
-            Về trang chủ
-          </button>
-        </div>
-      </div>
-    );
+    // Auto-redirect based on user role instead of showing error
+    const userRole = userProfile?.role || user?.role;
+
+    if (userRole === "doctor") {
+      return <Navigate to="/bac-si/trang-chu" replace />;
+    } else if (userRole === "patient" || userRole === "user" || !userRole) {
+      return <Navigate to="/benh-nhan/trang-chu" replace />;
+    }
+
+    // Default: redirect to home if role is unknown
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;
