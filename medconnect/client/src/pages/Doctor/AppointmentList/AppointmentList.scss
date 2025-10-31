@@ -34,15 +34,28 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
 
 // Container
 .appointment-list-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2.5rem 1.5rem;
-  background: linear-gradient(
-    135deg,
-    rgba(77, 184, 196, 0.02) 0%,
-    rgba(253, 185, 19, 0.02) 100%
-  );
-  border-radius: 1.5rem;
+  width: 100%;
+  padding: 0 2rem 2rem 2rem;
+  margin: 0;
+  margin-top: 0;
+  box-sizing: border-box;
+  background: #ffffff;
+  border-radius: 0;
+  box-shadow: none;
+  overflow-x: hidden;
+  overflow-y: visible;
+  flex: 1;
+  max-width: 100%;
+  
+  /* Ẩn scrollbar nếu có */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+  
+  // Full màn hình, không có scrollbar riêng, không có margin
 }
 
 // Header section
@@ -502,30 +515,58 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
 
 .appointment-list-card {
   border: none !important;
-  box-shadow: $shadow-lg !important;
-  border-radius: 1.25rem !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
   background: $white !important;
-  overflow: hidden !important;
-  border: 2px solid $gray-100 !important;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  border: none !important;
+  width: 100%;
+  margin: 0;
+  margin-top: 0;
+  padding: 0 2rem 2rem 2rem;
+  box-sizing: border-box;
+  flex: 1;
+  max-width: 100%;
+  
+  /* Ẩn scrollbar nếu có */
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+  
+  &::-webkit-scrollbar {
+    display: none !important; /* Chrome, Safari, Opera */
+  }
 }
 
 .appointment-list-header {
+  margin-top: 0 !important;
+  margin-bottom: 2rem !important;
+  margin-left: -2rem !important;
+  margin-right: -2rem !important;
+  padding: 1.5rem 2rem !important;
+  width: calc(100% + 4rem) !important;
   background: linear-gradient(
     135deg,
     $primary-teal-light 0%,
     $accent-yellow-light 100%
   ) !important;
-  padding: 1.5rem !important;
+  border-radius: 0 !important;
+  border: none !important;
   border-bottom: 2px solid $gray-100 !important;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  box-sizing: border-box !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 .appointment-list-header-content {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 
   @media (max-width: 768px) {
     gap: 0.375rem;
@@ -610,8 +651,8 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
+  overflow-x: hidden;
+  overflow-y: visible;
   flex: 1;
 }
 
