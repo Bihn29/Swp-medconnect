@@ -155,32 +155,7 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
         </div>
       </div>
 
-      <nav className="doctor-sidebar-nav">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeMenu === item.id;
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => onMenuChange(item.id)}
-              className={`doctor-sidebar-nav-item ${
-                isActive ? "doctor-sidebar-nav-item--active" : ""
-              }`}
-            >
-              <Icon className="doctor-sidebar-nav-icon" />
-              <div className="doctor-sidebar-nav-text">
-                <span className="doctor-sidebar-nav-label">{item.label}</span>
-                <span className="doctor-sidebar-nav-subtitle">
-                  {item.subtitle}
-                </span>
-              </div>
-            </button>
-          );
-        })}
-      </nav>
-
-      <div className="doctor-sidebar-footer">
+      <div className="doctor-sidebar-profile-section">
         {loading ? (
           <div className="doctor-sidebar-profile">
             <div className="doctor-sidebar-profile-avatar">...</div>
@@ -226,7 +201,34 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
             </div>
           </div>
         )}
+      </div>
 
+      <nav className="doctor-sidebar-nav">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeMenu === item.id;
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => onMenuChange(item.id)}
+              className={`doctor-sidebar-nav-item ${
+                isActive ? "doctor-sidebar-nav-item--active" : ""
+              }`}
+            >
+              <Icon className="doctor-sidebar-nav-icon" />
+              <div className="doctor-sidebar-nav-text">
+                <span className="doctor-sidebar-nav-label">{item.label}</span>
+                <span className="doctor-sidebar-nav-subtitle">
+                  {item.subtitle}
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="doctor-sidebar-footer">
         <button
           onClick={handleLogout}
           className="doctor-sidebar-logout"

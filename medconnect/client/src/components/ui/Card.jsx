@@ -30,12 +30,12 @@ export const CardHeader = ({ className = "", children, ...props }) => {
 
 export const CardTitle = ({ className = "", children, ...props }) => {
   return (
-    <h3
+    <h2
       className={`text-2xl font-semibold leading-none tracking-tight ${className}`}
       {...props}
     >
       {children}
-    </h3>
+    </h2>
   );
 };
 
