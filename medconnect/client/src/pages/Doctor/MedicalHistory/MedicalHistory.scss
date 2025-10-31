@@ -1,16 +1,69 @@
 /* Health Profile Styles - Full Screen */
+// Color variables (matching AppointmentList)
+$primary-teal: #4db8c4;
+$primary-teal-dark: #3a9ba8;
+$primary-teal-light: #e0f7f9;
+$accent-yellow: #fdb913;
+$accent-yellow-dark: #e6a500;
+$accent-yellow-light: #fff4e6;
+$gray-50: #f9fafb;
+$gray-100: #f3f4f6;
+$gray-200: #e5e7eb;
+$gray-300: #d1d5db;
+$gray-400: #9ca3af;
+$gray-500: #6b7280;
+$gray-600: #4b5563;
+$gray-700: #374151;
+$gray-900: #111827;
+$white: #ffffff;
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+$shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+
 .health-profile-container {
   width: 100%;
-  min-height: 100vh;
-  padding: 2rem;
+  padding: 0 2rem 2rem 2rem;
+  margin: 0;
+  margin-top: 0;
+  box-sizing: border-box;
   background: #ffffff;
+  border-radius: 0;
+  box-shadow: none;
+  overflow-x: hidden;
+  overflow-y: visible;
+  flex: 1;
+  max-width: 100%;
+  
+  /* Ẩn scrollbar nếu có */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+  
+  // Full màn hình, không có scrollbar riêng, không có margin
 }
 
 /* Header Section */
 .health-profile-header {
-  margin-bottom: 2rem;
-  padding: 1.5rem 0;
-  background: #f8fafc;
+  margin: 0 !important;
+  margin-bottom: 2rem !important;
+  margin-left: -2rem !important;
+  margin-right: -2rem !important;
+  padding: 1.5rem 2rem !important;
+  width: calc(100% + 4rem) !important;
+  background: linear-gradient(
+    135deg,
+    $primary-teal-light 0%,
+    $accent-yellow-light 100%
+  ) !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 2px solid $gray-100 !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 .header-content {
@@ -19,57 +72,132 @@
   align-items: center;
   gap: 2rem;
   width: 100%;
+  max-width: 100%;
+  margin: 0;
   padding: 0;
+  box-sizing: border-box;
+  
+  @media (max-width: 1440px) {
+    max-width: 100%;
+    padding: 0;
+  }
 }
 
 .header-text {
   flex: 1;
+  min-width: 0;
+}
+
+.header-search {
+  flex-shrink: 0;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 300px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: $gray-400;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 3rem;
+  border: 2px solid $gray-200;
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+  color: $gray-900;
+  background: $white;
+  transition: all 0.2s ease;
+  outline: none;
+
+  &:focus {
+    border-color: $primary-teal;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+  }
+
+  &::placeholder {
+    color: $gray-400;
+  }
 }
 
 .page-title {
   font-size: 2.25rem;
-  font-weight: 700;
-  color: #000000;
-  margin: 0 0 0.5rem 0;
+  font-weight: 800;
+  color: $gray-900;
+  margin: 0;
   line-height: 1.2;
+  letter-spacing: -0.03em;
+  background: linear-gradient(
+    135deg,
+    $primary-teal 0%,
+    $primary-teal-dark 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: left;
+}
+
+// Support both h1 and h2 with page-title class
+h1.page-title,
+h2.page-title {
+  font-size: 2.25rem;
+  font-weight: 800;
 }
 
 .page-subtitle {
-  font-size: 1rem;
-  color: #6b7280;
-  margin: 0;
+  font-size: 0.95rem;
+  color: $gray-500;
+  margin: 0.5rem 0 0 0;
   line-height: 1.4;
-  font-weight: 400;
+  font-weight: 500;
+  text-align: left;
 }
 
 .download-button {
   display: flex !important;
   align-items: center !important;
-  gap: 0.5rem !important;
-  padding: 0.75rem 1.5rem !important;
-  background: #3b82f6 !important;
-  color: #ffffff !important;
+  gap: 0.625rem !important;
+  padding: 0.875rem 1.75rem !important;
+  background: linear-gradient(
+    135deg,
+    $accent-yellow 0%,
+    $accent-yellow-dark 100%
+  ) !important;
+  color: $gray-900 !important;
   border: none !important;
-  border-radius: 0.5rem !important;
-  font-size: 0.875rem !important;
-  font-weight: 600 !important;
+  border-radius: 0.875rem !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   white-space: nowrap !important;
   min-width: auto !important;
   width: auto !important;
   height: auto !important;
+  box-shadow: 0 4px 15px rgba(253, 185, 19, 0.3) !important;
 }
 
 .download-button:hover {
-  background: #2563eb;
-  transform: translateY(-1px);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(253, 185, 19, 0.4) !important;
 }
 
 .download-icon {
   width: 1rem;
   height: 1rem;
-  color: #ffffff !important;
+  color: $gray-900 !important;
 }
 
 /* Tab Navigation - Horizontal Layout */
@@ -78,9 +206,11 @@
   gap: 1rem;
   margin-bottom: 2rem;
   padding: 0.5rem;
-  background: #f8fafc;
+  background: $gray-50;
   border-radius: 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid $gray-200;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tab-button-horizontal {
@@ -91,7 +221,7 @@
   gap: 0.75rem;
   padding: 1rem 1.5rem;
   background: transparent;
-  color: #6b7280;
+  color: $gray-500;
   border: 2px solid transparent;
   border-radius: 0.5rem;
   font-size: 0.9375rem;
@@ -102,15 +232,15 @@
 }
 
 .tab-button-horizontal:hover {
-  background: #f1f5f9;
-  color: #374151;
+  background: $gray-100;
+  color: $gray-700;
 }
 
 .tab-button-horizontal.active {
-  background: #ffffff;
-  color: #3b82f6;
-  border-color: #3b82f6;
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.2);
+  background: $white;
+  color: $primary-teal;
+  border-color: $primary-teal;
+  box-shadow: 0 1px 3px rgba(77, 184, 196, 0.2);
 }
 
 .tab-button-horizontal .tab-icon {
@@ -126,8 +256,8 @@
   min-width: 1.5rem;
   height: 1.5rem;
   padding: 0 0.5rem;
-  background: #e5e7eb;
-  color: #6b7280;
+  background: $gray-200;
+  color: $gray-500;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -135,8 +265,8 @@
 }
 
 .tab-button-horizontal.active .tab-badge {
-  background: #3b82f6;
-  color: #ffffff;
+  background: $primary-teal;
+  color: $white;
 }
 
 /* History Section with Tabs */
@@ -162,10 +292,10 @@
 .tab-navigation {
   display: flex;
   gap: 0.5rem;
-  background: #f8fafc;
+  background: $gray-50;
   padding: 0.25rem;
   border-radius: 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid $gray-200;
 }
 
 .tab-button {
@@ -174,7 +304,7 @@
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   background: transparent;
-  color: #6b7280;
+  color: $gray-500;
   border: none;
   border-radius: 0.5rem;
   font-size: 0.875rem;
@@ -185,14 +315,18 @@
 }
 
 .tab-button:hover {
-  background: #f1f5f9;
-  color: #374151;
+  background: $gray-100;
+  color: $gray-700;
 }
 
 .tab-button.active {
-  background: #3b82f6;
-  color: #ffffff;
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+  background: linear-gradient(
+    135deg,
+    $primary-teal 0%,
+    $primary-teal-dark 100%
+  );
+  color: $white;
+  box-shadow: 0 4px 12px rgba(77, 184, 196, 0.3);
 }
 
 .tab-icon {
@@ -203,6 +337,9 @@
 
 .tab-content {
   animation: fadeIn 0.3s ease-in-out;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @keyframes fadeIn {
@@ -220,28 +357,54 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .history-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: $white;
+  border: 2px solid $gray-100;
+  border-radius: 1.125rem;
+  padding: 1.75rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: $shadow-sm;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, $primary-teal 0%, $accent-yellow 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
 }
 
 .history-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: $primary-teal;
+  box-shadow: $shadow-lg;
+  transform: translateY(-4px);
+
+  &::before {
+    opacity: 1;
+  }
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
   gap: 1rem;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .card-title-section {
@@ -257,15 +420,20 @@
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
-  background: #f3f4f6;
+  background: linear-gradient(
+    135deg,
+    $primary-teal-light 0%,
+    $accent-yellow-light 100%
+  );
   border-radius: 0.5rem;
   flex-shrink: 0;
+  border: 2px solid $primary-teal;
 }
 
 .card-icon-symbol {
   width: 1.25rem;
   height: 1.25rem;
-  color: #6b7280;
+  color: $primary-teal;
 }
 
 .card-title {
@@ -276,7 +444,7 @@
 .specialty-name {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #1e293b;
+  color: $gray-900;
   margin-bottom: 0.5rem;
 }
 
@@ -292,7 +460,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: $gray-500;
 }
 
 .meta-icon {
@@ -306,23 +474,29 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: #f8fafc;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  background: $gray-50;
+  color: $gray-700;
+  border: 2px solid $gray-200;
+  border-radius: 0.75rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   white-space: nowrap;
 }
 
 .view-details-button:hover,
 .view-details-button:active,
 .view-details-button.active {
-  background: #3b82f6;
-  color: #ffffff;
-  border-color: #3b82f6;
+  background: linear-gradient(
+    135deg,
+    $primary-teal 0%,
+    $primary-teal-dark 100%
+  );
+  color: $white;
+  border-color: $primary-teal;
+  box-shadow: 0 4px 12px rgba(77, 184, 196, 0.3);
+  transform: translateY(-2px);
 }
 
 .view-icon {
@@ -342,23 +516,29 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: #f8fafc;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  background: $gray-50;
+  color: $gray-700;
+  border: 2px solid $gray-200;
+  border-radius: 0.75rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   white-space: nowrap;
   width: 100%;
   justify-content: center;
 }
 
 .download-button-card:hover {
-  background: #10b981;
-  color: #ffffff;
-  border-color: #10b981;
+  background: linear-gradient(
+    135deg,
+    $primary-teal 0%,
+    $primary-teal-dark 100%
+  );
+  color: $white;
+  border-color: $primary-teal;
+  box-shadow: 0 4px 12px rgba(77, 184, 196, 0.3);
+  transform: translateY(-2px);
 }
 
 .document-actions {
@@ -374,17 +554,18 @@
   justify-content: center;
   padding: 0.375rem;
   background: transparent;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
+  border: 2px solid $gray-200;
+  border-radius: 0.5rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  color: #6b7280;
+  transition: all 0.3s ease;
+  color: $gray-500;
 }
 
 .download-file-button:hover {
-  background: #10b981;
-  border-color: #10b981;
-  color: #ffffff;
+  background: $primary-teal;
+  border-color: $primary-teal;
+  color: $white;
+  transform: translateY(-1px);
 }
 
 .download-icon-small {
@@ -403,22 +584,28 @@
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   margin-top: 0.75rem;
-  background: #f8fafc;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  background: $gray-50;
+  color: $gray-700;
+  border: 2px solid $gray-200;
+  border-radius: 0.75rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   width: 100%;
   justify-content: center;
 }
 
 .download-image-button:hover {
-  background: #10b981;
-  color: #ffffff;
-  border-color: #10b981;
+  background: linear-gradient(
+    135deg,
+    $primary-teal 0%,
+    $primary-teal-dark 100%
+  );
+  color: $white;
+  border-color: $primary-teal;
+  box-shadow: 0 4px 12px rgba(77, 184, 196, 0.3);
+  transform: translateY(-2px);
 }
 
 .card-content {
@@ -436,18 +623,18 @@
 .content-label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #374151;
+  color: $gray-700;
 }
 
 .content-value {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: $gray-500;
   line-height: 1.4;
 }
 
 .more-diagnoses {
-  color: #3b82f6;
-  font-weight: 500;
+  color: $primary-teal;
+  font-weight: 600;
   font-size: 0.8125rem;
 }
 
@@ -462,68 +649,73 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: #f8fafc;
-  border-radius: 0.375rem;
-  transition: all 0.2s ease;
+  background: $gray-50;
+  border-radius: 0.5rem;
+  border: 1px solid $gray-200;
+  transition: all 0.3s ease;
 }
 
 .document-item:hover {
-  background: #f1f5f9;
+  background: $primary-teal-light;
+  border-color: $primary-teal;
+  transform: translateX(4px);
 }
 
 .document-icon {
   width: 1rem;
   height: 1rem;
-  color: #6b7280;
+  color: $primary-teal;
   flex-shrink: 0;
 }
 
 .document-text {
   flex: 1;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: $gray-600;
+  font-weight: 500;
 }
 
 .document-link {
   flex: 1;
   font-size: 0.875rem;
-  color: #3b82f6;
+  color: $primary-teal;
   cursor: pointer;
   text-decoration: underline;
   transition: color 0.2s ease;
 }
 
 .document-link:hover {
-  color: #2563eb;
+  color: $primary-teal-dark;
 }
 
 .download-icon {
   width: 1rem;
   height: 1rem;
-  color: #6b7280;
+  color: $gray-500;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color 0.3s ease;
 }
 
 .download-icon:hover {
-  color: #3b82f6;
+  color: $primary-teal;
 }
 
 /* Consultation History Styles */
 .consultation-card {
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid $primary-teal;
 }
 
 .consultation-type {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
-  background: #dbeafe;
-  color: #1e40af;
+  padding: 0.375rem 0.875rem;
+  background: $primary-teal-light;
+  color: $primary-teal-dark;
   border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.025em;
+  border: 1px solid $primary-teal;
 }
 
 /* Modal Styles */
@@ -663,9 +855,9 @@
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.75rem;
-  background: #f8fafc;
+  background: $gray-50;
   border-radius: 0.5rem;
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid $primary-teal;
 }
 
 .diagnosis-item strong {
@@ -937,8 +1129,8 @@
 }
 
 .next-appointment span {
-  color: #3b82f6;
-  font-weight: 500;
+  color: $primary-teal;
+  font-weight: 600;
 }
 
 /* Loading, Error, and Empty States */
@@ -956,8 +1148,8 @@
 .loading-spinner {
   width: 2rem;
   height: 2rem;
-  border: 3px solid #f3f4f6;
-  border-top: 3px solid #3b82f6;
+  border: 3px solid $gray-100;
+  border-top: 3px solid $primary-teal;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
@@ -991,13 +1183,25 @@
 /* Responsive Design */
 @media (max-width: 1024px) {
   .health-profile-container {
-    padding: 1.5rem;
+    padding: 0 1.5rem 1.5rem 1.5rem;
+    margin: 0;
+    margin-top: 0;
+  }
+
+  .health-profile-header {
+    padding: 1.5rem 1.5rem;
   }
 }
 
 @media (max-width: 768px) {
   .health-profile-container {
-    padding: 1rem;
+    padding: 0 1rem 1rem 1rem;
+    margin: 0;
+    margin-top: 0;
+  }
+
+  .health-profile-header {
+    padding: 1.25rem 1rem;
   }
 
   .header-content {
@@ -1005,6 +1209,16 @@
     align-items: stretch;
     gap: 1rem;
     padding: 0 1rem;
+    max-width: 100%;
+  }
+
+  .header-search {
+    width: 100%;
+  }
+
+  .search-input-wrapper {
+    min-width: 0;
+    width: 100%;
   }
 
   .page-title {

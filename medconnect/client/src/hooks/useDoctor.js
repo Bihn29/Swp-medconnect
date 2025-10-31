@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { auth } from "../lib/firebase";
 import { 
   getCurrentDoctorProfile, 
@@ -514,20 +514,53 @@ export function useDoctorReviews(params = {}) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState(null);
+
+  // Create a stable reference for params comparison
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
 
   const fetchReviews = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getDoctorReviews(params);
-      setReviews(response.reviews || []);
+      const response = await getDoctorReviews(paramsRef.current);
+      console.log("🔍 useDoctorReviews - API Response:", response);
+      
+      // Handle different response structures
+      let reviewsData = [];
+      let paginationData = null;
+      
+      if (response.data) {
+        // Response has { success: true, data: { reviews: [...], pagination: {...} } }
+        reviewsData = response.data.reviews || response.data.data?.reviews || [];
+        paginationData = response.data.pagination || response.data.data?.pagination || null;
+      } else if (response.reviews) {
+        // Response has { reviews: [...], pagination: {...} }
+        reviewsData = response.reviews || [];
+        paginationData = response.pagination || null;
+      } else {
+        // Fallback
+        reviewsData = [];
+        paginationData = null;
+      }
+      
+      console.log("🔍 useDoctorReviews - Parsed data:", {
+        reviewsCount: reviewsData.length,
+        pagination: paginationData
+      });
+      
+      setReviews(reviewsData);
+      setPagination(paginationData);
     } catch (err) {
       setError(err.message);
       console.error("Failed to fetch reviews:", err);
+      setReviews([]);
+      setPagination(null);
     } finally {
       setLoading(false);
     }
-  }, [params]);
+  }, []);
 
   const respondToReviewItem = useCallback(async (reviewId, response) => {
     try {
@@ -542,12 +575,14 @@ export function useDoctorReviews(params = {}) {
 
   useEffect(() => {
     fetchReviews();
-  }, [fetchReviews]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(params)]);
 
   return {
     reviews,
     loading,
     error,
+    pagination,
     refetch: fetchReviews,
     respondToReview: respondToReviewItem
   };
