@@ -12,6 +12,7 @@ import {
   X,
   VideoIcon,
   Eye,
+  Search,
 } from "lucide-react";
 import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 import ReviewModal from "../ReviewModal/ReviewModal";
@@ -34,13 +35,15 @@ export function MyAppointments() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedAppointmentForReview, setSelectedAppointmentForReview] =
     useState(null);
+  const [doctorSearch, setDoctorSearch] = useState(""); // Filter by doctor name
   const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
-        const res = await api.get("/api/patients/me/appointments?limit=20");
+        // Fetch all appointments to match StatsCards behavior (no limit or large limit)
+        const res = await api.get("/api/patients/me/appointments?limit=1000");
         console.log("📋 Appointments response:", res);
         if (res.success) {
           // Debug: Log clinic info for each appointment
@@ -113,6 +116,18 @@ export function MyAppointments() {
     });
   };
 
+  // Filter appointments by doctor name
+  const filterByDoctorName = (appointmentList) => {
+    if (!doctorSearch.trim()) {
+      return appointmentList;
+    }
+    const searchLower = doctorSearch.toLowerCase().trim();
+    return appointmentList.filter((appointment) => {
+      const doctorName = appointment.doctorId?.fullName?.toLowerCase() || "";
+      return doctorName.includes(searchLower);
+    });
+  };
+
   // Phân chia appointments
   const upcomingAppointments = appointments.filter((appointment) =>
     ["pending_doctor", "accepted"].includes(appointment.status)
@@ -142,12 +157,21 @@ export function MyAppointments() {
     (appointment) => appointment.status === "cancelled"
   );
 
+  // Apply doctor search filter to current tab appointments
+  const filteredUpcomingAppointments = filterByDoctorName(upcomingAppointments);
+  const filteredCompletedAppointments = filterByDoctorName(
+    completedAppointments
+  );
+  const filteredCancelledAppointments = filterByDoctorName(
+    cancelledAppointments
+  );
+
   const currentAppointments =
     activeTab === "upcoming"
-      ? upcomingAppointments
+      ? filteredUpcomingAppointments
       : activeTab === "completed"
-      ? completedAppointments
-      : cancelledAppointments;
+      ? filteredCompletedAppointments
+      : filteredCancelledAppointments;
   const handleShowDetail = (appointmentId) => {
     setSelectedAppointmentId(appointmentId);
     setShowDetailModal(true);
@@ -198,12 +222,111 @@ export function MyAppointments() {
           paddingBottom: 16,
         }}
       >
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>
-          Lịch hẹn của tôi
-        </h1>
-        <p style={{ color: "#475569", marginTop: 8 }}>
-          Quản lý và theo dõi các lịch hẹn khám bệnh
-        </p>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "2rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>
+              Lịch hẹn của tôi
+            </h1>
+            <p style={{ color: "#475569", marginTop: 8 }}>
+              Quản lý và theo dõi các lịch hẹn khám bệnh
+            </p>
+          </div>
+          {/* Doctor Search Filter */}
+          <div
+            className="doctor-search-filter-wrapper"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "0.625rem 0.875rem",
+              paddingLeft: "2.5rem",
+              background: "#ffffff",
+              border: "1.5px solid #cbd5e1",
+              borderRadius: "0.5rem",
+              minWidth: "280px",
+              transition: "all 0.2s ease",
+              position: "relative",
+            }}
+          >
+            <Search
+              style={{
+                position: "absolute",
+                left: "0.875rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: "1.25rem",
+                height: "1.25rem",
+                color: "#64748b",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            />
+            <input
+              type="text"
+              style={{
+                flex: 1,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontSize: "0.875rem",
+                color: "#1e293b",
+                padding: 0,
+                margin: 0,
+                width: "100%",
+                minWidth: 0,
+              }}
+              placeholder="Tìm bác sĩ theo tên"
+              value={doctorSearch}
+              onChange={(e) => setDoctorSearch(e.target.value)}
+              onFocus={(e) => {
+                const wrapper = e.target.parentElement;
+                wrapper.style.borderColor = "#3b82f6";
+                wrapper.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+              }}
+              onBlur={(e) => {
+                const wrapper = e.target.parentElement;
+                wrapper.style.borderColor = "#cbd5e1";
+                wrapper.style.boxShadow = "none";
+              }}
+            />
+            {doctorSearch && (
+              <button
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0.25rem",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: "0.25rem",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                  transition: "all 0.2s ease",
+                  flexShrink: 0,
+                }}
+                onClick={() => setDoctorSearch("")}
+                title="Xóa bộ lọc"
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = "#f3f4f6";
+                  e.currentTarget.style.color = "#1e293b";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "#6b7280";
+                }}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
 
         <div
           style={{
@@ -234,7 +357,7 @@ export function MyAppointments() {
               outline: "none",
             }}
           >
-            Sắp tới ({upcomingAppointments.length})
+            Sắp tới ({filteredUpcomingAppointments.length})
           </button>
           <button
             onClick={() => setActiveTab("completed")}
@@ -255,7 +378,7 @@ export function MyAppointments() {
               outline: "none",
             }}
           >
-            Đã khám ({completedAppointments.length})
+            Đã khám ({filteredCompletedAppointments.length})
           </button>
           <button
             onClick={() => setActiveTab("cancelled")}
@@ -276,7 +399,7 @@ export function MyAppointments() {
               outline: "none",
             }}
           >
-            Đã hủy ({cancelledAppointments.length})
+            Đã hủy ({filteredCancelledAppointments.length})
           </button>
         </div>
       </div>
@@ -503,8 +626,9 @@ export function MyAppointments() {
                         // Refresh appointments after successful reschedule request
                         const load = async () => {
                           try {
+                            // Fetch all appointments to match StatsCards behavior
                             const res = await api.get(
-                              "/api/patients/me/appointments?limit=20"
+                              "/api/patients/me/appointments?limit=1000"
                             );
                             if (res.success) {
                               setAppointments(res.data.appointments || []);
@@ -537,6 +661,25 @@ export function MyAppointments() {
             </div>
           );
         })}
+        {currentAppointments.length === 0 && (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "3rem",
+              color: "#6b7280",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: "1rem" }}>
+              {doctorSearch
+                ? `Không tìm thấy lịch hẹn nào với bác sĩ "${doctorSearch}"`
+                : activeTab === "upcoming"
+                ? "Bạn chưa có lịch hẹn nào. Hãy đặt lịch khám để bắt đầu!"
+                : activeTab === "completed"
+                ? "Chưa có lịch hẹn đã khám"
+                : "Chưa có lịch hẹn đã hủy"}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Appointment Detail Modal */}
