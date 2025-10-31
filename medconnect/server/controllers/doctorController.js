@@ -15,6 +15,7 @@ import AuthProvider from "../models/auth_providers.model.js";
 import { createAppointmentNotification } from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
+import { sendMail } from "../utils/email.js";
 
 /**
  * Get doctor profile by ID
@@ -35,7 +36,7 @@ export async function getDoctorProfile(req, res) {
 
     return ok(res, { doctor });
   } catch (e) {
-    console.error("❌ getDoctorProfile error:", e);
+    console.error("getDoctorProfile error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
@@ -59,11 +60,8 @@ export async function getCurrentDoctorProfile(req, res) {
     // Find user directly by email (simplified approach)
     const user = await User.findOne({ email: userEmail }).lean();
     if (!user) {
-      console.log("❌ User not found by email:", userEmail);
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
     }
-
-    console.log("👤 Found user by email:", user);
 
     // Find doctor profile
     const doctor = await Doctor.findOne({ userId: user._id })
@@ -80,14 +78,9 @@ export async function getCurrentDoctorProfile(req, res) {
         "Doctor profile not found for user"
       );
     }
-
-    console.log("👨‍⚕️ Found doctor:", doctor);
-    console.log("👨‍⚕️ Doctor fullName:", doctor.fullName);
-    console.log("👨‍⚕️ User fullName:", doctor.userId?.fullName);
-    console.log("👨‍⚕️ Final name:", doctor.userId?.fullName || doctor.fullName);
     return ok(res, { doctor });
   } catch (e) {
-    console.error("❌ getCurrentDoctorProfile error:", e);
+    console.error("getCurrentDoctorProfile error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
@@ -133,11 +126,9 @@ export async function updateDoctorProfile(req, res) {
     if (phone) userUpdate.phone = phone;
 
     if (Object.keys(userUpdate).length > 0) {
-      console.log("🔄 Updating User table with:", userUpdate);
-      const updatedUser = await User.findByIdAndUpdate(appUserId, userUpdate, {
+      await User.findByIdAndUpdate(appUserId, userUpdate, {
         new: true,
       });
-      console.log("✅ User table updated:", updatedUser);
     }
 
     // Update doctor profile
@@ -152,7 +143,6 @@ export async function updateDoctorProfile(req, res) {
     if (specializationIds)
       doctorUpdateData.specializationIds = specializationIds;
 
-    console.log("🔄 Updating Doctor table with:", doctorUpdateData);
 
     const doctor = await Doctor.findOneAndUpdate(
       { userId: appUserId },
@@ -167,13 +157,10 @@ export async function updateDoctorProfile(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    console.log("✅ Doctor table updated:", doctor);
-    console.log("✅ Final User fullName:", doctor.userId?.fullName);
-    console.log("✅ Final Doctor fullName:", doctor.fullName);
 
     return ok(res, { doctor });
   } catch (e) {
-    console.error("❌ updateDoctorProfile error:", e);
+    console.error("updateDoctorProfile error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
@@ -183,8 +170,6 @@ export async function updateDoctorProfile(req, res) {
  */
 export async function getDoctorAppointments(req, res) {
   try {
-    console.log("🔍 getDoctorAppointments - req.user:", req.user);
-
     // Use email-based authentication instead of Firebase UID
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -199,11 +184,8 @@ export async function getDoctorAppointments(req, res) {
     // Find user directly by email (simplified approach)
     const user = await User.findOne({ email: userEmail }).lean();
     if (!user) {
-      console.log("❌ User not found by email:", userEmail);
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
     }
-
-    console.log("👤 Found user by email:", user);
 
     // Then find the Doctor document by userId
     const doctor = await Doctor.findOne({ userId: user._id });
@@ -253,23 +235,7 @@ export async function getDoctorAppointments(req, res) {
       .limit(parseInt(limit))
       .lean();
 
-    console.log("📋 Found appointments:", appointments.length);
-    if (appointments.length > 0) {
-      console.log("📋 First appointment mode:", appointments[0].mode);
-      console.log(
-        "📋 All appointment modes:",
-        appointments.map((apt) => apt.mode)
-      );
-    }
-
     const total = await Appointment.countDocuments(filter);
-
-    // Debug log
-    console.log("📋 Found appointments:", appointments.length);
-    if (appointments.length > 0) {
-      console.log("🔍 First appointment mode:", appointments[0].mode);
-      console.log("🔍 First appointment status:", appointments[0].status);
-    }
 
     return ok(res, {
       appointments,
@@ -281,7 +247,7 @@ export async function getDoctorAppointments(req, res) {
       },
     });
   } catch (e) {
-    console.error("❌ getDoctorAppointments error:", e);
+    console.error("getDoctorAppointments error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
@@ -291,8 +257,6 @@ export async function getDoctorAppointments(req, res) {
  */
 export async function getDoctorDashboardStats(req, res) {
   try {
-    console.log("🔍 getDoctorDashboardStats - req.user:", req.user);
-
     // Use email-based authentication instead of Firebase UID
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -307,11 +271,8 @@ export async function getDoctorDashboardStats(req, res) {
     // Find user directly by email (simplified approach)
     const user = await User.findOne({ email: userEmail }).lean();
     if (!user) {
-      console.log("❌ User not found by email:", userEmail);
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
     }
-
-    console.log("👤 Found user by email:", user);
 
     // Then find the Doctor document by userId
     const doctor = await Doctor.findOne({ userId: user._id });
@@ -367,7 +328,7 @@ export async function getDoctorDashboardStats(req, res) {
       },
     });
   } catch (e) {
-    console.error("❌ getDoctorDashboardStats error:", e);
+    console.error("getDoctorDashboardStats error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
   }
 }
@@ -377,6 +338,7 @@ export async function getDoctorDashboardStats(req, res) {
  */
 export async function getDoctorAppointmentDetail(req, res) {
   try {
+    
     console.log("🔍 getDoctorAppointmentDetail - req.user:", req.user);
 
     const userEmail = req.user?.email;
@@ -440,8 +402,287 @@ export async function getDoctorAppointmentDetail(req, res) {
 
     return ok(res, appointment);
   } catch (e) {
-    console.error("❌ getDoctorAppointmentDetail error:", e);
+    console.error("getDoctorAppointmentDetail error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Helper function to send appointment acceptance email to patient
+ */
+async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
+  try {
+    console.log(`📧 sendAppointmentAcceptanceEmail called with:`, {
+      patientEmail: patient?.email,
+      patientUserId: patient?.userId,
+      hasUserIdObject: patient?.userId && typeof patient.userId === 'object',
+      userIdEmail: patient?.userId?.email
+    });
+
+    // Lấy email từ Patient hoặc User
+    let patientEmail = patient.email;
+    
+    // Nếu Patient không có email, lấy từ User (userId có thể là object đã populate hoặc ObjectId)
+    if (!patientEmail) {
+      if (patient.userId && typeof patient.userId === 'object' && patient.userId.email) {
+        // userId đã được populate
+        patientEmail = patient.userId.email;
+        console.log(`📧 Found email from populated userId: ${patientEmail}`);
+      } else if (patient.userId) {
+        // userId là ObjectId, cần query
+        console.log(`📧 Querying User for email, userId: ${patient.userId}`);
+        const patientUser = await User.findById(patient.userId).select("email").lean();
+        if (patientUser) {
+          patientEmail = patientUser.email;
+          console.log(`📧 Found email from User query: ${patientEmail}`);
+        } else {
+          console.log(`⚠️ User not found for userId: ${patient.userId}`);
+        }
+      }
+    } else {
+      console.log(`📧 Using email from patient object: ${patientEmail}`);
+    }
+
+    // Nếu vẫn không có email, không gửi
+    if (!patientEmail) {
+      console.log("⚠️ Patient email not found, skipping email notification. Patient data:", {
+        patientId: patient?._id,
+        patientEmail: patient?.email,
+        userId: patient?.userId
+      });
+      return;
+    }
+
+    console.log(`📧 Sending acceptance email to: ${patientEmail}`);
+
+    // Format thời gian
+    const scheduledStart = new Date(appointment.scheduledStart);
+    const scheduledEnd = new Date(appointment.scheduledEnd);
+    
+    const dateStr = scheduledStart.toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const timeStr = `${scheduledStart.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })} - ${scheduledEnd.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+
+    const modeText = appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
+    
+    // Lấy tên bác sĩ
+    const doctorName = doctor?.fullName || doctor?.userId?.fullName || "Bác sĩ";
+
+    // Tạo nội dung email
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2b6cb0; border-bottom: 2px solid #2b6cb0; padding-bottom: 10px;">
+          Lịch hẹn của bạn đã được xác nhận
+        </h2>
+        <p>Xin chào <strong>${patient.fullName || "Bệnh nhân"}</strong>,</p>
+        <p>Chúng tôi xin thông báo rằng lịch hẹn khám của bạn đã được <strong style="color: #059669;">xác nhận</strong> bởi bác sĩ.</p>
+        
+        <div style="background-color: #f0f9ff; border-left: 4px solid #2b6cb0; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #1e40af;">Thông tin lịch hẹn:</h3>
+          <p style="margin: 8px 0;"><strong>Bác sĩ:</strong> ${doctorName}</p>
+          <p style="margin: 8px 0;"><strong>Thời gian:</strong> ${dateStr}</p>
+          <p style="margin: 8px 0;"><strong>Giờ:</strong> ${timeStr}</p>
+          <p style="margin: 8px 0;"><strong>Hình thức:</strong> ${modeText}</p>
+          ${appointment.reason ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>` : ""}
+        </div>
+
+        <p>Vui lòng đảm bảo bạn có mặt đúng giờ hẹn.</p>
+        ${appointment.mode === "online" ? "<p><strong>Lưu ý:</strong> Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ.</p>" : ""}
+        
+        <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect</strong></p>
+      </div>
+    `;
+
+    const textContent = `
+Lịch hẹn của bạn đã được xác nhận
+
+Xin chào ${patient.fullName || "Bệnh nhân"},
+
+Chúng tôi xin thông báo rằng lịch hẹn khám của bạn đã được xác nhận bởi bác sĩ.
+
+Thông tin lịch hẹn:
+- Bác sĩ: ${doctorName}
+- Thời gian: ${dateStr}
+- Giờ: ${timeStr}
+- Hình thức: ${modeText}
+${appointment.reason ? `- Lý do khám: ${appointment.reason}` : ""}
+
+Vui lòng đảm bảo bạn có mặt đúng giờ hẹn.
+${appointment.mode === "online" ? "\nLưu ý: Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ." : ""}
+
+Trân trọng,
+MedConnect
+    `;
+
+    console.log(`📧 Attempting to send email via sendMail...`);
+    const emailResult = await sendMail({
+      to: patientEmail,
+      subject: "Lịch hẹn của bạn đã được xác nhận - MedConnect",
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log(`✅ Appointment acceptance email sent successfully to ${patientEmail}`);
+    console.log(`📧 Email result:`, { messageId: emailResult?.messageId, response: emailResult?.response });
+  } catch (error) {
+    console.error("❌ Error sending appointment acceptance email:", error);
+    console.error("❌ Error details:", {
+      message: error?.message,
+      stack: error?.stack,
+      status: error?.status
+    });
+    // Không throw error để không ảnh hưởng đến flow chính
+  }
+}
+
+/**
+ * Helper function to send appointment rejection email to patient
+ */
+async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejectReason) {
+  try {
+    console.log(`📧 sendAppointmentRejectionEmail called with:`, {
+      patientEmail: patient?.email,
+      patientUserId: patient?.userId,
+      hasUserIdObject: patient?.userId && typeof patient.userId === 'object',
+      userIdEmail: patient?.userId?.email,
+      rejectReason: rejectReason
+    });
+
+    // Lấy email từ Patient hoặc User
+    let patientEmail = patient.email;
+    
+    // Nếu Patient không có email, lấy từ User (userId có thể là object đã populate hoặc ObjectId)
+    if (!patientEmail) {
+      if (patient.userId && typeof patient.userId === 'object' && patient.userId.email) {
+        // userId đã được populate
+        patientEmail = patient.userId.email;
+        console.log(`📧 Found email from populated userId: ${patientEmail}`);
+      } else if (patient.userId) {
+        // userId là ObjectId, cần query
+        console.log(`📧 Querying User for email, userId: ${patient.userId}`);
+        const patientUser = await User.findById(patient.userId).select("email").lean();
+        if (patientUser) {
+          patientEmail = patientUser.email;
+          console.log(`📧 Found email from User query: ${patientEmail}`);
+        } else {
+          console.log(`⚠️ User not found for userId: ${patient.userId}`);
+        }
+      }
+    } else {
+      console.log(`📧 Using email from patient object: ${patientEmail}`);
+    }
+
+    // Nếu vẫn không có email, không gửi
+    if (!patientEmail) {
+      console.log("⚠️ Patient email not found, skipping email notification. Patient data:", {
+        patientId: patient?._id,
+        patientEmail: patient?.email,
+        userId: patient?.userId
+      });
+      return;
+    }
+
+    console.log(`📧 Sending rejection email to: ${patientEmail}`);
+
+    // Format thời gian
+    const scheduledStart = new Date(appointment.scheduledStart);
+    const scheduledEnd = new Date(appointment.scheduledEnd);
+    
+    const dateStr = scheduledStart.toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const timeStr = `${scheduledStart.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })} - ${scheduledEnd.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+
+    const modeText = appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
+    
+    // Lấy tên bác sĩ
+    const doctorName = doctor?.fullName || doctor?.userId?.fullName || "Bác sĩ";
+
+    // Tạo nội dung email
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #dc2626; border-bottom: 2px solid #dc2626; padding-bottom: 10px;">
+          Lịch hẹn của bạn đã bị từ chối
+        </h2>
+        <p>Xin chào <strong>${patient.fullName || "Bệnh nhân"}</strong>,</p>
+        <p>Chúng tôi rất tiếc thông báo rằng lịch hẹn khám của bạn đã bị <strong style="color: #dc2626;">từ chối</strong> bởi bác sĩ.</p>
+        
+        <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #991b1b;">Thông tin lịch hẹn:</h3>
+          <p style="margin: 8px 0;"><strong>Bác sĩ:</strong> ${doctorName}</p>
+          <p style="margin: 8px 0;"><strong>Thời gian:</strong> ${dateStr}</p>
+          <p style="margin: 8px 0;"><strong>Giờ:</strong> ${timeStr}</p>
+          <p style="margin: 8px 0;"><strong>Hình thức:</strong> ${modeText}</p>
+          ${appointment.reason ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>` : ""}
+          ${rejectReason ? `<p style="margin: 8px 0;"><strong>Lý do từ chối:</strong> ${rejectReason}</p>` : ""}
+        </div>
+
+        <p>Bạn có thể đặt lịch hẹn mới với bác sĩ khác hoặc chọn thời gian khác phù hợp hơn.</p>
+        <p>Chúng tôi xin lỗi vì sự bất tiện này và cảm ơn bạn đã tin tưởng sử dụng dịch vụ của MedConnect.</p>
+        
+        <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect</strong></p>
+      </div>
+    `;
+
+    const textContent = `
+Lịch hẹn của bạn đã bị từ chối
+
+Xin chào ${patient.fullName || "Bệnh nhân"},
+
+Chúng tôi rất tiếc thông báo rằng lịch hẹn khám của bạn đã bị từ chối bởi bác sĩ.
+
+Thông tin lịch hẹn:
+- Bác sĩ: ${doctorName}
+- Thời gian: ${dateStr}
+- Giờ: ${timeStr}
+- Hình thức: ${modeText}
+${appointment.reason ? `- Lý do khám: ${appointment.reason}` : ""}
+${rejectReason ? `- Lý do từ chối: ${rejectReason}` : ""}
+
+Bạn có thể đặt lịch hẹn mới với bác sĩ khác hoặc chọn thời gian khác phù hợp hơn.
+Chúng tôi xin lỗi vì sự bất tiện này và cảm ơn bạn đã tin tưởng sử dụng dịch vụ của MedConnect.
+
+Trân trọng,
+MedConnect
+    `;
+
+    console.log(`📧 Attempting to send rejection email via sendMail...`);
+    const emailResult = await sendMail({
+      to: patientEmail,
+      subject: "Lịch hẹn của bạn đã bị từ chối - MedConnect",
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log(`✅ Appointment rejection email sent successfully to ${patientEmail}`);
+    console.log(`📧 Email result:`, { messageId: emailResult?.messageId, response: emailResult?.response });
+  } catch (error) {
+    console.error("❌ Error sending appointment rejection email:", error);
+    console.error("❌ Error details:", {
+      message: error?.message,
+      stack: error?.stack,
+      status: error?.status
+    });
+    // Không throw error để không ảnh hưởng đến flow chính
   }
 }
 
@@ -450,6 +691,8 @@ export async function getDoctorAppointmentDetail(req, res) {
  */
 export async function updateAppointmentStatus(req, res) {
   try {
+    console.log("==========================================");
+    console.log("📞 updateAppointmentStatus called");
     console.log("🔍 updateAppointmentStatus - req.user:", req.user);
     console.log(
       "🔍 updateAppointmentStatus - req.user.email:",
@@ -482,6 +725,7 @@ export async function updateAppointmentStatus(req, res) {
       status,
       cancelReason,
     });
+    console.log("📧 Will send email if status is accepted or rejected:", status === "accepted" || status === "rejected");
 
     const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
@@ -553,8 +797,84 @@ export async function updateAppointmentStatus(req, res) {
       updateData,
       { new: true }
     )
-      .populate("patientId", "fullName dob gender phone")
-      .populate("slotId");
+      .populate({
+        path: "patientId",
+        select: "fullName dob gender phone email userId",
+        populate: {
+          path: "userId",
+          select: "email fullName"
+        }
+      })
+      .populate("slotId")
+      .populate({
+        path: "doctorId",
+        select: "fullName",
+        populate: {
+          path: "userId",
+          select: "fullName email"
+        }
+      });
+
+    // Send email notification when appointment is accepted or rejected
+    if (status === "accepted" || status === "rejected") {
+      console.log(`📧 Preparing to send ${status} email for appointment ${appointmentId}`);
+      try {
+        const populatedAppointment = await Appointment.findById(appointmentId)
+          .populate({
+            path: "patientId",
+            select: "fullName dob gender phone email userId",
+            populate: {
+              path: "userId",
+              select: "email fullName"
+            }
+          })
+          .populate({
+            path: "doctorId",
+            select: "fullName",
+            populate: {
+              path: "userId",
+              select: "fullName email"
+            }
+          })
+          .lean();
+
+        console.log(`📧 Populated appointment:`, {
+          hasPatientId: !!populatedAppointment?.patientId,
+          patientEmail: populatedAppointment?.patientId?.email,
+          userIdEmail: populatedAppointment?.patientId?.userId?.email,
+          patientName: populatedAppointment?.patientId?.fullName
+        });
+
+        if (populatedAppointment?.patientId) {
+          if (status === "accepted") {
+            // Gửi email xác nhận cho cả online và offline
+            console.log(`📧 Calling sendAppointmentAcceptanceEmail...`);
+            await sendAppointmentAcceptanceEmail(
+              populatedAppointment,
+              populatedAppointment.patientId,
+              populatedAppointment.doctorId
+            );
+            console.log(`✅ sendAppointmentAcceptanceEmail completed`);
+          } else if (status === "rejected") {
+            // Gửi email từ chối cho cả online và offline
+            console.log(`📧 Calling sendAppointmentRejectionEmail...`);
+            await sendAppointmentRejectionEmail(
+              populatedAppointment,
+              populatedAppointment.patientId,
+              populatedAppointment.doctorId,
+              cancelReason || populatedAppointment.rejectReason
+            );
+            console.log(`✅ sendAppointmentRejectionEmail completed`);
+          }
+        } else {
+          console.log(`⚠️ No patientId found in populated appointment`);
+        }
+      } catch (emailError) {
+        console.error(`❌ Error sending ${status} email:`, emailError);
+        console.error(`❌ Error stack:`, emailError.stack);
+        // Don't fail the main request if email fails
+      }
+    }
 
     // Create notification for status change
     try {
@@ -2190,7 +2510,7 @@ export async function autoGenerateTimeSlots(req, res) {
         skipped: skippedSlots.slice(0, 5), // Show first 5 as sample
       },
     });
-  } catch (error) {
+    } catch (error) {
     console.error("❌ autoGenerateTimeSlots error:", error);
     return fail(
       res,
@@ -2198,6 +2518,174 @@ export async function autoGenerateTimeSlots(req, res) {
       ERROR_CODES.SERVER_ERROR,
       error.message || String(error)
     );
+  }
+}
+
+/**
+ * Doctor creates appointment directly (no need for approval)
+ */
+export async function createAppointmentByDoctor(req, res) {
+  try {
+    console.log("🔍 createAppointmentByDoctor - req.user:", req.user);
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const { slotId, patientName, patientPhone, reason, mode, scheduledStart, scheduledEnd } = req.body;
+
+    if (!patientName || !patientPhone || !reason || !mode || !scheduledStart || !scheduledEnd) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Missing required fields");
+    }
+
+    if (!["online", "offline"].includes(mode)) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Mode must be 'online' or 'offline'");
+    }
+
+    // Tìm hoặc tạo time slot
+    let timeSlot;
+    if (slotId) {
+      // Nếu có slotId, tìm slot đó
+      timeSlot = await DoctorTimeSlot.findById(slotId);
+      if (!timeSlot) {
+        return fail(res, 404, ERROR_CODES.NOT_FOUND, "Time slot not found");
+      }
+      if (timeSlot.doctorId.toString() !== doctor._id.toString()) {
+        return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Time slot does not belong to this doctor");
+      }
+    } else {
+      // Nếu không có slotId, tìm slot theo thời gian hoặc tạo mới
+      const startAt = new Date(scheduledStart);
+      const endAt = new Date(scheduledEnd);
+      
+      // Tìm slot với khoảng thời gian gần (trong vòng 1 phút để tránh lỗi do timezone)
+      const oneMinute = 60 * 1000;
+      timeSlot = await DoctorTimeSlot.findOne({
+        doctorId: doctor._id,
+        startAt: {
+          $gte: new Date(startAt.getTime() - oneMinute),
+          $lte: new Date(startAt.getTime() + oneMinute)
+        },
+        endAt: {
+          $gte: new Date(endAt.getTime() - oneMinute),
+          $lte: new Date(endAt.getTime() + oneMinute)
+        }
+      });
+
+      if (!timeSlot) {
+        // Tạo slot mới nếu chưa có
+        timeSlot = await DoctorTimeSlot.create({
+          doctorId: doctor._id,
+          startAt: startAt,
+          endAt: endAt,
+          status: "available"
+        });
+        console.log("✅ Created new time slot:", timeSlot._id);
+      }
+    }
+
+    // Find or create patient by phone number
+    let patient = await Patient.findOne({ phone: patientPhone });
+    
+    if (!patient) {
+      // Tìm User có số điện thoại này
+      let patientUser = await User.findOne({ phone: patientPhone });
+      
+      if (!patientUser) {
+        // Tạo User mới cho bệnh nhân
+        patientUser = new User({
+          email: `${patientPhone}@temp.medconnect.com`, // Temporary email
+          fullName: patientName,
+          phone: patientPhone,
+          role: 'patient',
+          authProvider: 'phone',
+        });
+        await patientUser.save();
+        console.log("✅ Created new user for patient:", patientUser._id);
+      }
+
+      // Tạo Patient profile
+      patient = new Patient({
+        userId: patientUser._id,
+        fullName: patientName,
+        phone: patientPhone,
+        isComplete: false,
+      });
+      await patient.save();
+      console.log("✅ Created new patient profile:", patient._id);
+    } else {
+      // Cập nhật tên nếu khác
+      if (patient.fullName !== patientName) {
+        patient.fullName = patientName;
+        await patient.save();
+      }
+    }
+
+    // Check if slot is already booked (chỉ check các appointment còn active)
+    const existingAppointment = await Appointment.findOne({ 
+      slotId: timeSlot._id,
+      status: { $nin: ["cancelled", "rejected", "no_show"] }
+    });
+    if (existingAppointment) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Time slot has already been booked");
+    }
+
+    // Create appointment with accepted status (doctor booked, no approval needed)
+    const appointment = new Appointment({
+      patientId: patient._id,
+      doctorId: doctor._id,
+      slotId: timeSlot._id,
+      mode: mode,
+      clinicId: mode === "offline" ? (req.body.clinicId || null) : undefined,
+      scheduledStart: new Date(scheduledStart),
+      scheduledEnd: new Date(scheduledEnd),
+      status: "accepted", // Bác sĩ đặt nên không cần chờ duyệt
+      reason: reason,
+      acceptedBy: doctor._id, // Bác sĩ tự chấp nhận
+    });
+
+    await appointment.save();
+
+    // Update time slot status to booked
+    await DoctorTimeSlot.findByIdAndUpdate(slotId, { status: "booked" });
+
+    // Populate appointment data for response
+    const populatedAppointment = await Appointment.findById(appointment._id)
+      .populate("patientId", "fullName phone")
+      .populate("doctorId", "fullName")
+      .populate("slotId", "startAt endAt")
+      .lean();
+
+    console.log("✅ Appointment created by doctor:", populatedAppointment._id);
+
+    return ok(res, {
+      message: "Appointment created successfully",
+      appointment: populatedAppointment,
+    });
+  } catch (error) {
+    console.error("❌ createAppointmentByDoctor error:", error);
+    
+    // Handle duplicate slot booking error
+    if (error.code === 11000) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "This time slot has already been booked"
+      );
+    }
+
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
   }
 }
 
