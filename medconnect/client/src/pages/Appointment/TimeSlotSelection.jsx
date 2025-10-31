@@ -186,7 +186,6 @@ const TimeSlotSelection = () => {
           // Import payment service
           const { createPayOSPayment } = await import("../../services/payService");
           
-          
           const consultationFee = 10000; //  (có thể thay đổi số tiền ở đây)
           
           const paymentResponse = await createPayOSPayment({
