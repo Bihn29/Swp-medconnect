@@ -33,6 +33,11 @@ export default function ScheduleManagement() {
     reason: "",
   });
 
+  // Appointment detail modal states
+  const [showAppointmentDetail, setShowAppointmentDetail] = useState(false);
+  const [selectedAppointmentDetail, setSelectedAppointmentDetail] = useState(null);
+  const [loadingAppointmentDetail, setLoadingAppointmentDetail] = useState(false);
+
   // Listen to authentication changes
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -196,33 +201,12 @@ export default function ScheduleManagement() {
     }
   };
 
-  // Extract unique times from actual slots in database
-  const timeSlotsList = React.useMemo(() => {
-    const timesSet = new Set();
-    
-    // Extract unique times from loaded slots
-    timeSlots.forEach(slot => {
-      const slotTime = new Date(slot.startAt).toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-      timesSet.add(slotTime);
-    });
-    
-    // Convert to array and sort
-    const times = Array.from(timesSet).sort();
-    
-    console.log("🔍 Extracted unique times from database:", times);
-    return times;
-  }, [timeSlots]);
-
   // Processed slots for display - chỉ hiển thị slot thực sự có trong database
   const processedSlots = React.useMemo(() => {
     const slotsMap = {};
+    const timesSet = new Set(); // Để collect tất cả times từ slots
     
     console.log("🔍 Processing slots:", timeSlots);
-    console.log("🔍 Time slots list:", timeSlotsList);
     
     // Chỉ thêm slot thật từ database vào map
     timeSlots.forEach(slot => {
@@ -242,6 +226,16 @@ export default function ScheduleManagement() {
         hour12: false
       });
       
+      // Filter out times >= 17:00
+      const hour = parseInt(slotTime.split(':')[0]);
+      if (hour >= 17) {
+        console.log(`🔍 Skipping slot at ${slotTime} (hour >= 17)`);
+        return; // Skip slots >= 17:00
+      }
+      
+      // Thêm time vào set để tạo danh sách times
+      timesSet.add(slotTime);
+      
       // Khởi tạo map cho ngày nếu chưa có
       if (!slotsMap[slotDate]) {
         slotsMap[slotDate] = {};
@@ -253,7 +247,7 @@ export default function ScheduleManagement() {
         existsInMap: !!(slotsMap[slotDate] && slotsMap[slotDate][slotTime])
       });
       
-      // Thêm slot vào map
+      // Tạo mapped slot
       const mappedSlot = {
         id: slot._id,
         startAt: slot.startAt,
@@ -262,10 +256,29 @@ export default function ScheduleManagement() {
         patientName: slot.patientName || null,
         reason: slot.reason || null,
         mode: slot.mode || null,
-        appointmentId: slot.appointmentId || null, // Thêm appointmentId từ slot
+        appointmentId: slot.appointmentId || null,
         isEmpty: false
       };
       
+      // Nếu đã có slot ở cùng time, ưu tiên slot có appointment
+      if (slotsMap[slotDate][slotTime]) {
+        const existingSlot = slotsMap[slotDate][slotTime];
+        const existingHasAppointment = existingSlot.appointmentId || (existingSlot.status !== 'available');
+        const newHasAppointment = mappedSlot.appointmentId || (mappedSlot.status !== 'available');
+        
+        // Nếu slot mới có appointment và slot cũ không có, thay thế
+        if (newHasAppointment && !existingHasAppointment) {
+          console.log(`🔄 Replacing slot at ${slotTime} for date ${slotDate} (new has appointment)`);
+          slotsMap[slotDate][slotTime] = mappedSlot;
+        } else if (!newHasAppointment && existingHasAppointment) {
+          console.log(`⏭️ Keeping existing slot at ${slotTime} for date ${slotDate} (existing has appointment)`);
+          // Giữ slot cũ
+        } else {
+          // Cả hai đều có hoặc không có appointment, giữ slot đầu tiên
+          console.log(`⚠️ Duplicate slot time found: ${slotTime} for date: ${slotDate}, keeping first`);
+        }
+      } else {
+        // Chưa có slot, thêm mới
       slotsMap[slotDate][slotTime] = mappedSlot;
       
       // Log for booked slots
@@ -278,12 +291,21 @@ export default function ScheduleManagement() {
           mode: mappedSlot.mode,
           status: mappedSlot.status
         });
+        }
       }
     });
     
     console.log("🔍 Processed slots map:", slotsMap);
-    return slotsMap;
+    console.log("🔍 All unique times found:", Array.from(timesSet).sort());
+    return { slotsMap, timesSet };
   }, [timeSlots, currentDate]);
+
+  // Extract unique times from processed slots - chỉ lấy từ database
+  const timeSlotsList = React.useMemo(() => {
+    const times = Array.from(processedSlots.timesSet || []).sort();
+    console.log("🔍 Extracted unique times from processed slots:", times);
+    return times;
+  }, [processedSlots]);
 
   // Lấy danh sách ngày trong tuần (hiển thị đủ 7 ngày)
   const daysWithSlots = React.useMemo(() => {
@@ -295,6 +317,28 @@ export default function ScheduleManagement() {
     console.log("🔍 timesWithSlots from timeSlotsList:", timeSlotsList);
     return timeSlotsList;
   }, [timeSlotsList]);
+
+  // Tính toán số liệu thống kê từ timeSlots
+  const stats = React.useMemo(() => {
+    const counts = {
+      pending: 0,
+      completed: 0,
+      booked: 0,
+      cancelled: 0
+    };
+
+    timeSlots.forEach(slot => {
+      if (slot.status === 'pending' || slot.status === 'pending_doctor') counts.pending++;
+      else if (slot.status === 'completed' || slot.status === 'done') counts.completed++;
+      else if (slot.status === 'booked' || slot.status === 'confirmed' || slot.status === 'accepted') counts.booked++;
+      else if (slot.status === 'cancelled') counts.cancelled++;
+    });
+
+    return counts;
+  }, [timeSlots]);
+
+  // State cho filter status
+  const [selectedStatus, setSelectedStatus] = useState('pending');
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -311,16 +355,31 @@ export default function ScheduleManagement() {
   };
 
   const getStatusText = (status) => {
+    if (!status) return 'Không xác định';
+    
     switch (status) {
+      // Status từ appointment model
+      case 'pending_doctor': return 'Chờ duyệt';
+      case 'accepted': return 'Đã xác nhận';
+      case 'rejected': return 'Đã từ chối';
+      case 'in_progress': return 'Đang diễn ra';
+      case 'cancelled': return 'Đã hủy';
+      case 'done': return 'Hoàn thành';
+      case 'no_show': return 'Không đến';
+      case 'rescheduled': return 'Đã dời lịch';
+      
+      // Status từ slot (backward compatibility)
       case 'available': return 'Trống';
       case 'pending': return 'Chờ duyệt';
       case 'confirmed': return 'Đã xác nhận';
-      case 'in_progress': return 'Đang diễn ra';
-      case 'cancelled': return 'Đã hủy';
       case 'completed': return 'Hoàn thành';
       case 'booked': return 'Đã đặt';
       case 'blocked': return 'Bị chặn';
-      default: return 'Không xác định';
+      
+      default: {
+        console.warn('Unknown status:', status);
+        return 'Không xác định';
+      }
     }
   };
 
@@ -336,10 +395,48 @@ export default function ScheduleManagement() {
     }
   };
 
-  const handleSlotClick = (slot) => {
-    if (slot && slot.status === 'available') {
+  const handleSlotClick = async (slot) => {
+    if (!slot) return;
+    
+    // Nếu slot available, mở modal đặt lịch
+    if (slot.status === 'available') {
       setSelectedSlot(slot);
       setShowBookSlot(true);
+      return;
+    }
+    
+    // Nếu có appointment, mở modal chi tiết
+    if (slot.appointmentId) {
+      setLoadingAppointmentDetail(true);
+      setShowAppointmentDetail(true);
+      
+      try {
+        const apiModule = await import('../../../lib/api');
+        const response = await apiModule.api.get(`/api/doctors/me/appointments/${slot.appointmentId}`);
+        
+        console.log('🔍 Appointment detail response:', response);
+        
+        if (response.success) {
+          console.log('🔍 Appointment data:', {
+            status: response.data?.status,
+            mode: response.data?.mode,
+            reason: response.data?.reason,
+            patientId: response.data?.patientId,
+            fullData: response.data
+          });
+          setSelectedAppointmentDetail(response.data);
+        } else {
+          console.error('❌ Failed to fetch appointment:', response);
+          alert('Không thể tải thông tin chi tiết lịch hẹn');
+          setShowAppointmentDetail(false);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching appointment detail:', error);
+        alert('Có lỗi xảy ra khi tải thông tin');
+        setShowAppointmentDetail(false);
+      } finally {
+        setLoadingAppointmentDetail(false);
+      }
     }
   };
 
@@ -451,58 +548,83 @@ export default function ScheduleManagement() {
 
   return (
     <div className="schedule-management">
+      {/* Summary Cards */}
+      <div className="summary-cards">
+        <div className="summary-card pending">
+          <div className="summary-label">Chờ duyệt</div>
+          <div className="summary-value">{stats.pending}</div>
+        </div>
+        <div className="summary-card completed">
+          <div className="summary-label">Hoàn thành</div>
+          <div className="summary-value">{stats.completed}</div>
+        </div>
+        <div className="summary-card booked">
+          <div className="summary-label">Đã đặt</div>
+          <div className="summary-value">{stats.booked}</div>
+        </div>
+        <div className="summary-card cancelled">
+          <div className="summary-label">Đã hủy</div>
+          <div className="summary-value">{stats.cancelled}</div>
+        </div>
+        </div>
+        
+      {/* Navigation and Filters */}
+      <div className="schedule-controls">
+          <div className="week-navigation">
+            <span>Tuần:</span>
+          <button 
+            className="nav-arrow"
+              onClick={() => navigateWeek(-1)}
+            >
+            &lt;
+          </button>
+            <span className="date-range">{formatDateRange()}</span>
+          <button 
+            className="nav-arrow"
+              onClick={() => navigateWeek(1)}
+            >
+            &gt;
+          </button>
+          </div>
+          
+        <div className="status-filters">
+            <span>Trạng thái:</span>
+          <button 
+            className={`status-filter pending ${selectedStatus === 'pending' ? 'active' : ''}`}
+            onClick={() => setSelectedStatus('pending')}
+          >
+            Chờ duyệt
+          </button>
+          <button 
+            className={`status-filter completed ${selectedStatus === 'completed' ? 'active' : ''}`}
+            onClick={() => setSelectedStatus('completed')}
+          >
+            Hoàn thành
+          </button>
+          <button 
+            className={`status-filter booked ${selectedStatus === 'booked' ? 'active' : ''}`}
+            onClick={() => setSelectedStatus('booked')}
+          >
+            Đã đặt
+          </button>
+          <button 
+            className={`status-filter cancelled ${selectedStatus === 'cancelled' ? 'active' : ''}`}
+            onClick={() => setSelectedStatus('cancelled')}
+          >
+            Đã hủy
+          </button>
+            </div>
+            </div>
+
       <div className="schedule-header">
         <div className="header-left">
           <h1>
             <Calendar className="icon" />
             Lịch làm việc
           </h1>
-        </div>
-        
+          </div>
+          
         <div className="header-right">
-          <div className="week-navigation">
-            <span>Tuần:</span>
-            <Button 
-              onClick={() => navigateWeek(-1)}
-              variant="outline"
-              size="sm"
-            >
-              <ChevronLeft size={16} />
-            </Button>
-            <span className="date-range">{formatDateRange()}</span>
-            <Button 
-              onClick={() => navigateWeek(1)}
-              variant="outline"
-              size="sm"
-            >
-              <ChevronRight size={16} />
-            </Button>
-          </div>
-          
-          <div className="status-indicators">
-            <span>Trạng thái:</span>
-            <div className="status-item">
-              <div className="status-dot" style={{ backgroundColor: '#fbbf24' }}></div>
-              <span>Chờ duyệt</span>
-            </div>
-            <div className="status-item">
-              <div className="status-dot" style={{ backgroundColor: '#10b981' }}></div>
-              <span>Đã đặt</span>
-            </div>
-            <div className="status-item">
-              <div className="status-dot" style={{ backgroundColor: '#ef4444' }}></div>
-              <span>Đã hủy</span>
-            </div>
-            <div className="status-item">
-              <div className="status-dot" style={{ backgroundColor: '#3b82f6' }}></div>
-              <span>Hoàn thành</span>
-            </div>
-            <div className="status-item">
-              <div className="status-dot" style={{ backgroundColor: '#e5e7eb' }}></div>
-              <span>Trống</span>
-            </div>
-          </div>
-          
           <div className="action-buttons">
             <Button 
               onClick={handleGenerateSlots}
@@ -562,7 +684,10 @@ export default function ScheduleManagement() {
         
         {timeSlotsList.length > 0 && <div className="schedule-grid">
           <div className="grid-header">
-            <div className="time-column">Giờ</div>
+            <div className="time-column">
+              <Clock size={16} />
+              Giờ
+            </div>
             {daysWithSlots.map((day, index) => (
               <div key={index} className={`day-column ${day.isPast ? 'past-day' : ''}`}>
                 <div className="day-name">{day.name}</div>
@@ -611,16 +736,16 @@ export default function ScheduleManagement() {
                       {time}
                     </div>
                   {daysWithSlots.map((day, dayIndex) => {
-                    const slot = processedSlots[day.fullDate]?.[time];
+                    const slot = processedSlots.slotsMap?.[day.fullDate]?.[time];
                     
-                    // Chỉ hiển thị nếu có slot trong database
+                    // Luôn render ô để giữ grid structure, nhưng bỏ dấu + và viền nếu không có slot
                     if (!slot) {
                       return (
                         <div 
                           key={`${dayIndex}-${timeIndex}`} 
-                          className="slot-cell empty"
+                          className="slot-cell empty-no-border"
                         >
-                          <div className="slot-content"></div>
+                          {/* Không render gì cả - ô trống hoàn toàn */}
                         </div>
                       );
                     }
@@ -629,7 +754,7 @@ export default function ScheduleManagement() {
                       <div 
                         key={`${dayIndex}-${timeIndex}`} 
                         className={`slot-cell ${day.isPast ? 'past-day' : ''}`}
-                        onClick={() => slot && slot.status === 'available' && handleSlotClick(slot)}
+                        onClick={() => handleSlotClick(slot)}
                       >
                       <div className="slot-content">
                         {slot.status === 'available' ? (
@@ -638,51 +763,8 @@ export default function ScheduleManagement() {
                           </div>
                         ) : (
                           <div className={`booked-slot ${slot.status}`}>
-                            <div className="slot-header">
-                              <div className="status-dot" style={{ backgroundColor: getStatusDotColor(slot.status) }}></div>
-                              <span className="status-text">{getStatusText(slot.status)}</span>
-                              {slot.mode && (
-                                <span className={`mode-badge ${slot.mode}`}>
-                                  {slot.mode === 'online' ? 'Online' : 'Offline'}
-                                </span>
-                              )}
-                            </div>
-                            <div className="slot-info">
-                              <div className="patient-info">
-                                <User size={15} />
-                                <span className="patient-name">{slot.patientName || 'Bệnh nhân'}</span>
-                              </div>
-                            </div>
-                            {(() => {
-                              const shouldShowCallButton = (slot.status === 'confirmed' || slot.status === 'booked' || slot.status === 'in_progress') && slot.mode === 'online';
-                              console.log('🔍 Slot debug:', {
-                                slotId: slot.slotId || slot._id,
-                                status: slot.status,
-                                mode: slot.mode,
-                                patientName: slot.patientName,
-                                appointmentId: slot.appointmentId,
-                                shouldShowCallButton
-                              });
-                              if (shouldShowCallButton) {
-                                return (
-                                  <div className="slot-actions">
-                                    <Button
-                                      size="sm"
-                                      className="call-btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        console.log('🎥 Button clicked! Slot data:', slot);
-                                        handleVideoCall(slot);
-                                      }}
-                                    >
-                                      <Phone size={13} />
-                                      Gọi
-                                    </Button>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            })()}
+                            <div className="patient-name-main">{slot.patientName || 'Bệnh nhân'}</div>
+                            <div className="status-text-small">{getStatusText(slot.status)}</div>
                           </div>
                         )}
                       </div>
@@ -775,6 +857,136 @@ export default function ScheduleManagement() {
             </Button>
             <Button onClick={handleBookSlot} variant="primary">
               Đặt lịch
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Appointment Detail Modal */}
+      <Dialog open={showAppointmentDetail} onOpenChange={setShowAppointmentDetail}>
+        <DialogContent className="appointment-detail-dialog">
+          <DialogHeader>
+            <DialogTitle>Chi tiết lịch hẹn</DialogTitle>
+          </DialogHeader>
+          {loadingAppointmentDetail ? (
+            <div className="loading-container">
+              <div className="loading-spinner"></div>
+              <p>Đang tải thông tin...</p>
+            </div>
+          ) : selectedAppointmentDetail ? (
+            <div className="appointment-detail-content">
+              <div className="detail-section">
+                <h3 className="detail-section-title">Thông tin bệnh nhân</h3>
+                <div className="detail-item">
+                  <span className="detail-label">Họ và tên:</span>
+                  <span className="detail-value">
+                    {selectedAppointmentDetail.patientId?.fullName || selectedAppointmentDetail.patientName || 'N/A'}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Số điện thoại:</span>
+                  <span className="detail-value">
+                    {selectedAppointmentDetail.patientId?.phone || selectedAppointmentDetail.patientPhone || 'N/A'}
+                  </span>
+                </div>
+                {selectedAppointmentDetail.patientId?.dob && (
+                  <div className="detail-item">
+                    <span className="detail-label">Ngày sinh:</span>
+                    <span className="detail-value">
+                      {new Date(selectedAppointmentDetail.patientId.dob).toLocaleDateString('vi-VN')}
+                    </span>
+                  </div>
+                )}
+                {selectedAppointmentDetail.patientId?.gender && (
+                  <div className="detail-item">
+                    <span className="detail-label">Giới tính:</span>
+                    <span className="detail-value">
+                      {selectedAppointmentDetail.patientId.gender === 'male' ? 'Nam' : 
+                       selectedAppointmentDetail.patientId.gender === 'female' ? 'Nữ' : 
+                       selectedAppointmentDetail.patientId.gender}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="detail-section">
+                <h3 className="detail-section-title">Thông tin lịch hẹn</h3>
+                <div className="detail-item">
+                  <span className="detail-label">Thời gian:</span>
+                  <span className="detail-value">
+                    {selectedAppointmentDetail.slotId 
+                      ? `${new Date(selectedAppointmentDetail.slotId.startAt).toLocaleString('vi-VN')} - ${new Date(selectedAppointmentDetail.slotId.endAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+                      : selectedAppointmentDetail.scheduledStart
+                      ? new Date(selectedAppointmentDetail.scheduledStart).toLocaleString('vi-VN')
+                      : 'N/A'}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Trạng thái:</span>
+                  <span className={`detail-value status-badge ${selectedAppointmentDetail.status}`}>
+                    {getStatusText(selectedAppointmentDetail.status)}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Hình thức:</span>
+                  <span className="detail-value">
+                    {selectedAppointmentDetail.mode === 'online' ? 'Online' : 
+                     selectedAppointmentDetail.mode === 'offline' ? 'Offline' : 
+                     'N/A'}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Lý do khám:</span>
+                  <span className="detail-value">
+                    {selectedAppointmentDetail.reason || 
+                     selectedAppointmentDetail.cancelReason || 
+                     selectedAppointmentDetail.rejectReason || 
+                     'Chưa có thông tin'}
+                  </span>
+                </div>
+                {selectedAppointmentDetail.clinicId && (
+                  <div className="detail-item">
+                    <span className="detail-label">Phòng khám:</span>
+                    <span className="detail-value">
+                      {selectedAppointmentDetail.clinicId.name || selectedAppointmentDetail.clinicId}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {selectedAppointmentDetail.mode === 'online' && 
+               (selectedAppointmentDetail.status === 'confirmed' || 
+                selectedAppointmentDetail.status === 'booked' || 
+                selectedAppointmentDetail.status === 'accepted' ||
+                selectedAppointmentDetail.status === 'in_progress') && (
+                <div className="detail-actions">
+                  <Button
+                    className="call-button"
+                    onClick={() => {
+                      const slot = timeSlots.find(s => s.appointmentId === selectedAppointmentDetail._id) || {
+                        appointmentId: selectedAppointmentDetail._id,
+                        patientName: selectedAppointmentDetail.patientId?.fullName,
+                        mode: selectedAppointmentDetail.mode,
+                        status: selectedAppointmentDetail.status
+                      };
+                      handleVideoCall(slot);
+                      setShowAppointmentDetail(false);
+                    }}
+                  >
+                    <Phone size={16} />
+                    Gọi video
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="no-data">
+              <p>Không có thông tin chi tiết</p>
+            </div>
+          )}
+          <div className="dialog-actions">
+            <Button onClick={() => setShowAppointmentDetail(false)} variant="outline">
+              Đóng
             </Button>
           </div>
         </DialogContent>
