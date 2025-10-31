@@ -882,6 +882,30 @@ export async function getAdminSystemStatus() {
   return r.json();
 }
 
+export async function getPaymentRevenueStats(params = {}) {
+  const { period = "today", startDate, endDate } = params;
+  let url = `${BASE}/api/admin/payment/revenue-stats?period=${period}`;
+  if (startDate) url += `&startDate=${startDate}`;
+  if (endDate) url += `&endDate=${endDate}`;
+  const r = await fetch(url, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getAdminInvoices(params = {}) {
+  const { period = "today", startDate, endDate } = params;
+  let url = `${BASE}/api/admin/payment/invoices?period=${period}`;
+  if (startDate) url += `&startDate=${startDate}`;
+  if (endDate) url += `&endDate=${endDate}`;
+  const r = await fetch(url, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export async function getVerifiedDoctors() {
   const r = await fetch(`${BASE}/api/admin/doctors/verified`, {
     credentials: "include",
