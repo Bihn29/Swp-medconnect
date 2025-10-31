@@ -74,8 +74,8 @@ export default function DoctorDashboard() {
           color: "dashboard-stat-card-teal",
         },
         {
-          label: "Tổng ca tuần này",
-          value: dashboardStats.weeklyAppointmentsCount || "0",
+          label: "Tổng số ca đã hoàn thành",
+          value: dashboardStats.completedAppointmentsCount || "0",
           icon: FileText,
           color: "dashboard-stat-card-teal",
         },

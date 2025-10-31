@@ -131,7 +131,10 @@ export function Notifications() {
     return (
       <div className="notifications-page">
         <div className="notifications-header">
-          <h1>Thông báo</h1>
+          <div className="notifications-title">
+            <Bell className="notifications-icon" />
+            <h1>Thông báo</h1>
+          </div>
         </div>
         <div className="notifications-loading">
           <Spin size="large" />

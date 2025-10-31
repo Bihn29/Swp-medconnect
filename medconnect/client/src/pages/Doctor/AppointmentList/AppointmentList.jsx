@@ -162,30 +162,66 @@ export default function AppointmentList() {
       return matchesSearch && matchesStatus && matchesMode && matchesDate;
     })
     .sort((a, b) => {
-      let aValue, bValue;
-
-      switch (sortBy) {
-        case "scheduledStart":
-          aValue = new Date(a.scheduledStart);
-          bValue = new Date(b.scheduledStart);
-          break;
-        case "patientName":
-          aValue = a.patientId?.fullName || a.patient?.fullName || "";
-          bValue = b.patientId?.fullName || b.patient?.fullName || "";
-          break;
-        case "status":
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        default:
-          aValue = new Date(a.scheduledStart);
-          bValue = new Date(b.scheduledStart);
+      // Get current date (today) - set time to midnight for date comparison
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Get appointment dates
+      const aDate = new Date(a.scheduledStart);
+      const bDate = new Date(b.scheduledStart);
+      
+      // Set time to midnight for date comparison
+      const aDateOnly = new Date(aDate);
+      aDateOnly.setHours(0, 0, 0, 0);
+      const bDateOnly = new Date(bDate);
+      bDateOnly.setHours(0, 0, 0, 0);
+      
+      // Check if appointments are today
+      const aIsToday = aDateOnly.getTime() === today.getTime();
+      const bIsToday = bDateOnly.getTime() === today.getTime();
+      
+      // If sortBy is not scheduledStart, use original sorting logic
+      if (sortBy !== "scheduledStart") {
+        let aValue, bValue;
+        
+        switch (sortBy) {
+          case "patientName":
+            aValue = a.patientId?.fullName || a.patient?.fullName || "";
+            bValue = b.patientId?.fullName || b.patient?.fullName || "";
+            break;
+          case "status":
+            aValue = a.status;
+            bValue = b.status;
+            break;
+          default:
+            aValue = new Date(a.scheduledStart);
+            bValue = new Date(b.scheduledStart);
+        }
+        
+        if (sortOrder === "asc") {
+          return aValue > bValue ? 1 : -1;
+        } else {
+          return aValue < bValue ? 1 : -1;
+        }
       }
-
-      if (sortOrder === "asc") {
-        return aValue > bValue ? 1 : -1;
+      
+      // For scheduledStart sorting: prioritize today's appointments, then sort by time
+      if (aIsToday && !bIsToday) {
+        // a is today, b is not - a comes first
+        return -1;
+      } else if (!aIsToday && bIsToday) {
+        // a is not today, b is today - b comes first
+        return 1;
+      } else if (aIsToday && bIsToday) {
+        // Both are today - always sort by time ascending (morning to afternoon)
+        return aDate.getTime() - bDate.getTime(); // Earlier time first (sáng đến chiều)
       } else {
-        return aValue < bValue ? 1 : -1;
+        // Both are not today - use sortOrder setting
+        if (sortOrder === "asc") {
+          return aDate.getTime() - bDate.getTime(); // Earlier time first
+        } else {
+          return bDate.getTime() - aDate.getTime(); // Later time first
+        }
       }
     });
 
@@ -356,6 +392,20 @@ export default function AppointmentList() {
   };
 
   const handleStart = async (appointment) => {
+    const patientName =
+      appointment.patientId?.fullName ||
+      appointment.patient?.fullName ||
+      "bệnh nhân";
+
+    // Thêm thông báo xác nhận
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn bắt đầu khám cho ${patientName}?`
+    );
+
+    if (!confirmed) {
+      return; // Nếu người dùng không xác nhận, không thực hiện hành động
+    }
+
     try {
       await updateAppointmentStatus(appointment._id, "in_progress");
 
@@ -366,13 +416,7 @@ export default function AppointmentList() {
         )
       );
 
-      alert(
-        `Đã bắt đầu khám cho ${
-          appointment.patientId?.fullName ||
-          appointment.patient?.fullName ||
-          "bệnh nhân"
-        }`
-      );
+      alert(`Đã bắt đầu khám cho ${patientName}`);
 
       // Refresh appointments list để đảm bảo đồng bộ
       setTimeout(async () => {
@@ -396,6 +440,20 @@ export default function AppointmentList() {
   };
 
   const handleComplete = (appointment) => {
+    const patientName =
+      appointment.patientId?.fullName ||
+      appointment.patient?.fullName ||
+      "bệnh nhân";
+
+    // Thêm thông báo xác nhận
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn hoàn thành khám cho ${patientName}?`
+    );
+
+    if (!confirmed) {
+      return; // Nếu người dùng không xác nhận, không thực hiện hành động
+    }
+
     console.log("🔍 handleComplete called with appointment:", appointment);
     console.log("🔍 Appointment ID:", appointment?._id);
     console.log("🔍 Appointment mode:", appointment?.mode);
@@ -435,6 +493,20 @@ export default function AppointmentList() {
   };
 
   const handleNoShow = async (appointment) => {
+    const patientName =
+      appointment.patientId?.fullName ||
+      appointment.patient?.fullName ||
+      "bệnh nhân";
+
+    // Thêm thông báo xác nhận
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn đánh dấu ${patientName} là không đến khám?`
+    );
+
+    if (!confirmed) {
+      return; // Nếu người dùng không xác nhận, không thực hiện hành động
+    }
+
     try {
       await updateAppointmentStatus(
         appointment._id,
@@ -449,13 +521,7 @@ export default function AppointmentList() {
         )
       );
 
-      alert(
-        `Đã đánh dấu ${
-          appointment.patientId?.fullName ||
-          appointment.patient?.fullName ||
-          "bệnh nhân"
-        } là không đến khám`
-      );
+      alert(`Đã đánh dấu ${patientName} là không đến khám`);
 
       // Refresh appointments list để đảm bảo đồng bộ
       setTimeout(async () => {
@@ -1107,12 +1173,26 @@ export default function AppointmentList() {
                             size="sm"
                             variant="secondary"
                             onClick={async () => {
+                              const patientName =
+                                selectedAppointment.patientId?.fullName ||
+                                selectedAppointment.patient?.fullName ||
+                                "bệnh nhân";
+
+                              // Thêm thông báo xác nhận
+                              const confirmed = window.confirm(
+                                `Bạn có chắc chắn muốn bắt đầu khám cho ${patientName}?`
+                              );
+
+                              if (!confirmed) {
+                                return; // Nếu người dùng không xác nhận, không thực hiện hành động
+                              }
+
                               try {
                                 await updateAppointmentStatus(
                                   selectedAppointment._id,
                                   "in_progress"
                                 );
-                                alert("Đã bắt đầu khám bệnh");
+                                alert(`Đã bắt đầu khám cho ${patientName}`);
                                 setIsDetailDialogOpen(false);
                                 // Refresh appointments
                                 const updatedAppointments =
@@ -1138,13 +1218,27 @@ export default function AppointmentList() {
                             size="sm"
                             variant="destructive"
                             onClick={async () => {
+                              const patientName =
+                                selectedAppointment.patientId?.fullName ||
+                                selectedAppointment.patient?.fullName ||
+                                "bệnh nhân";
+
+                              // Thêm thông báo xác nhận
+                              const confirmed = window.confirm(
+                                `Bạn có chắc chắn muốn đánh dấu ${patientName} là không đến khám?`
+                              );
+
+                              if (!confirmed) {
+                                return; // Nếu người dùng không xác nhận, không thực hiện hành động
+                              }
+
                               try {
                                 await updateAppointmentStatus(
                                   selectedAppointment._id,
                                   "no_show",
                                   "Bệnh nhân không đến khám"
                                 );
-                                alert("Đã đánh dấu bệnh nhân không đến khám");
+                                alert(`Đã đánh dấu ${patientName} là không đến khám`);
                                 setIsDetailDialogOpen(false);
                                 // Refresh appointments
                                 const updatedAppointments =

@@ -36,23 +36,12 @@ import {
 
 const router = express.Router();
 
-// Public routes
-router.get("/", getAllDoctors); // Get all doctors for search/listing
-
-// Public doctor routes
-router.get("/search", getSearchDoctors); // Search doctors with filters
-router.get("/specializations/search", getSearchSpecializations); // Search specializations
-router.get("/clinics/search", getSearchClinics); // Search clinics
-router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
-router.get("/:doctorId/clinics", getDoctorClinics); // Get doctor clinics
-router.get("/:doctorId/reviews", getPublicDoctorReviews); // Get public doctor reviews
-router.post("/:doctorId/reviews", createDoctorReview); // Create a new review for a doctor
-router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
-
 // Protected routes (require authentication)
+// CRITICAL: /me/* routes MUST be defined BEFORE public /:doctorId routes
+// Express matches routes in order, so /me/reviews will be matched before /:doctorId/reviews
 router.use(authGuard);
 
-// Current doctor routes
+// Protected /me routes - MUST be defined before public /:doctorId routes
 router.get("/me", getCurrentDoctorProfile); // Get basic doctor info
 router.get("/me/profile", getCurrentDoctorProfile);
 router.put("/me/profile", updateDoctorProfile);
@@ -87,8 +76,20 @@ router.put("/me/schedule-rules", updateDoctorScheduleRules);
 // Debug route
 router.get("/me/debug-auth", debugAuth);
 
-// Review routes
+// Review routes (protected) - CRITICAL: Must be defined BEFORE /:doctorId/reviews
 router.get("/me/reviews", getDoctorReviews);
 router.post("/me/reviews/:reviewId/respond", respondToReview);
+
+// Public routes (no authentication required)
+// NOTE: These routes come AFTER protected /me routes, so /me/* will be matched first
+router.get("/", getAllDoctors); // Get all doctors for search/listing
+router.get("/search", getSearchDoctors); // Search doctors with filters
+router.get("/specializations/search", getSearchSpecializations); // Search specializations
+router.get("/clinics/search", getSearchClinics); // Search clinics
+router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
+router.get("/:doctorId/clinics", getDoctorClinics); // Get doctor clinics
+router.get("/:doctorId/reviews", getPublicDoctorReviews); // Get public doctor reviews
+router.post("/:doctorId/reviews", createDoctorReview); // Create a new review for a doctor
+router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
 
 export default router;
