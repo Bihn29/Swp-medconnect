@@ -6,6 +6,7 @@ import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Appointment from "../models/appointment.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
 import ConsultationAdvice from "../models/consultationAdvice.model.js";
+import Notification from "../models/notification.model.js"; 
 import {
   createBookingNotification,
   createAppointmentNotification,
@@ -1475,6 +1476,367 @@ export async function getFamilyMembers(req, res) {
 /**
  * Create a new family member patient profile
  */
+/**
+ * Get family member's consultation summaries (medical history)
+ */
+export async function getFamilyMemberConsultationSummaries(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    const { patientId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    if (!patientId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Patient ID is required"
+      );
+    }
+
+    // Verify that this patient belongs to the current user
+    const patient = await Patient.findOne({
+      _id: patientId,
+      userId: appUserId,
+    });
+
+    if (!patient) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Family member not found or access denied"
+      );
+    }
+
+    // Get consultation summaries for this family member
+    const consultationSummaries = await ConsultationSummary.find({
+      patientId: patientId,
+      status: "final", // Only get finalized summaries
+    })
+      .populate({
+        path: "doctorId",
+        select: "fullName specializationIds avatarUrl",
+        populate: {
+          path: "specializationIds",
+          select: "name",
+        },
+      })
+      .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
+      .populate("clinicId", "name address")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await ConsultationSummary.countDocuments({
+      patientId: patientId,
+      status: "final",
+    });
+
+    // Format the response (same as getPatientConsultationSummaries)
+    const formattedSummaries = consultationSummaries.map((summary) => {
+      // Get primary diagnosis
+      const primaryDiagnosis =
+        summary.diagnoses && summary.diagnoses.length > 0
+          ? summary.diagnoses[0].name
+          : "Không có chẩn đoán";
+
+      // Format medications
+      const medicationsText =
+        summary.medications && summary.medications.length > 0
+          ? summary.medications
+              .map(
+                (med) =>
+                  `${med.name} - ${med.quantity || "N/A"} - ${med.instruction}`
+              )
+              .join(", ")
+          : "Không có đơn thuốc";
+
+      // Format documents
+      const documents = [];
+      if (summary.attachmentUrl) {
+        documents.push({
+          name: `Tài liệu khám.pdf`,
+          type: "pdf",
+        });
+      }
+
+      // Get date from appointment if available, otherwise from summary
+      const appointmentStart = summary.appointmentId?.scheduledStart;
+      const formattedDate = appointmentStart
+        ? new Date(appointmentStart).toLocaleDateString("vi-VN")
+        : summary.createdAt
+        ? new Date(summary.createdAt).toLocaleDateString("vi-VN")
+        : "Không xác định";
+
+      return {
+        id: summary._id,
+        specialty:
+          summary.doctorId?.specializationIds?.[0]?.name || "Không xác định",
+        date: formattedDate,
+        doctor: `BS. ${summary.doctorId?.fullName || "Không xác định"}`,
+        diagnosis: primaryDiagnosis,
+        prescription: medicationsText,
+        documents: documents,
+        // Full details for modal
+        fullDetails: {
+          visitDate: appointmentStart || summary.createdAt,
+          reasonForVisit: summary.appointmentId?.reason || "Không có",
+          treatmentResult: summary.treatmentMethod || "Không có",
+          diagnoses: summary.diagnoses || [],
+          vitals: summary.vitals || {},
+          labResults: summary.labResults || [],
+          imagingResults: summary.imagingResults || [],
+          medications: summary.medications || [],
+          procedures: summary.procedures || [],
+          summaryText: summary.summaryText || summary.summary || "",
+          treatmentMethod: summary.treatmentMethod || "",
+          followUpInstructions: summary.followUpInstructions || "",
+          nextAppointmentDate: summary.nextAppointmentDate || null,
+        },
+      };
+    });
+
+    return ok(res, {
+      consultationSummaries: formattedSummaries,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Error fetching family member consultation summaries:",
+      error
+    );
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Get family member's consultation advice (consultation history)
+ */
+export async function getFamilyMemberConsultationAdvice(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    const { patientId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    if (!patientId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Patient ID is required"
+      );
+    }
+
+    // Verify that this patient belongs to the current user
+    const patient = await Patient.findOne({
+      _id: patientId,
+      userId: appUserId,
+    });
+
+    if (!patient) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Family member not found or access denied"
+      );
+    }
+
+    // Get consultation advice for this family member
+    const consultationAdvice = await ConsultationAdvice.find({
+      patientId: patientId,
+    })
+      .populate({
+        path: "doctorId",
+        select: "fullName specializationIds avatarUrl",
+        populate: {
+          path: "specializationIds",
+          select: "name",
+        },
+      })
+      .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
+      .populate("clinicId", "name address")
+      .sort({ startedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await ConsultationAdvice.countDocuments({
+      patientId: patientId,
+    });
+
+    // Format the response (same as getPatientConsultationAdvice)
+    const formattedAdvice = consultationAdvice.map((advice) => {
+      // Get primary diagnosis
+      const primaryDiagnosis =
+        advice.diagnoses && advice.diagnoses.length > 0
+          ? advice.diagnoses[0].name
+          : "Không có chẩn đoán";
+
+      // Format medications
+      const medicationsText =
+        advice.medications && advice.medications.length > 0
+          ? advice.medications
+              .map(
+                (med) =>
+                  `${med.name} - ${med.quantity || "N/A"} - ${med.instruction}`
+              )
+              .join(", ")
+          : "Không có đơn thuốc";
+
+      // Format documents
+      const documents = [];
+      if (advice.attachmentUrl) {
+        documents.push({
+          name: `Tài liệu tư vấn.pdf`,
+          type: "pdf",
+        });
+      }
+
+      // Get date/time from appointment if available, otherwise from advice
+      const appointmentStart = advice.appointmentId?.scheduledStart;
+      const appointmentEnd = advice.appointmentId?.scheduledEnd;
+      const adviceDate = advice.appointmentDate;
+
+      // Use appointment date/time as primary source
+      const consultationDateTime = appointmentStart || adviceDate;
+
+      // Safe date handling - format with date and time
+      let formattedDate = "Không xác định";
+      let formattedDateTime = null; // For full date+time display
+
+      if (appointmentStart) {
+        formattedDate = new Date(appointmentStart).toLocaleDateString("vi-VN");
+        formattedDateTime = new Date(appointmentStart).toLocaleString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      } else if (adviceDate) {
+        formattedDate = new Date(adviceDate).toLocaleDateString("vi-VN");
+        formattedDateTime = new Date(adviceDate).toLocaleString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      // Calculate duration
+      let duration = "Không xác định";
+      if (advice.durationMinutes) {
+        duration = `${advice.durationMinutes} phút`;
+      } else if (appointmentStart && appointmentEnd) {
+        const start = new Date(appointmentStart);
+        const end = new Date(appointmentEnd);
+        const diffMs = end.getTime() - start.getTime();
+        const diffMinutes = Math.round(diffMs / (1000 * 60));
+        if (diffMinutes > 0) {
+          duration = `${diffMinutes} phút`;
+        }
+      } else if (advice.startedAt && advice.endedAt) {
+        const start = new Date(advice.startedAt);
+        const end = new Date(advice.endedAt);
+        const diffMs = end.getTime() - start.getTime();
+        const diffMinutes = Math.round(diffMs / (1000 * 60));
+        if (diffMinutes > 0) {
+          duration = `${diffMinutes} phút`;
+        }
+      }
+
+      // Safe summary handling
+      const summaryText = advice.summary || advice.notes || "Không có tóm tắt";
+      const summaryString =
+        typeof summaryText === "string" ? summaryText : String(summaryText);
+      const topic =
+        summaryString.length > 100
+          ? summaryString.substring(0, 100) + "..."
+          : summaryString;
+
+      // Get mode from appointment or advice
+      const mode = advice.appointmentId?.mode || advice.mode || "offline";
+
+      return {
+        id: advice._id,
+        type: mode === "online" ? "Video Call" : "Chat",
+        date: formattedDate,
+        dateTime: formattedDateTime || formattedDate,
+        doctor: `BS. ${advice.doctorId?.fullName || "Không xác định"}`,
+        specialty:
+          advice.doctorId?.specializationIds?.[0]?.name || "Không xác định",
+        duration: duration,
+        topic: topic,
+        summary: summaryString,
+        documents: documents,
+        // Full details for modal
+        fullDetails: {
+          adviceType: advice.adviceType,
+          summary: summaryString,
+          startedAt: appointmentStart || advice.startedAt || adviceDate,
+          endedAt: appointmentEnd || advice.endedAt,
+          durationMinutes:
+            advice.durationMinutes ||
+            (appointmentStart && appointmentEnd
+              ? Math.round(
+                  (new Date(appointmentEnd) - new Date(appointmentStart)) /
+                    (1000 * 60)
+                )
+              : null),
+          diagnoses: advice.diagnoses || [],
+          medications: advice.medications || [],
+          notes: advice.notes || "",
+          attachmentUrl: advice.attachmentUrl || null,
+        },
+      };
+    });
+
+    return ok(res, {
+      consultationAdvice: formattedAdvice,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching family member consultation advice:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
 export async function createFamilyMember(req, res) {
   try {
     const claims = req.user || {};
@@ -1582,6 +1944,78 @@ export async function createFamilyMember(req, res) {
     });
   } catch (error) {
     console.error("Error creating family member:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Delete family member (patient with relationshipToOwner !== "self")
+ */
+export async function deleteFamilyMember(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    const { patientId } = req.params;
+
+    // Find the patient record
+    const patient = await Patient.findById(patientId);
+
+    if (!patient) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Patient not found");
+    }
+
+    // Verify this patient belongs to the current user
+    if (patient.userId.toString() !== appUserId.toString()) {
+      return fail(
+        res,
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "You don't have permission to delete this patient"
+      );
+    }
+
+    // Verify this is a family member, not self
+    if (patient.relationshipToOwner === "self") {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Cannot delete self patient record"
+      );
+    }
+
+    // Cancel all pending/appointed appointments for this patient
+    await Appointment.updateMany(
+      {
+        patientId: patient._id,
+        status: { $in: ["pending_doctor", "accepted", "in_progress"] },
+      },
+      {
+        $set: {
+          status: "cancelled",
+          cancelReason: "Family member deleted by user",
+        },
+      }
+    );
+
+    // Delete the patient record
+    await Patient.findByIdAndDelete(patientId);
+
+    return ok(res, {
+      message: "Family member deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting family member:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }

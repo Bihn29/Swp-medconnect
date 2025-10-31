@@ -9,6 +9,7 @@ import { QuickActions } from "./components/QuickActions/QuickActions";
 import { DoctorSearch } from "./components/DoctorSearch/DoctorSearch";
 import { MyAppointments } from "./components/MyAppointments/MyAppointments";
 import { HealthProfile } from "./components/HealthProfile/HealthProfile";
+import { FamilyHealthProfile } from "./components/FamilyHealthProfile/FamilyHealthProfile";
 import { Notifications } from "./components/Notifications/Notifications";
 import "./PatientDashboard.scss";
 
@@ -45,6 +46,8 @@ export default function PatientDashboard() {
         return <MyAppointments />;
       case "/medical-records":
         return <HealthProfile />;
+      case "/family-health-records":
+        return <FamilyHealthProfile />;
       case "/thong-bao":
         return <Notifications />;
       default:

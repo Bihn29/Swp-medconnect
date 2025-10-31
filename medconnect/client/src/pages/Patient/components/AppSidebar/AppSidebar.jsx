@@ -16,6 +16,7 @@ import {
   CreditCard,
   Bell,
   Plus,
+  Users,
 } from "lucide-react";
 import "./AppSidebar.scss";
 
@@ -42,7 +43,12 @@ export function AppSidebar() {
       label: "Lịch hẹn của tôi",
       href: "/my-appointments",
     },
-    { icon: FileText, label: "Hồ sơ sức khỏe", href: "/medical-records" },
+    { icon: FileText, label: "Hồ sơ khám bệnh", href: "/medical-records" },
+    {
+      icon: Users,
+      label: "Hồ sơ khám bệnh người thân",
+      href: "/family-health-records",
+    },
     { icon: CreditCard, label: "Thanh toán", href: "/payments" },
     { icon: Bell, label: "Thông báo", href: "/thong-bao" },
   ];

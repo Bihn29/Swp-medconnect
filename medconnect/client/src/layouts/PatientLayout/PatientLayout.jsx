@@ -12,6 +12,7 @@ import {
   LogoutOutlined,
   UserOutlined,
   PlusOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import { auth } from "../../lib/firebase";
 import { useUserProfile } from "../../hooks/useUserProfile";
@@ -64,7 +65,12 @@ const PatientLayout = () => {
     {
       key: "/medical-records",
       icon: <FileTextOutlined />,
-      label: "Hồ sơ sức khỏe",
+      label: "Hồ sơ khám bệnh",
+    },
+    {
+      key: "/family-health-records",
+      icon: <TeamOutlined />,
+      label: "Hồ sơ khám bệnh người thân",
     },
     {
       key: "/payments",

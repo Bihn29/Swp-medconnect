@@ -12,8 +12,11 @@ import {
   getAppointmentDetails,
   getPatientConsultationSummaries,
   getPatientConsultationAdvice,
+  getFamilyMemberConsultationSummaries,
+  getFamilyMemberConsultationAdvice,
   getFamilyMembers,
   createFamilyMember,
+  deleteFamilyMember,
 } from "../controllers/patientController.js";
 import Patient from "../models/patient.model.js";
 import User from "../models/user.model.js";
@@ -138,10 +141,27 @@ router.get(
 // Get patient's consultation advice (consultation history)
 router.get("/me/consultation-advice", authGuard, getPatientConsultationAdvice);
 
+// Get family member's consultation summaries (medical history)
+router.get(
+  "/:patientId/consultation-summaries",
+  authGuard,
+  getFamilyMemberConsultationSummaries
+);
+
+// Get family member's consultation advice (consultation history)
+router.get(
+  "/:patientId/consultation-advice",
+  authGuard,
+  getFamilyMemberConsultationAdvice
+);
+
 // Get all family members
 router.get("/me/family-members", authGuard, getFamilyMembers);
 
 // Create a new family member
 router.post("/me/family-members", authGuard, createFamilyMember);
+
+// Delete a family member
+router.delete("/me/family-members/:patientId", authGuard, deleteFamilyMember);
 
 export default router;
