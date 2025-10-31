@@ -9,6 +9,7 @@ import {
   Video,
   X,
   FileDown,
+  Search,
 } from "lucide-react";
 import { api } from "../../../lib/api";
 import "./MedicalHistory.scss";
@@ -24,6 +25,7 @@ export default function MedicalHistory() {
   const [selectedAdvice, setSelectedAdvice] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [modalType, setModalType] = useState("summary"); // "summary" or "advice"
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -373,6 +375,17 @@ export default function MedicalHistory() {
     return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
   };
 
+  // Filter data based on search term
+  const filteredSummaries = consultationSummaries.filter((summary) => {
+    const patientName = summary.patientId?.fullName || "";
+    return patientName.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  const filteredAdvice = consultationAdvice.filter((advice) => {
+    const patientName = advice.patientId?.fullName || "";
+    return patientName.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
     return (
     <div className="health-profile-container">
       {/* Header */}
@@ -385,6 +398,18 @@ export default function MedicalHistory() {
             <p className="page-subtitle">
               Quản lý và xem lịch sử khám bệnh và tư vấn
             </p>
+          </div>
+          <div className="header-search">
+            <div className="search-input-wrapper">
+              <Search className="search-icon" />
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Tìm kiếm theo tên bệnh nhân..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
       </div>
       </div>
@@ -400,7 +425,7 @@ export default function MedicalHistory() {
           <FileText className="tab-icon" />
           <span>Lịch sử khám bệnh</span>
           <span className="tab-badge">
-            {consultationSummaries.length}
+            {filteredSummaries.length}
           </span>
         </button>
         <button
@@ -412,21 +437,13 @@ export default function MedicalHistory() {
           <MessageCircle className="tab-icon" />
           <span>Lịch sử tư vấn</span>
           <span className="tab-badge">
-            {consultationAdvice.length}
+            {filteredAdvice.length}
           </span>
         </button>
       </div>
 
-      {/* History Section */}
-      <div className="history-section">
-        <div className="section-header">
-          <h2 className="section-title">
-            {activeTab === "medical" ? "Lịch sử khám bệnh" : "Lịch sử tư vấn"}
-          </h2>
-        </div>
-
-        {/* Medical History Tab */}
-        {activeTab === "medical" && (
+      {/* Medical History Tab */}
+      {activeTab === "medical" && (
           <div className="tab-content">
             {loading ? (
               <div className="loading-state">
@@ -437,29 +454,13 @@ export default function MedicalHistory() {
               <div className="error-state">
                 <p>{error}</p>
               </div>
-            ) : consultationSummaries.length === 0 ? (
+            ) : filteredSummaries.length === 0 ? (
               <div className="empty-state">
-                <p>Chưa có lịch sử khám bệnh nào.</p>
+                <p>{searchTerm ? "Không tìm thấy kết quả nào." : "Chưa có lịch sử khám bệnh nào."}</p>
               </div>
             ) : (
               <div className="history-list">
-                {consultationSummaries.map((summary) => {
-                  const primaryDiagnosis =
-                    summary.diagnoses && summary.diagnoses.length > 0
-                      ? summary.diagnoses[0].name
-                      : "Không có";
-
-                  const medicationsText =
-                    summary.medications && summary.medications.length > 0
-                      ? summary.medications
-                          .map(
-                            (med) =>
-                              `${med.name || "Không có"} - ${med.quantity || "Không có"} - ${med.instruction || ""}`
-                          )
-                          .join(", ")
-                      : "Không có đơn thuốc";
-
-
+                {filteredSummaries.map((summary) => {
                   return (
                     <div key={summary._id} className="history-card">
                       <div className="card-header">
@@ -480,6 +481,13 @@ export default function MedicalHistory() {
                                 <User className="meta-icon" />
                                 <span>SĐT: {summary.patientId?.phone || "Không có"}</span>
                               </div>
+                              {summary.mode && (
+                                <div className="meta-item">
+                                  <span className="consultation-type">
+                                    {summary.mode === "online" ? "TRỰC TUYẾN" : "TRỰC TIẾP"}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -503,128 +511,12 @@ export default function MedicalHistory() {
                           </button>
                         </div>
                       </div>
-
-                      <div className="card-content">
-                        {summary.reasonForVisit && (
-                          <div className="content-item">
-                            <div className="content-label">Lý do khám:</div>
-                            <div className="content-value">{summary.reasonForVisit}</div>
-                          </div>
-                        )}
-
-                        {(summary.diagnoses?.length > 0) && (
-                          <div className="content-item">
-                            <div className="content-label">Chẩn đoán:</div>
-                            <div className="content-value">
-                              {primaryDiagnosis}
-                              {summary.diagnoses.length > 1 && (
-                                <span className="more-diagnoses">
-                                  {" "}+ {summary.diagnoses.length - 1} chẩn đoán khác
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {(summary.medications?.length > 0) && (
-                          <div className="content-item">
-                            <div className="content-label">Đơn thuốc:</div>
-                            <div className="content-value">
-                              {medicationsText}
-                            </div>
-                          </div>
-                        )}
-
-                        {summary.treatmentResult && (
-                          <div className="content-item">
-                            <div className="content-label">Kết quả điều trị:</div>
-                            <div className="content-value">
-                              {summary.treatmentResult === "recovered"
-                                ? "Khỏi"
-                                : summary.treatmentResult === "improved"
-                                ? "Cải thiện"
-                                : summary.treatmentResult === "unchanged"
-                                ? "Không thay đổi"
-                                : summary.treatmentResult}
-                            </div>
-                          </div>
-                        )}
-
-                        {(() => {
-                          const validLabResults = summary.labResults?.filter(lab => lab.testName && lab.result) || [];
-                          if (validLabResults.length > 0) {
-                            return (
-                              <div className="content-item">
-                                <div className="content-label">Xét nghiệm:</div>
-                                <div className="documents-list">
-                                  {validLabResults.map((lab, index) => (
-                                    <div key={`lab-${index}`} className="document-item">
-                                      <FileText className="document-icon" />
-                                      <span className="document-text">
-                                        {lab.testName} - {lab.result}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-      </div>
-    );
-  }
-                          return null;
-                        })()}
-
-                        <div className="content-item">
-                          <div className="content-label">Hình ảnh chẩn đoán:</div>
-                          {(() => {
-                            // Chỉ hiển thị những item có imageUrl thực sự
-                            const validImagingResults = summary.imagingResults?.filter(img => img.imageUrl && img.imageUrl.trim() !== '') || [];
-                            if (validImagingResults.length > 0) {
-    return (
-                                <div className="documents-list">
-                                  {validImagingResults.map((img, index) => (
-                                    <div key={`img-${index}`} className="document-item">
-                                      <FileText className="document-icon" />
-                                      <span className="document-text">
-                                        {img.type ? `${img.type}${img.conclusion ? ` - ${img.conclusion}` : ''}` : img.conclusion || `Hình ảnh ${index + 1}`}
-                                      </span>
-                                      <div className="document-actions">
-                                        <a
-                                          href={getImageUrl(img.imageUrl)}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="document-link"
-                                        >
-                                          Xem hình ảnh
-                                        </a>
-                                        <button
-                                          className="download-file-button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDownloadFile(img.imageUrl, `${img.type || 'hinh-anh'}-${index + 1}.${img.imageUrl.split('.').pop() || 'png'}`);
-                                          }}
-                                          title="Tải xuống hình ảnh"
-                                        >
-                                          <FileDown className="download-icon-small" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))}
-      </div>
-    );
-  }
-                            return (
-                              <div className="content-value" style={{ color: '#9ca3af', fontStyle: 'italic' }}>
-                                Không có hình ảnh chẩn đoán
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
                     </div>
                   );
                 })}
               </div>
             )}
-            </div>
+          </div>
         )}
 
         {/* Consultation History Tab */}
@@ -639,30 +531,14 @@ export default function MedicalHistory() {
               <div className="error-state">
                 <p>{error}</p>
               </div>
-            ) : consultationAdvice.length === 0 ? (
+            ) : filteredAdvice.length === 0 ? (
               <div className="empty-state">
-                <p>Chưa có lịch sử tư vấn nào.</p>
+                <p>{searchTerm ? "Không tìm thấy kết quả nào." : "Chưa có lịch sử tư vấn nào."}</p>
               </div>
             ) : (
               <div className="history-list">
-                {consultationAdvice.map((advice) => {
-                  const primaryDiagnosis =
-                    advice.diagnoses && advice.diagnoses.length > 0
-                      ? advice.diagnoses[0].name
-                      : "Không có";
-
-                  const medicationsText =
-                    advice.medications && advice.medications.length > 0
-                      ? advice.medications
-                          .map(
-                            (med) =>
-                              `${med.name || "Không có"} - ${med.quantity || "Không có"} - ${med.instruction || ""}`
-                          )
-                          .join(", ")
-                      : "Không có đơn thuốc";
-
-
-  return (
+                {filteredAdvice.map((advice) => {
+                  return (
                     <div key={advice._id} className="history-card consultation-card">
                       <div className="card-header">
                         <div className="card-title-section">
@@ -688,7 +564,7 @@ export default function MedicalHistory() {
                               </div>
                               <div className="meta-item">
                                 <span className="consultation-type">
-                                  {advice.mode === "online" ? "Trực tuyến" : "Trực tiếp"}
+                                  {advice.mode === "online" ? "TRỰC TUYẾN" : "TRỰC TIẾP"}
                                 </span>
                               </div>
                             </div>
@@ -713,75 +589,6 @@ export default function MedicalHistory() {
                             Tải xuống
         </button>
                         </div>
-      </div>
-
-                      <div className="card-content">
-                        {advice.notes && (
-                          <div className="content-item">
-                            <div className="content-label">Ghi chú:</div>
-                            <div className="content-value">
-                              {advice.notes.length > 150
-                                ? advice.notes.substring(0, 150) + "..."
-                                : advice.notes}
-                            </div>
-                          </div>
-                        )}
-
-                        {primaryDiagnosis !== "Không có" && (
-                          <div className="content-item">
-                            <div className="content-label">Chẩn đoán:</div>
-                            <div className="content-value">
-                              {primaryDiagnosis}
-                              {advice.diagnoses && advice.diagnoses.length > 1 && (
-                                <span className="more-diagnoses">
-                                  {" "}+ {advice.diagnoses.length - 1} chẩn đoán khác
-                                </span>
-                              )}
-              </div>
-              </div>
-                        )}
-
-                        {medicationsText !== "Không có đơn thuốc" && (
-                          <div className="content-item">
-                            <div className="content-label">Thuốc kê đơn:</div>
-                            <div className="content-value">{medicationsText}</div>
-              </div>
-                        )}
-
-                        <div className="content-item">
-                          <div className="content-label">File đính kèm:</div>
-                          {advice.attachmentUrl && advice.attachmentUrl.trim() !== '' ? (
-                            <div className="documents-list">
-                              <div className="document-item">
-                                <FileText className="document-icon" />
-                                <div className="document-actions">
-                                  <a
-                                    href={getImageUrl(advice.attachmentUrl)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="document-link"
-                                  >
-                                    {advice.attachmentUrl.split('/').pop() || advice.attachmentUrl}
-                                  </a>
-                                  <button
-                                    className="download-file-button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDownloadFile(advice.attachmentUrl, advice.attachmentUrl.split('/').pop() || 'file.pdf');
-                                    }}
-                                    title="Tải xuống file"
-                                  >
-                                    <FileDown className="download-icon-small" />
-                                  </button>
-              </div>
-            </div>
-                            </div>
-                          ) : (
-                            <div className="content-value" style={{ color: '#9ca3af', fontStyle: 'italic' }}>
-                              Không có file đính kèm
-                            </div>
-                          )}
-                        </div>
                       </div>
                     </div>
                   );
@@ -790,7 +597,6 @@ export default function MedicalHistory() {
             )}
           </div>
         )}
-      </div>
 
       {/* Detail Modal */}
       {showDetailModal && (selectedSummary || selectedAdvice) && (

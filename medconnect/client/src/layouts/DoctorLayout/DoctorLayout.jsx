@@ -59,7 +59,7 @@ export default function DoctorLayout() {
       <Sidebar activeMenu={activeMenu} onMenuChange={handleMenuChange} />
       <div className="doctor-layout-main">
         <DoctorHeader />
-        <main className="doctor-layout-content">
+        <main className={`doctor-layout-content ${location.pathname === "/bac-si/ho-so-kham" ? "no-scroll" : ""}`}>
           <Outlet />
         </main>
       </div>
