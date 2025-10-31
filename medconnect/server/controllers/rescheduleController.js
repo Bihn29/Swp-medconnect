@@ -294,22 +294,60 @@ export async function approveReschedule(req, res) {
         { session }
       );
 
-      // Create new appointment
+      // Calculate appointment duration
       const appointmentDuration =
         originalAppointment.scheduledEnd.getTime() -
         originalAppointment.scheduledStart.getTime();
+
+      const newScheduledStart = request.newDateTime;
+      const newScheduledEnd = new Date(
+        request.newDateTime.getTime() + appointmentDuration
+      );
+
+      // Find or create a time slot for the new datetime
+      let newTimeSlot = await DoctorTimeSlot.findOne({
+        doctorId: doctor._id,
+        startAt: newScheduledStart,
+        endAt: newScheduledEnd,
+      }).session(session);
+
+      if (!newTimeSlot) {
+        // Create new time slot for the rescheduled appointment
+        newTimeSlot = new DoctorTimeSlot({
+          doctorId: doctor._id,
+          startAt: newScheduledStart,
+          endAt: newScheduledEnd,
+          status: "available", // Will be set to "booked" after appointment creation
+        });
+        await newTimeSlot.save({ session });
+        console.log(
+          `✅ Created new time slot ${newTimeSlot._id} for rescheduled appointment`
+        );
+      }
+
+      // Verify slot is available
+      if (newTimeSlot.status !== "available") {
+        await session.abortTransaction();
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Time slot for new datetime is no longer available"
+        );
+      }
+
+      // Create new appointment with the NEW time slot
       const newAppointmentData = {
         patientId: originalAppointment.patientId,
         doctorId: originalAppointment.doctorId,
         clinicId: originalAppointment.clinicId,
-        slotId: originalAppointment.slotId,
-        scheduledStart: request.newDateTime,
-        scheduledEnd: new Date(
-          request.newDateTime.getTime() + appointmentDuration
-        ),
+        slotId: newTimeSlot._id, // Use the NEW slot, not the old one
+        scheduledStart: newScheduledStart,
+        scheduledEnd: newScheduledEnd,
         mode: originalAppointment.mode,
         status: "accepted",
-        reasonForVisit: originalAppointment.reasonForVisit,
+        reason:
+          originalAppointment.reason || originalAppointment.reasonForVisit,
         rescheduledFromId: originalAppointment._id,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -317,6 +355,13 @@ export async function approveReschedule(req, res) {
 
       const newAppointment = new Appointment(newAppointmentData);
       await newAppointment.save({ session });
+
+      // Mark the new time slot as booked
+      await DoctorTimeSlot.findByIdAndUpdate(
+        newTimeSlot._id,
+        { status: "booked" },
+        { session }
+      );
 
       // Update original appointment with new appointment ID
       await Appointment.findByIdAndUpdate(

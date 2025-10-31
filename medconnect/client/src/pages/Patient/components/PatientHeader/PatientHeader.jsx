@@ -1,17 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 import { Search } from "lucide-react";
 import { NotificationCenter } from "../../../../components/NotificationCenter/NotificationCenter";
 import "./PatientHeader.scss";
 
 export function PatientHeader() {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    console.log("Searching for:", searchQuery);
-    // Thêm logic tìm kiếm ở đây
-  };
-
   return (
     <header className="patient-header">
       <div className="header-content">
@@ -28,22 +20,6 @@ export function PatientHeader() {
               <div className="brand-tagline">Chăm sóc sức khỏe</div>
             </div>
           </div>
-        </div>
-
-        {/* Center Section - Search Bar */}
-        <div className="header-center">
-          <form onSubmit={handleSearch} className="search-form">
-            <div className="search-container">
-              <Search className="search-icon" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm bác sĩ, chuyên khoa..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input"
-              />
-            </div>
-          </form>
         </div>
 
         {/* Right Section - Notifications */}

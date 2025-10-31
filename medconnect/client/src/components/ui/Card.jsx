@@ -6,7 +6,7 @@ export const Card = ({ className = "", children, ...props }) => {
       className={`rounded-lg border bg-card text-card-foreground shadow-sm ${className}`}
       style={{
         borderRadius: "0.75rem",
-        border: "1px solid rgba(226, 232, 240, 0.8)",
+        border: "2px solid #cbd5e1",
         backgroundColor: "#ffffff",
         color: "#2d3748",
         boxShadow:

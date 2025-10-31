@@ -31,7 +31,12 @@ export const Select = ({ value, onValueChange, children, className = "" }) => {
             isOpen, 
             onClick: () => setIsOpen(!isOpen),
             value 
-          });
+          }, React.Children.map(child.props.children, (subChild) => {
+            if (subChild && subChild.type && subChild.type.displayName === 'SelectValue') {
+              return React.cloneElement(subChild, { value });
+            }
+            return subChild;
+          }));
         }
         if (child.type.displayName === 'SelectContent') {
           return React.cloneElement(child, { 
@@ -57,8 +62,8 @@ export const SelectTrigger = ({ children, className = "", isOpen, onClick, value
   );
 };
 
-export const SelectValue = ({ placeholder = "Select..." }) => {
-  return <span className="select-value">{placeholder}</span>;
+export const SelectValue = ({ placeholder = "Select...", value }) => {
+  return <span className="select-value">{value || placeholder}</span>;
 };
 
 export const SelectContent = ({ children, className = "", isOpen, onValueChange }) => {

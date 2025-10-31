@@ -12,6 +12,11 @@ import {
   getAppointmentDetails,
   getPatientConsultationSummaries,
   getPatientConsultationAdvice,
+  getFamilyMemberConsultationSummaries,
+  getFamilyMemberConsultationAdvice,
+  getFamilyMembers,
+  createFamilyMember,
+  deleteFamilyMember,
 } from "../controllers/patientController.js";
 import Patient from "../models/patient.model.js";
 import User from "../models/user.model.js";
@@ -61,7 +66,7 @@ router.get("/me/stats", authGuard, async (req, res) => {
       return res.status(401).json({
         success: false,
         error: { code: "UNAUTHORIZED" },
-        message: "User ID not found in token"
+        message: "User ID not found in token",
       });
     }
 
@@ -75,35 +80,37 @@ router.get("/me/stats", authGuard, async (req, res) => {
         return res.status(404).json({
           success: false,
           error: { code: "USER_NOT_FOUND" },
-          message: "User not found"
+          message: "User not found",
         });
       }
-      
+
       const newPatient = new Patient({
         userId: appUserId,
         fullName: user.fullName || "Chưa cập nhật",
         phone: user.phone || "",
         isComplete: false,
       });
-      
+
       await newPatient.save();
       patient = newPatient;
       console.log("Created patient profile:", patient._id);
     }
 
     // Get appointment counts by status
-    const totalAppointments = await Appointment.countDocuments({ patientId: patient._id });
-    const pendingAppointments = await Appointment.countDocuments({ 
-      patientId: patient._id, 
-      status: 'pending_doctor' 
+    const totalAppointments = await Appointment.countDocuments({
+      patientId: patient._id,
     });
-    const completedAppointments = await Appointment.countDocuments({ 
-      patientId: patient._id, 
-      status: 'done' 
+    const pendingAppointments = await Appointment.countDocuments({
+      patientId: patient._id,
+      status: "pending_doctor",
     });
-    const cancelledAppointments = await Appointment.countDocuments({ 
-      patientId: patient._id, 
-      status: 'cancelled' 
+    const completedAppointments = await Appointment.countDocuments({
+      patientId: patient._id,
+      status: "done",
+    });
+    const cancelledAppointments = await Appointment.countDocuments({
+      patientId: patient._id,
+      status: "cancelled",
     });
 
     res.json({
@@ -112,15 +119,15 @@ router.get("/me/stats", authGuard, async (req, res) => {
         totalAppointments,
         pendingAppointments,
         completedAppointments,
-        cancelledAppointments
-      }
+        cancelledAppointments,
+      },
     });
   } catch (error) {
     console.error("Error fetching patient stats:", error);
     res.status(500).json({
       success: false,
       error: { code: "SERVER_ERROR" },
-      message: "Internal server error"
+      message: "Internal server error",
     });
   }
 });
@@ -133,5 +140,28 @@ router.get(
 
 // Get patient's consultation advice (consultation history)
 router.get("/me/consultation-advice", authGuard, getPatientConsultationAdvice);
+
+// Get family member's consultation summaries (medical history)
+router.get(
+  "/:patientId/consultation-summaries",
+  authGuard,
+  getFamilyMemberConsultationSummaries
+);
+
+// Get family member's consultation advice (consultation history)
+router.get(
+  "/:patientId/consultation-advice",
+  authGuard,
+  getFamilyMemberConsultationAdvice
+);
+
+// Get all family members
+router.get("/me/family-members", authGuard, getFamilyMembers);
+
+// Create a new family member
+router.post("/me/family-members", authGuard, createFamilyMember);
+
+// Delete a family member
+router.delete("/me/family-members/:patientId", authGuard, deleteFamilyMember);
 
 export default router;

@@ -1,5 +1,79 @@
 /* QuickActions Component Styles */
 
+/* Ensure text alignment to left and fix icon display */
+.quick-action-button {
+  text-align: left !important;
+  justify-content: flex-start !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: visible !important;
+  transition: all 0.3s ease !important;
+
+  /* Icon container */
+  > div:first-child {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    min-width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    flex-shrink: 0 !important;
+    transition: all 0.3s ease !important;
+
+    svg,
+    > * {
+      display: block !important;
+      width: 1.25rem !important;
+      height: 1.25rem !important;
+      overflow: visible !important;
+      transition: all 0.3s ease !important;
+    }
+  }
+
+  /* Text container */
+  > div.flex.flex-col {
+    text-align: left !important;
+    align-items: flex-start !important;
+    flex: 1;
+    min-width: 0;
+    transition: all 0.3s ease !important;
+
+    span {
+      text-align: left !important;
+      width: 100%;
+      display: block;
+      transition: color 0.3s ease !important;
+    }
+  }
+
+  /* Hover effect - Background turns blue/teal, everything inside turns white */
+  &:hover {
+    background-color: #45c3d2 !important;
+    border-color: #45c3d2 !important;
+
+    /* Icon container on hover */
+    > div:first-child {
+      background-color: rgba(255, 255, 255, 0.2) !important;
+
+      svg,
+      > * {
+        color: #ffffff !important;
+      }
+    }
+
+    /* Text on hover */
+    > div.flex.flex-col {
+      span {
+        color: #ffffff !important;
+
+        &.text-muted-foreground {
+          color: rgba(255, 255, 255, 0.9) !important;
+        }
+      }
+    }
+  }
+}
+
 .quick-actions-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -13,7 +87,7 @@
 
 .quick-action-card {
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid rgba(43, 108, 176, 0.1);
+  border: 2px solid rgba(43, 108, 176, 0.2);
   border-radius: 1rem;
   padding: 1.5rem;
   text-align: center;

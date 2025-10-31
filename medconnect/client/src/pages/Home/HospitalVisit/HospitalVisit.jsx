@@ -296,7 +296,13 @@ const HospitalVisit = () => {
   return (
     <div className="hospital-visit">
       {/* Hero Section */}
-      <section style={{ padding: "50px 0", background: "#f9fafb" }}>
+      <section
+        style={{
+          padding: "50px 0",
+          background: "#f9fafb",
+          paddingTop: "100px",
+        }}
+      >
         {/* <section 
         className="hero-section"
           style={{
@@ -312,7 +318,7 @@ const HospitalVisit = () => {
             khi kết thúc khám. Gọi ngay 1900 2267!
           </p>
         </div>
-        <div className="container">
+        <div className="container" style={{ marginTop: "40px" }}>
           <Slider
             {...{
               dots: true,
@@ -356,6 +362,12 @@ const HospitalVisit = () => {
                   "https://cdn.bookingcare.vn/fo/w1920/2024/04/01/145314-uu-dai-tam-soat.png",
                 link: "/promotions/checkup",
               },
+              // Thêm ảnh mới vào đây
+              // {
+              //   id: 6,
+              //   image: "URL_ẢNH_CỦA_BẠNgit ",
+              //   link: "/promotions/ten-u-dai",
+              // },
             ].map((promo) => (
               <div key={promo.id} style={{ textAlign: "center" }}>
                 <Link to={promo.link}>

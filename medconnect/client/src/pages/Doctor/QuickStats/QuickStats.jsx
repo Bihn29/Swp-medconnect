@@ -1,6 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/Card"
-import { Users, Calendar, Clock, CheckCircle } from "lucide-react"
-import "./QuickStats.scss"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../components/ui/Card";
+import { Users, Calendar, Clock, CheckCircle } from "lucide-react";
+import "./QuickStats.scss";
 
 export default function QuickStats() {
   const stats = [
@@ -26,14 +31,14 @@ export default function QuickStats() {
       title: "Hoàn thành hôm nay",
       value: "5",
       icon: CheckCircle,
-      color: "bg-purple-100 text-purple-600",
+      color: "bg-cyan-100 text-cyan-600",
     },
-  ]
+  ];
 
   return (
     <div className="quick-stats">
       {stats.map((stat) => {
-        const Icon = stat.icon
+        const Icon = stat.icon;
         return (
           <Card key={stat.title} className="quick-stats-card">
             <CardHeader className="quick-stats-header">
@@ -46,8 +51,8 @@ export default function QuickStats() {
               <div className="quick-stats-value">{stat.value}</div>
             </CardContent>
           </Card>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

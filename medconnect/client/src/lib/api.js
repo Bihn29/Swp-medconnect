@@ -70,6 +70,27 @@ export async function updateCurrentPatientProfile(profileData) {
   }
 }
 
+// Delete family member
+export async function deleteFamilyMember(patientId) {
+  try {
+    const r = await fetch(
+      `${BASE}/api/patients/me/family-members/${patientId}`,
+      {
+        method: "DELETE",
+        credentials: "include",
+      }
+    );
+    if (!r.ok) {
+      const errorText = await r.text();
+      throw new Error(errorText || "Failed to delete family member");
+    }
+    return await r.json();
+  } catch (error) {
+    console.error("Error deleting family member:", error);
+    throw error;
+  }
+}
+
 export async function registerDoctor(doctorData) {
   const r = await fetch(`${BASE}/api/auth/register-doctor`, {
     method: "POST",
@@ -543,8 +564,6 @@ export async function updateDoctorScheduleRules(scheduleRules) {
   return r.json();
 }
 
-
-
 // Consultation and prescription functions
 export async function getConsultationRecords(params = {}) {
   const searchParams = new URLSearchParams();
@@ -713,8 +732,6 @@ export async function markAllNotificationsAsRead() {
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
-
-
 
 // Review functions
 export async function getDoctorReviews(params = {}) {
@@ -1174,5 +1191,14 @@ const apiObject = {
     return response.json();
   },
 };
+
+// Get family members
+export async function getFamilyMembers() {
+  const r = await fetch(`${BASE}/api/patients/me/family-members`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
 
 export const api = apiObject;

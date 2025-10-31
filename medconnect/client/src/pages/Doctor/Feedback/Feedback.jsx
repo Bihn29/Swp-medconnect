@@ -109,9 +109,13 @@ export default function Feedback() {
     return true;
   }) || [];
 
-  const averageRating = reviews?.length > 0 
-    ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
-    : 0;
+  const averageRating =
+    reviews?.length > 0
+      ? (
+          reviews.reduce((sum, review) => sum + review.rating, 0) /
+          reviews.length
+        ).toFixed(1)
+      : 0;
 
   // Get total from pagination if available, otherwise use current reviews count
   const totalReviews = pagination?.total || reviews?.length || 0;

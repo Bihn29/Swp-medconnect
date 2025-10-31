@@ -755,7 +755,8 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
   border: none;
 
   &:nth-child(1) {
-    width: 15%;
+    width: 25%;
+    min-width: 200px;
   } /* Bệnh nhân */
   &:nth-child(2) {
     width: 15%;
@@ -764,10 +765,10 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
     width: 10%;
   } /* Loại */
   &:nth-child(4) {
-    width: 20%;
+    width: 18%;
   } /* Lý do */
   &:nth-child(5) {
-    width: 40%;
+    width: 32%;
   } /* Trạng thái */
 }
 
@@ -809,6 +810,9 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
 .appointment-list-patient {
   color: $gray-900;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .appointment-list-datetime {
@@ -871,7 +875,7 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
 }
 
 .appointment-list-card .bg-purple-500 {
-  background-color: #8b5cf6 !important; // Tím - Chờ bác sĩ xác nhận
+  background-color: #45c3d2 !important; // Xanh teal - Chờ bác sĩ xác nhận
 }
 
 .appointment-list-card .bg-red-500 {
@@ -911,7 +915,7 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
 }
 
 .appointment-list-card [data-status="pending_doctor"] {
-  background-color: #8b5cf6 !important;
+  background-color: #45c3d2 !important;
   color: white !important;
 }
 
@@ -961,6 +965,8 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
 .appointment-list-patient-name {
   cursor: pointer;
   color: #000000;
+  white-space: nowrap;
+  display: inline-block;
 
   &:hover {
     color: #0891b2;
@@ -1728,4 +1734,35 @@ $shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
   font-size: 0.875rem;
   color: $gray-700;
   font-weight: 600;
+}
+
+// Reschedule Info Modal Styles
+.reschedule-details-box {
+  background: white;
+  border: 1px solid $gray-200;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.reschedule-details-box.new-schedule {
+  background: #f0fdfa;
+  border-color: $primary-teal;
+}
+
+.reschedule-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $gray-700;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid $gray-200;
+}
+
+.arrow-indicator {
+  text-align: center;
+  font-size: 24px;
+  color: $gray-400;
+  font-weight: bold;
+  margin: 8px 0;
 }

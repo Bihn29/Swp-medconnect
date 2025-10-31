@@ -1,10 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
-  Download,
-  Heart,
-  Activity,
-  Droplets,
-  Weight,
   FileText,
   Calendar,
   User,
@@ -13,6 +8,7 @@ import {
   MessageCircle,
   Video,
   X,
+  Search,
 } from "lucide-react";
 import { useConsultationSummaries } from "../../../../hooks/useConsultationSummaries";
 import { useConsultationAdvice } from "../../../../hooks/useConsultationAdvice";
@@ -25,6 +21,7 @@ export function HealthProfile() {
   const [selectedAdvice, setSelectedAdvice] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [modalType, setModalType] = useState("summary"); // "summary" or "advice"
+  const [doctorSearch, setDoctorSearch] = useState(""); // Filter by doctor name
 
   // Fetch consultation summaries from API
   const {
@@ -32,7 +29,7 @@ export function HealthProfile() {
     isLoading,
     error,
   } = useConsultationSummaries(1, 20);
-  const medicalHistory = consultationData?.consultationSummaries || [];
+  const allMedicalHistory = consultationData?.consultationSummaries || [];
 
   // Fetch consultation advice from API
   const {
@@ -40,47 +37,32 @@ export function HealthProfile() {
     isLoading: isLoadingAdvice,
     error: errorAdvice,
   } = useConsultationAdvice(1, 20);
-  const consultationHistory = consultationAdviceData?.consultationAdvice || [];
+  const allConsultationHistory =
+    consultationAdviceData?.consultationAdvice || [];
 
-  const [healthMetrics] = useState([
-    {
-      id: 1,
-      icon: Activity,
-      label: "Huyết áp",
-      value: "120/80 mmHg",
-      status: "Bình thường",
-      statusColor: "normal",
-    },
-    {
-      id: 2,
-      icon: Heart,
-      label: "Nhịp tim",
-      value: "72 bpm",
-      status: "Bình thường",
-      statusColor: "normal",
-    },
-    {
-      id: 3,
-      icon: Droplets,
-      label: "Đường huyết",
-      value: "95 mg/dL",
-      status: "Bình thường",
-      statusColor: "normal",
-    },
-    {
-      id: 4,
-      icon: Weight,
-      label: "Cân nặng",
-      value: "68 kg",
-      status: "Bình thường",
-      statusColor: "normal",
-    },
-  ]);
+  // Filter medical history by doctor name
+  const medicalHistory = useMemo(() => {
+    if (!doctorSearch.trim()) {
+      return allMedicalHistory;
+    }
+    const searchLower = doctorSearch.toLowerCase().trim();
+    return allMedicalHistory.filter((record) => {
+      const doctorName = record.doctor?.toLowerCase() || "";
+      return doctorName.includes(searchLower);
+    });
+  }, [allMedicalHistory, doctorSearch]);
 
-  const handleDownload = () => {
-    console.log("Downloading health profile...");
-    // Implement download functionality
-  };
+  // Filter consultation history by doctor name
+  const consultationHistory = useMemo(() => {
+    if (!doctorSearch.trim()) {
+      return allConsultationHistory;
+    }
+    const searchLower = doctorSearch.toLowerCase().trim();
+    return allConsultationHistory.filter((record) => {
+      const doctorName = record.doctor?.toLowerCase() || "";
+      return doctorName.includes(searchLower);
+    });
+  }, [allConsultationHistory, doctorSearch]);
 
   const handleViewDetails = (recordId) => {
     console.log("Viewing details for record:", recordId);
@@ -128,40 +110,32 @@ export function HealthProfile() {
         <div className="header-content">
           <div className="header-text">
             <h1 className="page-title" style={{ color: "#000000" }}>
-              Hồ sơ sức khỏe
+              Hồ sơ khám bệnh
             </h1>
             <p className="page-subtitle">
               Theo dõi và quản lý thông tin sức khỏe của bạn
             </p>
           </div>
-          <button className="download-button" onClick={handleDownload}>
-            <Download className="download-icon" />
-            Tải xuống
-          </button>
-        </div>
-      </div>
-
-      {/* Health Metrics Section */}
-      <div className="health-metrics-section">
-        <h2 className="section-title">Chỉ số sức khỏe</h2>
-        <div className="metrics-grid">
-          {healthMetrics.map((metric) => {
-            const IconComponent = metric.icon;
-            return (
-              <div key={metric.id} className="metric-card">
-                <div className="metric-icon">
-                  <IconComponent className="metric-icon-symbol" />
-                </div>
-                <div className="metric-content">
-                  <div className="metric-label">{metric.label}</div>
-                  <div className="metric-value">{metric.value}</div>
-                  <div className={`metric-status status-${metric.statusColor}`}>
-                    {metric.status}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {/* Doctor Search Filter */}
+          <div className="doctor-search-filter">
+            <Search className="search-icon" size={18} strokeWidth={2.5} />
+            <input
+              type="text"
+              className="doctor-search-input"
+              placeholder="Tìm bác sĩ theo tên"
+              value={doctorSearch}
+              onChange={(e) => setDoctorSearch(e.target.value)}
+            />
+            {doctorSearch && (
+              <button
+                className="clear-search-button"
+                onClick={() => setDoctorSearch("")}
+                title="Xóa bộ lọc"
+              >
+                <X className="clear-icon" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -320,7 +294,7 @@ export function HealthProfile() {
                           <div className="card-meta">
                             <div className="meta-item">
                               <Calendar className="meta-icon" />
-                              <span>{record.date}</span>
+                              <span>{record.dateTime || record.date}</span>
                             </div>
                             <div className="meta-item">
                               <User className="meta-icon" />
@@ -353,7 +327,11 @@ export function HealthProfile() {
 
                       <div className="content-item">
                         <div className="content-label">Thời gian:</div>
-                        <div className="content-value">{record.duration}</div>
+                        <div className="content-value">
+                          {record.dateTime
+                            ? `${record.dateTime} (${record.duration})`
+                            : record.duration}
+                        </div>
                       </div>
 
                       <div className="content-item">

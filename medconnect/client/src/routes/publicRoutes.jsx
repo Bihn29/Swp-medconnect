@@ -5,7 +5,6 @@ import Home from "../pages/Home/Homepage/Homepage";
 import About from "../pages/About/About";
 import HomeVisit from "../pages/Home/HomeVisit/HomeVisit";
 import HospitalVisit from "../pages/Home/HospitalVisit/HospitalVisit";
-import SearchPage from "../pages/Home/SearchPage/SearchPage";
 import DoctorList from "../pages/Home/DoctorList/DoctorList";
 import DoctorReviews from "../pages/Home/DoctorReviews/DoctorReviews";
 import Specialization from "../pages/Home/Specialization/Specialization";
@@ -28,7 +27,6 @@ export const publicRoutes = (
       <Route path="/gioi-thieu" element={<About />} />
       <Route path="/kham-tai-nha" element={<HomeVisit />} />
       <Route path="/kham-tai-vien" element={<HospitalVisit />} />
-      <Route path="/tim-kiem" element={<SearchPage />} />
       <Route path="/danh-sach-bac-si" element={<DoctorList />} />
       <Route path="/bac-si/:doctorId/danh-gia" element={<DoctorReviews />} />
       <Route path="/chuyen-khoa" element={<Specialization />} />
