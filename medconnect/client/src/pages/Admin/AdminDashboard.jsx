@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, Row, Col, List, Avatar, Spin, Alert } from "antd";
 import {
   UserOutlined,
@@ -16,6 +17,7 @@ import {
 import "./AdminDashboard.scss";
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statsData, setStatsData] = useState({
@@ -64,6 +66,7 @@ const AdminDashboard = () => {
       icon: <UserOutlined />,
       color: "#1890ff",
       gradient: "linear-gradient(135deg, #1890ff 0%, #40a9ff 100%)",
+      path: "/admin/users",
     },
     {
       title: "Bác sĩ đã xác minh",
@@ -74,6 +77,7 @@ const AdminDashboard = () => {
       icon: <SafetyCertificateOutlined />,
       color: "#52c41a",
       gradient: "linear-gradient(135deg, #52c41a 0%, #73d13d 100%)",
+      path: "/admin/verify-doctors",
     },
     {
       title: "Lịch hẹn tháng này",
@@ -83,15 +87,17 @@ const AdminDashboard = () => {
       icon: <CalendarOutlined />,
       color: "#45c3d2",
       gradient: "linear-gradient(135deg, #40CCCC 0%, #45c3d2 100%)",
+      path: "/admin/appointments",
     },
     {
-      title: "Doanh thu",
+      title: "Tổng doanh thu",
       value: `${statsData.revenue.toLocaleString()} VNĐ`,
-      change: "Doanh thu từ lịch hẹn",
+      change: "Tổng số doanh thu từ thanh toán thành công",
       changeValue: "",
       icon: <DollarOutlined />,
       color: "#fa8c16",
       gradient: "linear-gradient(135deg, #fa8c16 0%, #ffa940 100%)",
+      path: "/admin/payment",
     },
   ];
 
@@ -139,13 +145,14 @@ const AdminDashboard = () => {
         {statsCards.map((stat, index) => (
           <Col xs={24} sm={12} lg={6} key={index}>
             <Card
-              className="stat-card"
+              className="stat-card clickable"
               style={{
                 background: stat.gradient,
                 border: "none",
                 borderRadius: "16px",
                 overflow: "hidden",
               }}
+              onClick={() => navigate(stat.path)}
             >
               <div className="stat-icon" style={{ color: "#ffffff" }}>
                 {stat.icon}
