@@ -14,6 +14,7 @@ import {
   UserOutlined,
   DownOutlined,
 } from "@ant-design/icons";
+import { clearUserData } from "../../utils/clearUserData";
 import "./AdminLayout.scss";
 
 const { Header, Sider, Content } = Layout;
@@ -66,9 +67,15 @@ const AdminLayout = () => {
     navigate(key);
   };
 
-  const handleLogout = () => {
-    // Implement logout logic
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      console.log("Admin logout clicked - clearing all user data...");
+      await clearUserData();
+    } catch (error) {
+      console.error("Error during admin logout:", error);
+      // Fallback: just reload the page
+      window.location.reload();
+    }
   };
 
   const userMenuItems = [
