@@ -168,24 +168,57 @@
       }
     }
   }
-  
+
   .schedule-header {
+    margin: 0 !important;
+    margin-bottom: 1.5rem !important;
+    margin-left: -24px !important;
+    margin-right: -24px !important;
+    padding: 1rem 24px !important;
+    width: calc(100% + 48px) !important;
     display: flex;
     justify-content: flex-start;
     align-items: center;
     gap: 32px;
-    margin-bottom: 24px;
-    padding: 20px;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(
+      135deg,
+      #e0f7f9 0%,
+      #fff4e6 100%
+    ) !important;
+    border-radius: 0 !important;
+    border: none !important;
+    border-bottom: 2px solid #f3f4f6 !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    z-index: 1 !important;
+    box-shadow: none !important;
 
     .header-left {
       h1 {
-        font-size: 24px;
-        font-weight: 600;
-        color: #1f2937;
-        margin: 0;
+        font-size: 1.875rem !important;
+        font-weight: 800 !important;
+        color: #111827 !important;
+        margin: 0 !important;
+        margin-bottom: 0.25rem !important;
+        letter-spacing: -0.03em !important;
+        background: linear-gradient(
+          135deg,
+          #4db8c4 0%,
+          #3a9ba8 100%
+        ) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
+        text-align: left !important;
+        position: relative;
+        z-index: 3;
+        line-height: 1.2 !important;
+        
+        .icon {
+          display: inline-block;
+          margin-right: 0.5rem;
+          vertical-align: middle;
+        }
       }
     }
 
@@ -196,21 +229,20 @@
       flex-wrap: wrap;
       margin-left: auto;
 
-
       .action-buttons {
-      display: flex;
-      gap: 8px;
+        display: flex;
+        gap: 8px;
 
         .auto-generate-btn {
           background: #10b981;
           color: white;
           border: none;
           font-weight: 500;
-          
+
           &:hover {
             background: #059669;
           }
-          
+
           &:disabled {
             background: #9ca3af;
             cursor: not-allowed;
@@ -222,7 +254,7 @@
           color: white;
           border: none;
           font-weight: 500;
-          
+
           &:hover {
             background: #2563eb;
           }
@@ -233,7 +265,7 @@
           color: white;
           border: none;
           font-weight: 500;
-          
+
           &:hover {
             background: #6b7280;
           }
@@ -244,11 +276,11 @@
           color: #374151;
           border: 1px solid #e5e7eb;
           font-weight: 500;
-          
+
           &:hover {
             background: #e5e7eb;
           }
-          
+
           &:disabled {
             background: #f9fafb;
             color: #9ca3af;
@@ -273,35 +305,35 @@
       right: 0;
       bottom: 0;
       background: rgba(255, 255, 255, 0.9);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       z-index: 10;
       gap: 16px;
 
-    .loading-spinner {
-      width: 40px;
-      height: 40px;
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
         border: 4px solid #e5e7eb;
         border-top: 4px solid #3b82f6;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
 
-    p {
+      p {
         color: #6b7280;
-      font-size: 16px;
-      margin: 0;
+        font-size: 16px;
+        margin: 0;
+      }
     }
-  }
 
     .schedule-grid {
       .grid-header {
         display: grid;
         grid-template-columns: 80px repeat(7, 1fr);
-        background: #1e3a8a; // Dark blue background
-        border-bottom: 2px solid #1e3a8a;
+        background: #2ab2c4; // Dark blue background
+        border-bottom: 2px solid #2ab2c4;
 
         .time-column {
           padding: 16px;
@@ -309,7 +341,7 @@
           color: white;
           text-align: center;
           border-right: 1px solid rgba(255, 255, 255, 0.2);
-          background: #1e3a8a;
+          background: #2ab2c4;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -321,7 +353,7 @@
           padding: 16px;
           text-align: center;
           border-right: 1px solid rgba(255, 255, 255, 0.2);
-          background: #1e3a8a;
+          background: #2ab2c4;
           color: white;
 
           .day-name {
@@ -348,33 +380,33 @@
           &:last-child {
             border-bottom: none;
           }
-          
+
           &.morning-section {
             border-top: 2px solid #e5e7eb;
             background-color: #f8fafc;
-            
+
             .time-cell {
               padding: 6px 12px;
               font-size: 12px;
               font-weight: 600;
             }
-            
+
             .slot-cell {
               min-height: 24px;
               padding: 2px;
             }
           }
-          
+
           &.afternoon-section {
             border-top: 2px solid #e5e7eb;
             background-color: #f0f9ff;
-            
+
             .time-cell {
               padding: 6px 12px;
               font-size: 12px;
               font-weight: 600;
             }
-            
+
             .slot-cell {
               min-height: 24px;
               padding: 2px;
@@ -408,14 +440,14 @@
               background: #f9fafb;
               border: 2px dashed #d1d5db;
               height: 80px; // Fixed height giống các ô khác
-              
+
               .slot-content {
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 width: 100%;
                 height: 100%;
-                
+
                 .empty-plus-icon {
                   color: #9ca3af;
                   opacity: 0.5;
@@ -529,7 +561,7 @@
         min-height: 500px;
         background-color: white;
         border-radius: 12px;
-        
+
         .empty-state {
           text-align: center;
           padding: 60px 40px;
@@ -607,7 +639,7 @@
 
   .loading-container {
     display: flex;
-      flex-direction: column;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 400px;
@@ -818,8 +850,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 // Responsive design
@@ -828,6 +864,10 @@
     padding: 16px;
 
     .schedule-header {
+      margin-left: -16px !important;
+      margin-right: -16px !important;
+      padding: 1rem 16px !important;
+      width: calc(100% + 32px) !important;
       flex-direction: column;
       gap: 16px;
       align-items: stretch;
@@ -840,7 +880,7 @@
         .week-navigation,
         .status-indicators,
         .action-buttons {
-        justify-content: center;
+          justify-content: center;
         }
 
         .status-indicators {
@@ -874,7 +914,7 @@
     padding: 4px 8px !important;
     background: #f3f4f6 !important;
   }
-  
+
   .slot-cell {
     min-height: 20px !important;
     padding: 1px !important;

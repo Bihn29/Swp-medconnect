@@ -51,7 +51,7 @@ const TimeSlotSelection = () => {
   const [timeSlots, setTimeSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
-  const [selectedMode, setSelectedMode] = useState("offline");
+  const [selectedMode, setSelectedMode] = useState(null); // No default - user must choose
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [defaultClinic, setDefaultClinic] = useState(null);
   const [clinicLoading, setClinicLoading] = useState(false);
@@ -59,6 +59,7 @@ const TimeSlotSelection = () => {
   const [familyMembers, setFamilyMembers] = useState([]);
   const [selectedFamilyMember, setSelectedFamilyMember] = useState(null);
   const [loadingFamilyMembers, setLoadingFamilyMembers] = useState(false);
+  const [currentTime, setCurrentTime] = useState(dayjs()); // Track current time for real-time filtering
 
   useEffect(() => {
     if (location.state?.doctor) {
@@ -90,6 +91,26 @@ const TimeSlotSelection = () => {
       fetchFamilyMembers();
     }
   }, [bookingFor]);
+
+  // Real-time update: Refresh current time every minute to hide expired slots
+  useEffect(() => {
+    // Only run if a date is selected (and it's today)
+    if (selectedDate && selectedDate.isSame(dayjs(), "day")) {
+      // Update immediately
+      setCurrentTime(dayjs());
+
+      // Set interval to update every minute
+      const interval = setInterval(() => {
+        setCurrentTime(dayjs());
+      }, 60000); // Update every 60 seconds (1 minute)
+
+      // Cleanup interval on unmount or when date changes
+      return () => clearInterval(interval);
+    } else {
+      // If not today, just set current time once
+      setCurrentTime(dayjs());
+    }
+  }, [selectedDate]);
 
   const fetchTimeSlots = async () => {
     try {
@@ -169,6 +190,9 @@ const TimeSlotSelection = () => {
   const handleTimeSlotSelect = (timeSlot) => {
     setSelectedTimeSlot(timeSlot);
     setShowBookingForm(true);
+    // Reset mode selection when selecting a new time slot
+    setSelectedMode(null);
+    form.setFieldsValue({ mode: undefined });
   };
 
   const handleBackToDoctors = () => {
@@ -353,13 +377,11 @@ const TimeSlotSelection = () => {
     if (!selectedDate || !slot.startTime) return false;
 
     // Kiểm tra nếu ngày được chọn là ngày hôm nay
-    const today = dayjs();
-    const isToday = selectedDate.isSame(today, "day");
+    const isToday = selectedDate.isSame(currentTime, "day");
 
     if (!isToday) return false;
 
-    // So sánh thời gian hiện tại với thời gian bắt đầu của slot
-    const now = dayjs();
+    // So sánh thời gian hiện tại (from state) với thời gian bắt đầu của slot
     const [hours, minutes] = slot.startTime.split(":").map(Number);
     const slotTime = selectedDate
       .hour(hours)
@@ -368,7 +390,7 @@ const TimeSlotSelection = () => {
       .millisecond(0);
 
     // Slot đã qua nếu thời gian bắt đầu đã nhỏ hơn thời gian hiện tại
-    return slotTime.isBefore(now);
+    return slotTime.isBefore(currentTime);
   };
 
   const getSpecializationNames = (specializationIds) => {
@@ -525,12 +547,15 @@ const TimeSlotSelection = () => {
                         .filter((slot) => {
                           // Lọc bỏ các slot đã qua giờ theo thời gian thực - các slot này sẽ biến mất
                           const isPassed = isSlotPassed(slot);
-                          // Chỉ hiển thị các slot chưa qua giờ (slot đã đặt lịch vẫn hiển thị nhưng disabled)
-                          return !isPassed;
+                          if (isPassed) return false;
+
+                          // Ẩn hoàn toàn các slot không available (đã có appointment: pending_doctor, accepted, in_progress, done)
+                          // Thay vì chỉ disable, chúng ta sẽ ẩn hoàn toàn
+                          if (!slot.available) return false;
+
+                          return true;
                         })
                         .map((slot) => {
-                          // Slot đã đặt lịch sẽ hiển thị mờ và không nhấn được
-                          const isDisabled = !slot.available;
                           return (
                             <Button
                               key={slot._id}
@@ -539,7 +564,6 @@ const TimeSlotSelection = () => {
                                   ? "primary"
                                   : "default"
                               }
-                              disabled={isDisabled}
                               onClick={() => handleTimeSlotSelect(slot)}
                               className="time-slot-button"
                               size="large"
@@ -807,7 +831,6 @@ const TimeSlotSelection = () => {
                     <Form.Item
                       name="mode"
                       label="Hình thức khám"
-                      initialValue="online"
                       rules={[
                         {
                           required: true,

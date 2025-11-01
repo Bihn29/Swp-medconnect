@@ -244,13 +244,13 @@ const Header = () => {
 
     // dashboard shortcut
     if (key === "dashboard") {
-      navigate("/benh-nhan");
+      navigate("/benh-nhan/trang-chu", { replace: false });
       return;
     }
 
     // admin dashboard shortcut
     if (key === "admin") {
-      navigate("/admin/dashboard");
+      navigate("/admin/trang-chu");
       return;
     }
 
@@ -418,7 +418,7 @@ const Header = () => {
                   { type: "divider", key: "d1" },
                   // Only show profile and dashboard for non-admin users
                   ...(userProfile?.role !== "admin" &&
-                  userProfile?.role !== "ADMIN"
+                  userProfile?.role !== "ADMIN" && userProfile?.role !== ""
                     ? [
                         {
                           key: "profile",

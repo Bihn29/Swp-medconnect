@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Card, List, Button, Modal, Input, message, Spin, Badge } from "antd";
+import { useState, useEffect } from "react";
+import { Card, List, Button, Modal, Input, message, Badge } from "antd";
 import {
   CalendarOutlined,
   ClockCircleOutlined,
@@ -132,7 +132,7 @@ export function RescheduleRequests() {
   return (
     <div className="reschedule-requests-page">
       <div className="page-header">
-        <h1>Quản lý yêu cầu dời lịch</h1>
+        <h2>Quản lý yêu cầu dời lịch</h2>
         <p>Xem xét và xử lý các yêu cầu dời lịch từ bệnh nhân</p>
       </div>
 

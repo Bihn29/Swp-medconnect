@@ -28,6 +28,18 @@ const RescheduleRequestSchema = new Schema(
       type: Date,
       required: true,
     },
+    mode: {
+      type: String,
+      enum: ["online", "offline"],
+      required: true,
+    },
+    clinicId: {
+      type: Schema.Types.ObjectId,
+      ref: "Clinic",
+      required: function () {
+        return this.mode === "offline";
+      },
+    },
     reason: {
       type: String,
       required: true,

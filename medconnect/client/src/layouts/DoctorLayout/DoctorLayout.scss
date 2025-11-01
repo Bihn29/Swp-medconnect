@@ -17,8 +17,22 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: #ffffff;
+  overflow-x: hidden;
+  background: #f3f4f6;
   position: relative;
   z-index: 1;
   padding: 0;
+  
+  /* Ẩn scrollbar nhưng vẫn có thể scroll */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+  &.no-scroll {
+    overflow-y: visible;
+    overflow-x: hidden;
+  }
 }

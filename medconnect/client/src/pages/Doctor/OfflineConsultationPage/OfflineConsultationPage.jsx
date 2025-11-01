@@ -188,6 +188,48 @@ export default function OfflineConsultationPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const patientName =
+      appointment?.patientId?.fullName ||
+      appointment?.patient?.fullName ||
+      appointment?.patientName ||
+      "bệnh nhân";
+
+    // Kiểm tra chẩn đoán bắt buộc
+    const validDiagnoses = formData.diagnoses.filter(
+      (d) => d.name && d.name.trim()
+    );
+    if (validDiagnoses.length === 0) {
+      alert("Vui lòng nhập ít nhất một chẩn đoán!");
+      return;
+    }
+
+    // Kiểm tra tóm tắt buổi khám bắt buộc
+    if (!formData.summaryText || !formData.summaryText.trim()) {
+      alert("Vui lòng nhập tóm tắt buổi khám!");
+      return;
+    }
+
+    // Kiểm tra phương pháp điều trị bắt buộc
+    if (!formData.treatmentMethod || !formData.treatmentMethod.trim()) {
+      alert("Vui lòng nhập phương pháp điều trị!");
+      return;
+    }
+
+    // Kiểm tra hướng dẫn theo dõi bắt buộc
+    if (!formData.followUpInstructions || !formData.followUpInstructions.trim()) {
+      alert("Vui lòng nhập hướng dẫn theo dõi!");
+      return;
+    }
+
+    // Thêm thông báo xác nhận
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn hoàn thành khám bệnh và lưu thông tin cho ${patientName}?`
+    );
+
+    if (!confirmed) {
+      return; // Nếu người dùng không xác nhận, không thực hiện hành động
+    }
+
     const submitData = {
       appointmentId: appointment._id,
       summaryText: formData.summaryText,
@@ -195,7 +237,7 @@ export default function OfflineConsultationPage() {
       visitDate: formData.visitDate ? new Date(formData.visitDate) : undefined,
       treatmentResult: formData.treatmentResult,
       consultationCategory: formData.consultationCategory,
-      diagnoses: formData.diagnoses.filter((d) => d.name && d.name.trim()),
+      diagnoses: validDiagnoses,
       vitals: formData.vitals,
       labResults: formData.labResults.filter((l) => l.testName || l.result),
       imagingResults: formData.imagingResults
@@ -479,7 +521,7 @@ export default function OfflineConsultationPage() {
             {/* Diagnosis Tab */}
             {activeTab === "diagnosis" && (
               <div className="form-section">
-                <h3 className="section-title">🔍 Chẩn Đoán Sơ Bộ</h3>
+                <h3 className="section-title">🔍 Chẩn Đoán Sơ Bộ *</h3>
                 {formData.diagnoses.map((diagnosis, index) => (
                   <div key={index} className="array-item">
                     <div className="item-header">
@@ -498,7 +540,7 @@ export default function OfflineConsultationPage() {
                       <div className="form-group">
                         <Input
                           type="text"
-                          placeholder="Chuẩn đoán...."
+                          placeholder="VD: Viêm phế quản cấp"
                           value={diagnosis.name}
                           onChange={(e) =>
                             handleArrayChange(
@@ -508,6 +550,7 @@ export default function OfflineConsultationPage() {
                               e.target.value
                             )
                           }
+                          required
                         />
                       </div>
                     </div>
@@ -860,7 +903,7 @@ export default function OfflineConsultationPage() {
               <div className="form-section">
                 <h3 className="section-title">📝 Tóm Tắt Khám Bệnh</h3>
                 <div className="form-group">
-                  <label>Tóm tắt buổi khám</label>
+                  <label>Tóm tắt buổi khám *</label>
                   <textarea
                     className="form-textarea"
                     rows="6"
@@ -868,10 +911,11 @@ export default function OfflineConsultationPage() {
                     onChange={(e) =>
                       handleFieldChange("summaryText", e.target.value)
                     }
+                    required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Phương pháp điều trị</label>
+                  <label>Phương pháp điều trị *</label>
                   <textarea
                     className="form-textarea"
                     rows="4"
@@ -879,10 +923,11 @@ export default function OfflineConsultationPage() {
                     onChange={(e) =>
                       handleFieldChange("treatmentMethod", e.target.value)
                     }
+                    required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Hướng dẫn theo dõi</label>
+                  <label>Hướng dẫn theo dõi *</label>
                   <textarea
                     className="form-textarea"
                     rows="4"
@@ -890,6 +935,7 @@ export default function OfflineConsultationPage() {
                     onChange={(e) =>
                       handleFieldChange("followUpInstructions", e.target.value)
                     }
+                    required
                   />
                 </div>
                 <div className="form-group">

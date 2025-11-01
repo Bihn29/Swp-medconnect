@@ -12,7 +12,11 @@ export default function DoctorLayout() {
   // Update activeMenu based on current route
   useEffect(() => {
     const path = location.pathname;
-    if (path === "/bac-si" || path === "/bac-si/") {
+    if (
+      path === "/bac-si/trang-chu" ||
+      path === "/bac-si" ||
+      path === "/bac-si/"
+    ) {
       setActiveMenu("dashboard");
     } else if (path === "/bac-si/quan-ly-lich") {
       setActiveMenu("schedule");
@@ -36,7 +40,7 @@ export default function DoctorLayout() {
 
     // Navigate to appropriate route based on menu selection
     if (menuId === "dashboard") {
-      navigate("/bac-si");
+      navigate("/bac-si/trang-chu");
     } else if (menuId === "schedule") {
       navigate("/bac-si/quan-ly-lich");
     } else if (menuId === "appointments") {
@@ -59,7 +63,14 @@ export default function DoctorLayout() {
       <Sidebar activeMenu={activeMenu} onMenuChange={handleMenuChange} />
       <div className="doctor-layout-main">
         <DoctorHeader />
-        <main className="doctor-layout-content">
+        <main
+          className={`doctor-layout-content ${
+            location.pathname === "/bac-si/ho-so-kham" ||
+            location.pathname.startsWith("/bac-si/lich-hen")
+              ? "no-scroll"
+              : ""
+          }`}
+        >
           <Outlet />
         </main>
       </div>

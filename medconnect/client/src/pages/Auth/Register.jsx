@@ -60,13 +60,13 @@ export default function Register() {
   const goByRole = (role) => {
     switch ((role || "").toUpperCase()) {
       case "PATIENT":
-        navigate("/benh-nhan");
+        navigate("/benh-nhan/trang-chu");
         break;
       case "DOCTOR":
-        navigate("/bac-si");
+        navigate("/bac-si/trang-chu");
         break;
       case "ADMIN":
-        navigate("/admin");
+        navigate("/admin/trang-chu");
         break;
       default:
         navigate("/");
@@ -342,7 +342,7 @@ export default function Register() {
                   e.preventDefault();
                   e.stopPropagation();
                 }}
-                style={{ border: 'none', background: 'none', outline: 'none' }}
+                style={{ border: "none", background: "none", outline: "none" }}
               />
             </div>
             {errors.password && (
@@ -379,7 +379,7 @@ export default function Register() {
                   e.preventDefault();
                   e.stopPropagation();
                 }}
-                style={{ border: 'none', background: 'none', outline: 'none' }}
+                style={{ border: "none", background: "none", outline: "none" }}
               />
             </div>
             {errors.confirmPassword && (

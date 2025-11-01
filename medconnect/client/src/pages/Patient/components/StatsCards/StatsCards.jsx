@@ -23,7 +23,10 @@ export function StatsCards() {
         const appointments = response.data.appointments || [];
 
         // Calculate stats
-        const totalAppointments = appointments.length;
+        // Đã xác nhận: chỉ tính các lịch có status "accepted"
+        const confirmedAppointments = appointments.filter(
+          (apt) => apt.status === "accepted"
+        ).length;
         const pendingAppointments = appointments.filter(
           (apt) => apt.status === "pending_doctor"
         ).length;
@@ -36,15 +39,15 @@ export function StatsCards() {
 
         const statsData = [
           {
-            title: "Tổng lịch hẹn",
-            value: totalAppointments.toString(),
+            title: "Đã xác nhận",
+            value: confirmedAppointments.toString(),
             icon: Calendar,
-            description: "Tất cả thời gian",
+            description: "Lịch đã được xác nhận",
             trend:
-              totalAppointments > 0
-                ? `+${totalAppointments} lịch hẹn`
-                : "Chưa có lịch hẹn",
-            trendUp: totalAppointments > 0,
+              confirmedAppointments > 0
+                ? `${confirmedAppointments} lịch đã xác nhận`
+                : "Chưa có lịch xác nhận",
+            trendUp: confirmedAppointments > 0,
           },
           {
             title: "Đang chờ",
@@ -88,7 +91,7 @@ export function StatsCards() {
       // Fallback to default stats if API fails
       setStats([
         {
-          title: "Tổng lịch hẹn",
+          title: "Đã xác nhận",
           value: "0",
           icon: Calendar,
           description: "Không thể tải dữ liệu",

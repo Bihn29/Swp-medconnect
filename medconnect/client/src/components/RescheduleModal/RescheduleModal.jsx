@@ -8,13 +8,18 @@ import {
   message,
   DatePicker,
   Spin,
+  Radio,
+  Select,
+  Typography,
 } from "antd";
-import { CalendarOutlined } from "@ant-design/icons";
+import { CalendarOutlined, EnvironmentOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { api } from "../../lib/api";
 import "./RescheduleModal.scss";
 
 const { TextArea } = Input;
+const { Option } = Select;
+const { Text } = Typography;
 
 export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
   const [form] = Form.useForm();
@@ -23,6 +28,47 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+  const [selectedMode, setSelectedMode] = useState(null); // No default - user must choose
+  const [clinics, setClinics] = useState([]);
+  const [clinicLoading, setClinicLoading] = useState(false);
+
+  // Fetch clinics function (defined before useEffects)
+  const fetchClinics = async () => {
+    if (!appointment?.doctorId?._id) return;
+
+    try {
+      setClinicLoading(true);
+      const doctorId = appointment.doctorId._id || appointment.doctorId;
+      const response = await api.get(`/api/doctors/${doctorId}/clinics`);
+
+      if (response.success && response.data.clinics) {
+        setClinics(response.data.clinics);
+        // If there's only one clinic, automatically select it
+        if (response.data.clinics.length === 1) {
+          form.setFieldsValue({ clinicId: response.data.clinics[0]._id });
+        }
+        // If appointment has a clinicId, try to set it
+        else if (appointment.clinicId) {
+          const clinicId = appointment.clinicId._id || appointment.clinicId;
+          const clinicExists = response.data.clinics.some(
+            (c) => (c._id || c.id) === clinicId
+          );
+          if (clinicExists) {
+            form.setFieldsValue({ clinicId: clinicId });
+          }
+        }
+      } else {
+        setClinics([]);
+        message.warning("Không tìm thấy phòng khám");
+      }
+    } catch (error) {
+      console.error("Error fetching clinics:", error);
+      message.error("Không thể tải danh sách phòng khám");
+      setClinics([]);
+    } finally {
+      setClinicLoading(false);
+    }
+  };
 
   // Reset form and date when modal opens/closes
   useEffect(() => {
@@ -31,12 +77,43 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
       setSelectedDate(null);
       setSelectedTimeSlot(null);
       setAvailableTimeSlots([]);
+      setClinics([]);
       // Set tomorrow as default date
       const tomorrow = dayjs().add(1, "day");
       setSelectedDate(tomorrow);
       form.setFieldsValue({ selectedDate: tomorrow });
+
+      // Set mode from current appointment (default to current mode)
+      if (appointment?.mode) {
+        const currentMode = appointment.mode;
+        setSelectedMode(currentMode);
+        form.setFieldsValue({ mode: currentMode });
+
+        // If current mode is offline, fetch clinics and set current clinicId
+        if (currentMode === "offline" && appointment.doctorId?._id) {
+          fetchClinics();
+        }
+      } else {
+        setSelectedMode(null);
+      }
+    } else {
+      // Reset when modal closes
+      setSelectedMode(null);
     }
-  }, [visible, form]);
+  }, [visible, form, appointment]);
+
+  // Fetch clinics when mode is changed to offline manually
+  useEffect(() => {
+    if (
+      visible &&
+      selectedMode === "offline" &&
+      appointment?.doctorId?._id &&
+      clinics.length === 0 &&
+      appointment.mode !== "offline" // Only fetch if user changed from online to offline
+    ) {
+      fetchClinics();
+    }
+  }, [visible, selectedMode, appointment, clinics.length]);
 
   // Fetch time slots when date changes
   useEffect(() => {
@@ -92,6 +169,11 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
 
   const handleTimeSlotSelect = (slot) => {
     setSelectedTimeSlot(slot);
+    // Don't reset mode - keep the current selection (from appointment or user choice)
+    // Only reset clinicId if mode is online
+    if (selectedMode === "online") {
+      form.setFieldsValue({ clinicId: undefined });
+    }
     // Convert slot time to dayjs and set to form
     if (slot.startAt) {
       const slotDateTime = dayjs(slot.startAt);
@@ -108,6 +190,17 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
         return;
       }
 
+      if (!selectedMode) {
+        message.error("Vui lòng chọn hình thức khám");
+        return;
+      }
+
+      // If offline mode, clinicId is required
+      if (selectedMode === "offline" && !values.clinicId) {
+        message.error("Vui lòng chọn phòng khám");
+        return;
+      }
+
       // Use selectedTimeSlot.startAt as newDateTime
       const newDateTime = selectedTimeSlot.startAt
         ? new Date(selectedTimeSlot.startAt).toISOString()
@@ -118,17 +211,27 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
         return;
       }
 
-      const response = await api.post("/api/reschedule/request", {
+      const requestBody = {
         appointmentId: appointment._id,
         newDateTime: newDateTime,
         reason: values.reason,
-      });
+        mode: selectedMode,
+      };
+
+      // Only include clinicId if mode is offline
+      if (selectedMode === "offline" && values.clinicId) {
+        requestBody.clinicId = values.clinicId;
+      }
+
+      const response = await api.post("/api/reschedule/request", requestBody);
 
       if (response.success) {
         message.success("Yêu cầu dời lịch đã được gửi thành công");
         form.resetFields();
         setSelectedDate(null);
         setSelectedTimeSlot(null);
+        setSelectedMode(null);
+        setClinics([]);
         onSuccess();
       } else {
         message.error(response.message || "Có lỗi xảy ra khi gửi yêu cầu");
@@ -215,6 +318,16 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
                   : appointment?.status === "pending_doctor"
                   ? "Chờ xác nhận"
                   : appointment?.status}
+              </span>
+            </div>
+            <div className="detail-item">
+              <span className="label">Hình thức khám:</span>
+              <span className="value">
+                {appointment?.mode === "online"
+                  ? "Tư vấn online"
+                  : appointment?.mode === "offline"
+                  ? "Khám tại phòng khám"
+                  : "Chưa xác định"}
               </span>
             </div>
           </div>
@@ -314,6 +427,118 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
                     </Button>
                   ))}
                 </div>
+              )}
+            </Form.Item>
+          )}
+
+          {/* Mode Selection - Show immediately with current appointment mode selected */}
+          <Form.Item
+            name="mode"
+            label="Hình thức khám"
+            rules={[
+              {
+                required: true,
+                message: "Vui lòng chọn hình thức khám",
+              },
+            ]}
+          >
+            <Radio.Group
+              value={selectedMode}
+              onChange={(e) => {
+                setSelectedMode(e.target.value);
+                form.setFieldsValue({ mode: e.target.value });
+                // Reset clinicId when changing mode to online
+                if (e.target.value === "online") {
+                  form.setFieldsValue({ clinicId: undefined });
+                  setClinics([]);
+                }
+                // Fetch clinics when changing to offline
+                else if (
+                  e.target.value === "offline" &&
+                  appointment?.doctorId?._id
+                ) {
+                  fetchClinics();
+                }
+              }}
+            >
+              <Radio value="online">Tư vấn online</Radio>
+              <Radio value="offline">Khám tại phòng khám</Radio>
+            </Radio.Group>
+          </Form.Item>
+
+          {/* Clinic Selection - Only show when mode is offline */}
+          {selectedMode === "offline" && (
+            <Form.Item
+              name="clinicId"
+              label="Phòng khám"
+              rules={[
+                {
+                  required: true,
+                  message: "Vui lòng chọn phòng khám",
+                },
+              ]}
+            >
+              {clinicLoading ? (
+                <div style={{ padding: "8px 0" }}>
+                  <Spin size="small" /> Đang tải thông tin phòng khám...
+                </div>
+              ) : clinics.length === 0 ? (
+                <Text type="secondary">Không có phòng khám nào khả dụng</Text>
+              ) : clinics.length === 1 ? (
+                // If only one clinic, just display it (already auto-selected)
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    background: "#f5f5f5",
+                    borderRadius: "6px",
+                    border: "1px solid #d9d9d9",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <EnvironmentOutlined
+                      style={{ marginRight: 8, color: "#1890ff" }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                        {clinics[0].name}
+                      </div>
+                      {clinics[0].address && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {clinics[0].address}
+                        </Text>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // If multiple clinics, show select dropdown
+                <Select
+                  placeholder="Chọn phòng khám"
+                  style={{ width: "100%" }}
+                  showSearch
+                  optionFilterProp="children"
+                  filterOption={(input, option) =>
+                    (option?.children ?? "")
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  }
+                >
+                  {clinics.map((clinic) => (
+                    <Option key={clinic._id} value={clinic._id}>
+                      <div>
+                        <div>
+                          <EnvironmentOutlined style={{ marginRight: 4 }} />
+                          <strong>{clinic.name}</strong>
+                        </div>
+                        {clinic.address && (
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {clinic.address}
+                          </Text>
+                        )}
+                      </div>
+                    </Option>
+                  ))}
+                </Select>
               )}
             </Form.Item>
           )}

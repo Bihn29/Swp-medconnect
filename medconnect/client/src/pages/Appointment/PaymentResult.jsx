@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Result, Button, Spin, Card, Typography, Descriptions } from "antd";
-import { 
-  CheckCircleOutlined, 
+import {
+  CheckCircleOutlined,
   CloseCircleOutlined,
-  LoadingOutlined 
+  LoadingOutlined,
 } from "@ant-design/icons";
 import { checkPayOSStatus, cancelPayOSPayment } from "../../services/payService";
 import "./PaymentResult.scss";
@@ -25,7 +25,7 @@ const PaymentResult = () => {
         const orderCode = searchParams.get("orderCode");
         const status = searchParams.get("status"); // 'success' or 'failed'
         const cancel = searchParams.get("cancel"); // 'true' if user cancelled
-        
+
         if (!orderCode) {
           setError("Không tìm thấy thông tin đơn hàng");
           setIsSuccess(false);
@@ -61,11 +61,12 @@ const PaymentResult = () => {
 
         // Check payment status from PayOS
         const response = await checkPayOSStatus(orderCode);
-        
+
         if (response.success) {
           setPaymentInfo(response.data);
           // Check if payment is actually paid
-          const isPaid = response.data.status === "PAID" || response.data.status === "paid";
+          const isPaid =
+            response.data.status === "PAID" || response.data.status === "paid";
           setIsSuccess(isPaid);
           
           // If payment is cancelled or failed from PayOS, cleanup appointment
@@ -98,7 +99,7 @@ const PaymentResult = () => {
   }, [searchParams]);
 
   const handleViewAppointments = () => {
-    navigate("/benh-nhan");
+    navigate("/benh-nhan/trang-chu");
   };
 
   const handleBackToHome = () => {
@@ -131,7 +132,7 @@ const PaymentResult = () => {
   // Payment Failed
   if (!isSuccess) {
     const orderCode = searchParams.get("orderCode");
-    
+
     return (
       <div className="payment-result-container payment-failed">
         <Card className="payment-card">
@@ -146,10 +147,14 @@ const PaymentResult = () => {
             subTitle={
               <div className="subtitle-container">
                 <Text style={{ fontSize: 16 }}>
-                  {error || "Đã có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại."}
+                  {error ||
+                    "Đã có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại."}
                 </Text>
                 {orderCode && (
-                  <Text type="secondary" style={{ display: "block", marginTop: 8 }}>
+                  <Text
+                    type="secondary"
+                    style={{ display: "block", marginTop: 8 }}
+                  >
                     Mã đơn hàng: {orderCode}
                   </Text>
                 )}
@@ -186,8 +191,8 @@ const PaymentResult = () => {
                 <li>Người dùng hủy giao dịch</li>
               </ul>
               <Text type="secondary">
-                Nếu bạn đã thanh toán nhưng vẫn nhận được thông báo này, vui lòng liên hệ
-                với bộ phận hỗ trợ để được giúp đỡ.
+                Nếu bạn đã thanh toán nhưng vẫn nhận được thông báo này, vui
+                lòng liên hệ với bộ phận hỗ trợ để được giúp đỡ.
               </Text>
             </div>
           </Result>
@@ -239,7 +244,9 @@ const PaymentResult = () => {
                 </Descriptions.Item>
                 <Descriptions.Item label="Trạng thái">
                   <Text strong style={{ color: "#52c41a" }}>
-                    {paymentInfo.status === "PAID" ? "Đã thanh toán" : paymentInfo.status}
+                    {paymentInfo.status === "PAID"
+                      ? "Đã thanh toán"
+                      : paymentInfo.status}
                   </Text>
                 </Descriptions.Item>
                 {paymentInfo.description && (
@@ -257,5 +264,3 @@ const PaymentResult = () => {
 };
 
 export default PaymentResult;
-
-

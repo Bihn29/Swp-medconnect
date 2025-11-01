@@ -292,31 +292,47 @@ export async function getDoctorDashboardStats(req, res) {
       today.getDate() + 1
     );
 
-    // Today's appointments
+    // Today's appointments (include: pending_doctor, accepted, in_progress, done, no_show)
+    // Exclude: cancelled, rejected (these are not considered "appointments")
     const todayAppointments = await Appointment.countDocuments({
       doctorId: doctor._id,
       scheduledStart: { $gte: startOfDay, $lt: endOfDay },
+      status: { $in: ["pending_doctor", "accepted", "in_progress", "done", "no_show"] },
     });
 
-    // Available slots today
-    const availableSlots = await Appointment.countDocuments({
+    // Available slots today = slots with status "available" + slots with cancelled/rejected appointments
+    // Get available slots (slots that are not booked)
+    const availableSlotsCount = await DoctorTimeSlot.countDocuments({
+      doctorId: doctor._id,
+      startAt: { $gte: startOfDay, $lt: endOfDay },
+      status: "available",
+    });
+
+    // Get slots with cancelled or rejected appointments (these count as available)
+    const cancelledRejectedSlots = await Appointment.countDocuments({
       doctorId: doctor._id,
       scheduledStart: { $gte: startOfDay, $lt: endOfDay },
-      status: { $in: ["pending", "confirmed"] },
+      status: { $in: ["cancelled", "rejected"] },
     });
 
-    // Pending appointments
+    // Total available slots = empty slots + cancelled/rejected slots
+    const availableSlots = availableSlotsCount + cancelledRejectedSlots;
+
+    // Pending appointments (appointments in today that need doctor's confirmation)
     const pendingAppointments = await Appointment.countDocuments({
       doctorId: doctor._id,
-      status: "pending",
+      scheduledStart: { $gte: startOfDay, $lt: endOfDay },
+      status: "pending_doctor",
     });
 
-    // Completed appointments this month
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    // All stats are for today only - removed weekly appointments calculation
+    // This field is no longer used as we only show today's data
+    const weeklyAppointments = 0;
+
+    // Completed appointments (all time - from beginning to now)
     const completedAppointments = await Appointment.countDocuments({
       doctorId: doctor._id,
       status: "done",
-      scheduledStart: { $gte: startOfMonth },
     });
 
     return ok(res, {
@@ -324,6 +340,7 @@ export async function getDoctorDashboardStats(req, res) {
         todayAppointments,
         availableSlots,
         pendingAppointments,
+        weeklyAppointments,
         completedAppointments,
       },
     });
@@ -1033,10 +1050,18 @@ export async function getAllDoctors(req, res) {
 
     const total = await Doctor.countDocuments(filter);
 
-    console.log(`Found ${doctors.length} doctors out of ${total} total`); // Debug log
+    // Filter out picsum.photos URLs from avatarUrl
+    const cleanedDoctors = doctors.map(doctor => {
+      if (doctor.avatarUrl && doctor.avatarUrl.includes('picsum.photos')) {
+        doctor.avatarUrl = null;
+      }
+      return doctor;
+    });
+
+    console.log(`Found ${cleanedDoctors.length} doctors out of ${total} total`); // Debug log
 
     return ok(res, {
-      doctors,
+      doctors: cleanedDoctors,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -1418,7 +1443,7 @@ export async function getDoctorConsultationSummaries(req, res) {
     const summaries = await ConsultationSummary.find({
       doctorId: doctor._id,
     })
-      .populate("patientId", "fullName dob gender phone")
+      .populate("patientId")
       .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
       .populate("clinicId", "name address")
       .sort({ visitDate: -1 })
@@ -1478,7 +1503,7 @@ export async function getDoctorConsultationAdvice(req, res) {
     const advice = await ConsultationAdvice.find({
       doctorId: doctor._id,
     })
-      .populate("patientId", "fullName dob gender phone")
+      .populate("patientId")
       .populate("appointmentId", "scheduledStart scheduledEnd mode reason")
       .populate("clinicId", "name address")
       .sort({ appointmentDate: -1 })
@@ -1651,6 +1676,13 @@ export async function getDoctorReviews(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
+    console.log("🔍 getDoctorReviews - Doctor found:", {
+      doctorId: doctor._id,
+      doctorName: doctor.fullName,
+      userId: user._id,
+      email: userEmail
+    });
+
     const { page = 1, limit = 20, rating, sortBy = "newest" } = req.query;
     const skip = (page - 1) * limit;
 
@@ -1658,6 +1690,25 @@ export async function getDoctorReviews(req, res) {
 
     if (rating) {
       filter.rating = parseInt(rating);
+    }
+
+    console.log("🔍 getDoctorReviews - Filter:", JSON.stringify(filter));
+    console.log("🔍 getDoctorReviews - Review collection name:", Review.collection.name);
+
+    // Check if there are any reviews in the collection
+    const allReviewsCount = await Review.countDocuments({});
+    console.log("🔍 getDoctorReviews - Total reviews in collection:", allReviewsCount);
+
+    // Check reviews for this specific doctor
+    const reviewsForDoctor = await Review.find({ doctorId: doctor._id }).limit(5).lean();
+    console.log("🔍 getDoctorReviews - Sample reviews for this doctor:", reviewsForDoctor.length);
+    if (reviewsForDoctor.length > 0) {
+      console.log("🔍 getDoctorReviews - Sample review:", {
+        _id: reviewsForDoctor[0]._id,
+        doctorId: reviewsForDoctor[0].doctorId,
+        rating: reviewsForDoctor[0].rating,
+        comment: reviewsForDoctor[0].comment
+      });
     }
 
     let sort = {};
@@ -1679,14 +1730,21 @@ export async function getDoctorReviews(req, res) {
     }
 
     const reviews = await Review.find(filter)
-      .populate("patientId", "fullName")
-      .populate("appointmentId", "scheduledStart mode")
+      .populate("patientId", "fullName avatarUrl phone")
+      .populate("appointmentId", "scheduledStart mode reason status")
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
     const total = await Review.countDocuments(filter);
+
+    console.log("🔍 getDoctorReviews - Query result:", {
+      reviewsFound: reviews.length,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
 
     return ok(res, {
       reviews,
@@ -1709,6 +1767,13 @@ export async function getDoctorReviews(req, res) {
 export async function getPublicDoctorReviews(req, res) {
   try {
     const { doctorId } = req.params;
+    
+    // If doctorId is "me", this should not be handled by public route
+    // It should be handled by the protected /me/reviews route instead
+    if (doctorId === "me") {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Invalid doctor ID");
+    }
+    
     const { page = 1, limit = 10, search, rating, sort = "newest" } = req.query;
     const skip = (page - 1) * limit;
 

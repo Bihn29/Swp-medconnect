@@ -97,7 +97,18 @@ export async function registerDoctor(doctorData) {
     credentials: "include",
     body: doctorData, // FormData will set Content-Type automatically
   });
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    const errorText = await r.text();
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = { message: errorText || "Có lỗi xảy ra khi đăng ký" };
+    }
+    const error = new Error(JSON.stringify(errorData));
+    error.response = errorData;
+    throw error;
+  }
   return r.json();
 }
 
@@ -412,11 +423,19 @@ export async function getDoctorDashboardStatsWithFallback() {
   try {
     // Try primary endpoint first
     const response = await getDoctorDashboardStats();
-    const stats = response?.data || response;
-    if (stats) {
-      return stats;
+    const statsData = response?.data?.stats || response?.stats || response?.data || response;
+    
+    if (statsData) {
+      // Map backend stats to frontend format
+      return {
+        todayAppointmentsCount: statsData.todayAppointments || statsData.todayAppointmentsCount || 0,
+        availableSlotsToday: statsData.availableSlots || statsData.availableSlotsToday || 0,
+        pendingAppointmentsCount: statsData.pendingAppointments || statsData.pendingAppointmentsCount || 0,
+        completedAppointmentsCount: statsData.completedAppointments || statsData.completedAppointmentsCount || 0,
+      };
     }
   } catch (error) {
+    console.log("🔍 Primary dashboard stats endpoint failed:", error);
     // Primary dashboard stats endpoint failed, using fallback
   }
 
@@ -428,49 +447,63 @@ export async function getDoctorDashboardStatsWithFallback() {
     const appointmentsList =
       appointments?.data?.appointments || appointments?.appointments || [];
 
-    // Calculate basic stats
-    const totalAppointments = appointmentsList.length;
-    const acceptedAppointments = appointmentsList.filter(
-      (apt) => apt.status === "accepted"
-    ).length;
-    const pendingAppointments = appointmentsList.filter(
-      (apt) => apt.status === "pending_doctor"
-    ).length;
-    const inProgressAppointments = appointmentsList.filter(
-      (apt) => apt.status === "in_progress"
-    ).length;
+    const today = new Date();
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Today's appointments (include: pending_doctor, accepted, in_progress, done, no_show)
+    // Exclude: cancelled, rejected (these are not considered "appointments")
+    const todayAppointments = appointmentsList.filter(apt => {
+      const aptDate = new Date(apt.scheduledStart || apt.scheduledDate || apt.createdAt);
+      const isToday = aptDate >= startOfDay && aptDate <= endOfDay;
+      const isValidStatus = ["pending_doctor", "accepted", "in_progress", "done", "no_show"].includes(apt.status);
+      return isToday && isValidStatus;
+    }).length;
+    
+    // Available slots = appointments with cancelled/rejected status (these slots are available again)
+    // For fallback, we approximate: available slots = cancelled + rejected appointments
+    const cancelledRejectedToday = appointmentsList.filter(apt => {
+      const aptDate = new Date(apt.scheduledStart || apt.scheduledDate || apt.createdAt);
+      const isToday = aptDate >= startOfDay && aptDate <= endOfDay;
+      return isToday && (apt.status === "cancelled" || apt.status === "rejected");
+    }).length;
+    
+    // Note: We can't get truly empty slots from appointments list alone
+    // This is a fallback, so it's an approximation
+    // Primary endpoint should handle the real calculation with DoctorTimeSlot
+    const availableSlotsToday = cancelledRejectedToday;
+    
+    // Pending appointments (appointments in today that need doctor's confirmation)
+    const pendingAppointments = appointmentsList.filter(apt => {
+      const aptDate = new Date(apt.scheduledStart || apt.scheduledDate || apt.createdAt);
+      const isToday = aptDate >= startOfDay && aptDate <= endOfDay;
+      const needsConfirmation = apt.status === "pending_doctor";
+      return isToday && needsConfirmation;
+    }).length;
+
+    // Calculate completed appointments (all time)
     const completedAppointments = appointmentsList.filter(
       (apt) => apt.status === "done"
     ).length;
-    const rejectedAppointments = appointmentsList.filter(
-      (apt) => apt.status === "rejected"
-    ).length;
 
     const fallbackStats = {
-      totalAppointments,
-      acceptedAppointments,
-      pendingAppointments,
-      inProgressAppointments,
-      completedAppointments,
-      rejectedAppointments,
-      todayAppointments: appointmentsList.filter((apt) => {
-        const aptDate = new Date(apt.scheduledStart);
-        const today = new Date();
-        return aptDate.toDateString() === today.toDateString();
-      }).length,
+      todayAppointmentsCount: todayAppointments,
+      availableSlotsToday: availableSlotsToday,
+      pendingAppointmentsCount: pendingAppointments,
+      completedAppointmentsCount: completedAppointments,
     };
 
     return fallbackStats;
   } catch (error) {
+    console.log("🔍 Fallback dashboard stats failed:", error);
     // Fallback dashboard stats failed
     return {
-      totalAppointments: 0,
-      acceptedAppointments: 0,
-      pendingAppointments: 0,
-      inProgressAppointments: 0,
-      completedAppointments: 0,
-      rejectedAppointments: 0,
-      todayAppointments: 0,
+      todayAppointmentsCount: 0,
+      availableSlotsToday: 0,
+      pendingAppointmentsCount: 0,
+      completedAppointmentsCount: 0,
     };
   }
 }

@@ -41,6 +41,13 @@ const DoctorSchema = new Schema(
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     
+    // Thông tin phê duyệt/từ chối
+    approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    approvedAt: { type: Date },
+    rejectedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    rejectedAt: { type: Date },
+    rejectionReason: { type: String, trim: true },
+    
     // Thông tin bổ sung
     education: [{ 
       degree: String,
