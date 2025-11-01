@@ -16,18 +16,23 @@ import {
   User,
   ChevronDown,
 } from "lucide-react";
+import { HeartOutlined, HeartFilled } from "@ant-design/icons";
 import { api } from "../../../../lib/api";
-import { message, Spin, Input } from "antd";
+import { message, Spin, Input, Button } from "antd";
+import { useAuth } from "../../../../hooks/useAuth";
 import "./DoctorSearch.scss";
 
 export function DoctorSearch() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [specializations, setSpecializations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("");
   const [filteredDoctors, setFilteredDoctors] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [favoriteDoctorIds, setFavoriteDoctorIds] = useState(new Set());
+  const [favoriteLoadingIds, setFavoriteLoadingIds] = useState(new Set());
 
   // Additional filter states
   const [showFilters, setShowFilters] = useState(false);
@@ -51,6 +56,13 @@ export function DoctorSearch() {
     };
     initialLoad();
   }, []);
+
+  // Fetch favorite doctors if user is logged in
+  useEffect(() => {
+    if (user) {
+      fetchFavoriteDoctors();
+    }
+  }, [user]);
 
   // Search with debounce when searchTerm changes
   useEffect(() => {
@@ -86,6 +98,106 @@ export function DoctorSearch() {
       }
     } catch (error) {
       message.error("Có lỗi xảy ra khi tải danh sách chuyên khoa");
+    }
+  };
+
+  // Fetch favorite doctors if user is logged in
+  const fetchFavoriteDoctors = async () => {
+    try {
+      const response = await api.get("/api/patients/me/favorite-doctors");
+      if (response.success && response.data.favoriteDoctors) {
+        const favoriteIds = new Set(
+          response.data.favoriteDoctors.map((doc) => doc._id)
+        );
+        setFavoriteDoctorIds(favoriteIds);
+      }
+    } catch (error) {
+      // Silently fail if user is not logged in or endpoint doesn't exist
+      console.log("Could not fetch favorite doctors:", error);
+    }
+  };
+
+  // Toggle favorite status
+  const handleToggleFavorite = async (e, doctorId) => {
+    e.stopPropagation(); // Prevent card click
+
+    if (!user) {
+      message.warning("Vui lòng đăng nhập để sử dụng tính năng này");
+      navigate("/dang-nhap", {
+        state: {
+          from: "/benh-nhan/tim-bac-si",
+          message: "Vui lòng đăng nhập để thêm bác sĩ vào danh sách ưa thích",
+        },
+      });
+      return;
+    }
+
+    // Optimistic update - update UI immediately
+    const isFavorite = favoriteDoctorIds.has(doctorId);
+    const previousFavoriteIds = new Set(favoriteDoctorIds);
+
+    // Update state immediately for instant feedback
+    if (isFavorite) {
+      setFavoriteDoctorIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(doctorId);
+        return newSet;
+      });
+    } else {
+      setFavoriteDoctorIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(doctorId);
+        return newSet;
+      });
+    }
+
+    // Add to loading set
+    setFavoriteLoadingIds((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(doctorId);
+      return newSet;
+    });
+
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        const response = await api.delete(
+          `/api/patients/me/favorite-doctors/${doctorId}`
+        );
+        if (!response.success) {
+          // Rollback on error
+          setFavoriteDoctorIds(previousFavoriteIds);
+          message.error("Không thể xóa khỏi danh sách ưa thích");
+        } else {
+          message.success("Đã xóa khỏi danh sách ưa thích");
+        }
+      } else {
+        // Add to favorites
+        const response = await api.post("/api/patients/me/favorite-doctors", {
+          doctorId: doctorId,
+        });
+        if (!response.success) {
+          // Rollback on error
+          setFavoriteDoctorIds(previousFavoriteIds);
+          message.error(
+            response.message || "Không thể thêm vào danh sách ưa thích"
+          );
+        } else {
+          message.success("Đã thêm vào danh sách ưa thích");
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      // Rollback on error - restore previous state
+      setFavoriteDoctorIds(previousFavoriteIds);
+      message.error("Có lỗi xảy ra khi cập nhật danh sách ưa thích");
+    } finally {
+      // Remove from loading set
+      setFavoriteLoadingIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(doctorId);
+        return newSet;
+      });
     }
   };
 
@@ -388,99 +500,139 @@ export function DoctorSearch() {
               <p>Không tìm thấy bác sĩ nào phù hợp với tiêu chí tìm kiếm.</p>
             </div>
           ) : (
-            memoizedFilteredDoctors.map((doctor) => (
-              <div key={doctor._id} className="doctor-card">
-                {/* Verification Badge */}
-                <div className="verification-badge">Đã xác minh</div>
+            memoizedFilteredDoctors.map((doctor) => {
+              const isFavorite = favoriteDoctorIds.has(doctor._id);
+              const isLoading = favoriteLoadingIds.has(doctor._id);
 
-                {/* Doctor Content */}
-                <div className="doctor-content">
-                  {/* Doctor Avatar */}
-                  <div>
-                    {doctor.avatarUrl && !doctor.avatarUrl.includes("picsum.photos") ? (
-                      <img
-                        src={doctor.avatarUrl}
-                        alt={doctor.userId?.fullName || doctor.fullName}
-                        className="avatar-image"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextElementSibling?.classList.remove('hidden');
-                        }}
+              return (
+                <div key={doctor._id} className="doctor-card">
+                  {/* Verification Badge */}
+                  <div className="verification-badge">Đã xác minh</div>
+
+                  {/* Favorite Button */}
+                  <Button
+                    type="text"
+                    onClick={(e) => handleToggleFavorite(e, doctor._id)}
+                    disabled={isLoading}
+                    style={{
+                      position: "absolute",
+                      top: "1rem",
+                      right: "6.5rem",
+                      zIndex: 10,
+                      padding: 0,
+                      minWidth: "32px",
+                      width: "32px",
+                      height: "32px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    className="favorite-button"
+                  >
+                    {isLoading ? (
+                      <Spin size="small" style={{ margin: 0 }} />
+                    ) : isFavorite ? (
+                      <HeartFilled
+                        style={{ color: "#ff4d4f", fontSize: "20px" }}
                       />
-                    ) : null}
-                    {(!doctor.avatarUrl || doctor.avatarUrl.includes("picsum.photos")) && (
-                      <User className="default-avatar" />
+                    ) : (
+                      <HeartOutlined style={{ fontSize: "20px" }} />
                     )}
+                  </Button>
+
+                  {/* Doctor Content */}
+                  <div className="doctor-content">
+                    {/* Doctor Avatar */}
+                    <div>
+                      {doctor.avatarUrl &&
+                      !doctor.avatarUrl.includes("picsum.photos") ? (
+                        <img
+                          src={doctor.avatarUrl}
+                          alt={doctor.userId?.fullName || doctor.fullName}
+                          className="avatar-image"
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                            e.target.nextElementSibling?.classList.remove(
+                              "hidden"
+                            );
+                          }}
+                        />
+                      ) : null}
+                      {(!doctor.avatarUrl ||
+                        doctor.avatarUrl.includes("picsum.photos")) && (
+                        <User className="default-avatar" />
+                      )}
+                    </div>
+
+                    {/* Doctor Info */}
+                    <div className="doctor-info">
+                      <h3 className="doctor-name">
+                        {(() => {
+                          const fullName =
+                            doctor.userId?.fullName || doctor.fullName;
+                          return fullName?.startsWith("BS.")
+                            ? fullName
+                            : `BS. ${fullName}`;
+                        })()}
+                      </h3>
+                      <p className="doctor-specialty">
+                        {doctor.specializationIds?.[0]?.name || "Chưa xác định"}
+                      </p>
+                      <p className="doctor-experience">
+                        {doctor.yearsExperience || 0} năm kinh nghiệm
+                      </p>
+
+                      {/* Rating */}
+                      <div className="doctor-rating">
+                        <Star className="star-icon" />
+                        <span className="rating-text">
+                          {doctor.ratingAvg?.toFixed(1) || "0.0"} (
+                          {doctor.ratingCount || 0})
+                        </span>
+                      </div>
+
+                      {/* Status */}
+                      <div className="doctor-status">
+                        <span className="status-badge">
+                          {getStatusText(doctor)}
+                        </span>
+                      </div>
+
+                      {/* Location */}
+                      <div className="doctor-location">
+                        <MapPin className="location-icon" />
+                        <span className="location-text">
+                          {doctor.clinicDefaultId?.name ||
+                            "Bệnh viện Đa khoa Trung ương"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Doctor Info */}
-                  <div className="doctor-info">
-                    <h3 className="doctor-name">
-                      {(() => {
-                        const fullName =
-                          doctor.userId?.fullName || doctor.fullName;
-                        return fullName?.startsWith("BS.")
-                          ? fullName
-                          : `BS. ${fullName}`;
-                      })()}
-                    </h3>
-                    <p className="doctor-specialty">
-                      {doctor.specializationIds?.[0]?.name || "Chưa xác định"}
-                    </p>
-                    <p className="doctor-experience">
-                      {doctor.yearsExperience || 0} năm kinh nghiệm
-                    </p>
-
-                    {/* Rating */}
-                    <div className="doctor-rating">
-                      <Star className="star-icon" />
-                      <span className="rating-text">
-                        {doctor.ratingAvg?.toFixed(1) || "0.0"} (
-                        {doctor.ratingCount || 0})
+                  {/* Fee and Actions Section */}
+                  <div className="fee-actions-section">
+                    {/* Consultation Fee */}
+                    <div className="consultation-fee">
+                      <span className="fee-label">Phí khám</span>
+                      <span className="fee-amount">
+                        {formatPrice(doctor.consultationFee || 500000)}
                       </span>
                     </div>
 
-                    {/* Status */}
-                    <div className="doctor-status">
-                      <span className="status-badge">
-                        {getStatusText(doctor)}
-                      </span>
-                    </div>
-
-                    {/* Location */}
-                    <div className="doctor-location">
-                      <MapPin className="location-icon" />
-                      <span className="location-text">
-                        {doctor.clinicDefaultId?.name ||
-                          "Bệnh viện Đa khoa Trung ương"}
-                      </span>
+                    {/* Action Buttons */}
+                    <div className="doctor-actions">
+                      <button
+                        className="action-button book-button"
+                        onClick={() => handleBookAppointment(doctor._id)}
+                      >
+                        <Calendar className="button-icon" />
+                        Đặt lịch
+                      </button>
                     </div>
                   </div>
                 </div>
-
-                {/* Fee and Actions Section */}
-                <div className="fee-actions-section">
-                  {/* Consultation Fee */}
-                  <div className="consultation-fee">
-                    <span className="fee-label">Phí khám</span>
-                    <span className="fee-amount">
-                      {formatPrice(doctor.consultationFee || 500000)}
-                    </span>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="doctor-actions">
-                    <button
-                      className="action-button book-button"
-                      onClick={() => handleBookAppointment(doctor._id)}
-                    >
-                      <Calendar className="button-icon" />
-                      Đặt lịch
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

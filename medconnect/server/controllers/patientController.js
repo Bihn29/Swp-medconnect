@@ -7,6 +7,7 @@ import Appointment from "../models/appointment.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
 import ConsultationAdvice from "../models/consultationAdvice.model.js";
 import Notification from "../models/notification.model.js";
+import PatientFavorite from "../models/patientFavorite.model.js";
 import {
   createBookingNotification,
   createAppointmentNotification,
@@ -517,39 +518,36 @@ export async function getDoctorTimeSlots(req, res) {
       .select("slotId status")
       .lean();
 
-    // Create a set of booked slot IDs (only for active appointments)
-    const bookedSlotIds = new Set(
-      appointments.map((apt) => apt.slotId?.toString())
-    );
-
-    // Filter slots: include if slot status is "available" OR if slot is "booked" but no active appointment uses it
-    // This handles the case where appointment was cancelled but slot status wasn't updated
-    const reallyAvailableSlots = timeSlots.filter((slot) => {
-      // If slot is marked as available, include it (but check if it's really booked)
-      if (slot.status === "available") {
-        return !bookedSlotIds.has(slot._id.toString());
+    // Create a map of booked slot IDs with their appointment statuses
+    // This allows us to show all slots but mark unavailable ones
+    const bookedSlotMap = new Map();
+    appointments.forEach((apt) => {
+      const slotIdStr = apt.slotId?.toString();
+      if (slotIdStr && !bookedSlotMap.has(slotIdStr)) {
+        bookedSlotMap.set(slotIdStr, apt.status);
       }
-      // If slot is marked as booked, include it ONLY if no active appointment is using it
-      // This means the appointment was cancelled but slot status wasn't updated
-      if (slot.status === "booked") {
-        return !bookedSlotIds.has(slot._id.toString());
-      }
-      return false;
     });
 
-    // Format time slots for frontend
-    const formattedSlots = reallyAvailableSlots.map((slot) => ({
-      _id: slot._id,
-      startAt: slot.startAt, // Keep original for datetime calculation
-      endAt: slot.endAt,
-      startTime: slot.startAt.toTimeString().slice(0, 5), // HH:MM format
-      endTime: slot.endAt.toTimeString().slice(0, 5),
-      timeRange: `${slot.startAt.toTimeString().slice(0, 5)} - ${slot.endAt
-        .toTimeString()
-        .slice(0, 5)}`,
-      available: true,
-      status: "available",
-    }));
+    // Format ALL time slots for frontend (not just available ones)
+    // Mark slots as unavailable if they have active appointments
+    const formattedSlots = timeSlots.map((slot) => {
+      const slotIdStr = slot._id.toString();
+      const appointmentStatus = bookedSlotMap.get(slotIdStr);
+      const isAvailable = !appointmentStatus; // Available if no active appointment
+
+      return {
+        _id: slot._id,
+        startAt: slot.startAt, // Keep original for datetime calculation
+        endAt: slot.endAt,
+        startTime: slot.startAt.toTimeString().slice(0, 5), // HH:MM format
+        endTime: slot.endAt.toTimeString().slice(0, 5),
+        timeRange: `${slot.startAt.toTimeString().slice(0, 5)} - ${slot.endAt
+          .toTimeString()
+          .slice(0, 5)}`,
+        available: isAvailable,
+        appointmentStatus: appointmentStatus || null, // Include appointment status for frontend display
+      };
+    });
 
     return ok(res, { timeSlots: formattedSlots });
   } catch (error) {
@@ -2060,6 +2058,219 @@ export async function deleteFamilyMember(req, res) {
     });
   } catch (error) {
     console.error("Error deleting family member:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Get patient's favorite doctors
+ */
+export async function getFavoriteDoctors(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    // Find patient profile
+    let patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      // Create a basic patient profile if it doesn't exist
+      const user = await User.findById(appUserId);
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+
+      await newPatient.save();
+      patient = newPatient;
+    }
+
+    // Get all favorite doctors for this patient
+    const favorites = await PatientFavorite.find({ patientId: patient._id })
+      .populate({
+        path: "doctorId",
+        populate: [
+          {
+            path: "userId",
+            select: "fullName email photoURL",
+          },
+          {
+            path: "specializationIds",
+            select: "name",
+          },
+        ],
+      })
+      .sort({ favoritedAt: -1 })
+      .lean();
+
+    // Format doctors data
+    const favoriteDoctors = favorites.map((fav) => ({
+      _id: fav.doctorId._id,
+      fullName: fav.doctorId.userId?.fullName || fav.doctorId.fullName,
+      avatarUrl: fav.doctorId.avatarUrl || fav.doctorId.userId?.photoURL,
+      specializations: fav.doctorId.specializationIds || [],
+      yearsExperience: fav.doctorId.yearsExperience,
+      ratingAvg: fav.doctorId.ratingAvg || 0,
+      ratingCount: fav.doctorId.ratingCount || 0,
+      bio: fav.doctorId.bio,
+      favoritedAt: fav.favoritedAt,
+    }));
+
+    return ok(res, { favoriteDoctors });
+  } catch (error) {
+    console.error("Error fetching favorite doctors:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Add a doctor to favorites
+ */
+export async function addFavoriteDoctor(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    const { doctorId } = req.body;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Find or create patient profile
+    let patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      const user = await User.findById(appUserId);
+      if (!user) {
+        return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+      }
+
+      const newPatient = new Patient({
+        userId: appUserId,
+        fullName: user.fullName || "Chưa cập nhật",
+        phone: user.phone || "",
+        isComplete: false,
+      });
+
+      await newPatient.save();
+      patient = newPatient;
+    }
+
+    // Check if already favorited
+    const existingFavorite = await PatientFavorite.findOne({
+      patientId: patient._id,
+      doctorId: doctorId,
+    });
+
+    if (existingFavorite) {
+      return ok(res, {
+        message: "Doctor already in favorites",
+        favorite: existingFavorite,
+      });
+    }
+
+    // Create new favorite
+    const favorite = await PatientFavorite.create({
+      patientId: patient._id,
+      doctorId: doctorId,
+    });
+
+    return ok(res, {
+      message: "Doctor added to favorites",
+      favorite,
+    });
+  } catch (error) {
+    console.error("Error adding favorite doctor:", error);
+
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return ok(res, {
+        message: "Doctor already in favorites",
+      });
+    }
+
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Remove a doctor from favorites
+ */
+export async function removeFavoriteDoctor(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    // Find patient profile
+    const patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Patient profile not found");
+    }
+
+    // Remove favorite
+    const result = await PatientFavorite.findOneAndDelete({
+      patientId: patient._id,
+      doctorId: doctorId,
+    });
+
+    if (!result) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Doctor not found in favorites"
+      );
+    }
+
+    return ok(res, {
+      message: "Doctor removed from favorites",
+    });
+  } catch (error) {
+    console.error("Error removing favorite doctor:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }

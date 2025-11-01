@@ -617,35 +617,55 @@ const TimeSlotSelection = () => {
                     </div>
                   ) : (
                     <div className="time-slots-grid">
-                      {timeSlots
-                        .filter((slot) => {
-                          // Lọc bỏ các slot đã qua giờ theo thời gian thực - các slot này sẽ biến mất
-                          const isPassed = isSlotPassed(slot);
-                          if (isPassed) return false;
+                      {timeSlots.map((slot) => {
+                        // Kiểm tra slot đã qua giờ
+                        const isPassed = isSlotPassed(slot);
+                        // Kiểm tra slot không available (đã có appointment)
+                        const isUnavailable = !slot.available;
+                        // Slot bị disable nếu đã qua giờ hoặc không available
+                        const isDisabled = isPassed || isUnavailable;
 
-                          // Ẩn hoàn toàn các slot không available (đã có appointment: pending_doctor, accepted, in_progress, done)
-                          // Thay vì chỉ disable, chúng ta sẽ ẩn hoàn toàn
-                          if (!slot.available) return false;
+                        // Tạo tooltip text để giải thích tại sao slot bị disable
+                        let disabledReason = "";
+                        if (isPassed) {
+                          disabledReason = "Khung giờ này đã qua";
+                        } else if (isUnavailable && slot.appointmentStatus) {
+                          // Hiển thị status cụ thể của appointment
+                          const statusMap = {
+                            pending_doctor: "Đang chờ bác sĩ xác nhận",
+                            accepted: "Đã được chấp nhận",
+                            in_progress: "Đang trong quá trình khám",
+                            done: "Đã hoàn thành",
+                          };
+                          disabledReason =
+                            statusMap[slot.appointmentStatus] ||
+                            "Khung giờ này đã được đặt";
+                        } else if (isUnavailable) {
+                          disabledReason = "Khung giờ này đã được đặt";
+                        }
 
-                          return true;
-                        })
-                        .map((slot) => {
-                          return (
-                            <Button
-                              key={slot._id}
-                              type={
-                                selectedTimeSlot?._id === slot._id
-                                  ? "primary"
-                                  : "default"
+                        return (
+                          <Button
+                            key={slot._id}
+                            type={
+                              selectedTimeSlot?._id === slot._id
+                                ? "primary"
+                                : "default"
+                            }
+                            onClick={() => {
+                              if (!isDisabled) {
+                                handleTimeSlotSelect(slot);
                               }
-                              onClick={() => handleTimeSlotSelect(slot)}
-                              className="time-slot-button"
-                              size="large"
-                            >
-                              {slot.timeRange}
-                            </Button>
-                          );
-                        })}
+                            }}
+                            className="time-slot-button"
+                            size="large"
+                            disabled={isDisabled}
+                            title={disabledReason}
+                          >
+                            {slot.timeRange}
+                          </Button>
+                        );
+                      })}
                     </div>
                   )}
                 </Card>

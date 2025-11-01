@@ -17,6 +17,9 @@ import {
   getFamilyMembers,
   createFamilyMember,
   deleteFamilyMember,
+  getFavoriteDoctors,
+  addFavoriteDoctor,
+  removeFavoriteDoctor,
 } from "../controllers/patientController.js";
 import Patient from "../models/patient.model.js";
 import User from "../models/user.model.js";
@@ -163,5 +166,18 @@ router.post("/me/family-members", authGuard, createFamilyMember);
 
 // Delete a family member
 router.delete("/me/family-members/:patientId", authGuard, deleteFamilyMember);
+
+// Get favorite doctors
+router.get("/me/favorite-doctors", authGuard, getFavoriteDoctors);
+
+// Add doctor to favorites
+router.post("/me/favorite-doctors", authGuard, addFavoriteDoctor);
+
+// Remove doctor from favorites
+router.delete(
+  "/me/favorite-doctors/:doctorId",
+  authGuard,
+  removeFavoriteDoctor
+);
 
 export default router;

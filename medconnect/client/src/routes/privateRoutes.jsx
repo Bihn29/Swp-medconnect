@@ -17,6 +17,7 @@ import Profile from "../pages/Auth/Profile";
 // Patient Components
 import PatientDashboard from "../pages/Patient/PatientDashboard/PatientDashboard";
 import { Settings } from "../pages/Patient/components/Settings/Settings";
+import FavoriteDoctors from "../pages/Patient/components/FavoriteDoctors/FavoriteDoctors";
 import AppointmentBookingHome from "../pages/Appointment/AppointmentBookingHome";
 import SpecializationSelection from "../pages/Appointment/SpecializationSelection";
 import DoctorSelection from "../pages/Appointment/DoctorSelection";
@@ -79,6 +80,10 @@ export const privateRoutes = (
           <Route
             path="/benh-nhan/ho-so-suc-khoe-gia-dinh"
             element={<PatientDashboard />}
+          />
+          <Route
+            path="/benh-nhan/bac-si-ua-thich"
+            element={<FavoriteDoctors />}
           />
           <Route path="/benh-nhan/thong-bao" element={<PatientDashboard />} />
           <Route path="/benh-nhan/cai-dat" element={<Settings />} />
