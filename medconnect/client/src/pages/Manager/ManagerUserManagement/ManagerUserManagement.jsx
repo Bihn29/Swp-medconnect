@@ -1,3 +1,5 @@
+// Copy from Admin UserManagement and adapt for Manager
+// Manager can manage patient, doctor, manager users (not admin)
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
@@ -38,10 +40,10 @@ import {
   updateUser,
   changeUserPassword,
   createUser,
-} from "../../lib/api";
-import "./UserManagement.scss";
+} from "../../../lib/api";
+import "./ManagerUserManagement.scss";
 
-const UserManagement = () => {
+const ManagerUserManagement = () => {
   const [searchText, setSearchText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -61,7 +63,7 @@ const UserManagement = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchQuery(searchText);
-    }, 500); // 500ms delay
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [searchText]);
@@ -75,7 +77,11 @@ const UserManagement = () => {
       if (roleFilter !== "all") params.role = roleFilter;
 
       const data = await getAdminUsers(params);
-      setUsers(data.data || data);
+      // Filter out admin users - manager cannot see/manage admin
+      const filteredData = (data.data || data).filter(
+        (user) => user.role !== "admin"
+      );
+      setUsers(filteredData);
     } catch (err) {
       console.error("Error fetching users:", err);
       setError("Không thể tải danh sách người dùng");
@@ -104,7 +110,6 @@ const UserManagement = () => {
     { value: "all", label: "Tất cả vai trò" },
     { value: "patient", label: "Bệnh nhân" },
     { value: "doctor", label: "Bác sĩ" },
-    { value: "admin", label: "Quản trị viên" },
     { value: "manager", label: "Quản lý" },
   ];
 
@@ -112,7 +117,6 @@ const UserManagement = () => {
     const roleConfig = {
       patient: { color: "blue", text: "Bệnh nhân" },
       doctor: { color: "green", text: "Bác sĩ" },
-      admin: { color: "red", text: "Quản trị viên" },
       manager: { color: "purple", text: "Quản lý" },
     };
     return roleConfig[role] || { color: "default", text: role };
@@ -142,19 +146,15 @@ const UserManagement = () => {
         default:
           return;
       }
-      // Refresh users list
       fetchUsers();
     } catch (err) {
       console.error(`Error ${action} user:`, err);
     }
   };
 
-  // Handle view details
   const handleViewDetails = async (userId) => {
     try {
-      console.log("Fetching details for user ID:", userId);
       const response = await getUserDetails(userId);
-      console.log("User details response:", response);
       setUserDetails(response.data || response);
       setSelectedUser(users.find((user) => user.id === userId));
       setDetailModalVisible(true);
@@ -164,7 +164,6 @@ const UserManagement = () => {
     }
   };
 
-  // Handle edit user
   const handleEditUser = async (userId) => {
     try {
       const response = await getUserDetails(userId);
@@ -172,7 +171,6 @@ const UserManagement = () => {
       setUserDetails(userData);
       setSelectedUser(users.find((user) => user.id === userId));
 
-      // Populate form with current user data
       editForm.setFieldsValue({
         fullName: userData.fullName,
         email: userData.email,
@@ -191,9 +189,13 @@ const UserManagement = () => {
     }
   };
 
-  // Handle update user
   const handleUpdateUser = async (values) => {
     try {
+      // Prevent changing role to admin
+      if (values.role === "admin") {
+        message.error("Không thể thay đổi vai trò thành Quản trị viên");
+        return;
+      }
       await updateUser(selectedUser.id, values);
       message.success("Cập nhật thông tin người dùng thành công");
       setEditModalVisible(false);
@@ -204,7 +206,6 @@ const UserManagement = () => {
     }
   };
 
-  // Handle change password
   const handleChangePassword = async (values) => {
     try {
       await changeUserPassword(selectedUser.id, values.newPassword);
@@ -250,10 +251,10 @@ const UserManagement = () => {
 
   if (loading) {
     return (
-      <div className="user-management">
+      <div className="manager-user-management">
         <div className="page-header">
           <h1>Quản lý người dùng</h1>
-          <p>Xem và quản lý tất cả người dùng trong hệ thống</p>
+          <p>Xem và quản lý người dùng trong hệ thống</p>
         </div>
         <div style={{ textAlign: "center", padding: "50px" }}>
           <Spin size="large" />
@@ -265,10 +266,10 @@ const UserManagement = () => {
 
   if (error) {
     return (
-      <div className="user-management">
+      <div className="manager-user-management">
         <div className="page-header">
           <h1>Quản lý người dùng</h1>
-          <p>Xem và quản lý tất cả người dùng trong hệ thống</p>
+          <p>Xem và quản lý người dùng trong hệ thống</p>
         </div>
         <Alert
           message="Lỗi tải dữ liệu"
@@ -282,11 +283,11 @@ const UserManagement = () => {
   }
 
   return (
-    <div className="user-management">
+    <div className="manager-user-management">
       <div className="page-header">
         <div>
           <h1>Quản lý người dùng</h1>
-          <p>Xem và quản lý tất cả người dùng trong hệ thống</p>
+          <p>Xem và quản lý người dùng trong hệ thống</p>
         </div>
         <Button
           type="primary"
@@ -374,7 +375,7 @@ const UserManagement = () => {
         })}
       </div>
 
-      {/* User Detail Modal */}
+      {/* User Detail Modal - Same as Admin */}
       <Modal
         title={
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -414,7 +415,6 @@ const UserManagement = () => {
 
             <Divider />
 
-            {/* Basic Information */}
             <Descriptions title="Thông tin cơ bản" bordered column={2}>
               <Descriptions.Item label="Họ và tên" span={2}>
                 {userDetails.roleSpecificData?.fullName || userDetails.fullName}
@@ -471,20 +471,6 @@ const UserManagement = () => {
                   <Descriptions.Item label="Nghề nghiệp">
                     {userDetails.roleSpecificData.occupation || "Chưa cập nhật"}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Dân tộc">
-                    {userDetails.roleSpecificData.ethnicity || "Chưa cập nhật"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Quốc tịch">
-                    {userDetails.roleSpecificData.nationality ||
-                      "Chưa cập nhật"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="CCCD/CMND">
-                    {userDetails.roleSpecificData.citizenId || "Chưa cập nhật"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Phòng khám chính">
-                    {userDetails.roleSpecificData.primaryClinic ||
-                      "Chưa cập nhật"}
-                  </Descriptions.Item>
                 </Descriptions>
               </>
             )}
@@ -506,17 +492,6 @@ const UserManagement = () => {
                           .map((spec) => spec.name)
                           .join(", ")
                       : "Chưa cập nhật"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Phòng khám mặc định">
-                    {userDetails.roleSpecificData.clinicDefaultId?.name ||
-                      "Chưa cập nhật"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Địa chỉ phòng khám">
-                    {userDetails.roleSpecificData.clinicDefaultId?.address ||
-                      "Chưa cập nhật"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Giới thiệu" span={2}>
-                    {userDetails.roleSpecificData.bio || "Chưa cập nhật"}
                   </Descriptions.Item>
                 </Descriptions>
               </>
@@ -542,20 +517,12 @@ const UserManagement = () => {
                   ? new Date(userDetails.createdAt).toLocaleDateString("vi-VN")
                   : "Chưa có thông tin"}
               </Descriptions.Item>
-              <Descriptions.Item label="Cập nhật lần cuối">
-                {userDetails.updatedAt
-                  ? new Date(userDetails.updatedAt).toLocaleDateString("vi-VN")
-                  : "Chưa có thông tin"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Hoạt động cuối">
-                {userDetails.lastActive || "Chưa có thông tin"}
-              </Descriptions.Item>
             </Descriptions>
           </div>
         )}
       </Modal>
 
-      {/* User Edit Modal */}
+      {/* User Edit Modal - Same as Admin but exclude admin role */}
       <Modal
         title={
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -600,7 +567,6 @@ const UserManagement = () => {
             <Select placeholder="Chọn vai trò">
               <Select.Option value="patient">Bệnh nhân</Select.Option>
               <Select.Option value="doctor">Bác sĩ</Select.Option>
-              <Select.Option value="admin">Quản trị viên</Select.Option>
               <Select.Option value="manager">Quản lý</Select.Option>
             </Select>
           </Form.Item>
@@ -613,24 +579,8 @@ const UserManagement = () => {
             <Select placeholder="Chọn trạng thái">
               <Select.Option value="active">Hoạt động</Select.Option>
               <Select.Option value="inactive">Không hoạt động</Select.Option>
-              <Select.Option value="suspended">Tạm khóa</Select.Option>
+              <Select.Option value="blocked">Tạm khóa</Select.Option>
             </Select>
-          </Form.Item>
-
-          <Form.Item label="Ngày sinh" name="dateOfBirth">
-            <Input placeholder="DD/MM/YYYY" />
-          </Form.Item>
-
-          <Form.Item label="Giới tính" name="gender">
-            <Select placeholder="Chọn giới tính">
-              <Select.Option value="male">Nam</Select.Option>
-              <Select.Option value="female">Nữ</Select.Option>
-              <Select.Option value="other">Khác</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item label="Địa chỉ" name="address">
-            <Input.TextArea placeholder="Nhập địa chỉ" rows={3} />
           </Form.Item>
 
           <Divider>Đổi mật khẩu</Divider>
@@ -690,7 +640,7 @@ const UserManagement = () => {
         </Form>
       </Modal>
 
-      {/* Create User Modal */}
+      {/* Create User Modal - Exclude admin role */}
       <Modal
         title={
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -711,6 +661,11 @@ const UserManagement = () => {
           layout="vertical"
           onFinish={async (values) => {
             try {
+              // Prevent creating admin users
+              if (values.role === "admin") {
+                message.error("Không thể tạo tài khoản Quản trị viên");
+                return;
+              }
               await createUser(values);
               message.success("Tạo người dùng thành công");
               setCreateModalVisible(false);
@@ -753,7 +708,6 @@ const UserManagement = () => {
             <Select placeholder="Chọn vai trò">
               <Select.Option value="patient">Bệnh nhân</Select.Option>
               <Select.Option value="doctor">Bác sĩ</Select.Option>
-              <Select.Option value="admin">Quản trị viên</Select.Option>
               <Select.Option value="manager">Quản lý</Select.Option>
             </Select>
           </Form.Item>
@@ -798,4 +752,4 @@ const UserManagement = () => {
   );
 };
 
-export default UserManagement;
+export default ManagerUserManagement;

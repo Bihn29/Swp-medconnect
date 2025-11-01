@@ -2225,6 +2225,70 @@ export async function addFavoriteDoctor(req, res) {
 /**
  * Remove a doctor from favorites
  */
+/**
+ * Get visit count for a specific doctor (how many times patient has visited this doctor)
+ */
+export async function getDoctorVisitCount(req, res) {
+  try {
+    const claims = req.user || {};
+    let appUserId = claims.app_user_id;
+    let user;
+
+    if (appUserId) {
+      user = await User.findById(appUserId).lean();
+    } else {
+      const userEmail = claims.email;
+      if (!userEmail) {
+        return fail(
+          res,
+          401,
+          ERROR_CODES.UNAUTHORIZED,
+          "User ID or email not found in token"
+        );
+      }
+      user = await User.findOne({ email: userEmail }).lean();
+      if (user) {
+        appUserId = user._id;
+      }
+    }
+
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "User not found");
+    }
+
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    // Find all patients for this user
+    const patients = await Patient.find({ userId: appUserId });
+    if (!patients || patients.length === 0) {
+      return ok(res, { visitCount: 0 });
+    }
+
+    const patientIds = patients.map((p) => p._id);
+
+    // Count completed appointments (status = "done")
+    const visitCount = await Appointment.countDocuments({
+      patientId: { $in: patientIds },
+      doctorId: doctorId,
+      status: "done",
+    });
+
+    return ok(res, { visitCount });
+  } catch (error) {
+    console.error("Error getting doctor visit count:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
 export async function removeFavoriteDoctor(req, res) {
   try {
     const claims = req.user || {};

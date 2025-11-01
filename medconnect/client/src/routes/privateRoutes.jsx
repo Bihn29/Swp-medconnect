@@ -10,6 +10,7 @@ import AuthMiddleware from "../middlewares/AuthMiddleware";
 import PatientMiddleware from "../middlewares/PatientMiddleware";
 import AdminMiddleware from "../middlewares/AdminMiddleware";
 import DoctorMiddleware from "../middlewares/DoctorMiddleware";
+import ManagerMiddleware from "../middlewares/ManagerMiddleware";
 
 // Shared Components
 import Profile from "../pages/Auth/Profile";
@@ -46,6 +47,11 @@ import UserManagement from "../pages/Admin/UserManagement";
 import Specializations from "../pages/Admin/Specializations";
 import AppointmentManagement from "../pages/Admin/AppointmentManagement";
 import AdminLayout from "../layouts/AdminLayout/AdminLayout";
+
+// Manager Components
+import ManagerDashboard from "../pages/Manager/ManagerDashboard/ManagerDashboard";
+import ManagerScheduleManagement from "../pages/Manager/ManagerScheduleManagement/ManagerScheduleManagement";
+import ManagerLayout from "../layouts/ManagerLayout/ManagerLayout";
 
 /**
  * Private Routes - Routes requiring authentication
@@ -204,6 +210,19 @@ export const privateRoutes = (
         <Route path="/admin/users" element={<UserManagement />} />
         <Route path="/admin/specializations" element={<Specializations />} />
         <Route path="/admin/appointments" element={<AppointmentManagement />} />
+      </Route>
+    </Route>
+
+    {/* ==================== MANAGER ROUTES ==================== */}
+    {/* Manager routes with manager middleware protection */}
+    <Route element={<ManagerMiddleware />}>
+      <Route element={<ManagerLayout />}>
+        <Route path="/manager/trang-chu" element={<ManagerDashboard />} />
+        <Route path="/manager" element={<ManagerDashboard />} />
+        <Route
+          path="/manager/quan-ly-lich"
+          element={<ManagerScheduleManagement />}
+        />
       </Route>
     </Route>
   </>

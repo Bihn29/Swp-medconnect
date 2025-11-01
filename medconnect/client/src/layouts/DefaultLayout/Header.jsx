@@ -261,6 +261,12 @@ const Header = () => {
       return;
     }
 
+    // manager dashboard shortcut
+    if (key === "manager") {
+      navigate("/manager/trang-chu");
+      return;
+    }
+
     // fallback: navigate to route named by key
     if (key) navigate(`/${key}`);
   };
@@ -454,9 +460,11 @@ const Header = () => {
                     disabled: true,
                   },
                   { type: "divider", key: "d1" },
-                  // Only show profile and dashboard for non-admin users
+                  // Only show profile and dashboard for non-admin, non-manager users
                   ...(userProfile?.role !== "admin" &&
-                  userProfile?.role !== "ADMIN"
+                  userProfile?.role !== "ADMIN" &&
+                  userProfile?.role !== "manager" &&
+                  userProfile?.role !== "MANAGER"
                     ? [
                         {
                           key: "profile",
@@ -487,6 +495,27 @@ const Header = () => {
                               </div>
                               <div style={{ fontSize: 12, color: "#666" }}>
                                 Quản trị hệ thống
+                              </div>
+                            </div>
+                          ),
+                        },
+                      ]
+                    : []),
+                  // Manager Dashboard link - only show for manager users
+                  ...(userProfile?.role === "manager" ||
+                  userProfile?.role === "MANAGER"
+                    ? [
+                        {
+                          key: "manager",
+                          label: (
+                            <div style={{ minWidth: 220 }}>
+                              <div
+                                style={{ fontWeight: 700, color: "#722ed1" }}
+                              >
+                                📅 Manager Dashboard
+                              </div>
+                              <div style={{ fontSize: 12, color: "#666" }}>
+                                Quản lý lịch bác sĩ
                               </div>
                             </div>
                           ),

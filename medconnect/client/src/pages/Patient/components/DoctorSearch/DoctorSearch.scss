@@ -354,6 +354,27 @@
           }
         }
 
+        .doctor-visit-count {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 0.375rem;
+          margin-bottom: 0.5rem;
+          color: #059669;
+          font-size: 0.875rem;
+          font-weight: 500;
+
+          .visit-icon {
+            width: 0.875rem;
+            height: 0.875rem;
+            color: #059669;
+          }
+
+          .visit-text {
+            color: #059669;
+          }
+        }
+
         .doctor-status {
           margin-bottom: 0.5rem;
 

@@ -20,6 +20,7 @@ import {
   getFavoriteDoctors,
   addFavoriteDoctor,
   removeFavoriteDoctor,
+  getDoctorVisitCount,
 } from "../controllers/patientController.js";
 import Patient from "../models/patient.model.js";
 import User from "../models/user.model.js";
@@ -179,5 +180,8 @@ router.delete(
   authGuard,
   removeFavoriteDoctor
 );
+
+// Get visit count for a specific doctor
+router.get("/me/doctors/:doctorId/visit-count", authGuard, getDoctorVisitCount);
 
 export default router;

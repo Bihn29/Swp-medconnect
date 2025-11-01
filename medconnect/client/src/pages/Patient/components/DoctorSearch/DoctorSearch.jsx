@@ -33,6 +33,7 @@ export function DoctorSearch() {
   const [isSearching, setIsSearching] = useState(false);
   const [favoriteDoctorIds, setFavoriteDoctorIds] = useState(new Set());
   const [favoriteLoadingIds, setFavoriteLoadingIds] = useState(new Set());
+  const [doctorVisitCounts, setDoctorVisitCounts] = useState(new Map()); // Map<doctorId, visitCount>
 
   // Additional filter states
   const [showFilters, setShowFilters] = useState(false);
@@ -41,6 +42,7 @@ export function DoctorSearch() {
   const [selectedPriceRange, setSelectedPriceRange] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedAvailability, setSelectedAvailability] = useState("");
+  const [locations, setLocations] = useState([]); // Available locations from database
 
   useEffect(() => {
     const initialLoad = async () => {
@@ -49,6 +51,7 @@ export function DoctorSearch() {
         await Promise.all([
           filterDoctors(true), // Initial load
           fetchSpecializations(),
+          fetchLocations(),
         ]);
       } finally {
         setLoading(false);
@@ -57,12 +60,76 @@ export function DoctorSearch() {
     initialLoad();
   }, []);
 
+  // Fetch available locations from database
+  const fetchLocations = async () => {
+    try {
+      const response = await api.get("/api/clinics/locations");
+      if (response.success && response.data.locations) {
+        setLocations(response.data.locations);
+      }
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      // Fallback to default locations if API fails
+      setLocations([
+        "Quận 1",
+        "Quận 2",
+        "Quận 3",
+        "Quận 7",
+        "Quận 10",
+        "Hải Châu",
+        "Thủ Đức",
+        "Ninh Kiều",
+      ]);
+    }
+  };
+
   // Fetch favorite doctors if user is logged in
   useEffect(() => {
     if (user) {
       fetchFavoriteDoctors();
     }
   }, [user]);
+
+  // Fetch visit counts for all displayed doctors
+  const fetchVisitCounts = async (doctors) => {
+    if (!user || !doctors || doctors.length === 0) return;
+
+    try {
+      const visitCountPromises = doctors.map(async (doctor) => {
+        try {
+          const response = await api.get(
+            `/api/patients/me/doctors/${doctor._id}/visit-count`
+          );
+          if (response.success) {
+            return { doctorId: doctor._id, count: response.data.visitCount };
+          }
+          return { doctorId: doctor._id, count: 0 };
+        } catch (error) {
+          console.error(
+            `Error fetching visit count for doctor ${doctor._id}:`,
+            error
+          );
+          return { doctorId: doctor._id, count: 0 };
+        }
+      });
+
+      const results = await Promise.all(visitCountPromises);
+      const countsMap = new Map();
+      results.forEach(({ doctorId, count }) => {
+        countsMap.set(doctorId, count);
+      });
+      setDoctorVisitCounts(countsMap);
+    } catch (error) {
+      console.error("Error fetching visit counts:", error);
+    }
+  };
+
+  // Fetch visit counts for all doctors when filtered doctors change
+  useEffect(() => {
+    if (user && filteredDoctors.length > 0) {
+      fetchVisitCounts(filteredDoctors);
+    }
+  }, [user, filteredDoctors]);
 
   // Search with debounce when searchTerm changes
   useEffect(() => {
@@ -425,9 +492,11 @@ export function DoctorSearch() {
                   className="filter-select"
                 >
                   <option value="">Tất cả</option>
-                  <option value="4.5+">4.5+ sao</option>
-                  <option value="4.0+">4.0+ sao</option>
-                  <option value="3.5+">3.5+ sao</option>
+                  <option value="4.5-5.0">4.5 - 5.0 sao</option>
+                  <option value="4.0-4.5">4.0 - 4.5 sao</option>
+                  <option value="3.5-4.0">3.5 - 4.0 sao</option>
+                  <option value="3.0-3.5">3.0 - 3.5 sao</option>
+                  <option value="0-3.0">Dưới 3.0 sao</option>
                 </select>
               </div>
 
@@ -454,11 +523,24 @@ export function DoctorSearch() {
                   className="filter-select"
                 >
                   <option value="">Tất cả</option>
-                  <option value="quan-1">Quận 1</option>
-                  <option value="quan-2">Quận 2</option>
-                  <option value="quan-3">Quận 3</option>
-                  <option value="quan-7">Quận 7</option>
-                  <option value="quan-10">Quận 10</option>
+                  {locations.length > 0 ? (
+                    locations.map((location) => (
+                      <option
+                        key={location}
+                        value={location.toLowerCase().replace(/\s+/g, "-")}
+                      >
+                        {location}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="quan-1">Quận 1</option>
+                      <option value="quan-2">Quận 2</option>
+                      <option value="quan-3">Quận 3</option>
+                      <option value="quan-7">Quận 7</option>
+                      <option value="quan-10">Quận 10</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -590,6 +672,16 @@ export function DoctorSearch() {
                           {doctor.ratingCount || 0})
                         </span>
                       </div>
+
+                      {/* Visit Count - only show if user is logged in and has visited */}
+                      {user && doctorVisitCounts.get(doctor._id) > 0 && (
+                        <div className="doctor-visit-count">
+                          <Calendar className="visit-icon" size={14} />
+                          <span className="visit-text">
+                            Đã khám {doctorVisitCounts.get(doctor._id)} lần
+                          </span>
+                        </div>
+                      )}
 
                       {/* Status */}
                       <div className="doctor-status">

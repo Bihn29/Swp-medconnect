@@ -2,7 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Badge } from "../../../../components/ui/Badge";
 import { Button } from "../../../../components/ui/Button";
 import { api } from "../../../../lib/api";
-import { Spin, message, Modal } from "antd";
+import { Spin, message, Modal, DatePicker } from "antd";
+import dayjs from "dayjs";
+const { RangePicker } = DatePicker;
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -14,6 +16,8 @@ import {
   Eye,
   Search,
   CheckCircle,
+  Filter,
+  ChevronDown,
 } from "lucide-react";
 import AppointmentDetailModal from "../AppointmentDetailModal/AppointmentDetailModal";
 import ReviewModal from "../ReviewModal/ReviewModal";
@@ -38,6 +42,13 @@ export function MyAppointments() {
   const [selectedAppointmentForReview, setSelectedAppointmentForReview] =
     useState(null);
   const [doctorSearch, setDoctorSearch] = useState(""); // Filter by doctor name
+  const [specializations, setSpecializations] = useState([]); // For specialization filter
+  const [showFilters, setShowFilters] = useState(false); // Show/hide advanced filters
+  const [selectedSpecialization, setSelectedSpecialization] = useState(""); // Filter by specialization
+  const [selectedMode, setSelectedMode] = useState(""); // Filter by mode (online/offline)
+  const [selectedDateRange, setSelectedDateRange] = useState(""); // Filter by date range (preset)
+  const [customDateRange, setCustomDateRange] = useState(null); // Filter by custom date range [from, to]
+  const [selectedClinic, setSelectedClinic] = useState(""); // Filter by clinic
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -68,7 +79,20 @@ export function MyAppointments() {
       }
     };
     load();
+    fetchSpecializations();
   }, []);
+
+  // Fetch specializations for filter
+  const fetchSpecializations = async () => {
+    try {
+      const response = await api.get("/api/specializations");
+      if (response.success) {
+        setSpecializations(response.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching specializations:", error);
+    }
+  };
 
   const handleCancelAppointment = async (appointmentId) => {
     Modal.confirm({
@@ -130,6 +154,146 @@ export function MyAppointments() {
     });
   };
 
+  // Apply all filters
+  const applyFilters = (appointmentList) => {
+    let filtered = appointmentList;
+
+    // Filter by doctor name
+    if (doctorSearch.trim()) {
+      filtered = filterByDoctorName(filtered);
+    }
+
+    // Filter by specialization
+    if (selectedSpecialization) {
+      filtered = filtered.filter((appointment) => {
+        const specializationIds = appointment.doctorId?.specializationIds || [];
+        return specializationIds.some(
+          (spec) =>
+            (typeof spec === "object" ? spec._id : spec) ===
+            selectedSpecialization
+        );
+      });
+    }
+
+    // Filter by mode (online/offline)
+    if (selectedMode) {
+      filtered = filtered.filter(
+        (appointment) => appointment.mode === selectedMode
+      );
+    }
+
+    // Filter by custom date range (priority over preset)
+    if (customDateRange && customDateRange.length === 2) {
+      const [startDate, endDate] = customDateRange;
+      const rangeStart = dayjs(startDate).startOf("day").toDate();
+      const rangeEnd = dayjs(endDate).endOf("day").toDate();
+
+      filtered = filtered.filter((appointment) => {
+        if (!appointment.scheduledStart) return false;
+
+        const appointmentDate = new Date(appointment.scheduledStart);
+        if (!appointmentDate || isNaN(appointmentDate.getTime())) return false;
+
+        return appointmentDate >= rangeStart && appointmentDate <= rangeEnd;
+      });
+    }
+    // Filter by preset date range (if no custom range)
+    else if (selectedDateRange) {
+      const now = new Date();
+      const todayStart = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(todayStart);
+      todayEnd.setDate(todayEnd.getDate() + 1);
+      todayEnd.setHours(0, 0, 0, 0);
+
+      // Tuần này: Từ thứ 2 đầu tuần đến hôm nay
+      const weekStart = new Date(todayStart);
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      weekStart.setDate(weekStart.getDate() - daysToMonday);
+      weekStart.setHours(0, 0, 0, 0);
+
+      filtered = filtered.filter((appointment) => {
+        if (!appointment.scheduledStart) return false;
+
+        const appointmentDate = new Date(appointment.scheduledStart);
+        if (!appointmentDate || isNaN(appointmentDate.getTime())) return false;
+
+        // Reset time to compare dates only
+        const appointmentDateOnly = new Date(
+          appointmentDate.getFullYear(),
+          appointmentDate.getMonth(),
+          appointmentDate.getDate()
+        );
+        appointmentDateOnly.setHours(0, 0, 0, 0);
+
+        switch (selectedDateRange) {
+          case "today":
+            return (
+              appointmentDateOnly >= todayStart &&
+              appointmentDateOnly < todayEnd
+            );
+          case "week":
+            return (
+              appointmentDateOnly >= weekStart &&
+              appointmentDateOnly <= todayStart
+            );
+          case "month":
+            // Check if appointment is in the same year and month as current month
+            // This includes all appointments in the current month, including future ones
+            return (
+              appointmentDate.getFullYear() === now.getFullYear() &&
+              appointmentDate.getMonth() === now.getMonth()
+            );
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Filter by clinic
+    if (selectedClinic) {
+      filtered = filtered.filter(
+        (appointment) =>
+          appointment.clinicId?._id === selectedClinic ||
+          appointment.clinicId?._id?.toString() === selectedClinic
+      );
+    }
+
+    return filtered;
+  };
+
+  // Get unique clinics from appointments
+  const getUniqueClinics = () => {
+    const clinicMap = new Map();
+    appointments.forEach((apt) => {
+      if (apt.clinicId && apt.mode === "offline") {
+        const clinicId = apt.clinicId._id || apt.clinicId;
+        if (clinicId && !clinicMap.has(clinicId.toString())) {
+          clinicMap.set(clinicId.toString(), {
+            _id: clinicId,
+            name: apt.clinicId.name || "Phòng khám",
+          });
+        }
+      }
+    });
+    return Array.from(clinicMap.values());
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setDoctorSearch("");
+    setSelectedSpecialization("");
+    setSelectedMode("");
+    setSelectedDateRange("");
+    setCustomDateRange(null);
+    setSelectedClinic("");
+  };
+
   // Phân chia appointments
   const upcomingAppointments = appointments.filter((appointment) =>
     ["pending_doctor", "accepted"].includes(appointment.status)
@@ -159,14 +323,10 @@ export function MyAppointments() {
     (appointment) => appointment.status === "cancelled"
   );
 
-  // Apply doctor search filter to current tab appointments
-  const filteredUpcomingAppointments = filterByDoctorName(upcomingAppointments);
-  const filteredCompletedAppointments = filterByDoctorName(
-    completedAppointments
-  );
-  const filteredCancelledAppointments = filterByDoctorName(
-    cancelledAppointments
-  );
+  // Apply all filters to current tab appointments
+  const filteredUpcomingAppointments = applyFilters(upcomingAppointments);
+  const filteredCompletedAppointments = applyFilters(completedAppointments);
+  const filteredCancelledAppointments = applyFilters(cancelledAppointments);
 
   const currentAppointments =
     activeTab === "upcoming"
@@ -282,6 +442,146 @@ export function MyAppointments() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Filters Section */}
+      <div className="filters-section">
+        <div className="filters-header">
+          <button
+            className="filter-toggle-button"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter size={16} style={{ marginRight: "0.5rem" }} />
+            Bộ lọc
+            <ChevronDown
+              size={16}
+              style={{
+                marginLeft: "0.5rem",
+                transform: showFilters ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {(selectedSpecialization ||
+            selectedMode ||
+            selectedDateRange ||
+            customDateRange ||
+            selectedClinic) && (
+            <button className="clear-filters-button" onClick={clearAllFilters}>
+              Xóa bộ lọc
+            </button>
+          )}
+        </div>
+
+        {showFilters && (
+          <div className="filters-content">
+            <div className="filters-grid">
+              {/* Specialization Filter */}
+              <div className="filter-group">
+                <label className="filter-label">Chuyên khoa</label>
+                <select
+                  value={selectedSpecialization}
+                  onChange={(e) => setSelectedSpecialization(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="">Tất cả chuyên khoa</option>
+                  {specializations.map((spec) => (
+                    <option key={spec._id} value={spec._id}>
+                      {spec.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mode Filter */}
+              <div className="filter-group">
+                <label className="filter-label">Hình thức khám</label>
+                <select
+                  value={selectedMode}
+                  onChange={(e) => setSelectedMode(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="">Tất cả</option>
+                  <option value="online">Khám online</option>
+                  <option value="offline">Khám tại phòng khám</option>
+                </select>
+              </div>
+
+              {/* Date Range Filter (Preset) */}
+              <div className="filter-group">
+                <label className="filter-label">Khoảng thời gian</label>
+                <select
+                  value={selectedDateRange}
+                  onChange={(e) => {
+                    setSelectedDateRange(e.target.value);
+                    // Clear custom range when selecting preset
+                    if (e.target.value) {
+                      setCustomDateRange(null);
+                    }
+                  }}
+                  className="filter-select"
+                >
+                  <option value="">Tất cả thời gian</option>
+                  <option value="today">Hôm nay</option>
+                  <option value="week">Tuần này</option>
+                  <option value="month">Tháng này</option>
+                </select>
+              </div>
+
+              {/* Custom Date Range Filter */}
+              <div className="filter-group" style={{ gridColumn: "1 / -1" }}>
+                <label className="filter-label">
+                  Chọn khoảng thời gian chi tiết
+                </label>
+                <RangePicker
+                  value={
+                    customDateRange
+                      ? [dayjs(customDateRange[0]), dayjs(customDateRange[1])]
+                      : null
+                  }
+                  onChange={(dates) => {
+                    if (dates && dates.length === 2) {
+                      setCustomDateRange([
+                        dates[0].toDate(),
+                        dates[1].toDate(),
+                      ]);
+                      // Clear preset when selecting custom range
+                      setSelectedDateRange("");
+                    } else {
+                      setCustomDateRange(null);
+                    }
+                  }}
+                  format="DD/MM/YYYY"
+                  placeholder={["Từ ngày", "Đến ngày"]}
+                  style={{ width: "100%" }}
+                  className="custom-date-range-picker"
+                />
+              </div>
+
+              {/* Clinic Filter (only for offline mode) */}
+              {selectedMode === "offline" && (
+                <div className="filter-group">
+                  <label className="filter-label">Phòng khám</label>
+                  <select
+                    value={selectedClinic}
+                    onChange={(e) => setSelectedClinic(e.target.value)}
+                    className="filter-select"
+                  >
+                    <option value="">Tất cả phòng khám</option>
+                    {getUniqueClinics().map((clinic) => (
+                      <option
+                        key={clinic._id?.toString() || clinic._id}
+                        value={clinic._id?.toString() || clinic._id}
+                      >
+                        {clinic.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Section Header with Tabs */}

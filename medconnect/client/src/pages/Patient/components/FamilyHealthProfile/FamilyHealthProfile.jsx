@@ -12,10 +12,15 @@ import {
   ChevronDown,
   Trash2,
   Search,
+  Filter,
 } from "lucide-react";
 import { useMultipleFamilyConsultationSummaries } from "../../../../hooks/useMultipleFamilyConsultationSummaries";
 import { useMultipleFamilyConsultationAdvice } from "../../../../hooks/useMultipleFamilyConsultationAdvice";
 import { getFamilyMembers, deleteFamilyMember } from "../../../../lib/api";
+import { api } from "../../../../lib/api";
+import { DatePicker } from "antd";
+import dayjs from "dayjs";
+const { RangePicker } = DatePicker;
 import "./FamilyHealthProfile.scss";
 
 export function FamilyHealthProfile() {
@@ -32,6 +37,12 @@ export function FamilyHealthProfile() {
   const [memberToDelete, setMemberToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [doctorSearch, setDoctorSearch] = useState(""); // Filter by doctor name
+  const [specializations, setSpecializations] = useState([]); // For specialization filter
+  const [showFilters, setShowFilters] = useState(false); // Show/hide advanced filters
+  const [selectedSpecialization, setSelectedSpecialization] = useState(""); // Filter by specialization
+  const [selectedDateRange, setSelectedDateRange] = useState(""); // Filter by date range (preset)
+  const [customDateRange, setCustomDateRange] = useState(null); // Filter by custom date range [from, to]
+  const [selectedConsultationType, setSelectedConsultationType] = useState(""); // Filter by consultation type (Video Call, Message)
 
   // Fetch family members on component mount
   useEffect(() => {
@@ -202,9 +213,28 @@ export function FamilyHealthProfile() {
     }
   };
 
-  // Reset doctor search when selected family member changes
+  // Fetch specializations for filter
+  useEffect(() => {
+    const fetchSpecializations = async () => {
+      try {
+        const response = await api.get("/api/specializations");
+        if (response.data && Array.isArray(response.data)) {
+          setSpecializations(response.data);
+        }
+      } catch (error) {
+        console.error("Error fetching specializations:", error);
+      }
+    };
+    fetchSpecializations();
+  }, []);
+
+  // Reset all filters when selected family member changes
   useEffect(() => {
     setDoctorSearch("");
+    setSelectedSpecialization("");
+    setSelectedDateRange("");
+    setCustomDateRange(null);
+    setSelectedConsultationType("");
   }, [selectedPatientId]);
 
   // Get selected member and all their Patient IDs
@@ -229,29 +259,351 @@ export function FamilyHealthProfile() {
   } = useMultipleFamilyConsultationAdvice(allPatientIds, 1, 1000);
   const allConsultationHistory = allAdviceData || [];
 
-  // Filter medical history by doctor name
+  // Apply all filters to medical history
   const medicalHistory = useMemo(() => {
-    if (!doctorSearch.trim()) {
-      return allMedicalHistory;
-    }
-    const searchLower = doctorSearch.toLowerCase().trim();
-    return allMedicalHistory.filter((record) => {
-      const doctorName = record.doctor?.toLowerCase() || "";
-      return doctorName.includes(searchLower);
-    });
-  }, [allMedicalHistory, doctorSearch]);
+    let filtered = allMedicalHistory;
 
-  // Filter consultation history by doctor name
-  const consultationHistory = useMemo(() => {
-    if (!doctorSearch.trim()) {
-      return allConsultationHistory;
+    // Filter by doctor name
+    if (doctorSearch.trim()) {
+      const searchLower = doctorSearch.toLowerCase().trim();
+      filtered = filtered.filter((record) => {
+        const doctorName = record.doctor?.toLowerCase() || "";
+        return doctorName.includes(searchLower);
+      });
     }
-    const searchLower = doctorSearch.toLowerCase().trim();
-    return allConsultationHistory.filter((record) => {
-      const doctorName = record.doctor?.toLowerCase() || "";
-      return doctorName.includes(searchLower);
-    });
-  }, [allConsultationHistory, doctorSearch]);
+
+    // Filter by specialization
+    if (selectedSpecialization) {
+      filtered = filtered.filter((record) => {
+        const recordSpecialty = record.specialty?.toLowerCase() || "";
+        const spec = specializations.find(
+          (s) => s._id === selectedSpecialization
+        );
+        return spec && recordSpecialty.includes(spec.name.toLowerCase());
+      });
+    }
+
+    // Filter by custom date range (priority over preset)
+    if (customDateRange && customDateRange.length === 2) {
+      const [startDate, endDate] = customDateRange;
+      const rangeStart = dayjs(startDate).startOf("day").toDate();
+      const rangeEnd = dayjs(endDate).endOf("day").toDate();
+
+      filtered = filtered.filter((record) => {
+        // Try multiple date sources with fallbacks
+        let dateSource =
+          record.fullDetails?.visitDate ||
+          record.visitDate ||
+          record.appointmentId?.scheduledStart ||
+          record.dateTime ||
+          record.fullDetails?.startedAt ||
+          record.date;
+
+        if (!dateSource) {
+          return false;
+        }
+
+        // Parse date
+        let recordDate;
+        if (typeof dateSource === "string" && dateSource.includes("/")) {
+          const parts = dateSource.split("/");
+          if (parts.length === 3) {
+            recordDate = new Date(
+              parseInt(parts[2]),
+              parseInt(parts[1]) - 1,
+              parseInt(parts[0])
+            );
+          } else {
+            recordDate = new Date(dateSource);
+          }
+        } else {
+          recordDate = new Date(dateSource);
+        }
+
+        if (!recordDate || isNaN(recordDate.getTime())) {
+          return false;
+        }
+
+        return recordDate >= rangeStart && recordDate <= rangeEnd;
+      });
+    }
+    // Filter by preset date range (if no custom range)
+    else if (selectedDateRange) {
+      const now = new Date();
+      const todayStart = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(todayStart);
+      todayEnd.setDate(todayEnd.getDate() + 1);
+      todayEnd.setHours(0, 0, 0, 0);
+
+      // Tuần này: Từ thứ 2 đầu tuần (day 1 = Monday)
+      const weekStart = new Date(todayStart);
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Nếu là CN thì lùi 6 ngày, nếu không thì lùi (dayOfWeek - 1) ngày
+      weekStart.setDate(weekStart.getDate() - daysToMonday);
+      weekStart.setHours(0, 0, 0, 0);
+
+      // Tháng này: Từ ngày 1 của tháng hiện tại
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      // Năm nay: Từ ngày 1/1 của năm hiện tại
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      yearStart.setHours(0, 0, 0, 0);
+
+      filtered = filtered.filter((record) => {
+        // Try multiple date sources with fallbacks
+        let dateSource =
+          record.fullDetails?.visitDate ||
+          record.visitDate ||
+          record.appointmentId?.scheduledStart ||
+          record.dateTime ||
+          record.fullDetails?.startedAt ||
+          record.date;
+
+        if (!dateSource) {
+          return false;
+        }
+
+        // Parse date
+        let recordDate;
+        if (typeof dateSource === "string" && dateSource.includes("/")) {
+          const parts = dateSource.split("/");
+          if (parts.length === 3) {
+            recordDate = new Date(
+              parseInt(parts[2]),
+              parseInt(parts[1]) - 1,
+              parseInt(parts[0])
+            );
+          } else {
+            recordDate = new Date(dateSource);
+          }
+        } else {
+          recordDate = new Date(dateSource);
+        }
+
+        if (!recordDate || isNaN(recordDate.getTime())) {
+          return false;
+        }
+
+        // Reset time to compare dates only
+        const recordDateOnly = new Date(
+          recordDate.getFullYear(),
+          recordDate.getMonth(),
+          recordDate.getDate()
+        );
+        recordDateOnly.setHours(0, 0, 0, 0);
+
+        switch (selectedDateRange) {
+          case "today":
+            return recordDateOnly >= todayStart && recordDateOnly < todayEnd;
+          case "week":
+            return recordDateOnly >= weekStart && recordDateOnly <= todayStart;
+          case "month":
+            return recordDateOnly >= monthStart && recordDateOnly <= todayStart;
+          case "year":
+            return recordDateOnly >= yearStart && recordDateOnly <= todayStart;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered;
+  }, [
+    allMedicalHistory,
+    doctorSearch,
+    selectedSpecialization,
+    selectedDateRange,
+    customDateRange,
+    specializations,
+  ]);
+
+  // Apply all filters to consultation history
+  const consultationHistory = useMemo(() => {
+    let filtered = allConsultationHistory;
+
+    // Filter by doctor name
+    if (doctorSearch.trim()) {
+      const searchLower = doctorSearch.toLowerCase().trim();
+      filtered = filtered.filter((record) => {
+        const doctorName = record.doctor?.toLowerCase() || "";
+        return doctorName.includes(searchLower);
+      });
+    }
+
+    // Filter by specialization
+    if (selectedSpecialization) {
+      filtered = filtered.filter((record) => {
+        const recordSpecialty = record.specialty?.toLowerCase() || "";
+        const spec = specializations.find(
+          (s) => s._id === selectedSpecialization
+        );
+        return spec && recordSpecialty.includes(spec.name.toLowerCase());
+      });
+    }
+
+    // Filter by consultation type (Video Call, Message)
+    if (selectedConsultationType) {
+      filtered = filtered.filter((record) => {
+        const recordType = record.type?.toLowerCase() || "";
+        return recordType.includes(selectedConsultationType.toLowerCase());
+      });
+    }
+
+    // Filter by custom date range (priority over preset)
+    if (customDateRange && customDateRange.length === 2) {
+      const [startDate, endDate] = customDateRange;
+      const rangeStart = dayjs(startDate).startOf("day").toDate();
+      const rangeEnd = dayjs(endDate).endOf("day").toDate();
+
+      filtered = filtered.filter((record) => {
+        // Try multiple date sources with fallbacks
+        let dateSource =
+          record.fullDetails?.startedAt ||
+          record.startedAt ||
+          record.appointmentId?.scheduledStart ||
+          record.visitDate ||
+          record.dateTime ||
+          record.date;
+
+        if (!dateSource) {
+          return false;
+        }
+
+        // Parse date
+        let recordDate;
+        if (typeof dateSource === "string" && dateSource.includes("/")) {
+          const parts = dateSource.split("/");
+          if (parts.length === 3) {
+            recordDate = new Date(
+              parseInt(parts[2]),
+              parseInt(parts[1]) - 1,
+              parseInt(parts[0])
+            );
+          } else {
+            recordDate = new Date(dateSource);
+          }
+        } else {
+          recordDate = new Date(dateSource);
+        }
+
+        if (!recordDate || isNaN(recordDate.getTime())) {
+          return false;
+        }
+
+        return recordDate >= rangeStart && recordDate <= rangeEnd;
+      });
+    }
+    // Filter by preset date range (if no custom range)
+    else if (selectedDateRange) {
+      const now = new Date();
+      const todayStart = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(todayStart);
+      todayEnd.setDate(todayEnd.getDate() + 1);
+      todayEnd.setHours(0, 0, 0, 0);
+
+      // Tuần này: Từ thứ 2 đầu tuần (day 1 = Monday)
+      const weekStart = new Date(todayStart);
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Nếu là CN thì lùi 6 ngày, nếu không thì lùi (dayOfWeek - 1) ngày
+      weekStart.setDate(weekStart.getDate() - daysToMonday);
+      weekStart.setHours(0, 0, 0, 0);
+
+      // Tháng này: Từ ngày 1 của tháng hiện tại
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      // Năm nay: Từ ngày 1/1 của năm hiện tại
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      yearStart.setHours(0, 0, 0, 0);
+
+      filtered = filtered.filter((record) => {
+        // Try multiple date sources with fallbacks
+        let dateSource =
+          record.fullDetails?.startedAt ||
+          record.startedAt ||
+          record.appointmentId?.scheduledStart ||
+          record.visitDate ||
+          record.dateTime ||
+          record.date;
+
+        if (!dateSource) {
+          return false;
+        }
+
+        // Parse date
+        let recordDate;
+        if (typeof dateSource === "string" && dateSource.includes("/")) {
+          const parts = dateSource.split("/");
+          if (parts.length === 3) {
+            recordDate = new Date(
+              parseInt(parts[2]),
+              parseInt(parts[1]) - 1,
+              parseInt(parts[0])
+            );
+          } else {
+            recordDate = new Date(dateSource);
+          }
+        } else {
+          recordDate = new Date(dateSource);
+        }
+
+        if (!recordDate || isNaN(recordDate.getTime())) {
+          return false;
+        }
+
+        // Reset time to compare dates only
+        const recordDateOnly = new Date(
+          recordDate.getFullYear(),
+          recordDate.getMonth(),
+          recordDate.getDate()
+        );
+        recordDateOnly.setHours(0, 0, 0, 0);
+
+        switch (selectedDateRange) {
+          case "today":
+            return recordDateOnly >= todayStart && recordDateOnly < todayEnd;
+          case "week":
+            return recordDateOnly >= weekStart && recordDateOnly <= todayStart;
+          case "month":
+            return recordDateOnly >= monthStart && recordDateOnly <= todayStart;
+          case "year":
+            return recordDateOnly >= yearStart && recordDateOnly <= todayStart;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered;
+  }, [
+    allConsultationHistory,
+    doctorSearch,
+    selectedSpecialization,
+    selectedDateRange,
+    customDateRange,
+    selectedConsultationType,
+    specializations,
+  ]);
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setDoctorSearch("");
+    setSelectedSpecialization("");
+    setSelectedDateRange("");
+    setCustomDateRange(null);
+    setSelectedConsultationType("");
+  };
 
   const handleViewDetails = (recordId) => {
     console.log("Viewing details for record:", recordId);
@@ -384,6 +736,133 @@ export function FamilyHealthProfile() {
           </div>
         </div>
       </div>
+
+      {/* Filters Section */}
+      {selectedPatientId && selectedMember && (
+        <div className="filters-section">
+          <div className="filters-header">
+            <button
+              className="filter-toggle-button"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter size={16} style={{ marginRight: "0.5rem" }} />
+              Bộ lọc
+              <ChevronDown
+                size={16}
+                style={{
+                  marginLeft: "0.5rem",
+                  transform: showFilters ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s ease",
+                }}
+              />
+            </button>
+            {(selectedSpecialization ||
+              selectedDateRange ||
+              customDateRange ||
+              selectedConsultationType) && (
+              <button
+                className="clear-filters-button"
+                onClick={clearAllFilters}
+              >
+                Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
+          {showFilters && (
+            <div className="filters-content">
+              <div className="filters-grid">
+                {/* Specialization Filter */}
+                <div className="filter-group">
+                  <label className="filter-label">Chuyên khoa</label>
+                  <select
+                    value={selectedSpecialization}
+                    onChange={(e) => setSelectedSpecialization(e.target.value)}
+                    className="filter-select"
+                  >
+                    <option value="">Tất cả chuyên khoa</option>
+                    {specializations.map((spec) => (
+                      <option key={spec._id} value={spec._id}>
+                        {spec.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date Range Filter (Preset) */}
+                <div className="filter-group">
+                  <label className="filter-label">Khoảng thời gian</label>
+                  <select
+                    value={selectedDateRange}
+                    onChange={(e) => {
+                      setSelectedDateRange(e.target.value);
+                      // Clear custom range when selecting preset
+                      if (e.target.value) {
+                        setCustomDateRange(null);
+                      }
+                    }}
+                    className="filter-select"
+                  >
+                    <option value="">Tất cả thời gian</option>
+                    <option value="today">Hôm nay</option>
+                    <option value="week">Tuần này</option>
+                    <option value="month">Tháng này</option>
+                    <option value="year">Năm nay</option>
+                  </select>
+                </div>
+
+                {/* Custom Date Range Filter */}
+                <div className="filter-group" style={{ gridColumn: "1 / -1" }}>
+                  <label className="filter-label">
+                    Chọn khoảng thời gian chi tiết
+                  </label>
+                  <RangePicker
+                    value={
+                      customDateRange
+                        ? [dayjs(customDateRange[0]), dayjs(customDateRange[1])]
+                        : null
+                    }
+                    onChange={(dates) => {
+                      if (dates && dates.length === 2) {
+                        setCustomDateRange([
+                          dates[0].toDate(),
+                          dates[1].toDate(),
+                        ]);
+                        // Clear preset when selecting custom range
+                        setSelectedDateRange("");
+                      } else {
+                        setCustomDateRange(null);
+                      }
+                    }}
+                    format="DD/MM/YYYY"
+                    placeholder={["Từ ngày", "Đến ngày"]}
+                    style={{ width: "100%" }}
+                    className="custom-date-range-picker"
+                  />
+                </div>
+
+                {/* Consultation Type Filter (only for consultation tab) */}
+                {activeTab === "consultation" && (
+                  <div className="filter-group">
+                    <label className="filter-label">Loại tư vấn</label>
+                    <select
+                      value={selectedConsultationType}
+                      onChange={(e) =>
+                        setSelectedConsultationType(e.target.value)
+                      }
+                      className="filter-select"
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="Video Call">Video Call</option>
+                      <option value="Message">Message</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Family Member Selector */}
       <div className="family-member-selector-section">

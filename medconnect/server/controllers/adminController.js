@@ -1,10 +1,10 @@
-import User from '../models/user.model.js';
-import Doctor from '../models/doctor.model.js';
-import Specialization from '../models/specialization.model.js';
-import Appointment from '../models/appointment.model.js';
-import Patient from '../models/patient.model.js';
-import Clinic from '../models/clinic.model.js';
-import { runCleanupNow } from '../services/appointmentCleanupService.js';
+import User from "../models/user.model.js";
+import Doctor from "../models/doctor.model.js";
+import Specialization from "../models/specialization.model.js";
+import Appointment from "../models/appointment.model.js";
+import Patient from "../models/patient.model.js";
+import Clinic from "../models/clinic.model.js";
+import { runCleanupNow } from "../services/appointmentCleanupService.js";
 
 // ================== HELPER FUNCTIONS ==================
 
@@ -12,7 +12,7 @@ import { runCleanupNow } from '../services/appointmentCleanupService.js';
 function getTimeAgo(date) {
   const now = new Date();
   const diffInMinutes = Math.floor((now - date) / (1000 * 60));
-  
+
   if (diffInMinutes < 60) {
     return `${diffInMinutes} phút trước`;
   } else if (diffInMinutes < 1440) {
@@ -26,30 +26,30 @@ function getTimeAgo(date) {
 
 // Helper function to format date
 function formatDate(date) {
-  return new Date(date).toLocaleDateString('vi-VN');
+  return new Date(date).toLocaleDateString("vi-VN");
 }
 
 // Helper function to format time
 function formatTime(date) {
-  return new Date(date).toLocaleTimeString('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit'
+  return new Date(date).toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
 // Helper function to get color for specialization
 function getColorForSpecialization(name) {
   const colorMap = {
-    'Tim mạch': '#ff4d4f',
-    'Nội khoa': '#722ed1',
-    'Da liễu': '#fa8c16',
-    'Nha khoa': '#8c8c8c',
-    'Tai mũi họng': '#faad14',
-    'Mắt': '#52c41a',
-    'Thần kinh': '#1890ff',
-    'Nhi khoa': '#faad14'
+    "Tim mạch": "#ff4d4f",
+    "Nội khoa": "#722ed1",
+    "Da liễu": "#fa8c16",
+    "Nha khoa": "#8c8c8c",
+    "Tai mũi họng": "#faad14",
+    Mắt: "#52c41a",
+    "Thần kinh": "#1890ff",
+    "Nhi khoa": "#faad14",
   };
-  return colorMap[name] || '#1890ff';
+  return colorMap[name] || "#1890ff";
 }
 
 // ================== DASHBOARD CONTROLLERS ==================
@@ -61,44 +61,44 @@ export const getDashboardStats = async (req, res) => {
     const totalUsers = await User.countDocuments();
     const verifiedDoctors = await Doctor.countDocuments({ isVerified: true });
     const pendingDoctors = await Doctor.countDocuments({ isVerified: false });
-    
+
     // Get current month appointments
     const currentMonth = new Date();
     currentMonth.setDate(1);
     currentMonth.setHours(0, 0, 0, 0);
-    
+
     const monthlyAppointments = await Appointment.countDocuments({
-      createdAt: { $gte: currentMonth }
+      createdAt: { $gte: currentMonth },
     });
-    
+
     // Revenue calculation based on appointments - get actual revenue from database
     const revenueAppointments = await Appointment.find({
       createdAt: { $gte: currentMonth },
-      status: 'done' // Only count completed appointments
+      status: "done", // Only count completed appointments
     });
-    
+
     // Calculate actual revenue from completed appointments
     const revenue = revenueAppointments.reduce((total, appointment) => {
       return total + (appointment.fee || 0); // Use actual fee from appointment
     }, 0);
-    
+
     const stats = {
       totalUsers,
       verifiedDoctors,
       pendingDoctors,
       monthlyAppointments,
-      revenue
+      revenue,
     };
-    
+
     res.json({
       success: true,
-      data: stats
+      data: stats,
     });
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
+    console.error("Error fetching dashboard stats:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải thống kê dashboard'
+      message: "Lỗi khi tải thống kê dashboard",
     });
   }
 };
@@ -110,47 +110,49 @@ export const getDashboardActivities = async (req, res) => {
     const recentUsers = await User.find()
       .sort({ createdAt: -1 })
       .limit(3)
-      .select('fullName role createdAt');
-    
+      .select("fullName role createdAt");
+
     const recentDoctors = await Doctor.find()
-      .populate('userId', 'fullName')
+      .populate("userId", "fullName")
       .sort({ createdAt: -1 })
       .limit(2)
-      .select('userId isVerified createdAt');
-    
+      .select("userId isVerified createdAt");
+
     const activities = [];
-    
+
     // Add user registrations
-    recentUsers.forEach(user => {
-      const roleText = user.role === 'doctor' ? 'bác sĩ' : 'bệnh nhân';
+    recentUsers.forEach((user) => {
+      const roleText = user.role === "doctor" ? "bác sĩ" : "bệnh nhân";
       activities.push({
-        title: `${user.fullName || 'Người dùng'} đã đăng ký tài khoản ${roleText}`,
-        time: getTimeAgo(user.createdAt)
+        title: `${
+          user.fullName || "Người dùng"
+        } đã đăng ký tài khoản ${roleText}`,
+        time: getTimeAgo(user.createdAt),
       });
     });
-    
+
     // Add doctor verifications
-    recentDoctors.forEach(doctor => {
+    recentDoctors.forEach((doctor) => {
       if (doctor.isVerified) {
         activities.push({
           title: `BS. ${doctor.userId.fullName} đã được xác minh`,
-          time: getTimeAgo(doctor.createdAt)
+          time: getTimeAgo(doctor.createdAt),
         });
       }
     });
-    
+
     // Sort by time (most recent first)
     activities.sort((a, b) => new Date(b.time) - new Date(a.time));
-    
+
     res.json({
       success: true,
-      data: activities.slice(0, 4) // Return top 4 activities
+      data: activities.slice(0, 4), // Return top 4 activities
     });
   } catch (error) {
-    console.error('Error fetching dashboard activities:', error);
+    console.error("Error fetching dashboard activities:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải hoạt động gần đây'
+      message: "Lỗi khi tải hoạt động gần đây",
     });
   }
 };
@@ -159,26 +161,38 @@ export const getDashboardActivities = async (req, res) => {
 export const getSystemStatus = async (req, res) => {
   try {
     // Get real system metrics - use same logic as dashboard stats
-    const activeUsers = await User.countDocuments({ status: 'active' });
+    const activeUsers = await User.countDocuments({ status: "active" });
     const totalDoctors = await Doctor.countDocuments({ isActive: true });
     const pendingDoctors = await Doctor.countDocuments({ isVerified: false }); // Use same logic as dashboard stats
-    
+
     const systemStatus = [
-      { label: 'Người dùng hoạt động', value: activeUsers.toString(), status: 'success' },
-      { label: 'Bác sĩ đang hoạt động', value: totalDoctors.toString(), status: 'success' },
-      { label: 'Chờ xác minh', value: pendingDoctors.toString(), status: 'success' },
-      { label: 'Uptime', value: '99.9%', status: 'success' }
+      {
+        label: "Người dùng hoạt động",
+        value: activeUsers.toString(),
+        status: "success",
+      },
+      {
+        label: "Bác sĩ đang hoạt động",
+        value: totalDoctors.toString(),
+        status: "success",
+      },
+      {
+        label: "Chờ xác minh",
+        value: pendingDoctors.toString(),
+        status: "success",
+      },
+      { label: "Uptime", value: "99.9%", status: "success" },
     ];
-    
+
     res.json({
       success: true,
-      data: systemStatus
+      data: systemStatus,
     });
   } catch (error) {
-    console.error('Error fetching system status:', error);
+    console.error("Error fetching system status:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải tình trạng hệ thống'
+      message: "Lỗi khi tải tình trạng hệ thống",
     });
   }
 };
@@ -189,76 +203,85 @@ export const getSystemStatus = async (req, res) => {
 export const getAllDoctors = async (req, res) => {
   try {
     const { search, status, specialization } = req.query;
-    
+
     let query = {};
-    
+
     // Add search filter
     if (search) {
       query.$or = [
-        { fullName: { $regex: search, $options: 'i' } },
-        { licenseNo: { $regex: search, $options: 'i' } }
+        { fullName: { $regex: search, $options: "i" } },
+        { licenseNo: { $regex: search, $options: "i" } },
       ];
     }
-    
+
     // Add status filter
-    if (status === 'verified') {
+    if (status === "verified") {
       query.isVerified = true;
-    } else if (status === 'pending') {
+    } else if (status === "pending") {
       query.isVerified = false;
     }
-    
+
     // Add specialization filter
     if (specialization) {
       query.specializationIds = { $in: [specialization] };
     }
-    
+
     const doctors = await Doctor.find(query)
-      .populate('userId', 'fullName email')
-      .populate('specializationIds', 'name')
-      .select('userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications isVerified createdAt updatedAt')
+      .populate("userId", "fullName email")
+      .populate("specializationIds", "name")
+      .select(
+        "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications isVerified createdAt updatedAt"
+      )
       .sort({ createdAt: -1 });
 
-    const formattedDoctors = doctors.map(doctor => {
+    const formattedDoctors = doctors.map((doctor) => {
       // Format specialty - handle null, undefined, or empty array
-      let specialty = 'Chưa chọn chuyên khoa';
-      if (doctor.specializationIds && Array.isArray(doctor.specializationIds) && doctor.specializationIds.length > 0) {
+      let specialty = "Chưa chọn chuyên khoa";
+      if (
+        doctor.specializationIds &&
+        Array.isArray(doctor.specializationIds) &&
+        doctor.specializationIds.length > 0
+      ) {
         const specialtyNames = doctor.specializationIds
-          .filter(s => s && s.name) // Filter out null/undefined
-          .map(s => s.name);
+          .filter((s) => s && s.name) // Filter out null/undefined
+          .map((s) => s.name);
         if (specialtyNames.length > 0) {
-          specialty = specialtyNames.join(', ');
+          specialty = specialtyNames.join(", ");
         }
       }
-      
+
       // Filter out picsum.photos URLs - replace with null to use default avatar
       let avatarUrl = doctor.avatarUrl || null;
-      if (avatarUrl && avatarUrl.includes('picsum.photos')) {
+      if (avatarUrl && avatarUrl.includes("picsum.photos")) {
         avatarUrl = null;
       }
-      
+
       return {
         id: doctor._id,
-        name: doctor.fullName || doctor.userId?.fullName || 'Chưa có tên',
-        email: doctor.userId?.email || 'Chưa có email',
+        name: doctor.fullName || doctor.userId?.fullName || "Chưa có tên",
+        email: doctor.userId?.email || "Chưa có email",
         specialty: specialty,
-        education: doctor.education?.map(edu => `${edu.degree} - ${edu.school}`).join(', ') || 'Chưa cập nhật',
+        education:
+          doctor.education
+            ?.map((edu) => `${edu.degree} - ${edu.school}`)
+            .join(", ") || "Chưa cập nhật",
         experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
-        license: doctor.licenseNo || 'Chưa có giấy phép',
-        status: doctor.isVerified ? 'verified' : 'pending',
+        license: doctor.licenseNo || "Chưa có giấy phép",
+        status: doctor.isVerified ? "verified" : "pending",
         submittedDate: formatDate(doctor.createdAt),
-        avatar: avatarUrl
+        avatar: avatarUrl,
       };
     });
-    
+
     res.json({
       success: true,
-      data: formattedDoctors
+      data: formattedDoctors,
     });
   } catch (error) {
-    console.error('Error fetching doctors:', error);
+    console.error("Error fetching doctors:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh sách bác sĩ'
+      message: "Lỗi khi tải danh sách bác sĩ",
     });
   }
 };
@@ -267,42 +290,54 @@ export const getAllDoctors = async (req, res) => {
 export const getPendingDoctors = async (req, res) => {
   try {
     const pendingDoctors = await Doctor.find({ isVerified: false })
-      .populate('userId', 'fullName email phone')
-      .populate('specializationIds', 'name')
-      .populate('clinicDefaultId', 'name address')
-      .select('userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications clinicDefaultId createdAt')
+      .populate("userId", "fullName email phone")
+      .populate("specializationIds", "name")
+      .populate("clinicDefaultId", "name address")
+      .select(
+        "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications clinicDefaultId createdAt"
+      )
       .sort({ createdAt: -1 })
       .lean(); // Use lean() to convert to plain objects
 
     // Debug: log first doctor to check populate
     if (pendingDoctors.length > 0) {
-      console.log('📋 Sample doctor specializationIds:', JSON.stringify(pendingDoctors[0].specializationIds));
-      console.log('📋 Sample doctor userId:', pendingDoctors[0].userId ? 'exists' : 'null');
+      console.log(
+        "📋 Sample doctor specializationIds:",
+        JSON.stringify(pendingDoctors[0].specializationIds)
+      );
+      console.log(
+        "📋 Sample doctor userId:",
+        pendingDoctors[0].userId ? "exists" : "null"
+      );
     }
 
     // Format doctors data - license image comes from licenseNo field
     const formattedDoctors = pendingDoctors.map((doctor) => {
       try {
         // Build license image URL - if licenseNo exists, it's a filename in uploads/doctors/
-        const licenseImageUrl = doctor.licenseNo 
+        const licenseImageUrl = doctor.licenseNo
           ? `/server-uploads/doctors/${doctor.licenseNo}`
           : null;
 
         // Format specialty - handle null, undefined, or empty array
-        let specialty = 'Chưa chọn chuyên khoa';
-        if (doctor.specializationIds && Array.isArray(doctor.specializationIds) && doctor.specializationIds.length > 0) {
+        let specialty = "Chưa chọn chuyên khoa";
+        if (
+          doctor.specializationIds &&
+          Array.isArray(doctor.specializationIds) &&
+          doctor.specializationIds.length > 0
+        ) {
           const specialtyNames = doctor.specializationIds
-            .filter(s => s && s && s.name) // Filter out null/undefined
-            .map(s => s.name)
-            .filter(name => name); // Filter out empty names
+            .filter((s) => s && s && s.name) // Filter out null/undefined
+            .map((s) => s.name)
+            .filter((name) => name); // Filter out empty names
           if (specialtyNames.length > 0) {
-            specialty = specialtyNames.join(', ');
+            specialty = specialtyNames.join(", ");
           }
         }
 
         // Filter out picsum.photos URLs - replace with null to use default avatar
         let avatarUrl = doctor.avatarUrl || null;
-        if (avatarUrl && avatarUrl.includes('picsum.photos')) {
+        if (avatarUrl && avatarUrl.includes("picsum.photos")) {
           avatarUrl = null;
         }
 
@@ -312,56 +347,72 @@ export const getPendingDoctors = async (req, res) => {
 
         return {
           id: doctor._id?.toString() || null,
-          name: doctor.fullName || userId.fullName || 'Chưa có tên',
-          email: userId.email || 'Chưa có email',
-          phone: userId.phone || 'Chưa có số điện thoại',
+          name: doctor.fullName || userId.fullName || "Chưa có tên",
+          email: userId.email || "Chưa có email",
+          phone: userId.phone || "Chưa có số điện thoại",
           specialty: specialty,
-          education: doctor.education && Array.isArray(doctor.education) && doctor.education.length > 0 
-            ? doctor.education.map(edu => `${edu?.degree || 'N/A'} - ${edu?.school || 'N/A'}`).join(', ')
-            : 'Chưa cập nhật',
+          education:
+            doctor.education &&
+            Array.isArray(doctor.education) &&
+            doctor.education.length > 0
+              ? doctor.education
+                  .map(
+                    (edu) => `${edu?.degree || "N/A"} - ${edu?.school || "N/A"}`
+                  )
+                  .join(", ")
+              : "Chưa cập nhật",
           experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
-          hospital: clinicDefaultId.name || 'Chưa cập nhật',
-          license: doctor.licenseNo || 'Chưa có giấy phép',
+          hospital: clinicDefaultId.name || "Chưa cập nhật",
+          license: doctor.licenseNo || "Chưa có giấy phép",
           licenseImageUrl: licenseImageUrl,
-          bio: doctor.bio || 'Chưa có mô tả',
-          certifications: doctor.certifications && Array.isArray(doctor.certifications) && doctor.certifications.length > 0
-            ? doctor.certifications.map(cert => `${cert?.name || 'N/A'} - ${cert?.issuer || 'N/A'}`)
-            : [],
-          submittedDate: doctor.createdAt ? formatDate(doctor.createdAt) : 'Chưa có ngày',
-          avatar: avatarUrl
+          bio: doctor.bio || "Chưa có mô tả",
+          certifications:
+            doctor.certifications &&
+            Array.isArray(doctor.certifications) &&
+            doctor.certifications.length > 0
+              ? doctor.certifications.map(
+                  (cert) => `${cert?.name || "N/A"} - ${cert?.issuer || "N/A"}`
+                )
+              : [],
+          submittedDate: doctor.createdAt
+            ? formatDate(doctor.createdAt)
+            : "Chưa có ngày",
+          avatar: avatarUrl,
         };
       } catch (formatError) {
-        console.error('Error formatting doctor:', doctor._id, formatError);
+        console.error("Error formatting doctor:", doctor._id, formatError);
         // Return a minimal safe object
         return {
-          id: doctor._id?.toString() || 'unknown',
-          name: 'Lỗi khi tải thông tin',
-          email: 'N/A',
-          phone: 'N/A',
-          specialty: 'N/A',
-          education: 'N/A',
-          experience: 'N/A',
-          hospital: 'N/A',
-          license: 'N/A',
+          id: doctor._id?.toString() || "unknown",
+          name: "Lỗi khi tải thông tin",
+          email: "N/A",
+          phone: "N/A",
+          specialty: "N/A",
+          education: "N/A",
+          experience: "N/A",
+          hospital: "N/A",
+          license: "N/A",
           licenseImageUrl: null,
-          bio: 'N/A',
+          bio: "N/A",
           certifications: [],
-          submittedDate: 'N/A',
-          avatar: null
+          submittedDate: "N/A",
+          avatar: null,
         };
       }
     });
-    
+
     res.json({
       success: true,
-      data: formattedDoctors
+      data: formattedDoctors,
     });
   } catch (error) {
-    console.error('Error fetching pending doctors:', error);
-    console.error('Error stack:', error.stack);
+    console.error("Error fetching pending doctors:", error);
+    console.error("Error stack:", error.stack);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh sách bác sĩ chờ xác minh: ' + (error.message || String(error))
+      message:
+        "Lỗi khi tải danh sách bác sĩ chờ xác minh: " +
+        (error.message || String(error)),
     });
   }
 };
@@ -370,72 +421,87 @@ export const getPendingDoctors = async (req, res) => {
 export const getVerifiedDoctors = async (req, res) => {
   try {
     const verifiedDoctors = await Doctor.find({ isVerified: true })
-      .populate('userId', 'fullName email phone')
-      .populate('specializationIds', 'name')
-      .populate('clinicDefaultId', 'name address')
-      .select('userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications clinicDefaultId updatedAt')
+      .populate("userId", "fullName email phone")
+      .populate("specializationIds", "name")
+      .populate("clinicDefaultId", "name address")
+      .select(
+        "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications clinicDefaultId updatedAt"
+      )
       .sort({ updatedAt: -1 });
 
     // Debug: log first doctor to check populate
     if (verifiedDoctors.length > 0) {
-      console.log('📋 Sample verified doctor specializationIds:', JSON.stringify(verifiedDoctors[0].specializationIds));
+      console.log(
+        "📋 Sample verified doctor specializationIds:",
+        JSON.stringify(verifiedDoctors[0].specializationIds)
+      );
     }
 
-    const formattedDoctors = verifiedDoctors.map(doctor => {
+    const formattedDoctors = verifiedDoctors.map((doctor) => {
       // Build license image URL - if licenseNo exists, it's a filename in uploads/doctors/
-      const licenseImageUrl = doctor.licenseNo 
+      const licenseImageUrl = doctor.licenseNo
         ? `/server-uploads/doctors/${doctor.licenseNo}`
         : null;
-      
+
       // Format specialty - handle null, undefined, or empty array
-      let specialty = 'Chưa chọn chuyên khoa';
-      if (doctor.specializationIds && Array.isArray(doctor.specializationIds) && doctor.specializationIds.length > 0) {
+      let specialty = "Chưa chọn chuyên khoa";
+      if (
+        doctor.specializationIds &&
+        Array.isArray(doctor.specializationIds) &&
+        doctor.specializationIds.length > 0
+      ) {
         const specialtyNames = doctor.specializationIds
-          .filter(s => s && s.name) // Filter out null/undefined
-          .map(s => s.name);
+          .filter((s) => s && s.name) // Filter out null/undefined
+          .map((s) => s.name);
         if (specialtyNames.length > 0) {
-          specialty = specialtyNames.join(', ');
+          specialty = specialtyNames.join(", ");
         }
       }
-      
+
       // Filter out picsum.photos URLs - replace with null to use default avatar
       let avatarUrl = doctor.avatarUrl || null;
-      if (avatarUrl && avatarUrl.includes('picsum.photos')) {
+      if (avatarUrl && avatarUrl.includes("picsum.photos")) {
         avatarUrl = null;
       }
-      
+
       return {
         id: doctor._id,
-        name: doctor.fullName || doctor.userId?.fullName || 'Chưa có tên',
-        email: doctor.userId?.email || 'Chưa có email',
-        phone: doctor.userId?.phone || 'Chưa có số điện thoại',
+        name: doctor.fullName || doctor.userId?.fullName || "Chưa có tên",
+        email: doctor.userId?.email || "Chưa có email",
+        phone: doctor.userId?.phone || "Chưa có số điện thoại",
         specialty: specialty,
-        education: doctor.education?.length > 0
-          ? doctor.education.map(edu => `${edu.degree || 'N/A'} - ${edu.school || 'N/A'}`).join(', ')
-          : 'Chưa cập nhật',
+        education:
+          doctor.education?.length > 0
+            ? doctor.education
+                .map((edu) => `${edu.degree || "N/A"} - ${edu.school || "N/A"}`)
+                .join(", ")
+            : "Chưa cập nhật",
         experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
-        hospital: doctor.clinicDefaultId?.name || 'Chưa cập nhật',
-        license: doctor.licenseNo || 'Chưa có giấy phép',
+        hospital: doctor.clinicDefaultId?.name || "Chưa cập nhật",
+        license: doctor.licenseNo || "Chưa có giấy phép",
         licenseImageUrl: licenseImageUrl,
-        bio: doctor.bio || 'Chưa có mô tả',
-        certifications: doctor.certifications?.length > 0
-          ? doctor.certifications.map(cert => `${cert.name || 'N/A'} - ${cert.issuer || 'N/A'}`)
-          : [],
+        bio: doctor.bio || "Chưa có mô tả",
+        certifications:
+          doctor.certifications?.length > 0
+            ? doctor.certifications.map(
+                (cert) => `${cert.name || "N/A"} - ${cert.issuer || "N/A"}`
+              )
+            : [],
         verifiedDate: formatDate(doctor.updatedAt),
-        verifiedBy: 'Admin', // Would need to track who verified
-        avatar: avatarUrl
+        verifiedBy: "Admin", // Would need to track who verified
+        avatar: avatarUrl,
       };
     });
-    
+
     res.json({
       success: true,
-      data: formattedDoctors
+      data: formattedDoctors,
     });
   } catch (error) {
-    console.error('Error fetching verified doctors:', error);
+    console.error("Error fetching verified doctors:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh sách bác sĩ đã xác minh'
+      message: "Lỗi khi tải danh sách bác sĩ đã xác minh",
     });
   }
 };
@@ -446,16 +512,16 @@ export const getRejectedDoctors = async (req, res) => {
     // For now, return empty array since we don't have rejection tracking
     // In a real system, you'd have a status field or separate collection for rejected doctors
     const rejectedDoctors = [];
-    
+
     res.json({
       success: true,
-      data: rejectedDoctors
+      data: rejectedDoctors,
     });
   } catch (error) {
-    console.error('Error fetching rejected doctors:', error);
+    console.error("Error fetching rejected doctors:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh sách bác sĩ bị từ chối'
+      message: "Lỗi khi tải danh sách bác sĩ bị từ chối",
     });
   }
 };
@@ -487,7 +553,9 @@ async function sendDoctorApprovalEmail(doctor, user) {
         <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0;">
           <h3 style="margin-top: 0; color: #047857;">Thông tin tài khoản:</h3>
           <p style="margin: 8px 0;"><strong>Họ và tên:</strong> ${doctorName}</p>
-          <p style="margin: 8px 0;"><strong>Email đăng nhập:</strong> ${user.email}</p>
+          <p style="margin: 8px 0;"><strong>Email đăng nhập:</strong> ${
+            user.email
+          }</p>
           <p style="margin: 8px 0;"><strong>Ngày phê duyệt:</strong> ${approvalDate}</p>
         </div>
 
@@ -499,7 +567,9 @@ async function sendDoctorApprovalEmail(doctor, user) {
             <li><strong>Mật khẩu:</strong> Mật khẩu bạn đã đăng ký</li>
           </ul>
           <p style="margin-top: 15px;">
-            <a href="${process.env.CLIENT_URL || "http://localhost:5173"}/auth/login" 
+            <a href="${
+              process.env.CLIENT_URL || "http://localhost:5173"
+            }/auth/login" 
                style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
               Đăng nhập ngay
             </a>
@@ -602,7 +672,9 @@ async function sendDoctorRejectionEmail(doctor, user, reason, rejectedBy) {
         <div style="background-color: #fff7ed; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
           <h3 style="margin-top: 0; color: #d97706;">Lý do từ chối:</h3>
           <div style="background-color: white; padding: 15px; border-radius: 4px; border: 1px solid #fcd34d;">
-            <p style="margin: 0; white-space: pre-wrap;">${reason || "Không có lý do cụ thể"}</p>
+            <p style="margin: 0; white-space: pre-wrap;">${
+              reason || "Không có lý do cụ thể"
+            }</p>
           </div>
         </div>
 
@@ -615,7 +687,9 @@ async function sendDoctorRejectionEmail(doctor, user, reason, rejectedBy) {
             <li>Kiểm tra lại các tài liệu đã gửi và đảm bảo chúng đáp ứng đầy đủ yêu cầu</li>
           </ul>
           <p style="margin-top: 15px;">
-            <a href="${process.env.CLIENT_URL || "http://localhost:5173"}/auth/doctor-register" 
+            <a href="${
+              process.env.CLIENT_URL || "http://localhost:5173"
+            }/auth/doctor-register" 
                style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
               Đăng ký lại
             </a>
@@ -650,7 +724,9 @@ Bạn có thể:
 - Liên hệ với chúng tôi nếu bạn có thắc mắc về quyết định này
 - Kiểm tra lại các tài liệu đã gửi và đảm bảo chúng đáp ứng đầy đủ yêu cầu
 
-Link đăng ký lại: ${process.env.CLIENT_URL || "http://localhost:5173"}/auth/doctor-register
+Link đăng ký lại: ${
+      process.env.CLIENT_URL || "http://localhost:5173"
+    }/auth/doctor-register
 
 Nếu bạn có bất kỳ câu hỏi hoặc cần hỗ trợ, vui lòng liên hệ với chúng tôi.
 
@@ -679,23 +755,26 @@ export const approveDoctor = async (req, res) => {
   try {
     const { id } = req.params;
     const { adminNotes } = req.body;
-    
+
     // Find the doctor first and populate userId
-    const doctor = await Doctor.findById(id).populate('userId', 'fullName email');
-    
+    const doctor = await Doctor.findById(id).populate(
+      "userId",
+      "fullName email"
+    );
+
     if (!doctor) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy bác sĩ'
+        message: "Không tìm thấy bác sĩ",
       });
     }
-    
+
     // Get reviewer User if available
     let reviewer = null;
     if (req.user?.email) {
       reviewer = await User.findOne({ email: req.user.email });
     }
-    
+
     // Update doctor verification status with approval info
     doctor.isVerified = true;
     doctor.isActive = true;
@@ -706,11 +785,13 @@ export const approveDoctor = async (req, res) => {
     doctor.rejectedAt = null;
     doctor.rejectionReason = null;
     await doctor.save();
-    
+
     // Verify the update was successful
     const updatedDoctor = await Doctor.findById(id);
     if (!updatedDoctor || !updatedDoctor.isVerified) {
-      console.error('⚠️ Warning: Doctor verification update may not have persisted');
+      console.error(
+        "⚠️ Warning: Doctor verification update may not have persisted"
+      );
       await Doctor.updateOne(
         { _id: id },
         {
@@ -718,49 +799,57 @@ export const approveDoctor = async (req, res) => {
           isActive: true,
           approvedBy: reviewer ? reviewer._id : null,
           approvedAt: new Date(),
-          $unset: { rejectedBy: "", rejectedAt: "", rejectionReason: "" }
+          $unset: { rejectedBy: "", rejectedAt: "", rejectionReason: "" },
         }
       );
     }
-    
+
     // Update User status to 'active' so doctor can login
     if (doctor.userId) {
       const user = await User.findByIdAndUpdate(
         doctor.userId,
-        { status: 'active' },
+        { status: "active" },
         { new: true }
       );
       console.log(`✅ Updated User ${doctor.userId} status to 'active'`);
-      
+
       // Send approval email (don't block on error)
       try {
-        console.log(`📧 Attempting to send approval email to: ${user.email || doctor.userId?.email}`);
+        console.log(
+          `📧 Attempting to send approval email to: ${
+            user.email || doctor.userId?.email
+          }`
+        );
         await sendDoctorApprovalEmail(doctor, user || doctor.userId);
-        console.log(`✅ Approval email sent successfully to ${user.email || doctor.userId?.email}`);
+        console.log(
+          `✅ Approval email sent successfully to ${
+            user.email || doctor.userId?.email
+          }`
+        );
       } catch (emailError) {
         console.error("❌ Failed to send approval email:", emailError);
         console.error("❌ Error details:", {
           message: emailError?.message,
           cause: emailError?.cause?.message,
-          stack: emailError?.stack
+          stack: emailError?.stack,
         });
         // Continue even if email fails
       }
     }
-    
+
     res.json({
       success: true,
-      message: 'Đã phê duyệt bác sĩ thành công',
+      message: "Đã phê duyệt bác sĩ thành công",
       data: {
         doctorId: id,
-        isVerified: true
-      }
+        isVerified: true,
+      },
     });
   } catch (error) {
-    console.error('Error approving doctor:', error);
+    console.error("Error approving doctor:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi phê duyệt bác sĩ: ' + error.message
+      message: "Lỗi khi phê duyệt bác sĩ: " + error.message,
     });
   }
 };
@@ -770,31 +859,34 @@ export const rejectDoctor = async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
-    
+
     // Validate reason is required
     if (!reason || !reason.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập lý do từ chối'
+        message: "Vui lòng nhập lý do từ chối",
       });
     }
-    
+
     // Find the doctor first and populate userId
-    const doctor = await Doctor.findById(id).populate('userId', 'fullName email');
-    
+    const doctor = await Doctor.findById(id).populate(
+      "userId",
+      "fullName email"
+    );
+
     if (!doctor) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy bác sĩ'
+        message: "Không tìm thấy bác sĩ",
       });
     }
-    
+
     // Get reviewer User if available
     let reviewer = null;
     if (req.user?.email) {
       reviewer = await User.findOne({ email: req.user.email });
     }
-    
+
     // Update doctor with rejection info
     doctor.isVerified = false;
     doctor.isActive = false;
@@ -805,34 +897,39 @@ export const rejectDoctor = async (req, res) => {
     doctor.approvedBy = null;
     doctor.approvedAt = null;
     await doctor.save();
-    
+
     // Update User status to 'rejected' (allows re-registration)
     if (doctor.userId) {
       const user = await User.findByIdAndUpdate(
         doctor.userId,
-        { status: 'rejected' },
+        { status: "rejected" },
         { new: true }
       );
       console.log(`✅ Updated User ${doctor.userId} status to 'rejected'`);
-      
+
       // Send rejection email (don't block on error)
       try {
-        await sendDoctorRejectionEmail(doctor, user || doctor.userId, reason, reviewer);
+        await sendDoctorRejectionEmail(
+          doctor,
+          user || doctor.userId,
+          reason,
+          reviewer
+        );
       } catch (emailError) {
         console.error("⚠️ Failed to send rejection email:", emailError);
         // Continue even if email fails
       }
     }
-    
+
     res.json({
       success: true,
-      message: 'Đã từ chối bác sĩ thành công'
+      message: "Đã từ chối bác sĩ thành công",
     });
   } catch (error) {
-    console.error('Error rejecting doctor:', error);
+    console.error("Error rejecting doctor:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi từ chối bác sĩ: ' + error.message
+      message: "Lỗi khi từ chối bác sĩ: " + error.message,
     });
   }
 };
@@ -843,45 +940,50 @@ export const rejectDoctor = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const { search, role } = req.query;
-    
+
     // Build query
     let query = {};
-    
-    if (role && role !== 'all') {
+
+    if (role && role !== "all") {
       query.role = role;
     }
-    
+
     if (search) {
       query.$or = [
-        { fullName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+        { fullName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
       ];
     }
-    
+
     const users = await User.find(query)
-      .select('fullName email role status createdAt updatedAt')
+      .select("fullName email role status createdAt updatedAt")
       .sort({ createdAt: -1 });
 
-    const formattedUsers = users.map(user => ({
+    const formattedUsers = users.map((user) => ({
       id: user._id,
-      name: user.fullName || 'Chưa có tên',
+      name: user.fullName || "Chưa có tên",
       email: user.email,
       role: user.role,
-      status: user.status === 'active' ? 'active' : 'inactive',
+      status:
+        user.status === "active"
+          ? "active"
+          : user.status === "blocked"
+          ? "suspended"
+          : "inactive",
       joinDate: formatDate(user.createdAt),
       lastActive: formatDate(user.updatedAt),
-      avatar: null
+      avatar: null,
     }));
-    
+
     res.json({
       success: true,
-      data: formattedUsers
+      data: formattedUsers,
     });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error("Error fetching users:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh sách người dùng'
+      message: "Lỗi khi tải danh sách người dùng",
     });
   }
 };
@@ -890,29 +992,29 @@ export const getAllUsers = async (req, res) => {
 export const suspendUser = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const user = await User.findByIdAndUpdate(
       id,
-      { status: 'blocked' },
+      { status: "blocked" },
       { new: true }
     );
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy người dùng'
+        message: "Không tìm thấy người dùng",
       });
     }
-    
+
     res.json({
       success: true,
-      message: 'Đã tạm khóa người dùng'
+      message: "Đã tạm khóa người dùng",
     });
   } catch (error) {
-    console.error('Error suspending user:', error);
+    console.error("Error suspending user:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tạm khóa người dùng'
+      message: "Lỗi khi tạm khóa người dùng",
     });
   }
 };
@@ -921,29 +1023,29 @@ export const suspendUser = async (req, res) => {
 export const activateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const user = await User.findByIdAndUpdate(
       id,
-      { status: 'active' },
+      { status: "active" },
       { new: true }
     );
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy người dùng'
+        message: "Không tìm thấy người dùng",
       });
     }
-    
+
     res.json({
       success: true,
-      message: 'Đã kích hoạt người dùng'
+      message: "Đã kích hoạt người dùng",
     });
   } catch (error) {
-    console.error('Error activating user:', error);
+    console.error("Error activating user:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi kích hoạt người dùng'
+      message: "Lỗi khi kích hoạt người dùng",
     });
   }
 };
@@ -952,56 +1054,59 @@ export const activateUser = async (req, res) => {
 export const getUserDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const user = await User.findById(id).select('-password');
-    
+
+    const user = await User.findById(id).select("-password");
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy người dùng'
+        message: "Không tìm thấy người dùng",
       });
     }
-    
+
     let roleSpecificData = null;
-    
+
     // Fetch role-specific data based on user role
-    if (user.role === 'patient') {
+    if (user.role === "patient") {
       try {
         roleSpecificData = await Patient.findOne({ userId: id })
-          .populate('userId', 'fullName email phone')
-          .select('-__v');
+          .populate("userId", "fullName email phone")
+          .select("-__v");
       } catch (error) {
-        console.error('Error fetching patient data:', error);
+        console.error("Error fetching patient data:", error);
         // Continue without role-specific data
       }
-    } else if (user.role === 'doctor') {
+    } else if (user.role === "doctor") {
       try {
         roleSpecificData = await Doctor.findOne({ userId: id })
-          .populate('userId', 'fullName email phone')
-          .populate('specializationIds', 'name description avatar')
-          .populate('clinicDefaultId', 'name address')
-          .select('-__v');
+          .populate("userId", "fullName email phone")
+          .populate("specializationIds", "name description avatar")
+          .populate("clinicDefaultId", "name address")
+          .select("-__v");
       } catch (error) {
-        console.error('Error fetching doctor data:', error);
+        console.error("Error fetching doctor data:", error);
         // Continue without role-specific data
       }
+    } else if (user.role === "manager") {
+      // Manager doesn't have additional profile data
+      roleSpecificData = null;
     }
-    
+
     // Combine user data with role-specific data
     const userDetails = {
       ...user.toObject(),
-      roleSpecificData: roleSpecificData
+      roleSpecificData: roleSpecificData,
     };
-    
+
     res.json({
       success: true,
-      data: userDetails
+      data: userDetails,
     });
   } catch (error) {
-    console.error('Error fetching user details:', error);
+    console.error("Error fetching user details:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải thông tin người dùng'
+      message: "Lỗi khi tải thông tin người dùng",
     });
   }
 };
@@ -1011,33 +1116,32 @@ export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
-    
+
     // Remove password from update data if present
     delete updateData.password;
-    
-    const user = await User.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
-    
+
+    const user = await User.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy người dùng'
+        message: "Không tìm thấy người dùng",
       });
     }
-    
+
     res.json({
       success: true,
-      message: 'Cập nhật thông tin người dùng thành công',
-      data: user
+      message: "Cập nhật thông tin người dùng thành công",
+      data: user,
     });
   } catch (error) {
-    console.error('Error updating user:', error);
+    console.error("Error updating user:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi cập nhật thông tin người dùng'
+      message: "Lỗi khi cập nhật thông tin người dùng",
     });
   }
 };
@@ -1047,39 +1151,39 @@ export const changeUserPassword = async (req, res) => {
   try {
     const { id } = req.params;
     const { password } = req.body;
-    
+
     if (!password) {
       return res.status(400).json({
         success: false,
-        message: 'Mật khẩu không được để trống'
+        message: "Mật khẩu không được để trống",
       });
     }
-    
+
     const user = await User.findById(id);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy người dùng'
+        message: "Không tìm thấy người dùng",
       });
     }
-    
+
     // Hash the new password
-    const bcrypt = await import('bcryptjs');
+    const bcrypt = await import("bcryptjs");
     const hashedPassword = await bcrypt.default.hash(password, 10);
-    
-    user.password = hashedPassword;
+
+    user.passwordHash = hashedPassword;
     await user.save();
-    
+
     res.json({
       success: true,
-      message: 'Đổi mật khẩu thành công'
+      message: "Đổi mật khẩu thành công",
     });
   } catch (error) {
-    console.error('Error changing password:', error);
+    console.error("Error changing password:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi đổi mật khẩu'
+      message: "Lỗi khi đổi mật khẩu",
     });
   }
 };
@@ -1088,25 +1192,134 @@ export const changeUserPassword = async (req, res) => {
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const user = await User.findByIdAndDelete(id);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy người dùng'
+        message: "Không tìm thấy người dùng",
       });
     }
-    
+
     res.json({
       success: true,
-      message: 'Đã xóa người dùng'
+      message: "Đã xóa người dùng",
     });
   } catch (error) {
-    console.error('Error deleting user:', error);
+    console.error("Error deleting user:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi xóa người dùng'
+      message: "Lỗi khi xóa người dùng",
+    });
+  }
+};
+
+// Create user (for admin/manager)
+export const createUser = async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      phone,
+      password,
+      role,
+      status = "active",
+    } = req.body;
+
+    // Validate required fields
+    if (!fullName || !email || !password || !role) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin bắt buộc",
+      });
+    }
+
+    // Validate role
+    const allowedRoles = ["patient", "doctor", "admin", "manager"];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Vai trò không hợp lệ",
+      });
+    }
+
+    // Check if email already exists
+    const existingUserByEmail = await User.findOne({
+      email: email.toLowerCase().trim(),
+    }).lean();
+
+    if (existingUserByEmail) {
+      return res.status(409).json({
+        success: false,
+        message: "Email này đã được sử dụng",
+      });
+    }
+
+    // Check if phone already exists (if provided)
+    if (phone) {
+      const existingUserByPhone = await User.findOne({
+        phone: phone.trim(),
+      }).lean();
+
+      if (existingUserByPhone) {
+        return res.status(409).json({
+          success: false,
+          message: "Số điện thoại này đã được sử dụng",
+        });
+      }
+    }
+
+    // Hash password
+    const bcrypt = await import("bcryptjs");
+    const hashedPassword = await bcrypt.default.hash(password, 10);
+
+    // Create user
+    const userDoc = await User.create({
+      email: email.toLowerCase().trim(),
+      passwordHash: hashedPassword,
+      role: role,
+      status: status,
+      fullName: fullName.trim(),
+      phone: phone ? phone.trim() : undefined,
+      authProvider: "local",
+      emailVerified: true,
+    });
+
+    // Create role-specific profile if needed
+    if (role === "patient") {
+      await Patient.create({
+        userId: userDoc._id,
+        fullName: fullName.trim(),
+        phone: phone ? phone.trim() : undefined,
+        isProfileComplete: false,
+      });
+    } else if (role === "doctor") {
+      await Doctor.create({
+        userId: userDoc._id,
+        fullName: fullName.trim(),
+        isActive: true,
+        isVerified: false, // Needs verification
+      });
+    }
+    // For manager and admin, no additional profile needed
+
+    res.json({
+      success: true,
+      message: "Tạo người dùng thành công",
+      data: {
+        id: userDoc._id,
+        fullName: userDoc.fullName,
+        email: userDoc.email,
+        role: userDoc.role,
+        status: userDoc.status,
+      },
+    });
+  } catch (error) {
+    console.error("Error creating user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi tạo người dùng: " + (error.message || "Unknown error"),
     });
   }
 };
@@ -1117,7 +1330,7 @@ export const deleteUser = async (req, res) => {
 export const getAllSpecializations = async (req, res) => {
   try {
     const specializations = await Specialization.find()
-      .select('name description avatar createdAt')
+      .select("name description avatar createdAt")
       .sort({ name: 1 });
 
     // Get doctor count for each specialization
@@ -1125,31 +1338,31 @@ export const getAllSpecializations = async (req, res) => {
       specializations.map(async (spec) => {
         // Don't filter by isActive since all doctors have isActive: false in the database
         const doctorsWithSpec = await Doctor.find({
-          specializationIds: { $in: [spec._id.toString()] }
-        }).select('fullName specializationIds');
-        
+          specializationIds: { $in: [spec._id.toString()] },
+        }).select("fullName specializationIds");
+
         const doctorCount = doctorsWithSpec.length;
-        
+
         return {
           id: spec._id,
           name: spec.name,
           description: spec.description,
           doctorCount,
           color: getColorForSpecialization(spec.name),
-          avatar: spec.avatar || null
+          avatar: spec.avatar || null,
         };
       })
     );
-    
+
     res.json({
       success: true,
-      data: specializationsWithCount
+      data: specializationsWithCount,
     });
   } catch (error) {
-    console.error('Error fetching specializations:', error);
+    console.error("Error fetching specializations:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh sách chuyên khoa'
+      message: "Lỗi khi tải danh sách chuyên khoa",
     });
   }
 };
@@ -1158,41 +1371,41 @@ export const getAllSpecializations = async (req, res) => {
 export const addSpecialization = async (req, res) => {
   try {
     const { name, description, avatar } = req.body;
-    
+
     // Check if specialization already exists
     const existingSpec = await Specialization.findOne({ name });
     if (existingSpec) {
       return res.status(400).json({
         success: false,
-        message: 'Chuyên khoa đã tồn tại'
+        message: "Chuyên khoa đã tồn tại",
       });
     }
-    
+
     const specialization = new Specialization({
       name,
       description: description || `Chuyên khoa ${name}`,
-      avatar: avatar || null
+      avatar: avatar || null,
     });
-    
+
     await specialization.save();
-    
+
     res.json({
       success: true,
-      message: 'Đã thêm chuyên khoa thành công',
+      message: "Đã thêm chuyên khoa thành công",
       data: {
         id: specialization._id,
         name: specialization.name,
         description: specialization.description,
         color: getColorForSpecialization(name),
         doctorCount: 0,
-        avatar: specialization.avatar
-      }
+        avatar: specialization.avatar,
+      },
     });
   } catch (error) {
-    console.error('Error adding specialization:', error);
+    console.error("Error adding specialization:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi thêm chuyên khoa'
+      message: "Lỗi khi thêm chuyên khoa",
     });
   }
 };
@@ -1202,40 +1415,40 @@ export const updateSpecialization = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, avatar } = req.body;
-    
+
     const specialization = await Specialization.findByIdAndUpdate(
       id,
-      { 
+      {
         name,
         description: description || `Chuyên khoa ${name}`,
-        avatar: avatar || null
+        avatar: avatar || null,
       },
       { new: true }
     );
-    
+
     if (!specialization) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy chuyên khoa'
+        message: "Không tìm thấy chuyên khoa",
       });
     }
-    
+
     res.json({
       success: true,
-      message: 'Đã cập nhật chuyên khoa thành công',
+      message: "Đã cập nhật chuyên khoa thành công",
       data: {
         id: specialization._id,
         name: specialization.name,
         description: specialization.description,
         color: getColorForSpecialization(name),
-        avatar: specialization.avatar
-      }
+        avatar: specialization.avatar,
+      },
     });
   } catch (error) {
-    console.error('Error updating specialization:', error);
+    console.error("Error updating specialization:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi cập nhật chuyên khoa'
+      message: "Lỗi khi cập nhật chuyên khoa",
     });
   }
 };
@@ -1244,35 +1457,37 @@ export const updateSpecialization = async (req, res) => {
 export const getDoctorsBySpecialization = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Don't filter by isActive since all doctors have isActive: false in the database
     const doctors = await Doctor.find({
-      specializationIds: { $in: [id] }
+      specializationIds: { $in: [id] },
     })
-    .populate('userId', 'fullName email')
-    .select('userId fullName licenseNo bio avatarUrl yearsExperience ratingAvg')
-    .sort({ fullName: 1 });
+      .populate("userId", "fullName email")
+      .select(
+        "userId fullName licenseNo bio avatarUrl yearsExperience ratingAvg"
+      )
+      .sort({ fullName: 1 });
 
-    const formattedDoctors = doctors.map(doctor => ({
+    const formattedDoctors = doctors.map((doctor) => ({
       id: doctor._id,
-      fullName: doctor.fullName || doctor.userId?.fullName || 'Chưa có tên',
-      email: doctor.userId?.email || 'Chưa có email',
+      fullName: doctor.fullName || doctor.userId?.fullName || "Chưa có tên",
+      email: doctor.userId?.email || "Chưa có email",
       licenseNo: doctor.licenseNo || null,
       bio: doctor.bio || null,
       avatarUrl: doctor.avatarUrl || null,
       yearsExperience: doctor.yearsExperience || 0,
-      ratingAvg: doctor.ratingAvg || 0
+      ratingAvg: doctor.ratingAvg || 0,
     }));
 
     res.json({
       success: true,
-      data: formattedDoctors
+      data: formattedDoctors,
     });
   } catch (error) {
-    console.error('Error fetching doctors by specialization:', error);
+    console.error("Error fetching doctors by specialization:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh sách bác sĩ'
+      message: "Lỗi khi tải danh sách bác sĩ",
     });
   }
 };
@@ -1281,34 +1496,34 @@ export const getDoctorsBySpecialization = async (req, res) => {
 export const deleteSpecialization = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Check if any doctors are using this specialization
     const doctorCount = await Doctor.countDocuments({ specializationIds: id });
     if (doctorCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `Không thể xóa chuyên khoa này vì có ${doctorCount} bác sĩ đang sử dụng`
+        message: `Không thể xóa chuyên khoa này vì có ${doctorCount} bác sĩ đang sử dụng`,
       });
     }
-    
+
     const specialization = await Specialization.findByIdAndDelete(id);
-    
+
     if (!specialization) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy chuyên khoa'
+        message: "Không tìm thấy chuyên khoa",
       });
     }
-    
+
     res.json({
       success: true,
-      message: 'Đã xóa chuyên khoa thành công'
+      message: "Đã xóa chuyên khoa thành công",
     });
   } catch (error) {
-    console.error('Error deleting specialization:', error);
+    console.error("Error deleting specialization:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi xóa chuyên khoa'
+      message: "Lỗi khi xóa chuyên khoa",
     });
   }
 };
@@ -1319,50 +1534,53 @@ export const deleteSpecialization = async (req, res) => {
 export const getAllAppointments = async (req, res) => {
   try {
     const { status, startDate, endDate } = req.query;
-    
+
     // Build query
     let query = {};
-    
-    if (status && status !== 'all') {
+
+    if (status && status !== "all") {
       query.status = status;
     }
-    
+
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999); // End of day
-      
+
       query.scheduledStart = {
         $gte: start,
-        $lte: end
+        $lte: end,
       };
     }
-    
+
     const appointments = await Appointment.find(query)
       .populate({
-        path: 'patientId',
-        select: 'fullName phone address userId',
+        path: "patientId",
+        select: "fullName phone address userId",
         populate: {
-          path: 'userId',
-          select: 'fullName email'
-        }
+          path: "userId",
+          select: "fullName email",
+        },
       })
       .populate({
-        path: 'doctorId',
-        select: 'fullName licenseNo yearsExperience ratingAvg bio userId specializationIds',
+        path: "doctorId",
+        select:
+          "fullName licenseNo yearsExperience ratingAvg bio userId specializationIds",
         populate: [
           {
-            path: 'userId',
-            select: 'fullName email'
+            path: "userId",
+            select: "fullName email",
           },
           {
-            path: 'specializationIds',
-            select: 'name'
-          }
-        ]
+            path: "specializationIds",
+            select: "name",
+          },
+        ],
       })
-      .populate('clinicId', 'name')
-      .select('patientId doctorId clinicId scheduledStart scheduledEnd status mode reason createdAt cancelledAt cancelledBy cancelReason')
+      .populate("clinicId", "name")
+      .select(
+        "patientId doctorId clinicId scheduledStart scheduledEnd status mode reason createdAt cancelledAt cancelledBy cancelReason"
+      )
       .sort({ scheduledStart: -1 });
 
     const formattedAppointments = appointments.map((appointment, index) => {
@@ -1370,27 +1588,30 @@ export const getAllAppointments = async (req, res) => {
       const doctor = appointment.doctorId;
       const specializations = appointment.doctorId?.specializationIds;
       const clinic = appointment.clinicId;
-      
+
       return {
         id: appointment._id,
         sequentialId: index + 1, // ID bắt đầu từ 1
-        
+
         // Thông tin bệnh nhân
-        patientName: patient?.fullName || 'Chưa có tên',
-        patientEmail: patient?.userId?.email || 'Chưa có email',
+        patientName: patient?.fullName || "Chưa có tên",
+        patientEmail: patient?.userId?.email || "Chưa có email",
         patientPhone: patient?.phone || null,
         patientAddress: patient?.address || null,
-        
+
         // Thông tin bác sĩ
-        doctorName: doctor?.fullName || doctor?.userId?.fullName || 'Chưa có tên',
-        doctorEmail: doctor?.userId?.email || 'Chưa có email',
-        doctorSpecialty: specializations?.map(s => s.name).join(', ') || 'Chưa chọn chuyên khoa',
+        doctorName:
+          doctor?.fullName || doctor?.userId?.fullName || "Chưa có tên",
+        doctorEmail: doctor?.userId?.email || "Chưa có email",
+        doctorSpecialty:
+          specializations?.map((s) => s.name).join(", ") ||
+          "Chưa chọn chuyên khoa",
         doctorLicense: doctor?.licenseNo || null,
         doctorBio: doctor?.bio || null,
-        
+
         // Thông tin phòng khám
         clinicName: clinic?.name || null,
-        
+
         // Thông tin lịch hẹn
         appointmentDate: formatDate(appointment.scheduledStart),
         appointmentTime: formatTime(appointment.scheduledStart),
@@ -1398,28 +1619,28 @@ export const getAllAppointments = async (req, res) => {
         scheduledEnd: appointment.scheduledEnd,
         status: appointment.status,
         mode: appointment.mode,
-        reason: appointment.reason || 'Không có lý do',
-        
+        reason: appointment.reason || "Không có lý do",
+
         // Thông tin hủy lịch
         cancelledAt: appointment.cancelledAt,
         cancelledBy: appointment.cancelledBy,
         cancelReason: appointment.cancelReason,
-        
+
         // Thông tin hệ thống
         createdAt: appointment.createdAt,
-        updatedAt: appointment.updatedAt
+        updatedAt: appointment.updatedAt,
       };
     });
-    
+
     res.json({
       success: true,
-      data: formattedAppointments
+      data: formattedAppointments,
     });
   } catch (error) {
-    console.error('Error fetching appointments:', error);
+    console.error("Error fetching appointments:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh sách lịch hẹn'
+      message: "Lỗi khi tải danh sách lịch hẹn",
     });
   }
 };
@@ -1429,29 +1650,29 @@ export const updateAppointmentStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    
+
     const appointment = await Appointment.findByIdAndUpdate(
       id,
       { status },
       { new: true }
     );
-    
+
     if (!appointment) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy lịch hẹn'
+        message: "Không tìm thấy lịch hẹn",
       });
     }
-    
+
     res.json({
       success: true,
-      message: 'Đã cập nhật trạng thái lịch hẹn'
+      message: "Đã cập nhật trạng thái lịch hẹn",
     });
   } catch (error) {
-    console.error('Error updating appointment status:', error);
+    console.error("Error updating appointment status:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi cập nhật trạng thái lịch hẹn'
+      message: "Lỗi khi cập nhật trạng thái lịch hẹn",
     });
   }
 };
@@ -1460,25 +1681,25 @@ export const updateAppointmentStatus = async (req, res) => {
 export const deleteAppointment = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const appointment = await Appointment.findByIdAndDelete(id);
-    
+
     if (!appointment) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy lịch hẹn'
+        message: "Không tìm thấy lịch hẹn",
       });
     }
-    
+
     res.json({
       success: true,
-      message: 'Đã xóa lịch hẹn'
+      message: "Đã xóa lịch hẹn",
     });
   } catch (error) {
-    console.error('Error deleting appointment:', error);
+    console.error("Error deleting appointment:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi xóa lịch hẹn'
+      message: "Lỗi khi xóa lịch hẹn",
     });
   }
 };
@@ -1491,19 +1712,19 @@ export const deleteAppointment = async (req, res) => {
  */
 export const cleanupUnpaidAppointments = async (req, res) => {
   try {
-    console.log('🔄 Manual cleanup triggered by admin');
+    console.log("🔄 Manual cleanup triggered by admin");
     const result = await runCleanupNow();
-    
+
     res.json({
       success: true,
       data: result,
-      message: `Đã hủy ${result.cancelled} lịch hẹn và giải phóng ${result.slotsReleased} slot`
+      message: `Đã hủy ${result.cancelled} lịch hẹn và giải phóng ${result.slotsReleased} slot`,
     });
   } catch (error) {
-    console.error('Error running cleanup:', error);
+    console.error("Error running cleanup:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi chạy cleanup: ' + error.message
+      message: "Lỗi khi chạy cleanup: " + error.message,
     });
   }
 };

@@ -1,0 +1,253 @@
+@import "../../Doctor/ScheduleManagement/ScheduleManagement.scss";
+
+.manager-schedule-management {
+  padding: 24px;
+  background-color: #f8fafc;
+  min-height: 100vh;
+
+  .doctor-filter-section {
+    margin-bottom: 24px;
+
+    .filter-card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 16px;
+
+      .filter-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 16px;
+      }
+
+      .filter-controls {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+
+        .filter-input-group {
+          position: relative;
+          flex: 1;
+          min-width: 250px;
+
+          .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            z-index: 1;
+          }
+
+          .search-input {
+            width: 100%;
+            padding-left: 40px;
+          }
+        }
+
+        .specialization-select {
+          min-width: 200px;
+        }
+      }
+
+      .selected-doctor-info {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 16px;
+        padding: 12px;
+        background-color: #f0f9ff;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #1e40af;
+
+        .doctor-specialization {
+          color: #6b7280;
+        }
+      }
+    }
+
+    .loading-doctors,
+    .no-doctors-found {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+      .loading-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #e5e7eb;
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 12px;
+      }
+
+      .empty-icon {
+        color: #9ca3af;
+        margin-bottom: 12px;
+      }
+
+      p {
+        color: #6b7280;
+        font-size: 14px;
+      }
+    }
+
+    .doctor-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+
+      .doctor-card {
+        background: white;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+
+        &:hover {
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          transform: translateY(-2px);
+        }
+
+        &.selected {
+          border-color: #667eea;
+          background-color: #f0f9ff;
+        }
+
+        .doctor-card-content {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          position: relative;
+
+          .doctor-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            background-color: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+
+            .avatar-placeholder {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 100%;
+              height: 100%;
+              color: #9ca3af;
+            }
+          }
+
+          .doctor-info {
+            flex: 1;
+            min-width: 0;
+
+            .doctor-name {
+              font-size: 16px;
+              font-weight: 600;
+              color: #1f2937;
+              margin: 0 0 8px 0;
+            }
+
+            .doctor-specializations {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 6px;
+              margin-bottom: 8px;
+
+              .specialization-tag {
+                display: inline-block;
+                padding: 4px 8px;
+                background-color: #e0e7ff;
+                color: #4338ca;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 500;
+              }
+            }
+
+            .doctor-rating {
+              font-size: 13px;
+              color: #6b7280;
+            }
+          }
+
+          .selected-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+          }
+        }
+      }
+    }
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .no-doctor-selected {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    text-align: center;
+
+    .empty-icon {
+      color: #9ca3af;
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      color: #6b7280;
+      font-size: 18px;
+      font-weight: 500;
+    }
+  }
+
+  .schedule-header {
+    margin-bottom: 24px;
+
+    h1 {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 24px;
+      font-weight: 600;
+      color: #1f2937;
+
+      .icon {
+        color: #667eea;
+      }
+    }
+  }
+}

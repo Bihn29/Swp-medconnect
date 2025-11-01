@@ -1,6 +1,13 @@
 .user-management {
   .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
     margin-bottom: 32px;
+
+    > div:first-child {
+      flex: 1;
+    }
 
     h1 {
       font-size: 32px;
