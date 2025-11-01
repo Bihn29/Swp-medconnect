@@ -293,7 +293,11 @@ export async function updateDoctorProfile(profileData) {
     credentials: "include",
     body: JSON.stringify(profileData),
   });
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    const errorText = await r.text();
+    console.log("updateDoctorProfile failed:", r.status, errorText);
+    throw new Error(errorText);
+  }
   return r.json();
 }
 

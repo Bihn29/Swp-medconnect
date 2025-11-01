@@ -182,15 +182,15 @@ export default function Sidebar({ activeMenu, onMenuChange }) {
                   className="doctor-sidebar-avatar-image"
                 />
               ) : (
-                (
-                  doctorInfo?.userId?.fullName ||
-                  doctorInfo?.fullName ||
-                  "Bác sĩ"
-                )
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
+                <img
+                  src="/default-avatar.png"
+                  alt={
+                    doctorInfo?.userId?.fullName ||
+                    doctorInfo?.fullName ||
+                    "Bác sĩ"
+                  }
+                  className="doctor-sidebar-avatar-image"
+                />
               )}
             </div>
             <div className="doctor-sidebar-profile-info">

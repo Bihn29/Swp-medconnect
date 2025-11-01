@@ -267,6 +267,9 @@ const ProfileSettings = () => {
         setDoctorInfo(updatedDoctor)
       }
 
+      // Dispatch custom event to update sidebar
+      window.dispatchEvent(new CustomEvent('avatarUpdated'))
+
       alert('Cập nhật ảnh đại diện thành công!')
     } catch (error) {
       console.error('Error updating avatar:', error)

@@ -107,6 +107,8 @@ export async function updateDoctorProfile(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
     }
 
+    const appUserId = user._id;
+
     const {
       fullName,
       email,
