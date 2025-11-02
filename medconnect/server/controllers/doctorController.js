@@ -10,6 +10,7 @@ import ConsultationAdvice from "../models/consultationAdvice.model.js";
 import Prescription from "../models/prescription.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import DoctorScheduleRule from "../models/Doctor_schedule_rules.model.js";
+import DoctorRate from "../models/doctor_rates.model.js";
 import Review from "../models/review.model.js";
 import AuthProvider from "../models/auth_providers.model.js";
 import { createAppointmentNotification } from "../services/notificationService.js";
@@ -151,7 +152,6 @@ export async function updateDoctorProfile(req, res) {
     if (specializationIds)
       doctorUpdateData.specializationIds = specializationIds;
 
-
     const doctor = await Doctor.findOneAndUpdate(
       { userId: appUserId },
       doctorUpdateData,
@@ -164,7 +164,6 @@ export async function updateDoctorProfile(req, res) {
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
-
 
     return ok(res, { doctor });
   } catch (e) {
@@ -220,7 +219,7 @@ export async function getDoctorAppointments(req, res) {
           "fullName dob gender phone email relationshipToOwner representativeName representativeRelation representativePhone representativeCitizenId",
         populate: {
           path: "userId",
-          select: "fullName email phone",
+          select: "fullName email phone", 
         },
       })
       .populate("slotId")
@@ -305,7 +304,9 @@ export async function getDoctorDashboardStats(req, res) {
     const todayAppointments = await Appointment.countDocuments({
       doctorId: doctor._id,
       scheduledStart: { $gte: startOfDay, $lt: endOfDay },
-      status: { $in: ["pending_doctor", "accepted", "in_progress", "done", "no_show"] },
+      status: {
+        $in: ["pending_doctor", "accepted", "in_progress", "done", "no_show"],
+      },
     });
 
     // Available slots today = slots with status "available" + slots with cancelled/rejected appointments
@@ -363,7 +364,6 @@ export async function getDoctorDashboardStats(req, res) {
  */
 export async function getDoctorAppointmentDetail(req, res) {
   try {
-    
     console.log("🔍 getDoctorAppointmentDetail - req.user:", req.user);
 
     const userEmail = req.user?.email;
@@ -440,23 +440,29 @@ async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
     console.log(`📧 sendAppointmentAcceptanceEmail called with:`, {
       patientEmail: patient?.email,
       patientUserId: patient?.userId,
-      hasUserIdObject: patient?.userId && typeof patient.userId === 'object',
-      userIdEmail: patient?.userId?.email
+      hasUserIdObject: patient?.userId && typeof patient.userId === "object",
+      userIdEmail: patient?.userId?.email,
     });
 
     // Lấy email từ Patient hoặc User
     let patientEmail = patient.email;
-    
+
     // Nếu Patient không có email, lấy từ User (userId có thể là object đã populate hoặc ObjectId)
     if (!patientEmail) {
-      if (patient.userId && typeof patient.userId === 'object' && patient.userId.email) {
+      if (
+        patient.userId &&
+        typeof patient.userId === "object" &&
+        patient.userId.email
+      ) {
         // userId đã được populate
         patientEmail = patient.userId.email;
         console.log(`📧 Found email from populated userId: ${patientEmail}`);
       } else if (patient.userId) {
         // userId là ObjectId, cần query
         console.log(`📧 Querying User for email, userId: ${patient.userId}`);
-        const patientUser = await User.findById(patient.userId).select("email").lean();
+        const patientUser = await User.findById(patient.userId)
+          .select("email")
+          .lean();
         if (patientUser) {
           patientEmail = patientUser.email;
           console.log(`📧 Found email from User query: ${patientEmail}`);
@@ -470,11 +476,14 @@ async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
 
     // Nếu vẫn không có email, không gửi
     if (!patientEmail) {
-      console.log("⚠️ Patient email not found, skipping email notification. Patient data:", {
-        patientId: patient?._id,
-        patientEmail: patient?.email,
-        userId: patient?.userId
-      });
+      console.log(
+        "⚠️ Patient email not found, skipping email notification. Patient data:",
+        {
+          patientId: patient?._id,
+          patientEmail: patient?.email,
+          userId: patient?.userId,
+        }
+      );
       return;
     }
 
@@ -483,7 +492,7 @@ async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
     // Format thời gian
     const scheduledStart = new Date(appointment.scheduledStart);
     const scheduledEnd = new Date(appointment.scheduledEnd);
-    
+
     const dateStr = scheduledStart.toLocaleDateString("vi-VN", {
       weekday: "long",
       year: "numeric",
@@ -498,8 +507,9 @@ async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
       minute: "2-digit",
     })}`;
 
-    const modeText = appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
-    
+    const modeText =
+      appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
+
     // Lấy tên bác sĩ
     const doctorName = doctor?.fullName || doctor?.userId?.fullName || "Bác sĩ";
 
@@ -518,11 +528,19 @@ async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
           <p style="margin: 8px 0;"><strong>Thời gian:</strong> ${dateStr}</p>
           <p style="margin: 8px 0;"><strong>Giờ:</strong> ${timeStr}</p>
           <p style="margin: 8px 0;"><strong>Hình thức:</strong> ${modeText}</p>
-          ${appointment.reason ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>` : ""}
+          ${
+            appointment.reason
+              ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>`
+              : ""
+          }
         </div>
 
         <p>Vui lòng đảm bảo bạn có mặt đúng giờ hẹn.</p>
-        ${appointment.mode === "online" ? "<p><strong>Lưu ý:</strong> Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ.</p>" : ""}
+        ${
+          appointment.mode === "online"
+            ? "<p><strong>Lưu ý:</strong> Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ.</p>"
+            : ""
+        }
         
         <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect</strong></p>
       </div>
@@ -543,7 +561,11 @@ Thông tin lịch hẹn:
 ${appointment.reason ? `- Lý do khám: ${appointment.reason}` : ""}
 
 Vui lòng đảm bảo bạn có mặt đúng giờ hẹn.
-${appointment.mode === "online" ? "\nLưu ý: Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ." : ""}
+${
+  appointment.mode === "online"
+    ? "\nLưu ý: Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ."
+    : ""
+}
 
 Trân trọng,
 MedConnect
@@ -557,14 +579,19 @@ MedConnect
       html: htmlContent,
     });
 
-    console.log(`✅ Appointment acceptance email sent successfully to ${patientEmail}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId, response: emailResult?.response });
+    console.log(
+      `✅ Appointment acceptance email sent successfully to ${patientEmail}`
+    );
+    console.log(`📧 Email result:`, {
+      messageId: emailResult?.messageId,
+      response: emailResult?.response,
+    });
   } catch (error) {
     console.error("❌ Error sending appointment acceptance email:", error);
     console.error("❌ Error details:", {
       message: error?.message,
       stack: error?.stack,
-      status: error?.status
+      status: error?.status,
     });
     // Không throw error để không ảnh hưởng đến flow chính
   }
@@ -573,29 +600,40 @@ MedConnect
 /**
  * Helper function to send appointment rejection email to patient
  */
-async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejectReason) {
+async function sendAppointmentRejectionEmail(
+  appointment,
+  patient,
+  doctor,
+  rejectReason
+) {
   try {
     console.log(`📧 sendAppointmentRejectionEmail called with:`, {
       patientEmail: patient?.email,
       patientUserId: patient?.userId,
-      hasUserIdObject: patient?.userId && typeof patient.userId === 'object',
+      hasUserIdObject: patient?.userId && typeof patient.userId === "object",
       userIdEmail: patient?.userId?.email,
-      rejectReason: rejectReason
+      rejectReason: rejectReason,
     });
 
     // Lấy email từ Patient hoặc User
     let patientEmail = patient.email;
-    
+
     // Nếu Patient không có email, lấy từ User (userId có thể là object đã populate hoặc ObjectId)
     if (!patientEmail) {
-      if (patient.userId && typeof patient.userId === 'object' && patient.userId.email) {
+      if (
+        patient.userId &&
+        typeof patient.userId === "object" &&
+        patient.userId.email
+      ) {
         // userId đã được populate
         patientEmail = patient.userId.email;
         console.log(`📧 Found email from populated userId: ${patientEmail}`);
       } else if (patient.userId) {
         // userId là ObjectId, cần query
         console.log(`📧 Querying User for email, userId: ${patient.userId}`);
-        const patientUser = await User.findById(patient.userId).select("email").lean();
+        const patientUser = await User.findById(patient.userId)
+          .select("email")
+          .lean();
         if (patientUser) {
           patientEmail = patientUser.email;
           console.log(`📧 Found email from User query: ${patientEmail}`);
@@ -609,11 +647,14 @@ async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejec
 
     // Nếu vẫn không có email, không gửi
     if (!patientEmail) {
-      console.log("⚠️ Patient email not found, skipping email notification. Patient data:", {
-        patientId: patient?._id,
-        patientEmail: patient?.email,
-        userId: patient?.userId
-      });
+      console.log(
+        "⚠️ Patient email not found, skipping email notification. Patient data:",
+        {
+          patientId: patient?._id,
+          patientEmail: patient?.email,
+          userId: patient?.userId,
+        }
+      );
       return;
     }
 
@@ -622,7 +663,7 @@ async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejec
     // Format thời gian
     const scheduledStart = new Date(appointment.scheduledStart);
     const scheduledEnd = new Date(appointment.scheduledEnd);
-    
+
     const dateStr = scheduledStart.toLocaleDateString("vi-VN", {
       weekday: "long",
       year: "numeric",
@@ -637,8 +678,9 @@ async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejec
       minute: "2-digit",
     })}`;
 
-    const modeText = appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
-    
+    const modeText =
+      appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
+
     // Lấy tên bác sĩ
     const doctorName = doctor?.fullName || doctor?.userId?.fullName || "Bác sĩ";
 
@@ -657,8 +699,16 @@ async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejec
           <p style="margin: 8px 0;"><strong>Thời gian:</strong> ${dateStr}</p>
           <p style="margin: 8px 0;"><strong>Giờ:</strong> ${timeStr}</p>
           <p style="margin: 8px 0;"><strong>Hình thức:</strong> ${modeText}</p>
-          ${appointment.reason ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>` : ""}
-          ${rejectReason ? `<p style="margin: 8px 0;"><strong>Lý do từ chối:</strong> ${rejectReason}</p>` : ""}
+          ${
+            appointment.reason
+              ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>`
+              : ""
+          }
+          ${
+            rejectReason
+              ? `<p style="margin: 8px 0;"><strong>Lý do từ chối:</strong> ${rejectReason}</p>`
+              : ""
+          }
         </div>
 
         <p>Bạn có thể đặt lịch hẹn mới với bác sĩ khác hoặc chọn thời gian khác phù hợp hơn.</p>
@@ -698,14 +748,19 @@ MedConnect
       html: htmlContent,
     });
 
-    console.log(`✅ Appointment rejection email sent successfully to ${patientEmail}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId, response: emailResult?.response });
+    console.log(
+      `✅ Appointment rejection email sent successfully to ${patientEmail}`
+    );
+    console.log(`📧 Email result:`, {
+      messageId: emailResult?.messageId,
+      response: emailResult?.response,
+    });
   } catch (error) {
     console.error("❌ Error sending appointment rejection email:", error);
     console.error("❌ Error details:", {
       message: error?.message,
       stack: error?.stack,
-      status: error?.status
+      status: error?.status,
     });
     // Không throw error để không ảnh hưởng đến flow chính
   }
@@ -915,7 +970,10 @@ export async function updateAppointmentStatus(req, res) {
       status,
       cancelReason,
     });
-    console.log("📧 Will send email if status is accepted or rejected:", status === "accepted" || status === "rejected");
+    console.log(
+      "📧 Will send email if status is accepted or rejected:",
+      status === "accepted" || status === "rejected"
+    );
 
     const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
@@ -992,8 +1050,8 @@ export async function updateAppointmentStatus(req, res) {
         select: "fullName dob gender phone email userId",
         populate: {
           path: "userId",
-          select: "email fullName"
-        }
+          select: "email fullName",
+        },
       })
       .populate("slotId")
       .populate({
@@ -1001,8 +1059,8 @@ export async function updateAppointmentStatus(req, res) {
         select: "fullName",
         populate: {
           path: "userId",
-          select: "fullName email"
-        }
+          select: "fullName email",
+        },
       });
 
     // Send email notification when appointment is accepted, rejected, or done
@@ -1015,16 +1073,16 @@ export async function updateAppointmentStatus(req, res) {
             select: "fullName dob gender phone email userId",
             populate: {
               path: "userId",
-              select: "email fullName"
-            }
+              select: "email fullName",
+            },
           })
           .populate({
             path: "doctorId",
             select: "fullName",
             populate: {
               path: "userId",
-              select: "fullName email"
-            }
+              select: "fullName email",
+            },
           })
           .lean();
 
@@ -1032,7 +1090,7 @@ export async function updateAppointmentStatus(req, res) {
           hasPatientId: !!populatedAppointment?.patientId,
           patientEmail: populatedAppointment?.patientId?.email,
           userIdEmail: populatedAppointment?.patientId?.userId?.email,
-          patientName: populatedAppointment?.patientId?.fullName
+          patientName: populatedAppointment?.patientId?.fullName,
         });
 
         if (populatedAppointment?.patientId) {
@@ -1119,6 +1177,11 @@ export async function getAllDoctors(req, res) {
       limit = 10,
       verified,
       facility,
+      experience,
+      rating,
+      priceRange,
+      location,
+      availability,
     } = req.query;
 
     const skip = (page - 1) * limit;
@@ -1129,6 +1192,7 @@ export async function getAllDoctors(req, res) {
       filter.isVerified = verified === "true";
     }
 
+    // Filter by specialization
     if (specialization) {
       // Convert string to ObjectId for proper MongoDB query
       try {
@@ -1152,9 +1216,126 @@ export async function getAllDoctors(req, res) {
       }
     }
 
+    // Filter by search term
     if (search) {
       // Only search by doctor name, not bio
       filter.fullName = { $regex: search, $options: "i" };
+    }
+
+    // Filter by experience (yearsExperience)
+    if (experience) {
+      switch (experience) {
+        case "1-3":
+          filter.yearsExperience = { $gte: 1, $lt: 3 };
+          break;
+        case "3-5":
+          filter.yearsExperience = { $gte: 3, $lt: 5 };
+          break;
+        case "5-10":
+          filter.yearsExperience = { $gte: 5, $lt: 10 };
+          break;
+        case "10+":
+          filter.yearsExperience = { $gte: 10 };
+          break;
+      }
+    }
+
+    // Filter by rating (ratingAvg) - now supports ranges (e.g., "4.5-5.0")
+    if (rating) {
+      // Check if rating is a range (e.g., "4.5-5.0") or single value (e.g., "4.5+")
+      if (rating.includes("-")) {
+        // Range format: "4.5-5.0"
+        const [minRating, maxRating] = rating
+          .split("-")
+          .map((v) => parseFloat(v.trim()));
+        if (
+          !isNaN(minRating) &&
+          !isNaN(maxRating) &&
+          minRating >= 0 &&
+          maxRating <= 5 &&
+          minRating <= maxRating
+        ) {
+          // Filter doctors with ratingAvg in range [minRating, maxRating]
+          // Also ensure they have at least 1 review (ratingCount > 0)
+          filter.ratingAvg = { $gte: minRating, $lte: maxRating };
+          filter.ratingCount = { $gt: 0 }; // Only doctors with at least 1 review
+          console.log(
+            `Filtering by rating range: ${minRating} - ${maxRating}, ratingCount > 0`
+          );
+        } else {
+          console.log(`Invalid rating range: ${rating}`);
+        }
+      } else {
+        // Legacy format: "4.5+" (for backward compatibility)
+        const ratingValue = parseFloat(rating.replace("+", ""));
+        if (!isNaN(ratingValue) && ratingValue >= 0 && ratingValue <= 5) {
+          filter.ratingAvg = { $gte: ratingValue, $ne: null };
+          filter.ratingCount = { $gt: 0 };
+          console.log(
+            `Filtering by rating: >= ${ratingValue}, ratingCount > 0`
+          );
+        } else {
+          console.log(`Invalid rating value: ${rating}`);
+        }
+      }
+    }
+
+    // Filter by location (via Clinic name or address)
+    if (location) {
+      // Location now comes as lowercase with hyphens (e.g., "quan-1", "hai-chau")
+      // Convert back to proper format for searching
+      const locationFormats = [
+        // Original format: "quan-1" -> ["Quận 1", "Q1", etc.]
+        location
+          .split("-")
+          .map((part, index) => {
+            if (index === 0 && part === "quan") return "Quận";
+            return part.charAt(0).toUpperCase() + part.slice(1);
+          })
+          .join(" "),
+        // Also try direct match
+        location.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+        // Original location string
+        location,
+      ];
+
+      // Build regex pattern from all formats
+      const regexPattern = locationFormats
+        .map((fmt) => fmt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|");
+
+      // Find clinics by searching in both name and address fields
+      // Clinic names often contain location like "MedConnect Clinic Quận 1"
+      const clinics = await Clinic.find({
+        $or: [
+          // Search in clinic name (most common case)
+          { name: { $regex: regexPattern, $options: "i" } },
+          // Search in address field
+          { address: { $regex: regexPattern, $options: "i" } },
+          // Search for location field if it exists
+          { location: { $regex: regexPattern, $options: "i" } },
+        ],
+      }).select("_id");
+
+      const clinicIds = clinics.map((c) => c._id);
+      if (clinicIds.length > 0) {
+        filter.clinicDefaultId = { $in: clinicIds };
+        console.log(
+          `Found ${clinicIds.length} clinics for location: ${location}`
+        );
+      } else {
+        // Return empty results if no clinic found in this location
+        console.log(`No clinics found for location: ${location}`);
+        return ok(res, {
+          doctors: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
     }
 
     if (facility) {
@@ -1217,9 +1398,165 @@ export async function getAllDoctors(req, res) {
       }
     }
 
+    // Filter by price range (via DoctorRate)
+    let doctorIdsByPrice = null;
+    if (priceRange) {
+      let priceFilter = {};
+      switch (priceRange) {
+        case "0-300000":
+          priceFilter.price = { $gte: 0, $lte: 300000 };
+          break;
+        case "300000-500000":
+          priceFilter.price = { $gte: 300000, $lte: 500000 };
+          break;
+        case "500000-1000000":
+          priceFilter.price = { $gte: 500000, $lte: 1000000 };
+          break;
+        case "1000000+":
+          priceFilter.price = { $gte: 1000000 };
+          break;
+      }
+
+      // Get doctors with prices in this range (online mode)
+      const doctorRates = await DoctorRate.find({
+        ...priceFilter,
+        mode: "online",
+        isActive: true,
+      }).select("doctorId");
+      doctorIdsByPrice = doctorRates.map((dr) => dr.doctorId.toString());
+
+      if (doctorIdsByPrice.length === 0) {
+        // Return empty results if no doctors match price range
+        return ok(res, {
+          doctors: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+    }
+
+    // Filter by availability
+    let doctorIdsByAvailability = null;
+    if (availability) {
+      const now = new Date();
+      let startDate, endDate;
+
+      switch (availability) {
+        case "available-today": {
+          startDate = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          );
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 1);
+          break;
+        }
+        case "available-week": {
+          startDate = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          );
+          startDate.setHours(0, 0, 0, 0);
+          const dayOfWeek = now.getDay();
+          const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          startDate.setDate(startDate.getDate() - daysToMonday);
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 7);
+          break;
+        }
+        case "online": {
+          // Doctors with online mode in DoctorRate
+          const onlineRates = await DoctorRate.find({
+            mode: "online",
+            isActive: true,
+          }).select("doctorId");
+          doctorIdsByAvailability = onlineRates.map((dr) =>
+            dr.doctorId.toString()
+          );
+          break;
+        }
+      }
+
+      if (availability !== "online" && startDate && endDate) {
+        // Find doctors with available time slots in this range
+        const availableSlots = await DoctorTimeSlot.find({
+          startTime: { $gte: startDate, $lt: endDate },
+          isAvailable: true,
+        }).select("doctorId");
+        doctorIdsByAvailability = [
+          ...new Set(availableSlots.map((slot) => slot.doctorId.toString())),
+        ];
+      }
+
+      if (
+        doctorIdsByAvailability !== null &&
+        doctorIdsByAvailability.length === 0
+      ) {
+        // Return empty results if no doctors match availability
+        return ok(res, {
+          doctors: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+    }
+
+    // Combine filters - intersect doctor IDs if both filters are applied
+    if (doctorIdsByPrice !== null || doctorIdsByAvailability !== null) {
+      let combinedIds = null;
+
+      if (doctorIdsByPrice !== null && doctorIdsByAvailability !== null) {
+        // Both filters: intersect (both are already strings)
+        combinedIds = doctorIdsByAvailability.filter((id) =>
+          doctorIdsByPrice.includes(id)
+        );
+      } else if (doctorIdsByPrice !== null) {
+        // Only price filter (already strings)
+        combinedIds = doctorIdsByPrice;
+      } else if (doctorIdsByAvailability !== null) {
+        // Only availability filter (already strings)
+        combinedIds = doctorIdsByAvailability;
+      }
+
+      if (combinedIds !== null && combinedIds.length > 0) {
+        // Convert string IDs to ObjectIds for MongoDB query
+        const mongoose = await import("mongoose");
+        filter._id = {
+          $in: combinedIds.map((id) => new mongoose.default.Types.ObjectId(id)),
+        };
+      } else if (combinedIds !== null && combinedIds.length === 0) {
+        // No doctors match the combined filters
+        return ok(res, {
+          doctors: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+    }
+
     console.log("Doctor filter:", JSON.stringify(filter, null, 2)); // Debug log
     console.log("Specialization parameter:", specialization); // Debug log
     console.log("Facility parameter:", facility); // Debug log
+    console.log("Experience parameter:", experience); // Debug log
+    console.log("Rating parameter:", rating); // Debug log
+    console.log("PriceRange parameter:", priceRange); // Debug log
+    console.log("Location parameter:", location); // Debug log
+    console.log("Availability parameter:", availability); // Debug log
 
     const doctors = await Doctor.find(filter)
       .populate("userId", "fullName email phone")
@@ -1233,8 +1570,8 @@ export async function getAllDoctors(req, res) {
     const total = await Doctor.countDocuments(filter);
 
     // Filter out picsum.photos URLs from avatarUrl
-    const cleanedDoctors = doctors.map(doctor => {
-      if (doctor.avatarUrl && doctor.avatarUrl.includes('picsum.photos')) {
+    const cleanedDoctors = doctors.map((doctor) => {
+      if (doctor.avatarUrl && doctor.avatarUrl.includes("picsum.photos")) {
         doctor.avatarUrl = null;
       }
       return doctor;
@@ -1862,7 +2199,7 @@ export async function getDoctorReviews(req, res) {
       doctorId: doctor._id,
       doctorName: doctor.fullName,
       userId: user._id,
-      email: userEmail
+      email: userEmail,
     });
 
     const { page = 1, limit = 20, rating, sortBy = "newest" } = req.query;
@@ -1875,21 +2212,32 @@ export async function getDoctorReviews(req, res) {
     }
 
     console.log("🔍 getDoctorReviews - Filter:", JSON.stringify(filter));
-    console.log("🔍 getDoctorReviews - Review collection name:", Review.collection.name);
+    console.log(
+      "🔍 getDoctorReviews - Review collection name:",
+      Review.collection.name
+    );
 
     // Check if there are any reviews in the collection
     const allReviewsCount = await Review.countDocuments({});
-    console.log("🔍 getDoctorReviews - Total reviews in collection:", allReviewsCount);
+    console.log(
+      "🔍 getDoctorReviews - Total reviews in collection:",
+      allReviewsCount
+    );
 
     // Check reviews for this specific doctor
-    const reviewsForDoctor = await Review.find({ doctorId: doctor._id }).limit(5).lean();
-    console.log("🔍 getDoctorReviews - Sample reviews for this doctor:", reviewsForDoctor.length);
+    const reviewsForDoctor = await Review.find({ doctorId: doctor._id })
+      .limit(5)
+      .lean();
+    console.log(
+      "🔍 getDoctorReviews - Sample reviews for this doctor:",
+      reviewsForDoctor.length
+    );
     if (reviewsForDoctor.length > 0) {
       console.log("🔍 getDoctorReviews - Sample review:", {
         _id: reviewsForDoctor[0]._id,
         doctorId: reviewsForDoctor[0].doctorId,
         rating: reviewsForDoctor[0].rating,
-        comment: reviewsForDoctor[0].comment
+        comment: reviewsForDoctor[0].comment,
       });
     }
 
@@ -1925,7 +2273,7 @@ export async function getDoctorReviews(req, res) {
       reviewsFound: reviews.length,
       total,
       page: parseInt(page),
-      limit: parseInt(limit)
+      limit: parseInt(limit),
     });
 
     return ok(res, {
@@ -1949,13 +2297,13 @@ export async function getDoctorReviews(req, res) {
 export async function getPublicDoctorReviews(req, res) {
   try {
     const { doctorId } = req.params;
-    
+
     // If doctorId is "me", this should not be handled by public route
     // It should be handled by the protected /me/reviews route instead
     if (doctorId === "me") {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Invalid doctor ID");
     }
-    
+
     const { page = 1, limit = 10, search, rating, sort = "newest" } = req.query;
     const skip = (page - 1) * limit;
 
@@ -2757,7 +3105,7 @@ export async function autoGenerateTimeSlots(req, res) {
         skipped: skippedSlots.slice(0, 5), // Show first 5 as sample
       },
     });
-    } catch (error) {
+  } catch (error) {
     console.error("❌ autoGenerateTimeSlots error:", error);
     return fail(
       res,
@@ -2776,7 +3124,12 @@ export async function createAppointmentByDoctor(req, res) {
     console.log("🔍 createAppointmentByDoctor - req.user:", req.user);
     const userEmail = req.user?.email;
     if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
     }
 
     const user = await User.findOne({ email: userEmail }).lean();
@@ -2789,14 +3142,39 @@ export async function createAppointmentByDoctor(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const { slotId, patientName, patientPhone, reason, mode, scheduledStart, scheduledEnd } = req.body;
+    const {
+      slotId,
+      patientName,
+      patientPhone,
+      reason,
+      mode,
+      scheduledStart,
+      scheduledEnd,
+    } = req.body;
 
-    if (!patientName || !patientPhone || !reason || !mode || !scheduledStart || !scheduledEnd) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Missing required fields");
+    if (
+      !patientName ||
+      !patientPhone ||
+      !reason ||
+      !mode ||
+      !scheduledStart ||
+      !scheduledEnd
+    ) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Missing required fields"
+      );
     }
 
     if (!["online", "offline"].includes(mode)) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Mode must be 'online' or 'offline'");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Mode must be 'online' or 'offline'"
+      );
     }
 
     // Tìm hoặc tạo time slot
@@ -2808,25 +3186,30 @@ export async function createAppointmentByDoctor(req, res) {
         return fail(res, 404, ERROR_CODES.NOT_FOUND, "Time slot not found");
       }
       if (timeSlot.doctorId.toString() !== doctor._id.toString()) {
-        return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Time slot does not belong to this doctor");
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Time slot does not belong to this doctor"
+        );
       }
     } else {
       // Nếu không có slotId, tìm slot theo thời gian hoặc tạo mới
       const startAt = new Date(scheduledStart);
       const endAt = new Date(scheduledEnd);
-      
+
       // Tìm slot với khoảng thời gian gần (trong vòng 1 phút để tránh lỗi do timezone)
       const oneMinute = 60 * 1000;
       timeSlot = await DoctorTimeSlot.findOne({
         doctorId: doctor._id,
         startAt: {
           $gte: new Date(startAt.getTime() - oneMinute),
-          $lte: new Date(startAt.getTime() + oneMinute)
+          $lte: new Date(startAt.getTime() + oneMinute),
         },
         endAt: {
           $gte: new Date(endAt.getTime() - oneMinute),
-          $lte: new Date(endAt.getTime() + oneMinute)
-        }
+          $lte: new Date(endAt.getTime() + oneMinute),
+        },
       });
 
       if (!timeSlot) {
@@ -2835,7 +3218,7 @@ export async function createAppointmentByDoctor(req, res) {
           doctorId: doctor._id,
           startAt: startAt,
           endAt: endAt,
-          status: "available"
+          status: "available",
         });
         console.log("✅ Created new time slot:", timeSlot._id);
       }
@@ -2843,19 +3226,19 @@ export async function createAppointmentByDoctor(req, res) {
 
     // Find or create patient by phone number
     let patient = await Patient.findOne({ phone: patientPhone });
-    
+
     if (!patient) {
       // Tìm User có số điện thoại này
       let patientUser = await User.findOne({ phone: patientPhone });
-      
+
       if (!patientUser) {
         // Tạo User mới cho bệnh nhân
         patientUser = new User({
           email: `${patientPhone}@temp.medconnect.com`, // Temporary email
           fullName: patientName,
           phone: patientPhone,
-          role: 'patient',
-          authProvider: 'phone',
+          role: "patient",
+          authProvider: "phone",
         });
         await patientUser.save();
         console.log("✅ Created new user for patient:", patientUser._id);
@@ -2879,12 +3262,17 @@ export async function createAppointmentByDoctor(req, res) {
     }
 
     // Check if slot is already booked (chỉ check các appointment còn active)
-    const existingAppointment = await Appointment.findOne({ 
+    const existingAppointment = await Appointment.findOne({
       slotId: timeSlot._id,
-      status: { $nin: ["cancelled", "rejected", "no_show"] }
+      status: { $nin: ["cancelled", "rejected", "no_show"] },
     });
     if (existingAppointment) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Time slot has already been booked");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Time slot has already been booked"
+      );
     }
 
     // Create appointment with accepted status (doctor booked, no approval needed)
@@ -2893,7 +3281,7 @@ export async function createAppointmentByDoctor(req, res) {
       doctorId: doctor._id,
       slotId: timeSlot._id,
       mode: mode,
-      clinicId: mode === "offline" ? (req.body.clinicId || null) : undefined,
+      clinicId: mode === "offline" ? req.body.clinicId || null : undefined,
       scheduledStart: new Date(scheduledStart),
       scheduledEnd: new Date(scheduledEnd),
       status: "accepted", // Bác sĩ đặt nên không cần chờ duyệt
@@ -2921,7 +3309,7 @@ export async function createAppointmentByDoctor(req, res) {
     });
   } catch (error) {
     console.error("❌ createAppointmentByDoctor error:", error);
-    
+
     // Handle duplicate slot booking error
     if (error.code === 11000) {
       return fail(
@@ -2932,7 +3320,12 @@ export async function createAppointmentByDoctor(req, res) {
       );
     }
 
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
   }
 }
 

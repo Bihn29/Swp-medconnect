@@ -122,6 +122,9 @@ export default function Login() {
       case "ADMIN":
         navigate("/admin/trang-chu");
         break;
+      case "MANAGER":
+        navigate("/manager/trang-chu");
+        break;
       default:
         navigate("/");
         break;

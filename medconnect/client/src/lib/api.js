@@ -463,15 +463,24 @@ export async function getDoctorDashboardStatsWithFallback() {
   try {
     // Try primary endpoint first
     const response = await getDoctorDashboardStats();
-    const statsData = response?.data?.stats || response?.stats || response?.data || response;
-    
+    const statsData =
+      response?.data?.stats || response?.stats || response?.data || response;
+
     if (statsData) {
       // Map backend stats to frontend format
       return {
-        todayAppointmentsCount: statsData.todayAppointments || statsData.todayAppointmentsCount || 0,
-        availableSlotsToday: statsData.availableSlots || statsData.availableSlotsToday || 0,
-        pendingAppointmentsCount: statsData.pendingAppointments || statsData.pendingAppointmentsCount || 0,
-        completedAppointmentsCount: statsData.completedAppointments || statsData.completedAppointmentsCount || 0,
+        todayAppointmentsCount:
+          statsData.todayAppointments || statsData.todayAppointmentsCount || 0,
+        availableSlotsToday:
+          statsData.availableSlots || statsData.availableSlotsToday || 0,
+        pendingAppointmentsCount:
+          statsData.pendingAppointments ||
+          statsData.pendingAppointmentsCount ||
+          0,
+        completedAppointmentsCount:
+          statsData.completedAppointments ||
+          statsData.completedAppointmentsCount ||
+          0,
       };
     }
   } catch (error) {
@@ -495,29 +504,43 @@ export async function getDoctorDashboardStatsWithFallback() {
 
     // Today's appointments (include: pending_doctor, accepted, in_progress, done, no_show)
     // Exclude: cancelled, rejected (these are not considered "appointments")
-    const todayAppointments = appointmentsList.filter(apt => {
-      const aptDate = new Date(apt.scheduledStart || apt.scheduledDate || apt.createdAt);
+    const todayAppointments = appointmentsList.filter((apt) => {
+      const aptDate = new Date(
+        apt.scheduledStart || apt.scheduledDate || apt.createdAt
+      );
       const isToday = aptDate >= startOfDay && aptDate <= endOfDay;
-      const isValidStatus = ["pending_doctor", "accepted", "in_progress", "done", "no_show"].includes(apt.status);
+      const isValidStatus = [
+        "pending_doctor",
+        "accepted",
+        "in_progress",
+        "done",
+        "no_show",
+      ].includes(apt.status);
       return isToday && isValidStatus;
     }).length;
-    
+
     // Available slots = appointments with cancelled/rejected status (these slots are available again)
     // For fallback, we approximate: available slots = cancelled + rejected appointments
-    const cancelledRejectedToday = appointmentsList.filter(apt => {
-      const aptDate = new Date(apt.scheduledStart || apt.scheduledDate || apt.createdAt);
+    const cancelledRejectedToday = appointmentsList.filter((apt) => {
+      const aptDate = new Date(
+        apt.scheduledStart || apt.scheduledDate || apt.createdAt
+      );
       const isToday = aptDate >= startOfDay && aptDate <= endOfDay;
-      return isToday && (apt.status === "cancelled" || apt.status === "rejected");
+      return (
+        isToday && (apt.status === "cancelled" || apt.status === "rejected")
+      );
     }).length;
-    
+
     // Note: We can't get truly empty slots from appointments list alone
     // This is a fallback, so it's an approximation
     // Primary endpoint should handle the real calculation with DoctorTimeSlot
     const availableSlotsToday = cancelledRejectedToday;
-    
+
     // Pending appointments (appointments in today that need doctor's confirmation)
-    const pendingAppointments = appointmentsList.filter(apt => {
-      const aptDate = new Date(apt.scheduledStart || apt.scheduledDate || apt.createdAt);
+    const pendingAppointments = appointmentsList.filter((apt) => {
+      const aptDate = new Date(
+        apt.scheduledStart || apt.scheduledDate || apt.createdAt
+      );
       const isToday = aptDate >= startOfDay && aptDate <= endOfDay;
       const needsConfirmation = apt.status === "pending_doctor";
       return isToday && needsConfirmation;
@@ -1039,6 +1062,20 @@ export async function getUserDetails(userId) {
     credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function createUser(userData) {
+  const r = await fetch(`${BASE}/api/admin/users`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(userData),
+  });
+  if (!r.ok) {
+    const error = await r.json();
+    throw new Error(error.message || "Không thể tạo người dùng");
+  }
   return r.json();
 }
 

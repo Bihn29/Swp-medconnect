@@ -3,23 +3,18 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Layout, Menu, Avatar, Badge, Button, Dropdown } from "antd";
 import {
   HomeOutlined,
-  SafetyCertificateOutlined,
-  TeamOutlined,
-  MedicineBoxOutlined,
   CalendarOutlined,
-  FileTextOutlined,
-  SettingOutlined,
   LogoutOutlined,
   BellOutlined,
   UserOutlined,
   DownOutlined,
 } from "@ant-design/icons";
 import { clearUserData } from "../../utils/clearUserData";
-import "./AdminLayout.scss";
+import "./ManagerLayout.scss";
 
 const { Header, Sider, Content } = Layout;
 
-const AdminLayout = () => {
+const ManagerLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
@@ -27,36 +22,15 @@ const AdminLayout = () => {
   // Menu items
   const menuItems = [
     {
-      key: "/admin/trang-chu",
+      key: "/manager/trang-chu",
       icon: <HomeOutlined />,
       label: "Tổng quan",
     },
     {
-      key: "/admin/xac-minh-bac-si",
-      icon: <SafetyCertificateOutlined />,
-      label: "Xác minh bác sĩ",
-    },
-    {
-      key: "/admin/nguoi-dung",
-      icon: <TeamOutlined />,
-      label: "Quản lý người dùng",
-    },
-    {
-      key: "/admin/chuyen-khoa",
-      icon: <MedicineBoxOutlined />,
-      label: "Chuyên khoa",
-    },
-    {
-      key: "/admin/lich-hen",
+      key: "/manager/quan-ly-lich",
       icon: <CalendarOutlined />,
-      label: "Quản lý lịch hẹn",
+      label: "Quản lý lịch bác sĩ",
     },
-    {
-      key: "/admin/payment",
-      icon: <FileTextOutlined />,
-      label: "Quản lí doanh thu",
-    },
-    
   ];
 
   const handleMenuClick = ({ key }) => {
@@ -65,10 +39,10 @@ const AdminLayout = () => {
 
   const handleLogout = async () => {
     try {
-      console.log("Admin logout clicked - clearing all user data...");
+      console.log("Manager logout clicked - clearing all user data...");
       await clearUserData();
     } catch (error) {
-      console.error("Error during admin logout:", error);
+      console.error("Error during manager logout:", error);
       // Fallback: just reload the page
       window.location.reload();
     }
@@ -84,33 +58,33 @@ const AdminLayout = () => {
   ];
 
   return (
-    <Layout className="admin-layout">
+    <Layout className="manager-layout">
       <Sider
         trigger={null}
         collapsible
         collapsed={collapsed}
-        className="admin-sider"
+        className="manager-sider"
         width={280}
       >
         <div
-          className="admin-logo"
+          className="manager-logo"
           onClick={() => navigate("/")}
           style={{ cursor: "pointer" }}
         >
           <div className="logo-icon">
-            <MedicineBoxOutlined />
+            <CalendarOutlined />
           </div>
           <div className="logo-text">
             <div className="logo-title">MedConnect</div>
-            <div className="logo-subtitle">Chăm sóc sức khỏe</div>
+            <div className="logo-subtitle">Quản lý lịch</div>
           </div>
         </div>
 
-        <div className="admin-profile">
+        <div className="manager-profile">
           <Avatar size={48} icon={<UserOutlined />} />
           <div className="profile-info">
-            <div className="profile-name">Admin</div>
-            <div className="profile-role">Quản trị viên</div>
+            <div className="profile-name">Manager</div>
+            <div className="profile-role">Quản lý</div>
           </div>
         </div>
 
@@ -127,10 +101,10 @@ const AdminLayout = () => {
             ),
           }))}
           onClick={handleMenuClick}
-          className="admin-menu"
+          className="manager-menu"
         />
 
-        <div className="admin-footer">
+        <div className="manager-footer">
           <Menu
             mode="inline"
             items={[
@@ -146,8 +120,8 @@ const AdminLayout = () => {
         </div>
       </Sider>
 
-      <Layout className="admin-main">
-        <Header className="admin-header">
+      <Layout className="manager-main">
+        <Header className="manager-header">
           <div className="header-left"></div>
 
           <div className="header-right">
@@ -160,14 +134,14 @@ const AdminLayout = () => {
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Button type="text" className="user-btn">
                 <Avatar size={32} icon={<UserOutlined />} />
-                <span>Admin</span>
+                <span>Manager</span>
                 <DownOutlined />
               </Button>
             </Dropdown>
           </div>
         </Header>
 
-        <Content className="admin-content">
+        <Content className="manager-content">
           <Outlet />
         </Content>
       </Layout>
@@ -175,4 +149,4 @@ const AdminLayout = () => {
   );
 };
 
-export default AdminLayout;
+export default ManagerLayout;

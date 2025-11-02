@@ -19,6 +19,7 @@ import {
   Tag,
   Rate,
   Checkbox,
+  Modal,
 } from "antd";
 import {
   CalendarOutlined,
@@ -31,9 +32,11 @@ import {
   CheckCircleOutlined,
   HomeOutlined,
   ShareAltOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../components/Breadcrumb/NavigationBreadcrumb";
 import { api } from "../../lib/api";
+import { useUserProfile } from "../../hooks/useUserProfile";
 import "./TimeSlotSelection.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -60,6 +63,9 @@ const TimeSlotSelection = () => {
   const [selectedFamilyMember, setSelectedFamilyMember] = useState(null);
   const [loadingFamilyMembers, setLoadingFamilyMembers] = useState(false);
   const [currentTime, setCurrentTime] = useState(dayjs()); // Track current time for real-time filtering
+
+  // Get user profile to validate required fields
+  const { userProfile } = useUserProfile();
 
   useEffect(() => {
     if (location.state?.doctor) {
@@ -201,9 +207,77 @@ const TimeSlotSelection = () => {
     });
   };
 
+  // Validate profile fields when booking for "me"
+  const validateProfileComplete = () => {
+    const requiredFields = [
+      { key: "fullName", label: "Họ và tên" },
+      { key: "phone", label: "Số điện thoại" },
+      { key: "gender", label: "Giới tính" },
+      { key: "dob", label: "Ngày sinh" },
+      { key: "address", label: "Địa chỉ" },
+      // Check both citizenId and nationalId (depending on which field backend uses)
+      {
+        key: "citizenId",
+        label: "Số CCCD/CMND",
+        alternativeKey: "nationalId",
+      },
+    ];
+
+    const missingFields = [];
+
+    requiredFields.forEach(({ key, label, alternativeKey }) => {
+      const value = userProfile?.[key];
+      const altValue = alternativeKey ? userProfile?.[alternativeKey] : null;
+
+      // Field is valid if it has a value (either from main key or alternative key)
+      const hasValue = value || altValue;
+      const isValidValue =
+        hasValue && typeof hasValue === "string" && hasValue.trim() !== "";
+
+      if (!isValidValue) {
+        missingFields.push(label);
+      }
+    });
+
+    return {
+      isValid: missingFields.length === 0,
+      missingFields,
+    };
+  };
+
   const handleBookingSubmit = async (values) => {
     try {
       setLoading(true);
+
+      // Validate profile if booking for "me"
+      if (bookingFor === "me") {
+        const validation = validateProfileComplete();
+        if (!validation.isValid) {
+          Modal.confirm({
+            title: "Thông tin hồ sơ chưa đầy đủ",
+            icon: <ExclamationCircleOutlined />,
+            content: (
+              <div>
+                <p>
+                  Vui lòng cập nhật đầy đủ thông tin hồ sơ trước khi đặt lịch:
+                </p>
+                <ul style={{ marginTop: 8, marginBottom: 0 }}>
+                  {validation.missingFields.map((field) => (
+                    <li key={field}>{field}</li>
+                  ))}
+                </ul>
+              </div>
+            ),
+            okText: "Đi đến trang cài đặt",
+            cancelText: "Hủy",
+            onOk: () => {
+              navigate("/benh-nhan/cai-dat");
+            },
+          });
+          setLoading(false);
+          return;
+        }
+      }
 
       let patientIdForBooking = null;
 
@@ -543,35 +617,55 @@ const TimeSlotSelection = () => {
                     </div>
                   ) : (
                     <div className="time-slots-grid">
-                      {timeSlots
-                        .filter((slot) => {
-                          // Lọc bỏ các slot đã qua giờ theo thời gian thực - các slot này sẽ biến mất
-                          const isPassed = isSlotPassed(slot);
-                          if (isPassed) return false;
+                      {timeSlots.map((slot) => {
+                        // Kiểm tra slot đã qua giờ
+                        const isPassed = isSlotPassed(slot);
+                        // Kiểm tra slot không available (đã có appointment)
+                        const isUnavailable = !slot.available;
+                        // Slot bị disable nếu đã qua giờ hoặc không available
+                        const isDisabled = isPassed || isUnavailable;
 
-                          // Ẩn hoàn toàn các slot không available (đã có appointment: pending_doctor, accepted, in_progress, done)
-                          // Thay vì chỉ disable, chúng ta sẽ ẩn hoàn toàn
-                          if (!slot.available) return false;
+                        // Tạo tooltip text để giải thích tại sao slot bị disable
+                        let disabledReason = "";
+                        if (isPassed) {
+                          disabledReason = "Khung giờ này đã qua";
+                        } else if (isUnavailable && slot.appointmentStatus) {
+                          // Hiển thị status cụ thể của appointment
+                          const statusMap = {
+                            pending_doctor: "Đang chờ bác sĩ xác nhận",
+                            accepted: "Đã được chấp nhận",
+                            in_progress: "Đang trong quá trình khám",
+                            done: "Đã hoàn thành",
+                          };
+                          disabledReason =
+                            statusMap[slot.appointmentStatus] ||
+                            "Khung giờ này đã được đặt";
+                        } else if (isUnavailable) {
+                          disabledReason = "Khung giờ này đã được đặt";
+                        }
 
-                          return true;
-                        })
-                        .map((slot) => {
-                          return (
-                            <Button
-                              key={slot._id}
-                              type={
-                                selectedTimeSlot?._id === slot._id
-                                  ? "primary"
-                                  : "default"
+                        return (
+                          <Button
+                            key={slot._id}
+                            type={
+                              selectedTimeSlot?._id === slot._id
+                                ? "primary"
+                                : "default"
+                            }
+                            onClick={() => {
+                              if (!isDisabled) {
+                                handleTimeSlotSelect(slot);
                               }
-                              onClick={() => handleTimeSlotSelect(slot)}
-                              className="time-slot-button"
-                              size="large"
-                            >
-                              {slot.timeRange}
-                            </Button>
-                          );
-                        })}
+                            }}
+                            className="time-slot-button"
+                            size="large"
+                            disabled={isDisabled}
+                            title={disabledReason}
+                          >
+                            {slot.timeRange}
+                          </Button>
+                        );
+                      })}
                     </div>
                   )}
                 </Card>

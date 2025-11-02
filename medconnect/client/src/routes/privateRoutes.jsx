@@ -10,6 +10,7 @@ import AuthMiddleware from "../middlewares/AuthMiddleware";
 import PatientMiddleware from "../middlewares/PatientMiddleware";
 import AdminMiddleware from "../middlewares/AdminMiddleware";
 import DoctorMiddleware from "../middlewares/DoctorMiddleware";
+import ManagerMiddleware from "../middlewares/ManagerMiddleware";
 
 // Shared Components
 import Profile from "../pages/Auth/Profile";
@@ -17,6 +18,7 @@ import Profile from "../pages/Auth/Profile";
 // Patient Components
 import PatientDashboard from "../pages/Patient/PatientDashboard/PatientDashboard";
 import { Settings } from "../pages/Patient/components/Settings/Settings";
+import FavoriteDoctors from "../pages/Patient/components/FavoriteDoctors/FavoriteDoctors";
 import AppointmentBookingHome from "../pages/Appointment/AppointmentBookingHome";
 import SpecializationSelection from "../pages/Appointment/SpecializationSelection";
 import DoctorSelection from "../pages/Appointment/DoctorSelection";
@@ -46,6 +48,11 @@ import Specializations from "../pages/Admin/Specializations";
 import AppointmentManagement from "../pages/Admin/AppointmentManagement";
 import PaymentManagement from "../pages/Admin/PaymentManagement";
 import AdminLayout from "../layouts/AdminLayout/AdminLayout";
+
+// Manager Components
+import ManagerDashboard from "../pages/Manager/ManagerDashboard/ManagerDashboard";
+import ManagerScheduleManagement from "../pages/Manager/ManagerScheduleManagement/ManagerScheduleManagement";
+import ManagerLayout from "../layouts/ManagerLayout/ManagerLayout";
 
 /**
  * Private Routes - Routes requiring authentication
@@ -80,6 +87,10 @@ export const privateRoutes = (
           <Route
             path="/benh-nhan/ho-so-suc-khoe-gia-dinh"
             element={<PatientDashboard />}
+          />
+          <Route
+            path="/benh-nhan/bac-si-ua-thich"
+            element={<FavoriteDoctors />}
           />
           <Route path="/benh-nhan/thong-bao" element={<PatientDashboard />} />
           <Route path="/benh-nhan/cai-dat" element={<Settings />} />
@@ -201,6 +212,19 @@ export const privateRoutes = (
         <Route path="/admin/specializations" element={<Specializations />} />
         <Route path="/admin/appointments" element={<AppointmentManagement />} />
         <Route path="/admin/payment" element={<PaymentManagement />} />
+      </Route>
+    </Route>
+
+    {/* ==================== MANAGER ROUTES ==================== */}
+    {/* Manager routes with manager middleware protection */}
+    <Route element={<ManagerMiddleware />}>
+      <Route element={<ManagerLayout />}>
+        <Route path="/manager/trang-chu" element={<ManagerDashboard />} />
+        <Route path="/manager" element={<ManagerDashboard />} />
+        <Route
+          path="/manager/quan-ly-lich"
+          element={<ManagerScheduleManagement />}
+        />
       </Route>
     </Route>
   </>
