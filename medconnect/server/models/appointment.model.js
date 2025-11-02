@@ -13,6 +13,9 @@ const { Schema, model } = mongoose;
  */
 const AppointmentSchema = new Schema(
   {
+    // NEW: link về MedicalVisit (có thể null với lịch hẹn đơn lẻ)
+    visitId: { type: Schema.Types.ObjectId, ref: "MedicalVisit", default: null },
+
     patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true },
     doctorId: { type: Schema.Types.ObjectId, ref: "Doctor", required: true },
     slotId: {
@@ -121,6 +124,9 @@ AppointmentSchema.index({ status: 1, scheduledStart: 1 });
 AppointmentSchema.index({ mode: 1, scheduledStart: 1 });
 AppointmentSchema.index({ clinicId: 1, scheduledStart: 1 });
 AppointmentSchema.index({ paymentStatus: 1, paymentDeadline: 1 });
+
+// NEW: hỗ trợ truy vấn theo phiên khám (không ảnh hưởng unique slot)
+AppointmentSchema.index({ visitId: 1, scheduledStart: 1 });
 
 // KHÓA SLOT 1-1 khi còn hiệu lực (slot không thể bị book hai lần, bất kể online/offline)
 AppointmentSchema.index(

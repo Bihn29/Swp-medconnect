@@ -12,6 +12,7 @@ import reviewRouter from "./reviewRoutes.js";
 import rescheduleRouter from "./rescheduleRoutes.js";
 import videoCallRouter from "./videoCallRoutes.js";
 import payosRouter from "./payos.routes.js";
+import medicalVisitRouter from "./medicalVisitRoutes.js";
 import { getAllAppointments } from "../controllers/doctorController.js";
 import { getAppointmentBySlotId } from "../controllers/appointmentController.js";
 
@@ -112,6 +113,10 @@ console.log("[router] mounted /api/video-calls");
 // PayOS payment routes
 apiRouter.use("/payments/payos", payosRouter);
 console.log("[router] mounted /api/payments/payos");
+
+// Medical Visit routes (new appointment flow with visit grouping)
+apiRouter.use("/medical-visits", medicalVisitRouter);
+console.log("[router] mounted /api/medical-visits");
 
 //admin
 // apiRouter.use("/doctor", adminRouter);
