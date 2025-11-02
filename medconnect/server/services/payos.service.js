@@ -90,7 +90,10 @@ export const createPayosPaymentLink = async (userId, paymentData) => {
   };
 
   const link = await payos.paymentRequests.create(payosPaymentData);
-  return link.checkoutUrl;
+  return {
+    payUrl: link.checkoutUrl,
+    orderCode: orderCode,
+  };
 };
 
 /**

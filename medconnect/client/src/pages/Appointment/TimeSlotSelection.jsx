@@ -63,6 +63,8 @@ const TimeSlotSelection = () => {
   const [selectedFamilyMember, setSelectedFamilyMember] = useState(null);
   const [loadingFamilyMembers, setLoadingFamilyMembers] = useState(false);
   const [currentTime, setCurrentTime] = useState(dayjs()); // Track current time for real-time filtering
+  const [pendingAppointmentId, setPendingAppointmentId] = useState(null); // Track appointment chưa thanh toán
+  const [pendingOrderCode, setPendingOrderCode] = useState(null); // Track orderCode để cleanup
 
   // Get user profile to validate required fields
   const { userProfile } = useUserProfile();
@@ -117,6 +119,169 @@ const TimeSlotSelection = () => {
       setCurrentTime(dayjs());
     }
   }, [selectedDate]);
+
+  // Cleanup unpaid appointment khi user thoát trang
+  useEffect(() => {
+    const handleBeforeUnload = async (e) => {
+      // Chỉ cleanup nếu có appointment chưa thanh toán
+      if (pendingAppointmentId && pendingOrderCode) {
+        // Sử dụng sendBeacon để gửi request ngay cả khi trang đang đóng
+        const cleanupData = {
+          appointmentId: pendingAppointmentId,
+          orderCode: pendingOrderCode,
+        };
+        
+        // Gửi cleanup request (sử dụng navigator.sendBeacon nếu có thể)
+        if (navigator.sendBeacon) {
+          const blob = new Blob([JSON.stringify(cleanupData)], {
+            type: "application/json",
+          });
+          navigator.sendBeacon(
+            `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/payments/payos/cancel/${pendingOrderCode}`,
+            blob
+          );
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Cleanup khi component unmount
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      
+      // Cleanup unpaid appointment nếu user rời trang
+      if (pendingAppointmentId && pendingOrderCode) {
+        cleanupUnpaidAppointment(pendingAppointmentId, pendingOrderCode);
+      }
+    };
+  }, [pendingAppointmentId, pendingOrderCode]);
+
+  // Hàm cleanup appointment chưa thanh toán
+  const cleanupUnpaidAppointment = async (appointmentId, orderCode) => {
+    try {
+      const { cancelPayOSPayment } = await import("../../services/payService");
+      
+      // Cancel payment link (này sẽ tự động xóa appointment nếu chưa thanh toán)
+      await cancelPayOSPayment(orderCode);
+      console.log("✅ Cleaned up unpaid appointment:", appointmentId);
+      
+      // Clear state và localStorage sau khi cleanup thành công
+      setPendingAppointmentId(null);
+      setPendingOrderCode(null);
+      localStorage.removeItem("pendingAppointmentId");
+      localStorage.removeItem("pendingOrderCode");
+    } catch (error) {
+      console.error("❌ Error cleaning up unpaid appointment:", error);
+      // Fallback: try to cancel appointment directly nếu cancel payment fail
+      try {
+        await api.put(`/api/patients/me/appointments/${appointmentId}/cancel`, {
+          cancelReason: "Người dùng thoát trang trước khi thanh toán",
+        });
+        console.log("✅ Fallback: Cancelled appointment directly");
+        
+        // Clear state và localStorage sau khi cleanup thành công
+        setPendingAppointmentId(null);
+        setPendingOrderCode(null);
+        localStorage.removeItem("pendingAppointmentId");
+        localStorage.removeItem("pendingOrderCode");
+      } catch (cancelError) {
+        console.error("❌ Error cancelling appointment:", cancelError);
+      }
+    }
+  };
+
+  // Kiểm tra khi component mount xem có appointment chưa thanh toán từ session trước không
+  useEffect(() => {
+    const checkPendingAppointment = async () => {
+      // Nếu có pending appointment từ localStorage (từ session trước)
+      const savedPendingAppointment = localStorage.getItem("pendingAppointmentId");
+      const savedPendingOrderCode = localStorage.getItem("pendingOrderCode");
+      
+      if (savedPendingAppointment && savedPendingOrderCode) {
+        // Kiểm tra xem appointment đã thanh toán chưa
+        try {
+          const appointmentResponse = await api.get(
+            `/api/patients/me/appointments/${savedPendingAppointment}`
+          );
+          
+          if (appointmentResponse.success) {
+            const appointment = appointmentResponse.data;
+            // Nếu chưa thanh toán, cleanup
+            if (appointment.paymentStatus === "unpaid" && !appointment.paymentId) {
+              await cleanupUnpaidAppointment(savedPendingAppointment, savedPendingOrderCode);
+            } else {
+              // Đã thanh toán rồi, clear localStorage
+              localStorage.removeItem("pendingAppointmentId");
+              localStorage.removeItem("pendingOrderCode");
+            }
+          }
+        } catch (error) {
+          console.error("Error checking pending appointment:", error);
+          // Nếu không kiểm tra được, clear localStorage
+          localStorage.removeItem("pendingAppointmentId");
+          localStorage.removeItem("pendingOrderCode");
+        }
+      }
+
+      // Kiểm tra tất cả appointments chưa thanh toán của user
+      // Nếu có appointment nào chưa thanh toán với slotId hiện tại → cleanup
+      try {
+        const allAppointmentsResponse = await api.get("/api/patients/me/appointments?limit=100");
+        if (allAppointmentsResponse.success) {
+          const appointments = allAppointmentsResponse.data.appointments || [];
+          
+          // Tìm appointments chưa thanh toán (unpaid và không có paymentId)
+          const unpaidAppointments = appointments.filter(
+            (apt) => 
+              apt.paymentStatus === "unpaid" && 
+              !apt.paymentId &&
+              apt.status !== "cancelled" &&
+              apt.pendingOrderCode // Chỉ cleanup những appointment đã tạo payment link
+          );
+
+          // Cleanup từng appointment chưa thanh toán
+          let cleanedCount = 0;
+          for (const apt of unpaidAppointments) {
+            if (apt.pendingOrderCode) {
+              console.log(`🧹 Cleaning up unpaid appointment: ${apt._id}`);
+              await cleanupUnpaidAppointment(apt._id, apt.pendingOrderCode);
+              cleanedCount++;
+            }
+          }
+
+          // Nếu đã cleanup appointments, refresh time slots và reset form để user có thể đặt lịch mới
+          if (cleanedCount > 0) {
+            console.log(`🔄 Refreshing time slots after cleaning up ${cleanedCount} unpaid appointment(s)`);
+            
+            // Thông báo cho user
+            message.info(
+              `Đã tự động hủy ${cleanedCount} lịch hẹn chưa thanh toán. Bạn có thể đặt lịch mới.`,
+              4
+            );
+            
+            // Reset form state
+            setSelectedTimeSlot(null);
+            setShowBookingForm(false);
+            form.resetFields();
+            
+            // Refresh time slots nếu có selectedDate
+            if (selectedDate && doctor) {
+              // Delay một chút để đảm bảo database đã cập nhật
+              setTimeout(() => {
+                fetchTimeSlots();
+              }, 500);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error checking all unpaid appointments:", error);
+      }
+    };
+
+    checkPendingAppointment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchTimeSlots = async () => {
     try {
@@ -372,6 +537,16 @@ const TimeSlotSelection = () => {
           });
 
           if (paymentResponse.success && paymentResponse.data.payUrl) {
+            // Lưu appointmentId và orderCode để cleanup nếu user thoát trang
+            if (paymentResponse.data.orderCode) {
+              setPendingAppointmentId(appointment._id);
+              setPendingOrderCode(paymentResponse.data.orderCode);
+              
+              // Lưu vào localStorage để có thể cleanup nếu user đóng tab và mở lại
+              localStorage.setItem("pendingAppointmentId", appointment._id);
+              localStorage.setItem("pendingOrderCode", paymentResponse.data.orderCode.toString());
+            }
+
             message.success("Đang chuyển đến trang thanh toán...");
 
             // Redirect to PayOS payment page
