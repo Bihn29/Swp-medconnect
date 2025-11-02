@@ -962,6 +962,18 @@ export async function getAdminDashboardStats() {
   return r.json();
 }
 
+export async function getAdminStatistics(params = {}) {
+  const { period = "today", startDate, endDate } = params;
+  let url = `${BASE}/api/admin/statistics?period=${period}`;
+  if (startDate) url += `&startDate=${startDate}`;
+  if (endDate) url += `&endDate=${endDate}`;
+  const r = await fetch(url, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export async function getAdminDashboardActivities() {
   const r = await fetch(`${BASE}/api/admin/dashboard/activities`, {
     credentials: "include",

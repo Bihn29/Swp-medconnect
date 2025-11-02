@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Card, Row, Col, Button, Space, DatePicker } from "antd";
+import React, { useState, useEffect } from "react";
+import { Card, Row, Col, Button, Space, DatePicker, Spin, Alert } from "antd";
 import { 
   UserOutlined, 
   TeamOutlined, 
@@ -8,12 +8,16 @@ import {
   DownOutlined
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { getAdminStatistics } from "../../lib/api";
 import "./Statistics.scss";
 
 const Statistics = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("today");
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [dateRange, setDateRange] = useState([null, null]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [statistics, setStatistics] = useState(null);
 
   const periods = [
     { key: "today", label: "Hôm Nay" },
@@ -23,40 +27,150 @@ const Statistics = () => {
     { key: "custom", label: "Tùy Chỉnh" },
   ];
 
-  const statCards = [
-    {
-      title: "Tổng Bác Sĩ",
-      value: "0",
-      change: "+0 so với tháng trước",
-      icon: <UserOutlined />,
-      cardClass: "stat-card-blue",
-      textColor: "text-blue",
-    },
-    {
-      title: "Tổng Bệnh Nhân",
-      value: "0",
-      change: "+0 so với tuần trước",
-      icon: <TeamOutlined />,
-      cardClass: "stat-card-cyan",
-      textColor: "text-cyan",
-    },
-    {
-      title: "Khám Hôm Nay",
-      value: "0",
-      change: "+0 so với hôm qua",
-      icon: <CalendarOutlined />,
-      cardClass: "stat-card-emerald",
-      textColor: "text-emerald",
-    },
-    {
-      title: "Doanh Thu (Tháng)",
-      value: "₫0",
-      change: "+0% so với tháng trước",
-      icon: <DollarOutlined />,
-      cardClass: "stat-card-violet",
-      textColor: "text-violet",
-    },
-  ];
+  useEffect(() => {
+    fetchStatistics();
+  }, [selectedPeriod, dateRange]);
+
+  const fetchStatistics = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const params = { period: selectedPeriod };
+      if (selectedPeriod === "custom" && dateRange[0] && dateRange[1]) {
+        params.startDate = dayjs(dateRange[0]).format("YYYY-MM-DD");
+        params.endDate = dayjs(dateRange[1]).format("YYYY-MM-DD");
+      }
+      
+      const response = await getAdminStatistics(params);
+      setStatistics(response.data || response);
+    } catch (err) {
+      console.error("Error fetching statistics:", err);
+      setError("Không thể tải dữ liệu thống kê");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "--";
+    return dayjs(date).format("DD/MM/YYYY");
+  };
+
+  const statCards = statistics
+    ? [
+        {
+          title: "Tổng Bác Sĩ",
+          value: statistics.totalDoctors.value.toLocaleString(),
+          change: statistics.totalDoctors.changeLabel,
+          icon: <UserOutlined />,
+          cardClass: "stat-card-blue",
+          textColor: "text-blue",
+        },
+        {
+          title: "Tổng Bệnh Nhân",
+          value: statistics.totalPatients.value.toLocaleString(),
+          change: statistics.totalPatients.changeLabel,
+          icon: <TeamOutlined />,
+          cardClass: "stat-card-cyan",
+          textColor: "text-cyan",
+        },
+        {
+          title: "Khám Hôm Nay",
+          value: statistics.todayAppointments.value.toLocaleString(),
+          change: statistics.todayAppointments.changeLabel,
+          icon: <CalendarOutlined />,
+          cardClass: "stat-card-emerald",
+          textColor: "text-emerald",
+        },
+        {
+          title: (() => {
+            const periodLabels = {
+              today: "Doanh Thu (Hôm Nay)",
+              week: "Doanh Thu (Tuần)",
+              month: "Doanh Thu (Tháng)",
+              year: "Doanh Thu (Năm)",
+              custom: "Doanh Thu (Tùy Chỉnh)",
+            };
+            return periodLabels[selectedPeriod] || "Doanh Thu (Tháng)";
+          })(),
+          value: formatCurrency(statistics.monthRevenue.value),
+          change: statistics.monthRevenue.changeLabel,
+          icon: <DollarOutlined />,
+          cardClass: "stat-card-violet",
+          textColor: "text-violet",
+        },
+      ]
+    : [
+        {
+          title: "Tổng Bác Sĩ",
+          value: "0",
+          change: "+0 so với tháng trước",
+          icon: <UserOutlined />,
+          cardClass: "stat-card-blue",
+          textColor: "text-blue",
+        },
+        {
+          title: "Tổng Bệnh Nhân",
+          value: "0",
+          change: "+0 so với tuần trước",
+          icon: <TeamOutlined />,
+          cardClass: "stat-card-cyan",
+          textColor: "text-cyan",
+        },
+        {
+          title: "Khám Hôm Nay",
+          value: "0",
+          change: "+0 so với hôm qua",
+          icon: <CalendarOutlined />,
+          cardClass: "stat-card-emerald",
+          textColor: "text-emerald",
+        },
+        {
+          title: (() => {
+            const periodLabels = {
+              today: "Doanh Thu (Hôm Nay)",
+              week: "Doanh Thu (Tuần)",
+              month: "Doanh Thu (Tháng)",
+              year: "Doanh Thu (Năm)",
+              custom: "Doanh Thu (Tùy Chỉnh)",
+            };
+            return periodLabels[selectedPeriod] || "Doanh Thu (Tháng)";
+          })(),
+          value: "₫0",
+          change: "+0% so với tháng trước",
+          icon: <DollarOutlined />,
+          cardClass: "stat-card-violet",
+          textColor: "text-violet",
+        },
+      ];
+
+  if (loading && !statistics) {
+    return (
+      <div className="statistics">
+        <div style={{ textAlign: "center", padding: "50px" }}>
+          <Spin size="large" />
+          <p style={{ marginTop: "16px" }}>Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="statistics">
+        <Alert message="Lỗi" description={error} type="error" showIcon />
+      </div>
+    );
+  }
 
   return (
     <div className="statistics">
@@ -92,8 +206,8 @@ const Statistics = () => {
                         <div className="date-picker-field">
                           <label className="date-picker-label">Từ Ngày</label>
                           <DatePicker
-                            format="MM/DD/YYYY"
-                            placeholder="mm/dd/yyyy"
+                            format="DD/MM/YYYY"
+                            placeholder="dd/mm/yyyy"
                             value={dateRange[0]}
                             onChange={(date) => {
                               setDateRange([date, dateRange[1]]);
@@ -105,8 +219,8 @@ const Statistics = () => {
                         <div className="date-picker-field">
                           <label className="date-picker-label">Đến Ngày</label>
                           <DatePicker
-                            format="MM/DD/YYYY"
-                            placeholder="mm/dd/yyyy"
+                            format="DD/MM/YYYY"
+                            placeholder="dd/mm/yyyy"
                             value={dateRange[1]}
                             onChange={(date) => {
                               setDateRange([dateRange[0], date]);
@@ -126,7 +240,6 @@ const Statistics = () => {
                             if (dateRange[0] && dateRange[1]) {
                               setSelectedPeriod("custom");
                               setShowCustomPicker(false);
-                              // TODO: Apply date range filter here
                             }
                           }}
                           disabled={!dateRange[0] || !dateRange[1]}
@@ -191,18 +304,21 @@ const Statistics = () => {
                   <div className="chart-empty">Biểu đồ sẽ được thêm vào đây</div>
                 </div>
                 <div className="chart-legend-list">
-                  <div className="legend-item">
-                    <span className="legend-name">1. Dr. Nguyễn Văn A</span>
-                    <span className="legend-value">0 cuộc</span>
-                  </div>
-                  <div className="legend-item">
-                    <span className="legend-name">2. Dr. Trần Thị B</span>
-                    <span className="legend-value">0 cuộc</span>
-                  </div>
-                  <div className="legend-item">
-                    <span className="legend-name">3. Dr. Lê Văn C</span>
-                    <span className="legend-value">0 cuộc</span>
-                  </div>
+                  {statistics?.topDoctorsOnline?.length > 0
+                    ? statistics.topDoctorsOnline.map((doctor) => (
+                        <div key={doctor.rank} className="legend-item">
+                          <span className="legend-name">
+                            {doctor.rank}. {doctor.name}
+                          </span>
+                          <span className="legend-value">{doctor.count} cuộc</span>
+                        </div>
+                      ))
+                    : [1, 2, 3].map((index) => (
+                        <div key={index} className="legend-item">
+                          <span className="legend-name">--</span>
+                          <span className="legend-value">0 cuộc</span>
+                        </div>
+                      ))}
                 </div>
               </div>
             </Card>
@@ -225,22 +341,21 @@ const Statistics = () => {
                   <div className="chart-empty">Biểu đồ sẽ được thêm vào đây</div>
                 </div>
                 <div className="chart-legend-list">
-                  <div className="legend-item">
-                    <span className="legend-name">1. Dr. Hoàng Văn E</span>
-                    <span className="legend-value">0 cuộc</span>
-                  </div>
-                  <div className="legend-item">
-                    <span className="legend-name">2. Dr. Vũ Thị F</span>
-                    <span className="legend-value">0 cuộc</span>
-                  </div>
-                  <div className="legend-item">
-                    <span className="legend-name">3. Dr. Đặng Văn G</span>
-                    <span className="legend-value">0 cuộc</span>
-                  </div>
-                  <div className="legend-item">
-                    <span className="legend-name">4. Dr. Bùi Thị H</span>
-                    <span className="legend-value">0 cuộc</span>
-                  </div>
+                  {statistics?.topDoctorsOffline?.length > 0
+                    ? statistics.topDoctorsOffline.map((doctor) => (
+                        <div key={doctor.rank} className="legend-item">
+                          <span className="legend-name">
+                            {doctor.rank}. {doctor.name}
+                          </span>
+                          <span className="legend-value">{doctor.count} cuộc</span>
+                        </div>
+                      ))
+                    : [1, 2, 3].map((index) => (
+                        <div key={index} className="legend-item">
+                          <span className="legend-name">--</span>
+                          <span className="legend-value">0 cuộc</span>
+                        </div>
+                      ))}
                 </div>
               </div>
             </Card>
@@ -258,18 +373,37 @@ const Statistics = () => {
               }
             >
               <div className="patient-list">
-                {[1, 2, 3].map((index) => (
-                  <div key={index} className="patient-item">
-                    <div className="patient-info">
-                      <div className="patient-name">{index}. Bệnh nhân {index}</div>
-                      <div className="patient-detail">Khám: 0 lần | Lần cuối: --</div>
-                    </div>
-                    <div className="patient-spending">
-                      <div className="spending-amount">₫0</div>
-                      <div className="spending-label">Chi tiêu</div>
-                    </div>
-                  </div>
-                ))}
+                {statistics?.topPatients?.length > 0
+                  ? statistics.topPatients.map((patient) => (
+                      <div key={patient.rank} className="patient-item">
+                        <div className="patient-info">
+                          <div className="patient-name">
+                            {patient.rank}. {patient.name}
+                          </div>
+                          <div className="patient-detail">
+                            Khám: {patient.visitCount} lần | Lần cuối: {formatDate(patient.lastVisit)}
+                          </div>
+                        </div>
+                        <div className="patient-spending">
+                          <div className="spending-amount">
+                            {formatCurrency(patient.totalSpending)}
+                          </div>
+                          <div className="spending-label">Chi tiêu</div>
+                        </div>
+                      </div>
+                    ))
+                  : [1, 2, 3].map((index) => (
+                      <div key={index} className="patient-item">
+                        <div className="patient-info">
+                          <div className="patient-name">{index}. --</div>
+                          <div className="patient-detail">Khám: 0 lần | Lần cuối: --</div>
+                        </div>
+                        <div className="patient-spending">
+                          <div className="spending-amount">₫0</div>
+                          <div className="spending-label">Chi tiêu</div>
+                        </div>
+                      </div>
+                    ))}
               </div>
             </Card>
           </Col>
@@ -294,12 +428,16 @@ const Statistics = () => {
                   <div className="legend-item-center">
                     <span className="legend-dot legend-dot-blue"></span>
                     <span className="legend-label">Online</span>
-                    <span className="legend-percentage">0%</span>
+                    <span className="legend-percentage">
+                      {statistics?.appointmentRatio?.online || 0}%
+                    </span>
                   </div>
                   <div className="legend-item-center">
                     <span className="legend-dot legend-dot-cyan"></span>
                     <span className="legend-label">Offline</span>
-                    <span className="legend-percentage">0%</span>
+                    <span className="legend-percentage">
+                      {statistics?.appointmentRatio?.offline || 0}%
+                    </span>
                   </div>
                 </div>
               </div>

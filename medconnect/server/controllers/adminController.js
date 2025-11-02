@@ -2068,3 +2068,429 @@ export const getAdminInvoices = async (req, res) => {
     });
   }
 };
+
+/**
+ * GET /api/admin/statistics
+ * Get comprehensive statistics for statistics page
+ */
+export const getStatistics = async (req, res) => {
+  try {
+    let { period = 'today', startDate: startDateParam, endDate: endDateParam } = req.query;
+    
+    // Map frontend period keys to backend keys
+    const periodMap = {
+      'week': 'thisWeek',
+      'month': 'thisMonth',
+      'year': 'thisYear',
+      'today': 'today'
+    };
+    const originalPeriod = period;
+    period = periodMap[period] || period;
+    
+    let startDate, endDate;
+    
+    if (originalPeriod === 'custom' && startDateParam && endDateParam) {
+      startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      const range = getDateRange(period, req);
+      startDate = range.startDate;
+      endDate = range.endDate;
+      // Ensure dates are set correctly for year period to get complete data
+      if (period === 'thisYear' || originalPeriod === 'year') {
+        const today = new Date();
+        // Start from beginning of year
+        startDate = new Date(today.getFullYear(), 0, 1, 0, 0, 0, 0);
+        // End at end of today
+        endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+      }
+    }
+
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // 1. Tổng Bác Sĩ - So với tháng trước
+    const totalDoctors = await Doctor.countDocuments({ isVerified: true });
+    
+    // Count doctors created before this month
+    const previousMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
+    
+    const previousTotalDoctors = await Doctor.countDocuments({ 
+      isVerified: true,
+      createdAt: { $lte: previousMonthEnd }
+    });
+    const doctorsChange = totalDoctors - previousTotalDoctors;
+
+    // 2. Tổng Bệnh Nhân - So với tuần trước
+    const totalPatients = await User.countDocuments({ role: 'patient' });
+    
+    // Count patients created before this week
+    const currentWeekStart = new Date(todayStart);
+    currentWeekStart.setDate(todayStart.getDate() - todayStart.getDay()); // Start of this week
+    const previousWeekEnd = new Date(currentWeekStart);
+    previousWeekEnd.setDate(previousWeekEnd.getDate() - 1);
+    
+    const previousTotalPatients = await User.countDocuments({ 
+      role: 'patient',
+      createdAt: { $lte: previousWeekEnd }
+    });
+    const patientsChange = totalPatients - previousTotalPatients;
+
+    // 3. Khám Hôm Nay (appointments today)
+    const startOfToday = new Date(todayStart);
+    const endOfToday = new Date(startOfToday);
+    endOfToday.setDate(endOfToday.getDate() + 1);
+    
+    const todayAppointments = await Appointment.countDocuments({
+      scheduledStart: { $gte: startOfToday, $lt: endOfToday },
+      status: { $in: ['pending_doctor', 'accepted', 'in_progress', 'done'] }
+    });
+
+    const yesterday = new Date(startOfToday);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayAppointments = await Appointment.countDocuments({
+      scheduledStart: { $gte: yesterday, $lt: startOfToday },
+      status: { $in: ['pending_doctor', 'accepted', 'in_progress', 'done'] }
+    });
+    const todayAppointmentsChange = yesterdayAppointments > 0 
+      ? todayAppointments - yesterdayAppointments 
+      : todayAppointments;
+
+    // 4. Doanh Thu - Revenue based on selected period
+    // Calculate revenue for the selected period (startDate to endDate)
+    const periodPayments = await Payment.find({
+      status: { $in: ['captured', 'authorized'] },
+      createdAt: { $gte: startDate, $lte: endDate }
+    });
+    
+    const periodRevenue = periodPayments.reduce((sum, payment) => {
+      return sum + (payment.total - (payment.refundAmount || 0));
+    }, 0);
+
+    // Calculate previous period revenue for comparison
+    let previousPeriodStart, previousPeriodEnd;
+    const periodDuration = endDate - startDate; // Duration in milliseconds
+    
+    if (originalPeriod === 'year') {
+      // Compare with previous year
+      previousPeriodStart = new Date(today.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
+      previousPeriodEnd = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    } else if (originalPeriod === 'month') {
+      // Compare with previous month
+      previousPeriodStart = new Date(today.getFullYear(), today.getMonth() - 1, 1, 0, 0, 0, 0);
+      previousPeriodEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
+    } else if (originalPeriod === 'week') {
+      // Compare with previous week
+      const weekStart = new Date(startDate);
+      previousPeriodEnd = new Date(weekStart);
+      previousPeriodEnd.setDate(previousPeriodEnd.getDate() - 1);
+      previousPeriodEnd.setHours(23, 59, 59, 999);
+      previousPeriodStart = new Date(previousPeriodEnd);
+      previousPeriodStart.setDate(previousPeriodStart.getDate() - 6);
+      previousPeriodStart.setHours(0, 0, 0, 0);
+    } else if (originalPeriod === 'today') {
+      // Compare with yesterday
+      previousPeriodStart = new Date(startDate);
+      previousPeriodStart.setDate(previousPeriodStart.getDate() - 1);
+      previousPeriodEnd = new Date(previousPeriodStart);
+      previousPeriodEnd.setHours(23, 59, 59, 999);
+      previousPeriodStart.setHours(0, 0, 0, 0);
+    } else if (originalPeriod === 'custom') {
+      // Compare with same duration before the custom period
+      previousPeriodEnd = new Date(startDate);
+      previousPeriodEnd.setDate(previousPeriodEnd.getDate() - 1);
+      previousPeriodEnd.setHours(23, 59, 59, 999);
+      previousPeriodStart = new Date(previousPeriodEnd.getTime() - periodDuration);
+      previousPeriodStart.setHours(0, 0, 0, 0);
+    } else {
+      // Default: compare with previous month
+      previousPeriodStart = new Date(today.getFullYear(), today.getMonth() - 1, 1, 0, 0, 0, 0);
+      previousPeriodEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
+    }
+    
+    const previousPeriodPayments = await Payment.find({
+      status: { $in: ['captured', 'authorized'] },
+      createdAt: { $gte: previousPeriodStart, $lte: previousPeriodEnd }
+    });
+    const previousPeriodRevenue = previousPeriodPayments.reduce((sum, payment) => {
+      return sum + (payment.total - (payment.refundAmount || 0));
+    }, 0);
+    const revenueChangePercent = previousPeriodRevenue > 0 
+      ? Math.round(((periodRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100)
+      : (periodRevenue > 0 ? 100 : 0);
+
+    // 5. Top 3 Bác Sĩ Khám Online Nhiều Nhất
+    const onlineAppointments = await Appointment.aggregate([
+      {
+        $match: {
+          mode: 'online',
+          scheduledStart: { $gte: startDate, $lte: endDate },
+          status: { $in: ['accepted', 'in_progress', 'done'] }
+        }
+      },
+      {
+        $group: {
+          _id: '$doctorId',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $limit: 3
+      },
+      {
+        $lookup: {
+          from: 'Doctors',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'doctor'
+        }
+      },
+      {
+        $unwind: '$doctor'
+      },
+      {
+        $lookup: {
+          from: 'Users',
+          localField: 'doctor.userId',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      {
+        $unwind: '$user'
+      },
+      {
+        $project: {
+          doctorId: '$_id',
+          name: '$user.fullName',
+          count: 1
+        }
+      }
+    ]);
+
+    // 6. Top 3 Bác Sĩ Khám Offline Nhiều Nhất
+    const offlineAppointments = await Appointment.aggregate([
+      {
+        $match: {
+          mode: 'offline',
+          scheduledStart: { $gte: startDate, $lte: endDate },
+          status: { $in: ['accepted', 'in_progress', 'done'] }
+        }
+      },
+      {
+        $group: {
+          _id: '$doctorId',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $limit: 3
+      },
+      {
+        $lookup: {
+          from: 'Doctors',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'doctor'
+        }
+      },
+      {
+        $unwind: '$doctor'
+      },
+      {
+        $lookup: {
+          from: 'Users',
+          localField: 'doctor.userId',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      {
+        $unwind: '$user'
+      },
+      {
+        $project: {
+          doctorId: '$_id',
+          name: '$user.fullName',
+          count: 1
+        }
+      }
+    ]);
+
+    // 7. Top 3 Bệnh Nhân Đến Khám Nhiều Nhất
+    // First, get appointments in period and collect appointment IDs
+    const appointmentsInPeriod = await Appointment.find({
+      scheduledStart: { $gte: startDate, $lte: endDate },
+      status: { $in: ['accepted', 'in_progress', 'done'] }
+    }).select('_id patientId scheduledStart').lean();
+
+    // Get payments for these appointments
+    const appointmentIds = appointmentsInPeriod.map(apt => apt._id);
+    const paymentsInPeriod = await Payment.find({
+      appointmentId: { $in: appointmentIds },
+      status: 'captured'
+    }).lean();
+
+    // Create a map of appointmentId -> payment amount
+    const paymentMap = new Map();
+    paymentsInPeriod.forEach(payment => {
+      const amount = payment.total - (payment.refundAmount || 0);
+      const existing = paymentMap.get(payment.appointmentId.toString()) || 0;
+      paymentMap.set(payment.appointmentId.toString(), existing + amount);
+    });
+
+    // Group appointments by patient
+    const patientMap = new Map();
+    appointmentsInPeriod.forEach(apt => {
+      const patientId = apt.patientId.toString();
+      if (!patientMap.has(patientId)) {
+        patientMap.set(patientId, {
+          patientId: apt.patientId,
+          visitCount: 0,
+          lastVisit: apt.scheduledStart,
+          appointmentIds: [],
+          totalSpending: 0
+        });
+      }
+      const patient = patientMap.get(patientId);
+      patient.visitCount += 1;
+      if (apt.scheduledStart > patient.lastVisit) {
+        patient.lastVisit = apt.scheduledStart;
+      }
+      patient.appointmentIds.push(apt._id);
+      const paymentAmount = paymentMap.get(apt._id.toString()) || 0;
+      patient.totalSpending += paymentAmount;
+    });
+
+    // Get top 3 patients
+    const topPatientsArray = Array.from(patientMap.values())
+      .sort((a, b) => b.visitCount - a.visitCount)
+      .slice(0, 3);
+
+    // Populate patient and user info
+    const topPatients = await Promise.all(
+      topPatientsArray.map(async (patient) => {
+        const patientDoc = await Patient.findById(patient.patientId).lean();
+        if (!patientDoc) return null;
+        const user = await User.findById(patientDoc.userId).lean();
+        if (!user) return null;
+        return {
+          patientId: patient.patientId,
+          name: user.fullName || `Bệnh nhân`,
+          visitCount: patient.visitCount,
+          lastVisit: patient.lastVisit,
+          totalSpending: patient.totalSpending
+        };
+      })
+    );
+
+    // Filter out nulls and map to final format
+    const topPatientsFinal = topPatients
+      .filter(p => p !== null)
+      .map((item, index) => ({
+        rank: index + 1,
+        name: item.name,
+        visitCount: item.visitCount,
+        lastVisit: item.lastVisit,
+        totalSpending: item.totalSpending || 0
+      }));
+
+    // 8. Tỷ Lệ Loại Khám (Online vs Offline)
+    const totalAppointmentsInPeriod = await Appointment.countDocuments({
+      scheduledStart: { $gte: startDate, $lte: endDate },
+      status: { $in: ['accepted', 'in_progress', 'done'] }
+    });
+    const onlineCount = await Appointment.countDocuments({
+      mode: 'online',
+      scheduledStart: { $gte: startDate, $lte: endDate },
+      status: { $in: ['accepted', 'in_progress', 'done'] }
+    });
+    const offlineCount = await Appointment.countDocuments({
+      mode: 'offline',
+      scheduledStart: { $gte: startDate, $lte: endDate },
+      status: { $in: ['accepted', 'in_progress', 'done'] }
+    });
+    
+    const onlinePercent = totalAppointmentsInPeriod > 0 
+      ? Math.round((onlineCount / totalAppointmentsInPeriod) * 100)
+      : 0;
+    const offlinePercent = totalAppointmentsInPeriod > 0 
+      ? Math.round((offlineCount / totalAppointmentsInPeriod) * 100)
+      : 0;
+
+    const statistics = {
+      totalDoctors: {
+        value: totalDoctors,
+        change: doctorsChange,
+        changeLabel: doctorsChange >= 0 
+          ? `+${doctorsChange} so với tháng trước`
+          : `${doctorsChange} so với tháng trước`
+      },
+      totalPatients: {
+        value: totalPatients,
+        change: patientsChange,
+        changeLabel: patientsChange >= 0 
+          ? `+${patientsChange} so với tuần trước`
+          : `${patientsChange} so với tuần trước`
+      },
+      todayAppointments: {
+        value: todayAppointments,
+        change: todayAppointmentsChange,
+        changeLabel: todayAppointmentsChange >= 0 
+          ? `+${todayAppointmentsChange} so với hôm qua`
+          : `${todayAppointmentsChange} so với hôm qua`
+      },
+      monthRevenue: {
+        value: periodRevenue,
+        changePercent: revenueChangePercent,
+        changeLabel: (() => {
+          let periodLabel = 'tháng trước';
+          if (originalPeriod === 'year') periodLabel = 'năm trước';
+          else if (originalPeriod === 'month') periodLabel = 'tháng trước';
+          else if (originalPeriod === 'week') periodLabel = 'tuần trước';
+          else if (originalPeriod === 'today') periodLabel = 'hôm qua';
+          else if (originalPeriod === 'custom') periodLabel = 'kỳ trước';
+          
+          return revenueChangePercent >= 0 
+            ? `+${revenueChangePercent}% so với ${periodLabel}`
+            : `${revenueChangePercent}% so với ${periodLabel}`;
+        })()
+      },
+      topDoctorsOnline: onlineAppointments.map((item, index) => ({
+        rank: index + 1,
+        name: item.name || `Dr. ${index + 1}`,
+        count: item.count
+      })),
+      topDoctorsOffline: offlineAppointments.map((item, index) => ({
+        rank: index + 1,
+        name: item.name || `Dr. ${index + 1}`,
+        count: item.count
+      })),
+      topPatients: topPatientsFinal,
+      appointmentRatio: {
+        online: onlinePercent,
+        offline: offlinePercent,
+        total: totalAppointmentsInPeriod
+      }
+    };
+
+    res.json({
+      success: true,
+      data: statistics
+    });
+  } catch (error) {
+    console.error("Error fetching statistics:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi tải thống kê"
+    });
+  }
+};

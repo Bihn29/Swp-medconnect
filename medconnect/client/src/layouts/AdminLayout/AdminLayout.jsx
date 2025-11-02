@@ -44,7 +44,7 @@ const AdminLayout = () => {
     {
       key: "/admin/chuyen-khoa",
       icon: <MedicineBoxOutlined />,
-      label: "Chuyên khoa",
+      label: "Quản lý chuyên khoa",
     },
     {
       key: "/admin/lich-hen",
@@ -52,7 +52,7 @@ const AdminLayout = () => {
       label: "Quản lý lịch hẹn",
     },
     {
-      key: "/admin/statistics",
+      key: "/admin/thong-ke",
       icon: <FileTextOutlined />,
       label: "Thống kê",
     },
