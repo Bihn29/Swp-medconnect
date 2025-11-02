@@ -48,7 +48,7 @@ const DoctorSchema = new Schema(
     rejectedAt: { type: Date },
     rejectionReason: { type: String, trim: true },
     
-    // Thông tin bổ sung
+    // Thông tin bổ sun
     education: [{ 
       degree: String,
       school: String,
