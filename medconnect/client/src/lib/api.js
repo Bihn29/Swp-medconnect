@@ -165,7 +165,9 @@ export async function changePassword(currentPassword, newPassword) {
       } catch {
         errorData = { message: errorText || "Có lỗi xảy ra khi đổi mật khẩu" };
       }
-      const error = new Error(errorData.message || "Có lỗi xảy ra khi đổi mật khẩu");
+      const error = new Error(
+        errorData.message || "Có lỗi xảy ra khi đổi mật khẩu"
+      );
       error.status = r.status;
       error.response = errorData;
       throw error;
@@ -618,6 +620,60 @@ export async function autoGenerateTimeSlots() {
   return r.json();
 }
 
+export async function deleteTimeSlot(slotId) {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/${slotId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function blockSingleSlot(slotId, reason = "") {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/${slotId}/block`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ reason }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Leave request functions
+export async function createLeaveRequest(slotId, reason) {
+  const r = await fetch(`${BASE}/api/doctors/me/leave-requests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ slotId, reason }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function blockSlotsByDateRange(startDate, endDate, reason = "") {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/block`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ startDate, endDate, reason }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function unblockSlotsByDateRange(startDate, endDate) {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/unblock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ startDate, endDate }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 // Schedule rules functions
 export async function getDoctorScheduleRules() {
   const r = await fetch(`${BASE}/api/doctors/me/schedule-rules`, {
@@ -757,6 +813,27 @@ export async function cancelAppointment(appointmentId) {
     method: "PUT",
     credentials: "include",
   });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Manager functions
+export async function rescheduleAppointmentByManager(
+  appointmentId,
+  newDateTime,
+  reason,
+  mode,
+  clinicId
+) {
+  const r = await fetch(
+    `${BASE}/api/managers/appointments/${appointmentId}/reschedule`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ newDateTime, reason, mode, clinicId }),
+    }
+  );
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -1234,6 +1311,7 @@ const apiObject = {
   bookAppointment,
   rescheduleAppointment,
   cancelAppointment,
+  rescheduleAppointmentByManager,
 
   // Payment functions
   makePayment,
@@ -1246,6 +1324,11 @@ const apiObject = {
   // Time slot management functions
   getDoctorTimeSlots,
   autoGenerateTimeSlots,
+  deleteTimeSlot,
+  blockSingleSlot,
+  blockSlotsByDateRange,
+  unblockSlotsByDateRange,
+  createLeaveRequest,
 
   // Review functions
   getDoctorReviews,

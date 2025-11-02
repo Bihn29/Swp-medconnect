@@ -1,4 +1,4 @@
-/* Doctor Notifications Styles */
+/* Manager Notifications Styles */
 $primary-teal: #4db8c4;
 $primary-teal-dark: #3a9ba8;
 $primary-teal-light: #e0f7f9;
@@ -36,14 +36,12 @@ $gray-900: #111827;
       align-items: center;
       gap: 12px;
       overflow: visible !important;
-      flex-direction: row !important; // Đảm bảo icon và text theo thứ tự ngang
 
       .notifications-icon {
         color: $primary-teal;
         width: 36px;
         height: 36px;
         flex-shrink: 0;
-        order: 1; // Icon ở vị trí đầu tiên
       }
 
       h1 {
@@ -63,12 +61,10 @@ $gray-900: #111827;
         background-clip: text !important;
         overflow: visible !important;
         height: auto !important;
-        order: 2; // Chữ "Thông báo" ở vị trí thứ hai (sau icon)
       }
 
       .unread-badge {
         margin-left: 8px;
-        order: 3; // Badge ở cuối
       }
     }
 
@@ -134,11 +130,11 @@ $gray-900: #111827;
       }
 
       &.unread {
-        background: #fef3c7;
-        border-left: 4px solid #f59e0b;
+        background: $primary-teal-light;
+        border-left: 4px solid $primary-teal;
 
         &:hover {
-          background: #fde68a;
+          background: #b8e8f0;
         }
       }
 

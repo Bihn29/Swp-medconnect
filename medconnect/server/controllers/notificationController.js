@@ -1,4 +1,5 @@
 import Notification from "../models/notification.model.js";
+import mongoose from "mongoose";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
@@ -15,15 +16,36 @@ export async function getNotifications(req, res) {
     const { page = 1, limit = 20, type, isRead } = req.query;
     const skip = (page - 1) * limit;
 
-    const filter = { userId: appUserId };
-    
+    // Convert appUserId to ObjectId for proper matching
+    let userId;
+    try {
+      if (typeof appUserId === "string") {
+        userId = new mongoose.Types.ObjectId(appUserId);
+      } else {
+        userId = appUserId;
+      }
+    } catch (error) {
+      console.error("❌ Invalid userId format:", appUserId);
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Invalid user ID format"
+      );
+    }
+
+    const filter = { userId: userId };
+
     if (type && type !== "all") {
       filter.type = type;
     }
-    
+
     if (isRead !== undefined) {
       filter.isRead = isRead === "true";
     }
+
+    console.log(`🔔 Fetching notifications for userId: ${userId}`);
+    console.log(`🔔 Filter:`, filter);
 
     const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
@@ -33,14 +55,18 @@ export async function getNotifications(req, res) {
 
     const total = await Notification.countDocuments(filter);
 
+    console.log(
+      `✅ Found ${notifications.length} notifications (total: ${total}) for userId: ${userId}`
+    );
+
     return ok(res, {
       notifications,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (e) {
     console.error("❌ getNotifications error:", e);
@@ -92,9 +118,9 @@ export async function markAllNotificationsAsRead(req, res) {
       { isRead: true }
     );
 
-    return ok(res, { 
+    return ok(res, {
       message: "All notifications marked as read",
-      modifiedCount: result.modifiedCount 
+      modifiedCount: result.modifiedCount,
     });
   } catch (e) {
     console.error("❌ markAllNotificationsAsRead error:", e);
@@ -127,7 +153,7 @@ export async function getUnreadCount(req, res) {
 
     const count = await Notification.countDocuments({
       userId: appUserId,
-      isRead: false
+      isRead: false,
     });
 
     return ok(res, { unreadCount: count });
