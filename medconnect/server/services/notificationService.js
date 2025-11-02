@@ -122,13 +122,30 @@ export async function createAppointmentNotification(
         break;
 
       case "rescheduled":
-        // Notify both patient and doctor about reschedule
+        // Format new datetime if provided
+        const newDateTime = additionalData.newDateTime
+          ? new Date(additionalData.newDateTime).toLocaleString("vi-VN", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : appointmentTime;
+
+        // Notify patient about reschedule
         if (patientUser) {
           notifications.push({
             userId: patientUser._id,
             type: "appointment",
-            title: "Lịch hẹn đã được dời",
-            message: `Lịch hẹn khám với BS. ${doctorName} đã được dời đến ${appointmentTime}.`,
+            title:
+              additionalData.rescheduledByType === "manager"
+                ? "Lịch hẹn đã được dời bởi quản lý"
+                : "Lịch hẹn đã được dời",
+            message: `Lịch hẹn khám với BS. ${doctorName} đã được dời đến ${newDateTime}.${
+              additionalData.reason ? ` Lý do: ${additionalData.reason}` : ""
+            }`,
             priority: "high",
             relatedId: appointmentId,
             relatedType: "appointment",
@@ -136,18 +153,29 @@ export async function createAppointmentNotification(
               appointmentId,
               doctorName,
               appointmentTime,
+              newDateTime: additionalData.newDateTime || appointmentTime,
               status: "rescheduled",
               ...additionalData,
             },
           });
         }
 
-        if (doctorUser) {
+        // Notify doctor about reschedule (if notifyDoctor flag is set or rescheduledByType is manager)
+        if (
+          doctorUser &&
+          (additionalData.notifyDoctor ||
+            additionalData.rescheduledByType === "manager")
+        ) {
           notifications.push({
             userId: doctorUser._id,
             type: "appointment",
-            title: "Lịch hẹn đã được dời",
-            message: `Lịch hẹn với bệnh nhân ${patientName} đã được dời đến ${appointmentTime}.`,
+            title:
+              additionalData.rescheduledByType === "manager"
+                ? "Lịch hẹn đã được dời bởi quản lý"
+                : "Lịch hẹn đã được dời",
+            message: `Lịch hẹn với bệnh nhân ${patientName} đã được dời đến ${newDateTime}.${
+              additionalData.reason ? ` Lý do: ${additionalData.reason}` : ""
+            }`,
             priority: "medium",
             relatedId: appointmentId,
             relatedType: "appointment",
@@ -155,6 +183,7 @@ export async function createAppointmentNotification(
               appointmentId,
               patientName,
               appointmentTime,
+              newDateTime: additionalData.newDateTime || appointmentTime,
               status: "rescheduled",
               ...additionalData,
             },
@@ -348,6 +377,222 @@ export async function sendAppointmentReminders() {
     return appointments.length;
   } catch (error) {
     console.error("❌ Error sending appointment reminders:", error);
+    throw error;
+  }
+}
+
+/**
+ * Create notification for leave request (notify all managers)
+ */
+export async function createLeaveRequestNotification(leaveRequestId) {
+  try {
+    const LeaveRequest = (await import("../models/leaveRequest.model.js"))
+      .default;
+
+    const leaveRequest = await LeaveRequest.findById(leaveRequestId)
+      .populate({
+        path: "doctorId",
+        select: "fullName userId",
+      })
+      .populate({
+        path: "slotId",
+        select: "startAt endAt",
+      })
+      .lean();
+
+    if (!leaveRequest) {
+      console.error("❌ Leave request not found:", leaveRequestId);
+      return null;
+    }
+
+    // Get all managers
+    const managers = await User.find({ role: "manager" }).lean();
+
+    if (managers.length === 0) {
+      console.log("⚠️ No managers found to notify");
+      return null;
+    }
+
+    const doctorName = leaveRequest.doctorId?.fullName || "Bác sĩ";
+    const slotStart = new Date(leaveRequest.slotId?.startAt);
+    const slotEnd = new Date(leaveRequest.slotId?.endAt);
+    const slotTime = `${slotStart.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })} - ${slotEnd.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+
+    const notifications = managers.map((manager) => ({
+      userId: manager._id,
+      type: "leave_request",
+      title: "Yêu cầu nghỉ phép mới",
+      message: `BS. ${doctorName} đã gửi yêu cầu nghỉ phép vào ${slotTime}. Lý do: ${leaveRequest.reason}`,
+      priority: "high",
+      relatedId: leaveRequestId,
+      relatedType: "leave_request",
+      metadata: {
+        leaveRequestId: leaveRequestId.toString(),
+        doctorId: leaveRequest.doctorId?._id?.toString(),
+        doctorName,
+        slotId: leaveRequest.slotId?._id?.toString(),
+        slotTime,
+        reason: leaveRequest.reason,
+        status: "pending",
+      },
+    }));
+
+    console.log(
+      `📢 Creating notifications for ${managers.length} managers:`,
+      managers.map((m) => ({ id: m._id.toString(), email: m.email }))
+    );
+
+    const createdNotifications = await Notification.insertMany(notifications);
+    console.log(
+      `✅ Created ${createdNotifications.length} leave request notifications for managers`
+    );
+    console.log(
+      `📋 Created notification IDs:`,
+      createdNotifications.map((n) => n._id.toString())
+    );
+    console.log(
+      `📋 Created notification userIds:`,
+      createdNotifications.map((n) => n.userId.toString())
+    );
+    return createdNotifications;
+  } catch (error) {
+    console.error("❌ Error creating leave request notification:", error);
+    throw error;
+  }
+}
+
+/**
+ * Create notification for leave request approval/rejection (notify doctor)
+ */
+export async function createLeaveRequestStatusNotification(
+  leaveRequestId,
+  status // "approved" or "rejected"
+) {
+  try {
+    const LeaveRequest = (await import("../models/leaveRequest.model.js"))
+      .default;
+    const Doctor = (await import("../models/doctor.model.js")).default;
+
+    const leaveRequest = await LeaveRequest.findById(leaveRequestId)
+      .populate({
+        path: "doctorId",
+        select: "userId fullName",
+      })
+      .populate({
+        path: "slotId",
+        select: "startAt endAt",
+      })
+      .populate({
+        path: "reviewedBy",
+        select: "fullName",
+      })
+      .lean();
+
+    if (!leaveRequest) {
+      console.error("❌ Leave request not found:", leaveRequestId);
+      return null;
+    }
+
+    const doctor = await Doctor.findById(leaveRequest.doctorId).populate(
+      "userId",
+      "_id email fullName"
+    );
+
+    if (!doctor || !doctor.userId) {
+      console.error(
+        "❌ Doctor or doctor userId not found for leave request:",
+        leaveRequestId
+      );
+      return null;
+    }
+
+    const doctorUserId = doctor.userId._id || doctor.userId;
+    const slotStart = new Date(leaveRequest.slotId?.startAt);
+    const slotEnd = new Date(leaveRequest.slotId?.endAt);
+    const slotTime = `${slotStart.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })} - ${slotEnd.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+
+    const managerName = leaveRequest.reviewedBy?.fullName || "Quản lý";
+
+    let notification;
+    if (status === "approved") {
+      notification = {
+        userId: doctorUserId,
+        type: "leave_request",
+        title: "Yêu cầu nghỉ phép đã được chấp nhận",
+        message: `Yêu cầu nghỉ phép của bạn vào ${slotTime} đã được ${managerName} chấp nhận.`,
+        priority: "high",
+        relatedId: leaveRequestId,
+        relatedType: "leave_request",
+        metadata: {
+          leaveRequestId: leaveRequestId.toString(),
+          status: "approved",
+          slotId: leaveRequest.slotId?._id?.toString(),
+          slotTime,
+          reason: leaveRequest.reason,
+          reviewedBy: managerName,
+          reviewedAt: leaveRequest.reviewedAt,
+        },
+      };
+    } else if (status === "rejected") {
+      notification = {
+        userId: doctorUserId,
+        type: "leave_request",
+        title: "Yêu cầu nghỉ phép bị từ chối",
+        message: `Yêu cầu nghỉ phép của bạn vào ${slotTime} đã bị ${managerName} từ chối.${
+          leaveRequest.rejectionReason
+            ? ` Lý do: ${leaveRequest.rejectionReason}`
+            : ""
+        }`,
+        priority: "high",
+        relatedId: leaveRequestId,
+        relatedType: "leave_request",
+        metadata: {
+          leaveRequestId: leaveRequestId.toString(),
+          status: "rejected",
+          slotId: leaveRequest.slotId?._id?.toString(),
+          slotTime,
+          reason: leaveRequest.reason,
+          rejectionReason: leaveRequest.rejectionReason,
+          reviewedBy: managerName,
+          reviewedAt: leaveRequest.reviewedAt,
+        },
+      };
+    } else {
+      console.error(
+        "❌ Invalid status for leave request notification:",
+        status
+      );
+      return null;
+    }
+
+    const createdNotification = await Notification.create(notification);
+    console.log(
+      `✅ Created leave request ${status} notification for doctor: ${doctor.fullName}`
+    );
+    return createdNotification;
+  } catch (error) {
+    console.error(
+      "❌ Error creating leave request status notification:",
+      error
+    );
     throw error;
   }
 }

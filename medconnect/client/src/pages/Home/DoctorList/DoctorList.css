@@ -99,6 +99,24 @@
   color: #3ba8b8;
 }
 
+/* Favorite Button */
+.favorite-button {
+  transition: all 0.3s ease;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.favorite-button:hover {
+  background-color: rgba(255, 77, 79, 0.1) !important;
+  transform: scale(1.1);
+}
+
+.favorite-button:focus {
+  background-color: rgba(255, 77, 79, 0.1) !important;
+}
+
 /* Rating */
 .ant-rate {
   font-size: 14px;
@@ -198,7 +216,7 @@
 /* Specialty Tags */
 .doctor-info .ant-tag {
   border-radius: 12px;
-font-size: 12px;
+  font-size: 12px;
   padding: 2px 8px;
   border: none;
   background: rgba(69, 195, 210, 0.1);

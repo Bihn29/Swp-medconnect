@@ -9,7 +9,8 @@ import ConsultationSummary from "../models/consultationSummary.model.js";
 import ConsultationAdvice from "../models/consultationAdvice.model.js";
 import Prescription from "../models/prescription.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
-import DoctorScheduleRule from "../models/Doctor_schedule_rules.model.js";
+import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
+import DoctorRate from "../models/doctor_rates.model.js";
 import Review from "../models/review.model.js";
 import AuthProvider from "../models/auth_providers.model.js";
 import { createAppointmentNotification } from "../services/notificationService.js";
@@ -151,7 +152,6 @@ export async function updateDoctorProfile(req, res) {
     if (specializationIds)
       doctorUpdateData.specializationIds = specializationIds;
 
-
     const doctor = await Doctor.findOneAndUpdate(
       { userId: appUserId },
       doctorUpdateData,
@@ -164,7 +164,6 @@ export async function updateDoctorProfile(req, res) {
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
-
 
     return ok(res, { doctor });
   } catch (e) {
@@ -305,7 +304,9 @@ export async function getDoctorDashboardStats(req, res) {
     const todayAppointments = await Appointment.countDocuments({
       doctorId: doctor._id,
       scheduledStart: { $gte: startOfDay, $lt: endOfDay },
-      status: { $in: ["pending_doctor", "accepted", "in_progress", "done", "no_show"] },
+      status: {
+        $in: ["pending_doctor", "accepted", "in_progress", "done", "no_show"],
+      },
     });
 
     // Available slots today = slots with status "available" + slots with cancelled/rejected appointments
@@ -363,7 +364,6 @@ export async function getDoctorDashboardStats(req, res) {
  */
 export async function getDoctorAppointmentDetail(req, res) {
   try {
-    
     console.log("🔍 getDoctorAppointmentDetail - req.user:", req.user);
 
     const userEmail = req.user?.email;
@@ -407,6 +407,15 @@ export async function getDoctorAppointmentDetail(req, res) {
       })
       .populate("clinicId", "name address")
       .populate("slotId", "startAt endAt")
+      .populate({
+        path: "rescheduledFromId",
+        select:
+          "scheduledStart scheduledEnd status rescheduleReason rescheduledAt",
+        populate: {
+          path: "slotId",
+          select: "startAt endAt",
+        },
+      })
       .lean();
 
     if (!appointment) {
@@ -440,23 +449,29 @@ async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
     console.log(`📧 sendAppointmentAcceptanceEmail called with:`, {
       patientEmail: patient?.email,
       patientUserId: patient?.userId,
-      hasUserIdObject: patient?.userId && typeof patient.userId === 'object',
-      userIdEmail: patient?.userId?.email
+      hasUserIdObject: patient?.userId && typeof patient.userId === "object",
+      userIdEmail: patient?.userId?.email,
     });
 
     // Lấy email từ Patient hoặc User
     let patientEmail = patient.email;
-    
+
     // Nếu Patient không có email, lấy từ User (userId có thể là object đã populate hoặc ObjectId)
     if (!patientEmail) {
-      if (patient.userId && typeof patient.userId === 'object' && patient.userId.email) {
+      if (
+        patient.userId &&
+        typeof patient.userId === "object" &&
+        patient.userId.email
+      ) {
         // userId đã được populate
         patientEmail = patient.userId.email;
         console.log(`📧 Found email from populated userId: ${patientEmail}`);
       } else if (patient.userId) {
         // userId là ObjectId, cần query
         console.log(`📧 Querying User for email, userId: ${patient.userId}`);
-        const patientUser = await User.findById(patient.userId).select("email").lean();
+        const patientUser = await User.findById(patient.userId)
+          .select("email")
+          .lean();
         if (patientUser) {
           patientEmail = patientUser.email;
           console.log(`📧 Found email from User query: ${patientEmail}`);
@@ -470,11 +485,14 @@ async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
 
     // Nếu vẫn không có email, không gửi
     if (!patientEmail) {
-      console.log("⚠️ Patient email not found, skipping email notification. Patient data:", {
-        patientId: patient?._id,
-        patientEmail: patient?.email,
-        userId: patient?.userId
-      });
+      console.log(
+        "⚠️ Patient email not found, skipping email notification. Patient data:",
+        {
+          patientId: patient?._id,
+          patientEmail: patient?.email,
+          userId: patient?.userId,
+        }
+      );
       return;
     }
 
@@ -483,7 +501,7 @@ async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
     // Format thời gian
     const scheduledStart = new Date(appointment.scheduledStart);
     const scheduledEnd = new Date(appointment.scheduledEnd);
-    
+
     const dateStr = scheduledStart.toLocaleDateString("vi-VN", {
       weekday: "long",
       year: "numeric",
@@ -498,8 +516,9 @@ async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
       minute: "2-digit",
     })}`;
 
-    const modeText = appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
-    
+    const modeText =
+      appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
+
     // Lấy tên bác sĩ
     const doctorName = doctor?.fullName || doctor?.userId?.fullName || "Bác sĩ";
 
@@ -518,11 +537,19 @@ async function sendAppointmentAcceptanceEmail(appointment, patient, doctor) {
           <p style="margin: 8px 0;"><strong>Thời gian:</strong> ${dateStr}</p>
           <p style="margin: 8px 0;"><strong>Giờ:</strong> ${timeStr}</p>
           <p style="margin: 8px 0;"><strong>Hình thức:</strong> ${modeText}</p>
-          ${appointment.reason ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>` : ""}
+          ${
+            appointment.reason
+              ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>`
+              : ""
+          }
         </div>
 
         <p>Vui lòng đảm bảo bạn có mặt đúng giờ hẹn.</p>
-        ${appointment.mode === "online" ? "<p><strong>Lưu ý:</strong> Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ.</p>" : ""}
+        ${
+          appointment.mode === "online"
+            ? "<p><strong>Lưu ý:</strong> Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ.</p>"
+            : ""
+        }
         
         <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect</strong></p>
       </div>
@@ -543,7 +570,11 @@ Thông tin lịch hẹn:
 ${appointment.reason ? `- Lý do khám: ${appointment.reason}` : ""}
 
 Vui lòng đảm bảo bạn có mặt đúng giờ hẹn.
-${appointment.mode === "online" ? "\nLưu ý: Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ." : ""}
+${
+  appointment.mode === "online"
+    ? "\nLưu ý: Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ."
+    : ""
+}
 
 Trân trọng,
 MedConnect
@@ -557,14 +588,19 @@ MedConnect
       html: htmlContent,
     });
 
-    console.log(`✅ Appointment acceptance email sent successfully to ${patientEmail}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId, response: emailResult?.response });
+    console.log(
+      `✅ Appointment acceptance email sent successfully to ${patientEmail}`
+    );
+    console.log(`📧 Email result:`, {
+      messageId: emailResult?.messageId,
+      response: emailResult?.response,
+    });
   } catch (error) {
     console.error("❌ Error sending appointment acceptance email:", error);
     console.error("❌ Error details:", {
       message: error?.message,
       stack: error?.stack,
-      status: error?.status
+      status: error?.status,
     });
     // Không throw error để không ảnh hưởng đến flow chính
   }
@@ -573,29 +609,40 @@ MedConnect
 /**
  * Helper function to send appointment rejection email to patient
  */
-async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejectReason) {
+async function sendAppointmentRejectionEmail(
+  appointment,
+  patient,
+  doctor,
+  rejectReason
+) {
   try {
     console.log(`📧 sendAppointmentRejectionEmail called with:`, {
       patientEmail: patient?.email,
       patientUserId: patient?.userId,
-      hasUserIdObject: patient?.userId && typeof patient.userId === 'object',
+      hasUserIdObject: patient?.userId && typeof patient.userId === "object",
       userIdEmail: patient?.userId?.email,
-      rejectReason: rejectReason
+      rejectReason: rejectReason,
     });
 
     // Lấy email từ Patient hoặc User
     let patientEmail = patient.email;
-    
+
     // Nếu Patient không có email, lấy từ User (userId có thể là object đã populate hoặc ObjectId)
     if (!patientEmail) {
-      if (patient.userId && typeof patient.userId === 'object' && patient.userId.email) {
+      if (
+        patient.userId &&
+        typeof patient.userId === "object" &&
+        patient.userId.email
+      ) {
         // userId đã được populate
         patientEmail = patient.userId.email;
         console.log(`📧 Found email from populated userId: ${patientEmail}`);
       } else if (patient.userId) {
         // userId là ObjectId, cần query
         console.log(`📧 Querying User for email, userId: ${patient.userId}`);
-        const patientUser = await User.findById(patient.userId).select("email").lean();
+        const patientUser = await User.findById(patient.userId)
+          .select("email")
+          .lean();
         if (patientUser) {
           patientEmail = patientUser.email;
           console.log(`📧 Found email from User query: ${patientEmail}`);
@@ -609,11 +656,14 @@ async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejec
 
     // Nếu vẫn không có email, không gửi
     if (!patientEmail) {
-      console.log("⚠️ Patient email not found, skipping email notification. Patient data:", {
-        patientId: patient?._id,
-        patientEmail: patient?.email,
-        userId: patient?.userId
-      });
+      console.log(
+        "⚠️ Patient email not found, skipping email notification. Patient data:",
+        {
+          patientId: patient?._id,
+          patientEmail: patient?.email,
+          userId: patient?.userId,
+        }
+      );
       return;
     }
 
@@ -622,7 +672,7 @@ async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejec
     // Format thời gian
     const scheduledStart = new Date(appointment.scheduledStart);
     const scheduledEnd = new Date(appointment.scheduledEnd);
-    
+
     const dateStr = scheduledStart.toLocaleDateString("vi-VN", {
       weekday: "long",
       year: "numeric",
@@ -637,8 +687,9 @@ async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejec
       minute: "2-digit",
     })}`;
 
-    const modeText = appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
-    
+    const modeText =
+      appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
+
     // Lấy tên bác sĩ
     const doctorName = doctor?.fullName || doctor?.userId?.fullName || "Bác sĩ";
 
@@ -657,8 +708,16 @@ async function sendAppointmentRejectionEmail(appointment, patient, doctor, rejec
           <p style="margin: 8px 0;"><strong>Thời gian:</strong> ${dateStr}</p>
           <p style="margin: 8px 0;"><strong>Giờ:</strong> ${timeStr}</p>
           <p style="margin: 8px 0;"><strong>Hình thức:</strong> ${modeText}</p>
-          ${appointment.reason ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>` : ""}
-          ${rejectReason ? `<p style="margin: 8px 0;"><strong>Lý do từ chối:</strong> ${rejectReason}</p>` : ""}
+          ${
+            appointment.reason
+              ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>`
+              : ""
+          }
+          ${
+            rejectReason
+              ? `<p style="margin: 8px 0;"><strong>Lý do từ chối:</strong> ${rejectReason}</p>`
+              : ""
+          }
         </div>
 
         <p>Bạn có thể đặt lịch hẹn mới với bác sĩ khác hoặc chọn thời gian khác phù hợp hơn.</p>
@@ -698,14 +757,19 @@ MedConnect
       html: htmlContent,
     });
 
-    console.log(`✅ Appointment rejection email sent successfully to ${patientEmail}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId, response: emailResult?.response });
+    console.log(
+      `✅ Appointment rejection email sent successfully to ${patientEmail}`
+    );
+    console.log(`📧 Email result:`, {
+      messageId: emailResult?.messageId,
+      response: emailResult?.response,
+    });
   } catch (error) {
     console.error("❌ Error sending appointment rejection email:", error);
     console.error("❌ Error details:", {
       message: error?.message,
       stack: error?.stack,
-      status: error?.status
+      status: error?.status,
     });
     // Không throw error để không ảnh hưởng đến flow chính
   }
@@ -719,23 +783,29 @@ async function sendAppointmentCompletedEmail(appointment, patient, doctor) {
     console.log(`📧 sendAppointmentCompletedEmail called with:`, {
       patientEmail: patient?.email,
       patientUserId: patient?.userId,
-      hasUserIdObject: patient?.userId && typeof patient.userId === 'object',
-      userIdEmail: patient?.userId?.email
+      hasUserIdObject: patient?.userId && typeof patient.userId === "object",
+      userIdEmail: patient?.userId?.email,
     });
 
     // Lấy email từ Patient hoặc User
     let patientEmail = patient.email;
-    
+
     // Nếu Patient không có email, lấy từ User (userId có thể là object đã populate hoặc ObjectId)
     if (!patientEmail) {
-      if (patient.userId && typeof patient.userId === 'object' && patient.userId.email) {
+      if (
+        patient.userId &&
+        typeof patient.userId === "object" &&
+        patient.userId.email
+      ) {
         // userId đã được populate
         patientEmail = patient.userId.email;
         console.log(`📧 Found email from populated userId: ${patientEmail}`);
       } else if (patient.userId) {
         // userId là ObjectId, cần query
         console.log(`📧 Querying User for email, userId: ${patient.userId}`);
-        const patientUser = await User.findById(patient.userId).select("email").lean();
+        const patientUser = await User.findById(patient.userId)
+          .select("email")
+          .lean();
         if (patientUser) {
           patientEmail = patientUser.email;
           console.log(`📧 Found email from User query: ${patientEmail}`);
@@ -749,11 +819,14 @@ async function sendAppointmentCompletedEmail(appointment, patient, doctor) {
 
     // Nếu vẫn không có email, không gửi
     if (!patientEmail) {
-      console.log("⚠️ Patient email not found, skipping completion email notification. Patient data:", {
-        patientId: patient?._id,
-        patientEmail: patient?.email,
-        userId: patient?.userId
-      });
+      console.log(
+        "⚠️ Patient email not found, skipping completion email notification. Patient data:",
+        {
+          patientId: patient?._id,
+          patientEmail: patient?.email,
+          userId: patient?.userId,
+        }
+      );
       return;
     }
 
@@ -762,7 +835,7 @@ async function sendAppointmentCompletedEmail(appointment, patient, doctor) {
     // Format thời gian
     const scheduledStart = new Date(appointment.scheduledStart);
     const scheduledEnd = new Date(appointment.scheduledEnd);
-    
+
     const dateStr = scheduledStart.toLocaleDateString("vi-VN", {
       weekday: "long",
       year: "numeric",
@@ -777,8 +850,9 @@ async function sendAppointmentCompletedEmail(appointment, patient, doctor) {
       minute: "2-digit",
     })}`;
 
-    const modeText = appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
-    
+    const modeText =
+      appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
+
     // Lấy tên bác sĩ
     const doctorName = doctor?.fullName || doctor?.userId?.fullName || "Bác sĩ";
 
@@ -797,7 +871,11 @@ async function sendAppointmentCompletedEmail(appointment, patient, doctor) {
           <p style="margin: 8px 0;"><strong>Ngày khám:</strong> ${dateStr}</p>
           <p style="margin: 8px 0;"><strong>Giờ:</strong> ${timeStr}</p>
           <p style="margin: 8px 0;"><strong>Hình thức:</strong> ${modeText}</p>
-          ${appointment.reason ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>` : ""}
+          ${
+            appointment.reason
+              ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${appointment.reason}</p>`
+              : ""
+          }
         </div>
 
         <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
@@ -815,7 +893,9 @@ async function sendAppointmentCompletedEmail(appointment, patient, doctor) {
         </div>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${process.env.CLIENT_URL || "http://localhost:5173"}/benh-an" 
+          <a href="${
+            process.env.CLIENT_URL || "http://localhost:5173"
+          }/benh-an" 
              style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
             Xem hồ sơ bệnh án
           </a>
@@ -863,14 +943,19 @@ MedConnect
       html: htmlContent,
     });
 
-    console.log(`✅ Appointment completion email sent successfully to ${patientEmail}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId, response: emailResult?.response });
+    console.log(
+      `✅ Appointment completion email sent successfully to ${patientEmail}`
+    );
+    console.log(`📧 Email result:`, {
+      messageId: emailResult?.messageId,
+      response: emailResult?.response,
+    });
   } catch (error) {
     console.error("❌ Error sending appointment completion email:", error);
     console.error("❌ Error details:", {
       message: error?.message,
       stack: error?.stack,
-      status: error?.status
+      status: error?.status,
     });
     // Không throw error để không ảnh hưởng đến flow chính
   }
@@ -915,7 +1000,10 @@ export async function updateAppointmentStatus(req, res) {
       status,
       cancelReason,
     });
-    console.log("📧 Will send email if status is accepted or rejected:", status === "accepted" || status === "rejected");
+    console.log(
+      "📧 Will send email if status is accepted or rejected:",
+      status === "accepted" || status === "rejected"
+    );
 
     const doctor = await Doctor.findOne({ userId: user._id });
     if (!doctor) {
@@ -992,8 +1080,8 @@ export async function updateAppointmentStatus(req, res) {
         select: "fullName dob gender phone email userId",
         populate: {
           path: "userId",
-          select: "email fullName"
-        }
+          select: "email fullName",
+        },
       })
       .populate("slotId")
       .populate({
@@ -1001,13 +1089,15 @@ export async function updateAppointmentStatus(req, res) {
         select: "fullName",
         populate: {
           path: "userId",
-          select: "fullName email"
-        }
+          select: "fullName email",
+        },
       });
 
     // Send email notification when appointment is accepted, rejected, or done
     if (status === "accepted" || status === "rejected" || status === "done") {
-      console.log(`📧 Preparing to send ${status} email for appointment ${appointmentId}`);
+      console.log(
+        `📧 Preparing to send ${status} email for appointment ${appointmentId}`
+      );
       try {
         const populatedAppointment = await Appointment.findById(appointmentId)
           .populate({
@@ -1015,16 +1105,16 @@ export async function updateAppointmentStatus(req, res) {
             select: "fullName dob gender phone email userId",
             populate: {
               path: "userId",
-              select: "email fullName"
-            }
+              select: "email fullName",
+            },
           })
           .populate({
             path: "doctorId",
             select: "fullName",
             populate: {
               path: "userId",
-              select: "fullName email"
-            }
+              select: "fullName email",
+            },
           })
           .lean();
 
@@ -1032,7 +1122,7 @@ export async function updateAppointmentStatus(req, res) {
           hasPatientId: !!populatedAppointment?.patientId,
           patientEmail: populatedAppointment?.patientId?.email,
           userIdEmail: populatedAppointment?.patientId?.userId?.email,
-          patientName: populatedAppointment?.patientId?.fullName
+          patientName: populatedAppointment?.patientId?.fullName,
         });
 
         if (populatedAppointment?.patientId) {
@@ -1119,6 +1209,11 @@ export async function getAllDoctors(req, res) {
       limit = 10,
       verified,
       facility,
+      experience,
+      rating,
+      priceRange,
+      location,
+      availability,
     } = req.query;
 
     const skip = (page - 1) * limit;
@@ -1129,6 +1224,7 @@ export async function getAllDoctors(req, res) {
       filter.isVerified = verified === "true";
     }
 
+    // Filter by specialization
     if (specialization) {
       // Convert string to ObjectId for proper MongoDB query
       try {
@@ -1152,9 +1248,126 @@ export async function getAllDoctors(req, res) {
       }
     }
 
+    // Filter by search term
     if (search) {
       // Only search by doctor name, not bio
       filter.fullName = { $regex: search, $options: "i" };
+    }
+
+    // Filter by experience (yearsExperience)
+    if (experience) {
+      switch (experience) {
+        case "1-3":
+          filter.yearsExperience = { $gte: 1, $lt: 3 };
+          break;
+        case "3-5":
+          filter.yearsExperience = { $gte: 3, $lt: 5 };
+          break;
+        case "5-10":
+          filter.yearsExperience = { $gte: 5, $lt: 10 };
+          break;
+        case "10+":
+          filter.yearsExperience = { $gte: 10 };
+          break;
+      }
+    }
+
+    // Filter by rating (ratingAvg) - now supports ranges (e.g., "4.5-5.0")
+    if (rating) {
+      // Check if rating is a range (e.g., "4.5-5.0") or single value (e.g., "4.5+")
+      if (rating.includes("-")) {
+        // Range format: "4.5-5.0"
+        const [minRating, maxRating] = rating
+          .split("-")
+          .map((v) => parseFloat(v.trim()));
+        if (
+          !isNaN(minRating) &&
+          !isNaN(maxRating) &&
+          minRating >= 0 &&
+          maxRating <= 5 &&
+          minRating <= maxRating
+        ) {
+          // Filter doctors with ratingAvg in range [minRating, maxRating]
+          // Also ensure they have at least 1 review (ratingCount > 0)
+          filter.ratingAvg = { $gte: minRating, $lte: maxRating };
+          filter.ratingCount = { $gt: 0 }; // Only doctors with at least 1 review
+          console.log(
+            `Filtering by rating range: ${minRating} - ${maxRating}, ratingCount > 0`
+          );
+        } else {
+          console.log(`Invalid rating range: ${rating}`);
+        }
+      } else {
+        // Legacy format: "4.5+" (for backward compatibility)
+        const ratingValue = parseFloat(rating.replace("+", ""));
+        if (!isNaN(ratingValue) && ratingValue >= 0 && ratingValue <= 5) {
+          filter.ratingAvg = { $gte: ratingValue, $ne: null };
+          filter.ratingCount = { $gt: 0 };
+          console.log(
+            `Filtering by rating: >= ${ratingValue}, ratingCount > 0`
+          );
+        } else {
+          console.log(`Invalid rating value: ${rating}`);
+        }
+      }
+    }
+
+    // Filter by location (via Clinic name or address)
+    if (location) {
+      // Location now comes as lowercase with hyphens (e.g., "quan-1", "hai-chau")
+      // Convert back to proper format for searching
+      const locationFormats = [
+        // Original format: "quan-1" -> ["Quận 1", "Q1", etc.]
+        location
+          .split("-")
+          .map((part, index) => {
+            if (index === 0 && part === "quan") return "Quận";
+            return part.charAt(0).toUpperCase() + part.slice(1);
+          })
+          .join(" "),
+        // Also try direct match
+        location.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+        // Original location string
+        location,
+      ];
+
+      // Build regex pattern from all formats
+      const regexPattern = locationFormats
+        .map((fmt) => fmt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|");
+
+      // Find clinics by searching in both name and address fields
+      // Clinic names often contain location like "MedConnect Clinic Quận 1"
+      const clinics = await Clinic.find({
+        $or: [
+          // Search in clinic name (most common case)
+          { name: { $regex: regexPattern, $options: "i" } },
+          // Search in address field
+          { address: { $regex: regexPattern, $options: "i" } },
+          // Search for location field if it exists
+          { location: { $regex: regexPattern, $options: "i" } },
+        ],
+      }).select("_id");
+
+      const clinicIds = clinics.map((c) => c._id);
+      if (clinicIds.length > 0) {
+        filter.clinicDefaultId = { $in: clinicIds };
+        console.log(
+          `Found ${clinicIds.length} clinics for location: ${location}`
+        );
+      } else {
+        // Return empty results if no clinic found in this location
+        console.log(`No clinics found for location: ${location}`);
+        return ok(res, {
+          doctors: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
     }
 
     if (facility) {
@@ -1217,9 +1430,165 @@ export async function getAllDoctors(req, res) {
       }
     }
 
+    // Filter by price range (via DoctorRate)
+    let doctorIdsByPrice = null;
+    if (priceRange) {
+      let priceFilter = {};
+      switch (priceRange) {
+        case "0-300000":
+          priceFilter.price = { $gte: 0, $lte: 300000 };
+          break;
+        case "300000-500000":
+          priceFilter.price = { $gte: 300000, $lte: 500000 };
+          break;
+        case "500000-1000000":
+          priceFilter.price = { $gte: 500000, $lte: 1000000 };
+          break;
+        case "1000000+":
+          priceFilter.price = { $gte: 1000000 };
+          break;
+      }
+
+      // Get doctors with prices in this range (online mode)
+      const doctorRates = await DoctorRate.find({
+        ...priceFilter,
+        mode: "online",
+        isActive: true,
+      }).select("doctorId");
+      doctorIdsByPrice = doctorRates.map((dr) => dr.doctorId.toString());
+
+      if (doctorIdsByPrice.length === 0) {
+        // Return empty results if no doctors match price range
+        return ok(res, {
+          doctors: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+    }
+
+    // Filter by availability
+    let doctorIdsByAvailability = null;
+    if (availability) {
+      const now = new Date();
+      let startDate, endDate;
+
+      switch (availability) {
+        case "available-today": {
+          startDate = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          );
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 1);
+          break;
+        }
+        case "available-week": {
+          startDate = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          );
+          startDate.setHours(0, 0, 0, 0);
+          const dayOfWeek = now.getDay();
+          const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          startDate.setDate(startDate.getDate() - daysToMonday);
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 7);
+          break;
+        }
+        case "online": {
+          // Doctors with online mode in DoctorRate
+          const onlineRates = await DoctorRate.find({
+            mode: "online",
+            isActive: true,
+          }).select("doctorId");
+          doctorIdsByAvailability = onlineRates.map((dr) =>
+            dr.doctorId.toString()
+          );
+          break;
+        }
+      }
+
+      if (availability !== "online" && startDate && endDate) {
+        // Find doctors with available time slots in this range
+        const availableSlots = await DoctorTimeSlot.find({
+          startTime: { $gte: startDate, $lt: endDate },
+          isAvailable: true,
+        }).select("doctorId");
+        doctorIdsByAvailability = [
+          ...new Set(availableSlots.map((slot) => slot.doctorId.toString())),
+        ];
+      }
+
+      if (
+        doctorIdsByAvailability !== null &&
+        doctorIdsByAvailability.length === 0
+      ) {
+        // Return empty results if no doctors match availability
+        return ok(res, {
+          doctors: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+    }
+
+    // Combine filters - intersect doctor IDs if both filters are applied
+    if (doctorIdsByPrice !== null || doctorIdsByAvailability !== null) {
+      let combinedIds = null;
+
+      if (doctorIdsByPrice !== null && doctorIdsByAvailability !== null) {
+        // Both filters: intersect (both are already strings)
+        combinedIds = doctorIdsByAvailability.filter((id) =>
+          doctorIdsByPrice.includes(id)
+        );
+      } else if (doctorIdsByPrice !== null) {
+        // Only price filter (already strings)
+        combinedIds = doctorIdsByPrice;
+      } else if (doctorIdsByAvailability !== null) {
+        // Only availability filter (already strings)
+        combinedIds = doctorIdsByAvailability;
+      }
+
+      if (combinedIds !== null && combinedIds.length > 0) {
+        // Convert string IDs to ObjectIds for MongoDB query
+        const mongoose = await import("mongoose");
+        filter._id = {
+          $in: combinedIds.map((id) => new mongoose.default.Types.ObjectId(id)),
+        };
+      } else if (combinedIds !== null && combinedIds.length === 0) {
+        // No doctors match the combined filters
+        return ok(res, {
+          doctors: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+    }
+
     console.log("Doctor filter:", JSON.stringify(filter, null, 2)); // Debug log
     console.log("Specialization parameter:", specialization); // Debug log
     console.log("Facility parameter:", facility); // Debug log
+    console.log("Experience parameter:", experience); // Debug log
+    console.log("Rating parameter:", rating); // Debug log
+    console.log("PriceRange parameter:", priceRange); // Debug log
+    console.log("Location parameter:", location); // Debug log
+    console.log("Availability parameter:", availability); // Debug log
 
     const doctors = await Doctor.find(filter)
       .populate("userId", "fullName email phone")
@@ -1233,8 +1602,8 @@ export async function getAllDoctors(req, res) {
     const total = await Doctor.countDocuments(filter);
 
     // Filter out picsum.photos URLs from avatarUrl
-    const cleanedDoctors = doctors.map(doctor => {
-      if (doctor.avatarUrl && doctor.avatarUrl.includes('picsum.photos')) {
+    const cleanedDoctors = doctors.map((doctor) => {
+      if (doctor.avatarUrl && doctor.avatarUrl.includes("picsum.photos")) {
         doctor.avatarUrl = null;
       }
       return doctor;
@@ -1862,7 +2231,7 @@ export async function getDoctorReviews(req, res) {
       doctorId: doctor._id,
       doctorName: doctor.fullName,
       userId: user._id,
-      email: userEmail
+      email: userEmail,
     });
 
     const { page = 1, limit = 20, rating, sortBy = "newest" } = req.query;
@@ -1875,21 +2244,32 @@ export async function getDoctorReviews(req, res) {
     }
 
     console.log("🔍 getDoctorReviews - Filter:", JSON.stringify(filter));
-    console.log("🔍 getDoctorReviews - Review collection name:", Review.collection.name);
+    console.log(
+      "🔍 getDoctorReviews - Review collection name:",
+      Review.collection.name
+    );
 
     // Check if there are any reviews in the collection
     const allReviewsCount = await Review.countDocuments({});
-    console.log("🔍 getDoctorReviews - Total reviews in collection:", allReviewsCount);
+    console.log(
+      "🔍 getDoctorReviews - Total reviews in collection:",
+      allReviewsCount
+    );
 
     // Check reviews for this specific doctor
-    const reviewsForDoctor = await Review.find({ doctorId: doctor._id }).limit(5).lean();
-    console.log("🔍 getDoctorReviews - Sample reviews for this doctor:", reviewsForDoctor.length);
+    const reviewsForDoctor = await Review.find({ doctorId: doctor._id })
+      .limit(5)
+      .lean();
+    console.log(
+      "🔍 getDoctorReviews - Sample reviews for this doctor:",
+      reviewsForDoctor.length
+    );
     if (reviewsForDoctor.length > 0) {
       console.log("🔍 getDoctorReviews - Sample review:", {
         _id: reviewsForDoctor[0]._id,
         doctorId: reviewsForDoctor[0].doctorId,
         rating: reviewsForDoctor[0].rating,
-        comment: reviewsForDoctor[0].comment
+        comment: reviewsForDoctor[0].comment,
       });
     }
 
@@ -1925,7 +2305,7 @@ export async function getDoctorReviews(req, res) {
       reviewsFound: reviews.length,
       total,
       page: parseInt(page),
-      limit: parseInt(limit)
+      limit: parseInt(limit),
     });
 
     return ok(res, {
@@ -1949,13 +2329,13 @@ export async function getDoctorReviews(req, res) {
 export async function getPublicDoctorReviews(req, res) {
   try {
     const { doctorId } = req.params;
-    
+
     // If doctorId is "me", this should not be handled by public route
     // It should be handled by the protected /me/reviews route instead
     if (doctorId === "me") {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Invalid doctor ID");
     }
-    
+
     const { page = 1, limit = 10, search, rating, sort = "newest" } = req.query;
     const skip = (page - 1) * limit;
 
@@ -2420,22 +2800,32 @@ export async function getDoctorTimeSlots(req, res) {
       const Appointment = (await import("../models/appointment.model.js"))
         .default;
       const Patient = (await import("../models/patient.model.js")).default;
+      const LeaveRequest = (await import("../models/leaveRequest.model.js"))
+        .default;
 
       // Get slot IDs to fetch appointments
       const slotIds = timeSlots.map((slot) => slot._id);
 
+      // Fetch leave requests for these slots
+      const leaveRequests = await LeaveRequest.find({
+        slotId: { $in: slotIds },
+        status: "pending",
+      }).lean();
+
+      // Create a map of slotId -> leave request
+      const leaveRequestMap = {};
+      leaveRequests.forEach((leaveRequest) => {
+        const slotIdKey = leaveRequest.slotId.toString();
+        leaveRequestMap[slotIdKey] = leaveRequest;
+      });
+
       // Fetch appointments for these slots
-      // Exclude rescheduled appointments (they are replaced by new appointments)
-      // Only exclude if status is "rescheduled" AND has rescheduledToId
+      // Exclude ALL rescheduled appointments (they are replaced by new appointments)
+      // A rescheduled appointment means the old appointment is no longer active
       const appointments = await Appointment.find({
         slotId: { $in: slotIds },
-        // Filter out appointments that are rescheduled AND have been replaced
-        $nor: [
-          {
-            status: "rescheduled",
-            rescheduledToId: { $exists: true, $ne: null },
-          },
-        ],
+        // Filter out ALL appointments with status "rescheduled" - they should not appear in the schedule
+        status: { $ne: "rescheduled" },
       })
         .populate({
           path: "patientId",
@@ -2485,6 +2875,9 @@ export async function getDoctorTimeSlots(req, res) {
           reason: appointment.reason || null,
           appointmentStatus: appointment.status || "booked", // Include appointment status
           mode: appointment.mode || "offline", // Include mode (online/offline)
+          rescheduledFromId: appointment.rescheduledFromId
+            ? appointment.rescheduledFromId.toString()
+            : null, // Include rescheduledFromId to identify rescheduled appointments
         };
       });
 
@@ -2524,6 +2917,13 @@ export async function getDoctorTimeSlots(req, res) {
           };
           displayStatus =
             statusMap[appointment.appointmentStatus] || slot.status;
+        } else {
+          // No appointment found for this slot
+          // If slot status is "booked" but no appointment exists (e.g., rescheduled appointment was removed),
+          // treat it as "available" so it appears empty
+          if (slot.status === "booked") {
+            displayStatus = "available";
+          }
         }
 
         console.log("🔍 Serializing slot:", {
@@ -2535,6 +2935,8 @@ export async function getDoctorTimeSlots(req, res) {
           appointmentId: appointment?.appointmentId || "null",
           fullAppointment: appointment,
         });
+
+        const pendingLeaveRequest = leaveRequestMap[slotIdStr];
 
         return {
           ...slot,
@@ -2548,6 +2950,10 @@ export async function getDoctorTimeSlots(req, res) {
           reason: appointment?.reason || null,
           mode: appointment?.mode || null,
           appointmentId: appointment?.appointmentId || null, // Add appointmentId to slot - FROM appointmentMap
+          rescheduledFromId: appointment?.rescheduledFromId || null, // Flag to identify rescheduled appointments
+          leaveReason: slot.leaveReason || null, // Lý do nghỉ
+          hasPendingLeaveRequest: !!pendingLeaveRequest, // Flag để biết có leave request đang pending
+          leaveRequestId: pendingLeaveRequest?._id?.toString() || null,
         };
       });
 
@@ -2577,6 +2983,87 @@ export async function getDoctorTimeSlots(req, res) {
     }
   } catch (e) {
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
+  }
+}
+
+/**
+ * Delete a time slot
+ */
+export async function deleteTimeSlot(req, res) {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const { slotId } = req.params;
+    if (!slotId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Slot ID is required");
+    }
+
+    // Find the slot and verify it belongs to this doctor
+    const slot = await DoctorTimeSlot.findOne({
+      _id: slotId,
+      doctorId: doctor._id,
+    });
+
+    if (!slot) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Time slot not found or does not belong to you"
+      );
+    }
+
+    // Check if slot has active appointment
+    const appointment = await Appointment.findOne({
+      slotId: slot._id,
+      status: {
+        $nin: ["cancelled", "rejected", "no_show", "rescheduled"],
+      },
+    });
+
+    if (appointment) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Cannot delete slot with active appointment"
+      );
+    }
+
+    // Delete the slot
+    await DoctorTimeSlot.findByIdAndDelete(slotId);
+    console.log(`✅ Deleted time slot ${slotId} for doctor ${doctor.fullName}`);
+
+    return ok(res, {
+      message: "Time slot deleted successfully",
+      deletedSlotId: slotId,
+    });
+  } catch (error) {
+    console.error("❌ deleteTimeSlot error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
   }
 }
 
@@ -2636,7 +3123,7 @@ export async function autoGenerateTimeSlots(req, res) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const endDate = new Date(today);
-    endDate.setDate(today.getDate() + 14);
+    endDate.setMonth(today.getMonth() + 1); // 1 month instead of 14 days
     endDate.setHours(23, 59, 59, 999);
 
     console.log("🔍 Creating slots from:", today.toISOString().split("T")[0]);
@@ -2645,10 +3132,38 @@ export async function autoGenerateTimeSlots(req, res) {
       endDate.toISOString().split("T")[0]
     );
 
+    // Check how many future slots already exist
+    const existingFutureSlots = await DoctorTimeSlot.countDocuments({
+      doctorId: doctor._id,
+      startAt: { $gte: today },
+    });
+
+    console.log(`📊 Existing future slots: ${existingFutureSlots}`);
+
+    // Only create slots if we have less than 100 future slots
+    // This prevents creating slots too frequently
+    if (existingFutureSlots >= 100) {
+      console.log(
+        `⏭️ Skipping slot generation - already have ${existingFutureSlots} future slots (>= 100)`
+      );
+      return ok(res, {
+        message: `No new slots created. You already have ${existingFutureSlots} future slots.`,
+        createdSlots: 0,
+        skippedSlots: 0,
+        existingSlots: existingFutureSlots,
+        note: "Slots are only auto-generated when you have less than 100 future slots.",
+      });
+    }
+
     const createdSlots = [];
     const skippedSlots = [];
 
-    for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
+    // Calculate number of days in the month
+    const daysInMonth = Math.ceil(
+      (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    for (let dayOffset = 0; dayOffset < daysInMonth; dayOffset++) {
       const currentDate = new Date(today);
       currentDate.setDate(today.getDate() + dayOffset);
       const weekday = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
@@ -2743,10 +3258,17 @@ export async function autoGenerateTimeSlots(req, res) {
     );
     console.log(`📊 Actual created: ${createdSlots.length} slots`);
 
+    // Count total future slots after creation
+    const totalFutureSlots = await DoctorTimeSlot.countDocuments({
+      doctorId: doctor._id,
+      startAt: { $gte: today },
+    });
+
     return ok(res, {
-      message: `Generated ${createdSlots.length} new time slots for doctor ${doctor.fullName} based on schedule rules (next 14 days)`,
+      message: `Generated ${createdSlots.length} new time slots for doctor ${doctor.fullName} based on schedule rules (next month)`,
       createdSlots: createdSlots.length,
       skippedSlots: skippedSlots.length,
+      totalFutureSlots: totalFutureSlots, // Total future slots after creation
       dateRange: {
         startDate: today.toISOString().split("T")[0],
         endDate: endDate.toISOString().split("T")[0],
@@ -2757,7 +3279,7 @@ export async function autoGenerateTimeSlots(req, res) {
         skipped: skippedSlots.slice(0, 5), // Show first 5 as sample
       },
     });
-    } catch (error) {
+  } catch (error) {
     console.error("❌ autoGenerateTimeSlots error:", error);
     return fail(
       res,
@@ -2776,7 +3298,12 @@ export async function createAppointmentByDoctor(req, res) {
     console.log("🔍 createAppointmentByDoctor - req.user:", req.user);
     const userEmail = req.user?.email;
     if (!userEmail) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "User email not found in token");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
     }
 
     const user = await User.findOne({ email: userEmail }).lean();
@@ -2789,14 +3316,39 @@ export async function createAppointmentByDoctor(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
-    const { slotId, patientName, patientPhone, reason, mode, scheduledStart, scheduledEnd } = req.body;
+    const {
+      slotId,
+      patientName,
+      patientPhone,
+      reason,
+      mode,
+      scheduledStart,
+      scheduledEnd,
+    } = req.body;
 
-    if (!patientName || !patientPhone || !reason || !mode || !scheduledStart || !scheduledEnd) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Missing required fields");
+    if (
+      !patientName ||
+      !patientPhone ||
+      !reason ||
+      !mode ||
+      !scheduledStart ||
+      !scheduledEnd
+    ) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Missing required fields"
+      );
     }
 
     if (!["online", "offline"].includes(mode)) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Mode must be 'online' or 'offline'");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Mode must be 'online' or 'offline'"
+      );
     }
 
     // Tìm hoặc tạo time slot
@@ -2808,25 +3360,30 @@ export async function createAppointmentByDoctor(req, res) {
         return fail(res, 404, ERROR_CODES.NOT_FOUND, "Time slot not found");
       }
       if (timeSlot.doctorId.toString() !== doctor._id.toString()) {
-        return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Time slot does not belong to this doctor");
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Time slot does not belong to this doctor"
+        );
       }
     } else {
       // Nếu không có slotId, tìm slot theo thời gian hoặc tạo mới
       const startAt = new Date(scheduledStart);
       const endAt = new Date(scheduledEnd);
-      
+
       // Tìm slot với khoảng thời gian gần (trong vòng 1 phút để tránh lỗi do timezone)
       const oneMinute = 60 * 1000;
       timeSlot = await DoctorTimeSlot.findOne({
         doctorId: doctor._id,
         startAt: {
           $gte: new Date(startAt.getTime() - oneMinute),
-          $lte: new Date(startAt.getTime() + oneMinute)
+          $lte: new Date(startAt.getTime() + oneMinute),
         },
         endAt: {
           $gte: new Date(endAt.getTime() - oneMinute),
-          $lte: new Date(endAt.getTime() + oneMinute)
-        }
+          $lte: new Date(endAt.getTime() + oneMinute),
+        },
       });
 
       if (!timeSlot) {
@@ -2835,7 +3392,7 @@ export async function createAppointmentByDoctor(req, res) {
           doctorId: doctor._id,
           startAt: startAt,
           endAt: endAt,
-          status: "available"
+          status: "available",
         });
         console.log("✅ Created new time slot:", timeSlot._id);
       }
@@ -2843,19 +3400,19 @@ export async function createAppointmentByDoctor(req, res) {
 
     // Find or create patient by phone number
     let patient = await Patient.findOne({ phone: patientPhone });
-    
+
     if (!patient) {
       // Tìm User có số điện thoại này
       let patientUser = await User.findOne({ phone: patientPhone });
-      
+
       if (!patientUser) {
         // Tạo User mới cho bệnh nhân
         patientUser = new User({
           email: `${patientPhone}@temp.medconnect.com`, // Temporary email
           fullName: patientName,
           phone: patientPhone,
-          role: 'patient',
-          authProvider: 'phone',
+          role: "patient",
+          authProvider: "phone",
         });
         await patientUser.save();
         console.log("✅ Created new user for patient:", patientUser._id);
@@ -2879,12 +3436,17 @@ export async function createAppointmentByDoctor(req, res) {
     }
 
     // Check if slot is already booked (chỉ check các appointment còn active)
-    const existingAppointment = await Appointment.findOne({ 
+    const existingAppointment = await Appointment.findOne({
       slotId: timeSlot._id,
-      status: { $nin: ["cancelled", "rejected", "no_show"] }
+      status: { $nin: ["cancelled", "rejected", "no_show"] },
     });
     if (existingAppointment) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Time slot has already been booked");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Time slot has already been booked"
+      );
     }
 
     // Create appointment with accepted status (doctor booked, no approval needed)
@@ -2893,7 +3455,7 @@ export async function createAppointmentByDoctor(req, res) {
       doctorId: doctor._id,
       slotId: timeSlot._id,
       mode: mode,
-      clinicId: mode === "offline" ? (req.body.clinicId || null) : undefined,
+      clinicId: mode === "offline" ? req.body.clinicId || null : undefined,
       scheduledStart: new Date(scheduledStart),
       scheduledEnd: new Date(scheduledEnd),
       status: "accepted", // Bác sĩ đặt nên không cần chờ duyệt
@@ -2921,7 +3483,7 @@ export async function createAppointmentByDoctor(req, res) {
     });
   } catch (error) {
     console.error("❌ createAppointmentByDoctor error:", error);
-    
+
     // Handle duplicate slot booking error
     if (error.code === 11000) {
       return fail(
@@ -2932,7 +3494,12 @@ export async function createAppointmentByDoctor(req, res) {
       );
     }
 
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message || String(error));
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
   }
 }
 
@@ -3365,24 +3932,357 @@ export async function updateDoctorScheduleRules(req, res) {
 /**
  * Create default schedule rules for a doctor
  */
+/**
+ * Block a single slot by slotId
+ */
+export async function blockSingleSlot(req, res) {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const { slotId } = req.params;
+    const { reason } = req.body || {};
+
+    if (!slotId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Slot ID is required");
+    }
+
+    // Find the specific slot
+    const slot = await DoctorTimeSlot.findOne({
+      _id: slotId,
+      doctorId: doctor._id,
+    });
+
+    if (!slot) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Time slot not found or does not belong to you"
+      );
+    }
+
+    // Check if slot has active appointments
+    const activeAppointments = await Appointment.find({
+      slotId: slot._id,
+      status: {
+        $nin: ["cancelled", "rejected", "no_show", "rescheduled"],
+      },
+    }).select("slotId status");
+
+    if (activeAppointments.length > 0) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Cannot block slot with active appointment. Please cancel the appointment first."
+      );
+    }
+
+    // Block the slot
+    slot.status = "blocked";
+    slot.leaveReason = reason || "";
+    await slot.save();
+
+    console.log(
+      `✅ Blocked single slot ${slotId} for doctor ${doctor.fullName} at ${slot.startAt}`
+    );
+    if (reason) {
+      console.log(`Reason: ${reason}`);
+    }
+
+    return ok(res, {
+      message: "Slot blocked successfully",
+      blockedSlotId: slotId,
+      slot: {
+        id: slot._id,
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        status: slot.status,
+      },
+    });
+  } catch (error) {
+    console.error("❌ blockSingleSlot error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Block/unblock slots by date range for leave requests
+ */
+export async function blockSlotsByDateRange(req, res) {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const { startDate, endDate, reason } = req.body;
+
+    if (!startDate || !endDate) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Start date and end date are required"
+      );
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    if (start > end) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Start date must be before end date"
+      );
+    }
+
+    // Find all slots in the date range for this doctor
+    const slotsToBlock = await DoctorTimeSlot.find({
+      doctorId: doctor._id,
+      startAt: { $gte: start, $lte: end },
+    });
+
+    if (slotsToBlock.length === 0) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "No slots found in the specified date range"
+      );
+    }
+
+    // Check if any slots have active appointments
+    const slotIds = slotsToBlock.map((slot) => slot._id);
+    const activeAppointments = await Appointment.find({
+      slotId: { $in: slotIds },
+      status: {
+        $nin: ["cancelled", "rejected", "no_show", "rescheduled"],
+      },
+    }).select("slotId status");
+
+    if (activeAppointments.length > 0) {
+      const blockedSlotIds = activeAppointments.map((apt) =>
+        apt.slotId.toString()
+      );
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        `Cannot block ${activeAppointments.length} slot(s) with active appointments. Please cancel those appointments first.`
+      );
+    }
+
+    // Block all slots in the date range
+    const updateResult = await DoctorTimeSlot.updateMany(
+      {
+        _id: { $in: slotIds },
+      },
+      {
+        $set: { status: "blocked" },
+      }
+    );
+
+    console.log(
+      `✅ Blocked ${updateResult.modifiedCount} slots for doctor ${doctor.fullName} from ${startDate} to ${endDate}`
+    );
+    if (reason) {
+      console.log(`Reason: ${reason}`);
+    }
+
+    return ok(res, {
+      message: `Successfully blocked ${updateResult.modifiedCount} slots`,
+      blockedSlots: updateResult.modifiedCount,
+      dateRange: {
+        startDate: startDate,
+        endDate: endDate,
+      },
+      reason: reason || null,
+    });
+  } catch (error) {
+    console.error("❌ blockSlotsByDateRange error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Unblock slots by date range
+ */
+export async function unblockSlotsByDateRange(req, res) {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found by email");
+    }
+
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    const { startDate, endDate } = req.body;
+
+    if (!startDate || !endDate) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Start date and end date are required"
+      );
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    if (start > end) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Start date must be before end date"
+      );
+    }
+
+    // Find all blocked slots in the date range for this doctor
+    const slotsToUnblock = await DoctorTimeSlot.find({
+      doctorId: doctor._id,
+      startAt: { $gte: start, $lte: end },
+      status: "blocked",
+    });
+
+    if (slotsToUnblock.length === 0) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "No blocked slots found in the specified date range"
+      );
+    }
+
+    // Unblock all slots in the date range
+    const updateResult = await DoctorTimeSlot.updateMany(
+      {
+        doctorId: doctor._id,
+        startAt: { $gte: start, $lte: end },
+        status: "blocked",
+      },
+      {
+        $set: { status: "available" },
+      }
+    );
+
+    console.log(
+      `✅ Unblocked ${updateResult.modifiedCount} slots for doctor ${doctor.fullName} from ${startDate} to ${endDate}`
+    );
+
+    return ok(res, {
+      message: `Successfully unblocked ${updateResult.modifiedCount} slots`,
+      unblockedSlots: updateResult.modifiedCount,
+      dateRange: {
+        startDate: startDate,
+        endDate: endDate,
+      },
+    });
+  } catch (error) {
+    console.error("❌ unblockSlotsByDateRange error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
 async function createDefaultScheduleRules(doctorId) {
   try {
-    // Check if rules already exist
+    // Check which weekday rules already exist
     const existingRules = await DoctorScheduleRule.find({
       doctorId: doctorId,
       isActive: true,
     });
 
-    if (existingRules.length > 0) {
-      console.log("Schedule rules already exist for doctor:", doctorId);
-      return;
-    }
+    // Get existing weekdays
+    const existingWeekdays = new Set(existingRules.map((rule) => rule.weekday));
 
-    // Create default schedule rules for weekdays (Monday to Friday)
+    console.log(
+      `Existing weekdays for doctor ${doctorId}:`,
+      Array.from(existingWeekdays)
+    );
+
+    // Create default schedule rules for missing weekdays (Monday to Sunday)
     const defaultRules = [];
 
-    for (let weekday = 1; weekday <= 5; weekday++) {
-      // Monday to Friday
+    // Check all weekdays: 0 (Sunday), 1 (Monday), 2 (Tuesday), 3 (Wednesday), 4 (Thursday), 5 (Friday), 6 (Saturday)
+    const allWeekdays = [0, 1, 2, 3, 4, 5, 6];
+
+    for (const weekday of allWeekdays) {
+      // Skip if rule already exists for this weekday
+      if (existingWeekdays.has(weekday)) {
+        console.log(`Rule for weekday ${weekday} already exists, skipping...`);
+        continue;
+      }
+
+      // Create rule for this weekday
       const rule = {
         doctorId: doctorId,
         weekday: weekday,
@@ -3404,8 +4304,20 @@ async function createDefaultScheduleRules(doctorId) {
       defaultRules.push(rule);
     }
 
-    await DoctorScheduleRule.insertMany(defaultRules);
-    console.log(`Created default schedule rules for doctor ${doctorId}`);
+    if (defaultRules.length > 0) {
+      await DoctorScheduleRule.insertMany(defaultRules);
+      console.log(
+        `Created ${
+          defaultRules.length
+        } default schedule rules for doctor ${doctorId} (missing weekdays: ${defaultRules
+          .map((r) => r.weekday)
+          .join(", ")})`
+      );
+    } else {
+      console.log(
+        `All schedule rules already exist for doctor ${doctorId} (all 7 days)`
+      );
+    }
   } catch (error) {
     console.error("Error creating default schedule rules:", error);
     throw error;

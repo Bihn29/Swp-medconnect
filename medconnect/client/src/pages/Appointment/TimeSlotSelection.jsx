@@ -19,6 +19,7 @@ import {
   Tag,
   Rate,
   Checkbox,
+  Modal,
 } from "antd";
 import {
   CalendarOutlined,
@@ -31,9 +32,11 @@ import {
   CheckCircleOutlined,
   HomeOutlined,
   ShareAltOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../components/Breadcrumb/NavigationBreadcrumb";
 import { api } from "../../lib/api";
+import { useUserProfile } from "../../hooks/useUserProfile";
 import "./TimeSlotSelection.css";
 
 const { Title, Text, Paragraph } = Typography;
@@ -60,6 +63,11 @@ const TimeSlotSelection = () => {
   const [selectedFamilyMember, setSelectedFamilyMember] = useState(null);
   const [loadingFamilyMembers, setLoadingFamilyMembers] = useState(false);
   const [currentTime, setCurrentTime] = useState(dayjs()); // Track current time for real-time filtering
+  const [pendingAppointmentId, setPendingAppointmentId] = useState(null); // Track appointment chưa thanh toán
+  const [pendingOrderCode, setPendingOrderCode] = useState(null); // Track orderCode để cleanup
+
+  // Get user profile to validate required fields
+  const { userProfile } = useUserProfile();
 
   useEffect(() => {
     if (location.state?.doctor) {
@@ -111,6 +119,169 @@ const TimeSlotSelection = () => {
       setCurrentTime(dayjs());
     }
   }, [selectedDate]);
+
+  // Cleanup unpaid appointment khi user thoát trang
+  useEffect(() => {
+    const handleBeforeUnload = async (e) => {
+      // Chỉ cleanup nếu có appointment chưa thanh toán
+      if (pendingAppointmentId && pendingOrderCode) {
+        // Sử dụng sendBeacon để gửi request ngay cả khi trang đang đóng
+        const cleanupData = {
+          appointmentId: pendingAppointmentId,
+          orderCode: pendingOrderCode,
+        };
+        
+        // Gửi cleanup request (sử dụng navigator.sendBeacon nếu có thể)
+        if (navigator.sendBeacon) {
+          const blob = new Blob([JSON.stringify(cleanupData)], {
+            type: "application/json",
+          });
+          navigator.sendBeacon(
+            `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/payments/payos/cancel/${pendingOrderCode}`,
+            blob
+          );
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Cleanup khi component unmount
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      
+      // Cleanup unpaid appointment nếu user rời trang
+      if (pendingAppointmentId && pendingOrderCode) {
+        cleanupUnpaidAppointment(pendingAppointmentId, pendingOrderCode);
+      }
+    };
+  }, [pendingAppointmentId, pendingOrderCode]);
+
+  // Hàm cleanup appointment chưa thanh toán
+  const cleanupUnpaidAppointment = async (appointmentId, orderCode) => {
+    try {
+      const { cancelPayOSPayment } = await import("../../services/payService");
+      
+      // Cancel payment link (này sẽ tự động xóa appointment nếu chưa thanh toán)
+      await cancelPayOSPayment(orderCode);
+      console.log("✅ Cleaned up unpaid appointment:", appointmentId);
+      
+      // Clear state và localStorage sau khi cleanup thành công
+      setPendingAppointmentId(null);
+      setPendingOrderCode(null);
+      localStorage.removeItem("pendingAppointmentId");
+      localStorage.removeItem("pendingOrderCode");
+    } catch (error) {
+      console.error("❌ Error cleaning up unpaid appointment:", error);
+      // Fallback: try to cancel appointment directly nếu cancel payment fail
+      try {
+        await api.put(`/api/patients/me/appointments/${appointmentId}/cancel`, {
+          cancelReason: "Người dùng thoát trang trước khi thanh toán",
+        });
+        console.log("✅ Fallback: Cancelled appointment directly");
+        
+        // Clear state và localStorage sau khi cleanup thành công
+        setPendingAppointmentId(null);
+        setPendingOrderCode(null);
+        localStorage.removeItem("pendingAppointmentId");
+        localStorage.removeItem("pendingOrderCode");
+      } catch (cancelError) {
+        console.error("❌ Error cancelling appointment:", cancelError);
+      }
+    }
+  };
+
+  // Kiểm tra khi component mount xem có appointment chưa thanh toán từ session trước không
+  useEffect(() => {
+    const checkPendingAppointment = async () => {
+      // Nếu có pending appointment từ localStorage (từ session trước)
+      const savedPendingAppointment = localStorage.getItem("pendingAppointmentId");
+      const savedPendingOrderCode = localStorage.getItem("pendingOrderCode");
+      
+      if (savedPendingAppointment && savedPendingOrderCode) {
+        // Kiểm tra xem appointment đã thanh toán chưa
+        try {
+          const appointmentResponse = await api.get(
+            `/api/patients/me/appointments/${savedPendingAppointment}`
+          );
+          
+          if (appointmentResponse.success) {
+            const appointment = appointmentResponse.data;
+            // Nếu chưa thanh toán, cleanup
+            if (appointment.paymentStatus === "unpaid" && !appointment.paymentId) {
+              await cleanupUnpaidAppointment(savedPendingAppointment, savedPendingOrderCode);
+            } else {
+              // Đã thanh toán rồi, clear localStorage
+              localStorage.removeItem("pendingAppointmentId");
+              localStorage.removeItem("pendingOrderCode");
+            }
+          }
+        } catch (error) {
+          console.error("Error checking pending appointment:", error);
+          // Nếu không kiểm tra được, clear localStorage
+          localStorage.removeItem("pendingAppointmentId");
+          localStorage.removeItem("pendingOrderCode");
+        }
+      }
+
+      // Kiểm tra tất cả appointments chưa thanh toán của user
+      // Nếu có appointment nào chưa thanh toán với slotId hiện tại → cleanup
+      try {
+        const allAppointmentsResponse = await api.get("/api/patients/me/appointments?limit=100");
+        if (allAppointmentsResponse.success) {
+          const appointments = allAppointmentsResponse.data.appointments || [];
+          
+          // Tìm appointments chưa thanh toán (unpaid và không có paymentId)
+          const unpaidAppointments = appointments.filter(
+            (apt) => 
+              apt.paymentStatus === "unpaid" && 
+              !apt.paymentId &&
+              apt.status !== "cancelled" &&
+              apt.pendingOrderCode // Chỉ cleanup những appointment đã tạo payment link
+          );
+
+          // Cleanup từng appointment chưa thanh toán
+          let cleanedCount = 0;
+          for (const apt of unpaidAppointments) {
+            if (apt.pendingOrderCode) {
+              console.log(`🧹 Cleaning up unpaid appointment: ${apt._id}`);
+              await cleanupUnpaidAppointment(apt._id, apt.pendingOrderCode);
+              cleanedCount++;
+            }
+          }
+
+          // Nếu đã cleanup appointments, refresh time slots và reset form để user có thể đặt lịch mới
+          if (cleanedCount > 0) {
+            console.log(`🔄 Refreshing time slots after cleaning up ${cleanedCount} unpaid appointment(s)`);
+            
+            // Thông báo cho user
+            message.info(
+              `Đã tự động hủy ${cleanedCount} lịch hẹn chưa thanh toán. Bạn có thể đặt lịch mới.`,
+              4
+            );
+            
+            // Reset form state
+            setSelectedTimeSlot(null);
+            setShowBookingForm(false);
+            form.resetFields();
+            
+            // Refresh time slots nếu có selectedDate
+            if (selectedDate && doctor) {
+              // Delay một chút để đảm bảo database đã cập nhật
+              setTimeout(() => {
+                fetchTimeSlots();
+              }, 500);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error checking all unpaid appointments:", error);
+      }
+    };
+
+    checkPendingAppointment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchTimeSlots = async () => {
     try {
@@ -201,9 +372,77 @@ const TimeSlotSelection = () => {
     });
   };
 
+  // Validate profile fields when booking for "me"
+  const validateProfileComplete = () => {
+    const requiredFields = [
+      { key: "fullName", label: "Họ và tên" },
+      { key: "phone", label: "Số điện thoại" },
+      { key: "gender", label: "Giới tính" },
+      { key: "dob", label: "Ngày sinh" },
+      { key: "address", label: "Địa chỉ" },
+      // Check both citizenId and nationalId (depending on which field backend uses)
+      {
+        key: "citizenId",
+        label: "Số CCCD/CMND",
+        alternativeKey: "nationalId",
+      },
+    ];
+
+    const missingFields = [];
+
+    requiredFields.forEach(({ key, label, alternativeKey }) => {
+      const value = userProfile?.[key];
+      const altValue = alternativeKey ? userProfile?.[alternativeKey] : null;
+
+      // Field is valid if it has a value (either from main key or alternative key)
+      const hasValue = value || altValue;
+      const isValidValue =
+        hasValue && typeof hasValue === "string" && hasValue.trim() !== "";
+
+      if (!isValidValue) {
+        missingFields.push(label);
+      }
+    });
+
+    return {
+      isValid: missingFields.length === 0,
+      missingFields,
+    };
+  };
+
   const handleBookingSubmit = async (values) => {
     try {
       setLoading(true);
+
+      // Validate profile if booking for "me"
+      if (bookingFor === "me") {
+        const validation = validateProfileComplete();
+        if (!validation.isValid) {
+          Modal.confirm({
+            title: "Thông tin hồ sơ chưa đầy đủ",
+            icon: <ExclamationCircleOutlined />,
+            content: (
+              <div>
+                <p>
+                  Vui lòng cập nhật đầy đủ thông tin hồ sơ trước khi đặt lịch:
+                </p>
+                <ul style={{ marginTop: 8, marginBottom: 0 }}>
+                  {validation.missingFields.map((field) => (
+                    <li key={field}>{field}</li>
+                  ))}
+                </ul>
+              </div>
+            ),
+            okText: "Đi đến trang cài đặt",
+            cancelText: "Hủy",
+            onOk: () => {
+              navigate("/benh-nhan/cai-dat");
+            },
+          });
+          setLoading(false);
+          return;
+        }
+      }
 
       let patientIdForBooking = null;
 
@@ -298,6 +537,16 @@ const TimeSlotSelection = () => {
           });
 
           if (paymentResponse.success && paymentResponse.data.payUrl) {
+            // Lưu appointmentId và orderCode để cleanup nếu user thoát trang
+            if (paymentResponse.data.orderCode) {
+              setPendingAppointmentId(appointment._id);
+              setPendingOrderCode(paymentResponse.data.orderCode);
+              
+              // Lưu vào localStorage để có thể cleanup nếu user đóng tab và mở lại
+              localStorage.setItem("pendingAppointmentId", appointment._id);
+              localStorage.setItem("pendingOrderCode", paymentResponse.data.orderCode.toString());
+            }
+
             message.success("Đang chuyển đến trang thanh toán...");
 
             // Redirect to PayOS payment page
@@ -543,35 +792,63 @@ const TimeSlotSelection = () => {
                     </div>
                   ) : (
                     <div className="time-slots-grid">
-                      {timeSlots
-                        .filter((slot) => {
-                          // Lọc bỏ các slot đã qua giờ theo thời gian thực - các slot này sẽ biến mất
-                          const isPassed = isSlotPassed(slot);
-                          if (isPassed) return false;
+                      {timeSlots.map((slot) => {
+                        // Kiểm tra slot đã qua giờ
+                        const isPassed = isSlotPassed(slot);
+                        // Kiểm tra slot không available (đã có appointment hoặc bị blocked)
+                        const isUnavailable = !slot.available;
+                        // Kiểm tra slot bị blocked (bác sĩ nghỉ)
+                        const isBlocked =
+                          slot.isBlocked || slot.status === "blocked";
+                        // Slot bị disable nếu đã qua giờ, không available, hoặc bị blocked
+                        const isDisabled =
+                          isPassed || isUnavailable || isBlocked;
 
-                          // Ẩn hoàn toàn các slot không available (đã có appointment: pending_doctor, accepted, in_progress, done)
-                          // Thay vì chỉ disable, chúng ta sẽ ẩn hoàn toàn
-                          if (!slot.available) return false;
+                        // Tạo tooltip text để giải thích tại sao slot bị disable
+                        let disabledReason = "";
+                        if (isBlocked) {
+                          disabledReason = slot.leaveReason
+                            ? `Bác sĩ nghỉ: ${slot.leaveReason}`
+                            : "Bác sĩ nghỉ";
+                        } else if (isPassed) {
+                          disabledReason = "Khung giờ này đã qua";
+                        } else if (isUnavailable && slot.appointmentStatus) {
+                          // Hiển thị status cụ thể của appointment
+                          const statusMap = {
+                            pending_doctor: "Đang chờ bác sĩ xác nhận",
+                            accepted: "Đã được chấp nhận",
+                            in_progress: "Đang trong quá trình khám",
+                            done: "Đã hoàn thành",
+                          };
+                          disabledReason =
+                            statusMap[slot.appointmentStatus] ||
+                            "Khung giờ này đã được đặt";
+                        } else if (isUnavailable) {
+                          disabledReason = "Khung giờ này đã được đặt";
+                        }
 
-                          return true;
-                        })
-                        .map((slot) => {
-                          return (
-                            <Button
-                              key={slot._id}
-                              type={
-                                selectedTimeSlot?._id === slot._id
-                                  ? "primary"
-                                  : "default"
+                        return (
+                          <Button
+                            key={slot._id}
+                            type={
+                              selectedTimeSlot?._id === slot._id
+                                ? "primary"
+                                : "default"
+                            }
+                            onClick={() => {
+                              if (!isDisabled) {
+                                handleTimeSlotSelect(slot);
                               }
-                              onClick={() => handleTimeSlotSelect(slot)}
-                              className="time-slot-button"
-                              size="large"
-                            >
-                              {slot.timeRange}
-                            </Button>
-                          );
-                        })}
+                            }}
+                            className="time-slot-button"
+                            size="large"
+                            disabled={isDisabled}
+                            title={disabledReason}
+                          >
+                            {slot.timeRange}
+                          </Button>
+                        );
+                      })}
                     </div>
                   )}
                 </Card>

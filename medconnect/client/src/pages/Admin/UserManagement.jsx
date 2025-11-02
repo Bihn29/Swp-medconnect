@@ -1,5 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Input, Select, Avatar, Tag, Button, Space, Dropdown, Spin, Alert, Modal, Form, message, Descriptions, Divider } from 'antd';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Card,
+  Input,
+  Select,
+  Avatar,
+  Tag,
+  Button,
+  Space,
+  Dropdown,
+  Spin,
+  Alert,
+  Modal,
+  Form,
+  message,
+  Descriptions,
+  Divider,
+} from "antd";
 import {
   SearchOutlined,
   MoreOutlined,
@@ -10,15 +26,25 @@ import {
   LockOutlined,
   MailOutlined,
   PhoneOutlined,
-  IdcardOutlined
-} from '@ant-design/icons';
-import { getAdminUsers, suspendUser, activateUser, deleteUser, getUserDetails, updateUser, changeUserPassword } from '../../lib/api';
-import './UserManagement.scss';
+  IdcardOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
+import {
+  getAdminUsers,
+  suspendUser,
+  activateUser,
+  deleteUser,
+  getUserDetails,
+  updateUser,
+  changeUserPassword,
+  createUser,
+} from "../../lib/api";
+import "./UserManagement.scss";
 
 const UserManagement = () => {
-  const [searchText, setSearchText] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [searchText, setSearchText] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [users, setUsers] = useState([]);
@@ -28,6 +54,8 @@ const UserManagement = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [editForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [createForm] = Form.useForm();
 
   // Debounce search text
   useEffect(() => {
@@ -41,16 +69,16 @@ const UserManagement = () => {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       const params = {};
       if (searchQuery) params.search = searchQuery;
-      if (roleFilter !== 'all') params.role = roleFilter;
-      
+      if (roleFilter !== "all") params.role = roleFilter;
+
       const data = await getAdminUsers(params);
       setUsers(data.data || data);
     } catch (err) {
-      console.error('Error fetching users:', err);
-      setError('Không thể tải danh sách người dùng');
+      console.error("Error fetching users:", err);
+      setError("Không thể tải danh sách người dùng");
     } finally {
       setLoading(false);
     }
@@ -73,40 +101,42 @@ const UserManagement = () => {
   }, []);
 
   const roleOptions = [
-    { value: 'all', label: 'Tất cả vai trò' },
-    { value: 'patient', label: 'Bệnh nhân' },
-    { value: 'doctor', label: 'Bác sĩ' },
-    { value: 'admin', label: 'Quản trị viên' }
+    { value: "all", label: "Tất cả vai trò" },
+    { value: "patient", label: "Bệnh nhân" },
+    { value: "doctor", label: "Bác sĩ" },
+    { value: "admin", label: "Quản trị viên" },
+    { value: "manager", label: "Quản lý" },
   ];
 
   const getRoleTag = (role) => {
     const roleConfig = {
-      patient: { color: 'blue', text: 'Bệnh nhân' },
-      doctor: { color: 'green', text: 'Bác sĩ' },
-      admin: { color: 'red', text: 'Quản trị viên' }
+      patient: { color: "blue", text: "Bệnh nhân" },
+      doctor: { color: "green", text: "Bác sĩ" },
+      admin: { color: "red", text: "Quản trị viên" },
+      manager: { color: "purple", text: "Quản lý" },
     };
-    return roleConfig[role] || { color: 'default', text: role };
+    return roleConfig[role] || { color: "default", text: role };
   };
 
   const getStatusTag = (status) => {
     const statusConfig = {
-      active: { color: 'green', text: 'Hoạt động' },
-      inactive: { color: 'orange', text: 'Không hoạt động' },
-      suspended: { color: 'red', text: 'Tạm khóa' }
+      active: { color: "green", text: "Hoạt động" },
+      inactive: { color: "orange", text: "Không hoạt động" },
+      suspended: { color: "red", text: "Tạm khóa" },
     };
-    return statusConfig[status] || { color: 'default', text: status };
+    return statusConfig[status] || { color: "default", text: status };
   };
 
   const handleUserAction = async (action, userId) => {
     try {
       switch (action) {
-        case 'suspend':
+        case "suspend":
           await suspendUser(userId);
           break;
-        case 'activate':
+        case "activate":
           await activateUser(userId);
           break;
-        case 'delete':
+        case "delete":
           await deleteUser(userId);
           break;
         default:
@@ -122,15 +152,15 @@ const UserManagement = () => {
   // Handle view details
   const handleViewDetails = async (userId) => {
     try {
-      console.log('Fetching details for user ID:', userId);
+      console.log("Fetching details for user ID:", userId);
       const response = await getUserDetails(userId);
-      console.log('User details response:', response);
+      console.log("User details response:", response);
       setUserDetails(response.data || response);
-      setSelectedUser(users.find(user => user.id === userId));
+      setSelectedUser(users.find((user) => user.id === userId));
       setDetailModalVisible(true);
     } catch (err) {
-      console.error('Error fetching user details:', err);
-      message.error('Không thể tải thông tin chi tiết người dùng');
+      console.error("Error fetching user details:", err);
+      message.error("Không thể tải thông tin chi tiết người dùng");
     }
   };
 
@@ -140,8 +170,8 @@ const UserManagement = () => {
       const response = await getUserDetails(userId);
       const userData = response.data || response;
       setUserDetails(userData);
-      setSelectedUser(users.find(user => user.id === userId));
-      
+      setSelectedUser(users.find((user) => user.id === userId));
+
       // Populate form with current user data
       editForm.setFieldsValue({
         fullName: userData.fullName,
@@ -151,13 +181,13 @@ const UserManagement = () => {
         status: userData.status,
         address: userData.address,
         dateOfBirth: userData.dateOfBirth,
-        gender: userData.gender
+        gender: userData.gender,
       });
-      
+
       setEditModalVisible(true);
     } catch (err) {
-      console.error('Error fetching user details for edit:', err);
-      message.error('Không thể tải thông tin người dùng để chỉnh sửa');
+      console.error("Error fetching user details for edit:", err);
+      message.error("Không thể tải thông tin người dùng để chỉnh sửa");
     }
   };
 
@@ -165,12 +195,12 @@ const UserManagement = () => {
   const handleUpdateUser = async (values) => {
     try {
       await updateUser(selectedUser.id, values);
-      message.success('Cập nhật thông tin người dùng thành công');
+      message.success("Cập nhật thông tin người dùng thành công");
       setEditModalVisible(false);
       fetchUsers();
     } catch (err) {
-      console.error('Error updating user:', err);
-      message.error('Không thể cập nhật thông tin người dùng');
+      console.error("Error updating user:", err);
+      message.error("Không thể cập nhật thông tin người dùng");
     }
   };
 
@@ -178,40 +208,44 @@ const UserManagement = () => {
   const handleChangePassword = async (values) => {
     try {
       await changeUserPassword(selectedUser.id, values.newPassword);
-      message.success('Đổi mật khẩu thành công');
+      message.success("Đổi mật khẩu thành công");
       passwordForm.resetFields();
     } catch (err) {
-      console.error('Error changing password:', err);
-      message.error('Không thể đổi mật khẩu');
+      console.error("Error changing password:", err);
+      message.error("Không thể đổi mật khẩu");
     }
   };
 
   const userMenuItems = (userId, userStatus) => [
     {
-      key: 'view',
-      label: 'Xem chi tiết',
+      key: "view",
+      label: "Xem chi tiết",
       icon: <EyeOutlined />,
-      onClick: () => handleViewDetails(userId)
+      onClick: () => handleViewDetails(userId),
     },
     {
-      key: 'edit',
-      label: 'Chỉnh sửa',
+      key: "edit",
+      label: "Chỉnh sửa",
       icon: <EditOutlined />,
-      onClick: () => handleEditUser(userId)
+      onClick: () => handleEditUser(userId),
     },
     {
-      key: userStatus === 'active' ? 'suspend' : 'activate',
-      label: userStatus === 'active' ? 'Tạm khóa' : 'Kích hoạt',
+      key: userStatus === "active" ? "suspend" : "activate",
+      label: userStatus === "active" ? "Tạm khóa" : "Kích hoạt",
       icon: <LockOutlined />,
-      onClick: () => handleUserAction(userStatus === 'active' ? 'suspend' : 'activate', userId)
+      onClick: () =>
+        handleUserAction(
+          userStatus === "active" ? "suspend" : "activate",
+          userId
+        ),
     },
     {
-      key: 'delete',
-      label: 'Xóa',
+      key: "delete",
+      label: "Xóa",
       icon: <MoreOutlined />,
       danger: true,
-      onClick: () => handleUserAction('delete', userId)
-    }
+      onClick: () => handleUserAction("delete", userId),
+    },
   ];
 
   if (loading) {
@@ -221,9 +255,9 @@ const UserManagement = () => {
           <h1>Quản lý người dùng</h1>
           <p>Xem và quản lý tất cả người dùng trong hệ thống</p>
         </div>
-        <div style={{ textAlign: 'center', padding: '50px' }}>
+        <div style={{ textAlign: "center", padding: "50px" }}>
           <Spin size="large" />
-          <p style={{ marginTop: '16px' }}>Đang tải dữ liệu...</p>
+          <p style={{ marginTop: "16px" }}>Đang tải dữ liệu...</p>
         </div>
       </div>
     );
@@ -241,7 +275,7 @@ const UserManagement = () => {
           description={error}
           type="error"
           showIcon
-          style={{ margin: '20px 0' }}
+          style={{ margin: "20px 0" }}
         />
       </div>
     );
@@ -250,8 +284,20 @@ const UserManagement = () => {
   return (
     <div className="user-management">
       <div className="page-header">
-        <h1>Quản lý người dùng</h1>
-        <p>Xem và quản lý tất cả người dùng trong hệ thống</p>
+        <div>
+          <h1>Quản lý người dùng</h1>
+          <p>Xem và quản lý tất cả người dùng trong hệ thống</p>
+        </div>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => {
+            createForm.resetFields();
+            setCreateModalVisible(true);
+          }}
+        >
+          Tạo người dùng mới
+        </Button>
       </div>
 
       <div className="search-filters">
@@ -265,8 +311,8 @@ const UserManagement = () => {
             className="search-input"
             onPressEnter={handleManualSearch}
           />
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             onClick={handleManualSearch}
             className="search-button"
             icon={<SearchOutlined />}
@@ -287,7 +333,7 @@ const UserManagement = () => {
       </div>
 
       <div className="users-list">
-        {users.map(user => {
+        {users.map((user) => {
           const roleConfig = getRoleTag(user.role);
           const statusConfig = getStatusTag(user.status);
 
@@ -316,7 +362,7 @@ const UserManagement = () => {
                 <div className="user-actions">
                   <Dropdown
                     menu={{ items: userMenuItems(user.id, user.status) }}
-                    trigger={['click']}
+                    trigger={["click"]}
                     placement="bottomRight"
                   >
                     <Button type="text" icon={<MoreOutlined />} />
@@ -331,8 +377,8 @@ const UserManagement = () => {
       {/* User Detail Modal */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <UserOutlined style={{ color: '#1890ff' }} />
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <UserOutlined style={{ color: "#1890ff" }} />
             <span>Thông tin chi tiết người dùng</span>
           </div>
         }
@@ -341,14 +387,18 @@ const UserManagement = () => {
         footer={[
           <Button key="close" onClick={() => setDetailModalVisible(false)}>
             Đóng
-          </Button>
+          </Button>,
         ]}
         width={800}
       >
         {userDetails && (
           <div className="user-detail-modal">
             <div className="user-header">
-              <Avatar size={80} src={userDetails.avatar} icon={<UserOutlined />} />
+              <Avatar
+                size={80}
+                src={userDetails.avatar}
+                icon={<UserOutlined />}
+              />
               <div className="user-info">
                 <h2>{userDetails.fullName}</h2>
                 <div className="user-tags">
@@ -361,87 +411,112 @@ const UserManagement = () => {
                 </div>
               </div>
             </div>
-            
+
             <Divider />
-            
+
             {/* Basic Information */}
             <Descriptions title="Thông tin cơ bản" bordered column={2}>
               <Descriptions.Item label="Họ và tên" span={2}>
                 {userDetails.roleSpecificData?.fullName || userDetails.fullName}
               </Descriptions.Item>
               <Descriptions.Item label="Email">
-                <MailOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                <MailOutlined
+                  style={{ marginRight: "8px", color: "#1890ff" }}
+                />
                 {userDetails.roleSpecificData?.email || userDetails.email}
               </Descriptions.Item>
               <Descriptions.Item label="Số điện thoại">
-                <PhoneOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                {userDetails.roleSpecificData?.phone || userDetails.phone || 'Chưa cập nhật'}
+                <PhoneOutlined
+                  style={{ marginRight: "8px", color: "#1890ff" }}
+                />
+                {userDetails.roleSpecificData?.phone ||
+                  userDetails.phone ||
+                  "Chưa cập nhật"}
               </Descriptions.Item>
               <Descriptions.Item label="Ngày sinh">
-                <CalendarOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                {userDetails.roleSpecificData?.dob ? new Date(userDetails.roleSpecificData.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
+                <CalendarOutlined
+                  style={{ marginRight: "8px", color: "#1890ff" }}
+                />
+                {userDetails.roleSpecificData?.dob
+                  ? new Date(
+                      userDetails.roleSpecificData.dob
+                    ).toLocaleDateString("vi-VN")
+                  : "Chưa cập nhật"}
               </Descriptions.Item>
               <Descriptions.Item label="Giới tính">
-                {userDetails.roleSpecificData?.gender === 'male' ? 'Nam' : 
-                 userDetails.roleSpecificData?.gender === 'female' ? 'Nữ' : 
-                 userDetails.roleSpecificData?.gender === 'other' ? 'Khác' : 'Chưa cập nhật'}
+                {userDetails.roleSpecificData?.gender === "male"
+                  ? "Nam"
+                  : userDetails.roleSpecificData?.gender === "female"
+                  ? "Nữ"
+                  : userDetails.roleSpecificData?.gender === "other"
+                  ? "Khác"
+                  : "Chưa cập nhật"}
               </Descriptions.Item>
               <Descriptions.Item label="Địa chỉ" span={2}>
-                {userDetails.roleSpecificData?.address || userDetails.address || 'Chưa cập nhật'}
+                {userDetails.roleSpecificData?.address ||
+                  userDetails.address ||
+                  "Chưa cập nhật"}
               </Descriptions.Item>
             </Descriptions>
 
             {/* Role-specific Information */}
-            {userDetails.role === 'patient' && userDetails.roleSpecificData && (
+            {userDetails.role === "patient" && userDetails.roleSpecificData && (
               <>
                 <Divider />
                 <Descriptions title="Thông tin bệnh nhân" bordered column={2}>
                   <Descriptions.Item label="Mã bảo hiểm y tế">
-                    {userDetails.roleSpecificData.insuranceNumber || 'Chưa cập nhật'}
+                    {userDetails.roleSpecificData.insuranceNumber ||
+                      "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Nghề nghiệp">
-                    {userDetails.roleSpecificData.occupation || 'Chưa cập nhật'}
+                    {userDetails.roleSpecificData.occupation || "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Dân tộc">
-                    {userDetails.roleSpecificData.ethnicity || 'Chưa cập nhật'}
+                    {userDetails.roleSpecificData.ethnicity || "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Quốc tịch">
-                    {userDetails.roleSpecificData.nationality || 'Chưa cập nhật'}
+                    {userDetails.roleSpecificData.nationality ||
+                      "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="CCCD/CMND">
-                    {userDetails.roleSpecificData.citizenId || 'Chưa cập nhật'}
+                    {userDetails.roleSpecificData.citizenId || "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Phòng khám chính">
-                    {userDetails.roleSpecificData.primaryClinic || 'Chưa cập nhật'}
+                    {userDetails.roleSpecificData.primaryClinic ||
+                      "Chưa cập nhật"}
                   </Descriptions.Item>
                 </Descriptions>
               </>
             )}
 
-            {userDetails.role === 'doctor' && userDetails.roleSpecificData && (
+            {userDetails.role === "doctor" && userDetails.roleSpecificData && (
               <>
                 <Divider />
                 <Descriptions title="Thông tin bác sĩ" bordered column={2}>
                   <Descriptions.Item label="Số giấy phép hành nghề">
-                    {userDetails.roleSpecificData.licenseNo || 'Chưa cập nhật'}
+                    {userDetails.roleSpecificData.licenseNo || "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Số năm kinh nghiệm">
                     {userDetails.roleSpecificData.yearsExperience || 0} năm
                   </Descriptions.Item>
                   <Descriptions.Item label="Chuyên khoa" span={2}>
-                    {userDetails.roleSpecificData.specializationIds && userDetails.roleSpecificData.specializationIds.length > 0 
-                      ? userDetails.roleSpecificData.specializationIds.map(spec => spec.name).join(', ')
-                      : 'Chưa cập nhật'
-                    }
+                    {userDetails.roleSpecificData.specializationIds &&
+                    userDetails.roleSpecificData.specializationIds.length > 0
+                      ? userDetails.roleSpecificData.specializationIds
+                          .map((spec) => spec.name)
+                          .join(", ")
+                      : "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Phòng khám mặc định">
-                    {userDetails.roleSpecificData.clinicDefaultId?.name || 'Chưa cập nhật'}
+                    {userDetails.roleSpecificData.clinicDefaultId?.name ||
+                      "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Địa chỉ phòng khám">
-                    {userDetails.roleSpecificData.clinicDefaultId?.address || 'Chưa cập nhật'}
+                    {userDetails.roleSpecificData.clinicDefaultId?.address ||
+                      "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Giới thiệu" span={2}>
-                    {userDetails.roleSpecificData.bio || 'Chưa cập nhật'}
+                    {userDetails.roleSpecificData.bio || "Chưa cập nhật"}
                   </Descriptions.Item>
                 </Descriptions>
               </>
@@ -451,7 +526,9 @@ const UserManagement = () => {
 
             <Descriptions title="Thông tin hệ thống" bordered column={2}>
               <Descriptions.Item label="ID người dùng">
-                <IdcardOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                <IdcardOutlined
+                  style={{ marginRight: "8px", color: "#1890ff" }}
+                />
                 {userDetails._id || userDetails.id}
               </Descriptions.Item>
               <Descriptions.Item label="Vai trò">
@@ -461,13 +538,17 @@ const UserManagement = () => {
                 {getStatusTag(userDetails.status).text}
               </Descriptions.Item>
               <Descriptions.Item label="Ngày tạo">
-                {userDetails.createdAt ? new Date(userDetails.createdAt).toLocaleDateString('vi-VN') : 'Chưa có thông tin'}
+                {userDetails.createdAt
+                  ? new Date(userDetails.createdAt).toLocaleDateString("vi-VN")
+                  : "Chưa có thông tin"}
               </Descriptions.Item>
               <Descriptions.Item label="Cập nhật lần cuối">
-                {userDetails.updatedAt ? new Date(userDetails.updatedAt).toLocaleDateString('vi-VN') : 'Chưa có thông tin'}
+                {userDetails.updatedAt
+                  ? new Date(userDetails.updatedAt).toLocaleDateString("vi-VN")
+                  : "Chưa có thông tin"}
               </Descriptions.Item>
               <Descriptions.Item label="Hoạt động cuối">
-                {userDetails.lastActive || 'Chưa có thông tin'}
+                {userDetails.lastActive || "Chưa có thông tin"}
               </Descriptions.Item>
             </Descriptions>
           </div>
@@ -477,8 +558,8 @@ const UserManagement = () => {
       {/* User Edit Modal */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <EditOutlined style={{ color: '#1890ff' }} />
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <EditOutlined style={{ color: "#1890ff" }} />
             <span>Chỉnh sửa thông tin người dùng</span>
           </div>
         }
@@ -487,15 +568,11 @@ const UserManagement = () => {
         footer={null}
         width={600}
       >
-        <Form
-          form={editForm}
-          layout="vertical"
-          onFinish={handleUpdateUser}
-        >
+        <Form form={editForm} layout="vertical" onFinish={handleUpdateUser}>
           <Form.Item
             label="Họ và tên"
             name="fullName"
-            rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}
+            rules={[{ required: true, message: "Vui lòng nhập họ và tên" }]}
           >
             <Input placeholder="Nhập họ và tên" />
           </Form.Item>
@@ -504,36 +581,34 @@ const UserManagement = () => {
             label="Email"
             name="email"
             rules={[
-              { required: true, message: 'Vui lòng nhập email' },
-              { type: 'email', message: 'Email không hợp lệ' }
+              { required: true, message: "Vui lòng nhập email" },
+              { type: "email", message: "Email không hợp lệ" },
             ]}
           >
             <Input placeholder="Nhập email" />
           </Form.Item>
 
-          <Form.Item
-            label="Số điện thoại"
-            name="phone"
-          >
+          <Form.Item label="Số điện thoại" name="phone">
             <Input placeholder="Nhập số điện thoại" />
           </Form.Item>
 
           <Form.Item
             label="Vai trò"
             name="role"
-            rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}
+            rules={[{ required: true, message: "Vui lòng chọn vai trò" }]}
           >
             <Select placeholder="Chọn vai trò">
               <Select.Option value="patient">Bệnh nhân</Select.Option>
               <Select.Option value="doctor">Bác sĩ</Select.Option>
               <Select.Option value="admin">Quản trị viên</Select.Option>
+              <Select.Option value="manager">Quản lý</Select.Option>
             </Select>
           </Form.Item>
 
           <Form.Item
             label="Trạng thái"
             name="status"
-            rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
+            rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
           >
             <Select placeholder="Chọn trạng thái">
               <Select.Option value="active">Hoạt động</Select.Option>
@@ -542,17 +617,11 @@ const UserManagement = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            label="Ngày sinh"
-            name="dateOfBirth"
-          >
+          <Form.Item label="Ngày sinh" name="dateOfBirth">
             <Input placeholder="DD/MM/YYYY" />
           </Form.Item>
 
-          <Form.Item
-            label="Giới tính"
-            name="gender"
-          >
+          <Form.Item label="Giới tính" name="gender">
             <Select placeholder="Chọn giới tính">
               <Select.Option value="male">Nam</Select.Option>
               <Select.Option value="female">Nữ</Select.Option>
@@ -560,10 +629,7 @@ const UserManagement = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            label="Địa chỉ"
-            name="address"
-          >
+          <Form.Item label="Địa chỉ" name="address">
             <Input.TextArea placeholder="Nhập địa chỉ" rows={3} />
           </Form.Item>
 
@@ -578,8 +644,8 @@ const UserManagement = () => {
               label="Mật khẩu mới"
               name="newPassword"
               rules={[
-                { required: true, message: 'Vui lòng nhập mật khẩu mới' },
-                { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự' }
+                { required: true, message: "Vui lòng nhập mật khẩu mới" },
+                { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
               ]}
             >
               <Input.Password placeholder="Nhập mật khẩu mới" />
@@ -588,15 +654,17 @@ const UserManagement = () => {
             <Form.Item
               label="Xác nhận mật khẩu"
               name="confirmPassword"
-              dependencies={['newPassword']}
+              dependencies={["newPassword"]}
               rules={[
-                { required: true, message: 'Vui lòng xác nhận mật khẩu' },
+                { required: true, message: "Vui lòng xác nhận mật khẩu" },
                 ({ getFieldValue }) => ({
                   validator(_, value) {
-                    if (!value || getFieldValue('newPassword') === value) {
+                    if (!value || getFieldValue("newPassword") === value) {
                       return Promise.resolve();
                     }
-                    return Promise.reject(new Error('Mật khẩu xác nhận không khớp'));
+                    return Promise.reject(
+                      new Error("Mật khẩu xác nhận không khớp")
+                    );
                   },
                 }),
               ]}
@@ -611,12 +679,115 @@ const UserManagement = () => {
             </Form.Item>
           </Form>
 
-          <Form.Item style={{ marginBottom: 0, marginTop: '24px' }}>
+          <Form.Item style={{ marginBottom: 0, marginTop: "24px" }}>
             <Space>
               <Button type="primary" htmlType="submit">
                 Cập nhật thông tin
               </Button>
-              <Button onClick={() => setEditModalVisible(false)}>
+              <Button onClick={() => setEditModalVisible(false)}>Hủy</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Create User Modal */}
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <PlusOutlined style={{ color: "#1890ff" }} />
+            <span>Tạo người dùng mới</span>
+          </div>
+        }
+        open={createModalVisible}
+        onCancel={() => {
+          setCreateModalVisible(false);
+          createForm.resetFields();
+        }}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={createForm}
+          layout="vertical"
+          onFinish={async (values) => {
+            try {
+              await createUser(values);
+              message.success("Tạo người dùng thành công");
+              setCreateModalVisible(false);
+              createForm.resetFields();
+              fetchUsers();
+            } catch (err) {
+              console.error("Error creating user:", err);
+              message.error(err.message || "Không thể tạo người dùng");
+            }
+          }}
+        >
+          <Form.Item
+            label="Họ và tên"
+            name="fullName"
+            rules={[{ required: true, message: "Vui lòng nhập họ và tên" }]}
+          >
+            <Input placeholder="Nhập họ và tên" />
+          </Form.Item>
+
+          <Form.Item
+            label="Email"
+            name="email"
+            rules={[
+              { required: true, message: "Vui lòng nhập email" },
+              { type: "email", message: "Email không hợp lệ" },
+            ]}
+          >
+            <Input placeholder="Nhập email" />
+          </Form.Item>
+
+          <Form.Item label="Số điện thoại" name="phone">
+            <Input placeholder="Nhập số điện thoại (tùy chọn)" />
+          </Form.Item>
+
+          <Form.Item
+            label="Vai trò"
+            name="role"
+            rules={[{ required: true, message: "Vui lòng chọn vai trò" }]}
+          >
+            <Select placeholder="Chọn vai trò">
+              <Select.Option value="patient">Bệnh nhân</Select.Option>
+              <Select.Option value="doctor">Bác sĩ</Select.Option>
+              <Select.Option value="admin">Quản trị viên</Select.Option>
+              <Select.Option value="manager">Quản lý</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item label="Trạng thái" name="status" initialValue="active">
+            <Select placeholder="Chọn trạng thái">
+              <Select.Option value="active">Hoạt động</Select.Option>
+              <Select.Option value="inactive">Không hoạt động</Select.Option>
+              <Select.Option value="blocked">Tạm khóa</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Mật khẩu"
+            name="password"
+            rules={[
+              { required: true, message: "Vui lòng nhập mật khẩu" },
+              { min: 8, message: "Mật khẩu phải có ít nhất 8 ký tự" },
+            ]}
+          >
+            <Input.Password placeholder="Nhập mật khẩu" />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 0, marginTop: "24px" }}>
+            <Space>
+              <Button type="primary" htmlType="submit">
+                Tạo người dùng
+              </Button>
+              <Button
+                onClick={() => {
+                  setCreateModalVisible(false);
+                  createForm.resetFields();
+                }}
+              >
                 Hủy
               </Button>
             </Space>

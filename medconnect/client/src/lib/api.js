@@ -142,6 +142,44 @@ export async function completeLogout() {
   }
 }
 
+// Change password (requires authentication)
+export async function changePassword(currentPassword, newPassword) {
+  try {
+    const r = await fetch(`${BASE}/api/auth/change-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+      }),
+    });
+
+    if (!r.ok) {
+      const errorText = await r.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText || "Có lỗi xảy ra khi đổi mật khẩu" };
+      }
+      const error = new Error(
+        errorData.message || "Có lỗi xảy ra khi đổi mật khẩu"
+      );
+      error.status = r.status;
+      error.response = errorData;
+      throw error;
+    }
+
+    return await r.json();
+  } catch (error) {
+    console.error("Error changing password:", error);
+    throw error;
+  }
+}
+
 // Admin functions
 export async function getPendingDoctors() {
   const r = await fetch(`${BASE}/api/admin/doctors/pending`, {
@@ -427,15 +465,24 @@ export async function getDoctorDashboardStatsWithFallback() {
   try {
     // Try primary endpoint first
     const response = await getDoctorDashboardStats();
-    const statsData = response?.data?.stats || response?.stats || response?.data || response;
-    
+    const statsData =
+      response?.data?.stats || response?.stats || response?.data || response;
+
     if (statsData) {
       // Map backend stats to frontend format
       return {
-        todayAppointmentsCount: statsData.todayAppointments || statsData.todayAppointmentsCount || 0,
-        availableSlotsToday: statsData.availableSlots || statsData.availableSlotsToday || 0,
-        pendingAppointmentsCount: statsData.pendingAppointments || statsData.pendingAppointmentsCount || 0,
-        completedAppointmentsCount: statsData.completedAppointments || statsData.completedAppointmentsCount || 0,
+        todayAppointmentsCount:
+          statsData.todayAppointments || statsData.todayAppointmentsCount || 0,
+        availableSlotsToday:
+          statsData.availableSlots || statsData.availableSlotsToday || 0,
+        pendingAppointmentsCount:
+          statsData.pendingAppointments ||
+          statsData.pendingAppointmentsCount ||
+          0,
+        completedAppointmentsCount:
+          statsData.completedAppointments ||
+          statsData.completedAppointmentsCount ||
+          0,
       };
     }
   } catch (error) {
@@ -459,29 +506,43 @@ export async function getDoctorDashboardStatsWithFallback() {
 
     // Today's appointments (include: pending_doctor, accepted, in_progress, done, no_show)
     // Exclude: cancelled, rejected (these are not considered "appointments")
-    const todayAppointments = appointmentsList.filter(apt => {
-      const aptDate = new Date(apt.scheduledStart || apt.scheduledDate || apt.createdAt);
+    const todayAppointments = appointmentsList.filter((apt) => {
+      const aptDate = new Date(
+        apt.scheduledStart || apt.scheduledDate || apt.createdAt
+      );
       const isToday = aptDate >= startOfDay && aptDate <= endOfDay;
-      const isValidStatus = ["pending_doctor", "accepted", "in_progress", "done", "no_show"].includes(apt.status);
+      const isValidStatus = [
+        "pending_doctor",
+        "accepted",
+        "in_progress",
+        "done",
+        "no_show",
+      ].includes(apt.status);
       return isToday && isValidStatus;
     }).length;
-    
+
     // Available slots = appointments with cancelled/rejected status (these slots are available again)
     // For fallback, we approximate: available slots = cancelled + rejected appointments
-    const cancelledRejectedToday = appointmentsList.filter(apt => {
-      const aptDate = new Date(apt.scheduledStart || apt.scheduledDate || apt.createdAt);
+    const cancelledRejectedToday = appointmentsList.filter((apt) => {
+      const aptDate = new Date(
+        apt.scheduledStart || apt.scheduledDate || apt.createdAt
+      );
       const isToday = aptDate >= startOfDay && aptDate <= endOfDay;
-      return isToday && (apt.status === "cancelled" || apt.status === "rejected");
+      return (
+        isToday && (apt.status === "cancelled" || apt.status === "rejected")
+      );
     }).length;
-    
+
     // Note: We can't get truly empty slots from appointments list alone
     // This is a fallback, so it's an approximation
     // Primary endpoint should handle the real calculation with DoctorTimeSlot
     const availableSlotsToday = cancelledRejectedToday;
-    
+
     // Pending appointments (appointments in today that need doctor's confirmation)
-    const pendingAppointments = appointmentsList.filter(apt => {
-      const aptDate = new Date(apt.scheduledStart || apt.scheduledDate || apt.createdAt);
+    const pendingAppointments = appointmentsList.filter((apt) => {
+      const aptDate = new Date(
+        apt.scheduledStart || apt.scheduledDate || apt.createdAt
+      );
       const isToday = aptDate >= startOfDay && aptDate <= endOfDay;
       const needsConfirmation = apt.status === "pending_doctor";
       return isToday && needsConfirmation;
@@ -554,6 +615,60 @@ export async function autoGenerateTimeSlots() {
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify({}),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function deleteTimeSlot(slotId) {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/${slotId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function blockSingleSlot(slotId, reason = "") {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/${slotId}/block`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ reason }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Leave request functions
+export async function createLeaveRequest(slotId, reason) {
+  const r = await fetch(`${BASE}/api/doctors/me/leave-requests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ slotId, reason }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function blockSlotsByDateRange(startDate, endDate, reason = "") {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/block`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ startDate, endDate, reason }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function unblockSlotsByDateRange(startDate, endDate) {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/unblock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ startDate, endDate }),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -698,6 +813,27 @@ export async function cancelAppointment(appointmentId) {
     method: "PUT",
     credentials: "include",
   });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Manager functions
+export async function rescheduleAppointmentByManager(
+  appointmentId,
+  newDateTime,
+  reason,
+  mode,
+  clinicId
+) {
+  const r = await fetch(
+    `${BASE}/api/managers/appointments/${appointmentId}/reschedule`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ newDateTime, reason, mode, clinicId }),
+    }
+  );
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -1006,6 +1142,20 @@ export async function getUserDetails(userId) {
   return r.json();
 }
 
+export async function createUser(userData) {
+  const r = await fetch(`${BASE}/api/admin/users`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(userData),
+  });
+  if (!r.ok) {
+    const error = await r.json();
+    throw new Error(error.message || "Không thể tạo người dùng");
+  }
+  return r.json();
+}
+
 export async function updateUser(userId, userData) {
   const r = await fetch(`${BASE}/api/admin/users/${userId}`, {
     method: "PUT",
@@ -1161,6 +1311,7 @@ const apiObject = {
   bookAppointment,
   rescheduleAppointment,
   cancelAppointment,
+  rescheduleAppointmentByManager,
 
   // Payment functions
   makePayment,
@@ -1173,6 +1324,11 @@ const apiObject = {
   // Time slot management functions
   getDoctorTimeSlots,
   autoGenerateTimeSlots,
+  deleteTimeSlot,
+  blockSingleSlot,
+  blockSlotsByDateRange,
+  unblockSlotsByDateRange,
+  createLeaveRequest,
 
   // Review functions
   getDoctorReviews,

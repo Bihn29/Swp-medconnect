@@ -1,4 +1,5 @@
 import Clinic from "../models/clinic.model.js";
+import Doctor from "../models/doctor.model.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
@@ -295,6 +296,98 @@ export async function updateClinic(req, res) {
     return ok(res, { clinic: formattedClinic });
   } catch (error) {
     console.error("❌ /api/clinics/:id PUT error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Get unique locations from clinics (extracted from clinic names)
+ * This endpoint extracts location names from clinic names like:
+ * "MedConnect Clinic Quận 1" -> "Quận 1"
+ * "MedConnect Clinic Hải Châu" -> "Hải Châu"
+ */
+export async function getUniqueLocations(req, res) {
+  try {
+    // Get all clinics
+    const clinics = await Clinic.find({}).select("name address").lean();
+
+    // Extract locations from clinic names
+    const locationSet = new Set();
+
+    clinics.forEach((clinic) => {
+      if (clinic.name) {
+        // Extract location from clinic name
+        // Pattern: "MedConnect Clinic [Location]" -> extract "[Location]"
+        const match = clinic.name.match(/MedConnect Clinic (.+)/i);
+        if (match && match[1]) {
+          locationSet.add(match[1].trim());
+        }
+
+        // Also check for "Quận X" patterns in name
+        const quanMatch = clinic.name.match(/Quận\s*(\d+)/i);
+        if (quanMatch) {
+          locationSet.add(`Quận ${quanMatch[1]}`);
+        }
+
+        // Check for common district names
+        const commonDistricts = [
+          "Hải Châu",
+          "Thủ Đức",
+          "Ninh Kiều",
+          "Quận 1",
+          "Quận 2",
+          "Quận 3",
+          "Quận 7",
+          "Quận 10",
+        ];
+
+        commonDistricts.forEach((district) => {
+          if (clinic.name.includes(district)) {
+            locationSet.add(district);
+          }
+        });
+      }
+
+      // Also check address field
+      if (clinic.address) {
+        const quanMatch = clinic.address.match(/Quận\s*(\d+)/i);
+        if (quanMatch) {
+          locationSet.add(`Quận ${quanMatch[1]}`);
+        }
+
+        const commonDistricts = [
+          "Hải Châu",
+          "Thủ Đức",
+          "Ninh Kiều",
+          "Quận 1",
+          "Quận 2",
+          "Quận 3",
+          "Quận 7",
+          "Quận 10",
+        ];
+
+        commonDistricts.forEach((district) => {
+          if (clinic.address.includes(district)) {
+            locationSet.add(district);
+          }
+        });
+      }
+    });
+
+    // Convert Set to sorted array and filter out unwanted locations
+    const locations = Array.from(locationSet)
+      .filter((loc) => loc.toLowerCase() !== "hai bà trưng")
+      .filter((loc) => loc.toLowerCase() !== "hai ba trung")
+      .sort();
+
+    return ok(res, { locations });
+  } catch (error) {
+    console.error("❌ /api/clinics/locations error:", error);
     return fail(
       res,
       500,

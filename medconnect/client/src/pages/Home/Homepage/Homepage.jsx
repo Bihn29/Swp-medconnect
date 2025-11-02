@@ -150,30 +150,36 @@ const Homepage = () => {
       : "https://cdn.bookingcare.vn/fo/w1920/2023/12/28/145826-coxuongkhop.png", // fallback icon
   }));
 
-  // Redirect only doctors to their dashboard (patients and admins can view homepage)
+  // Redirect doctors and managers to their dashboard (patients and admins can view homepage)
   useEffect(() => {
     // Wait for auth and profile to load
     if (authLoading || profileLoading) return;
 
-    // Only redirect doctors - patients and admins can stay on homepage
+    // Redirect doctors and managers - patients and admins can stay on homepage
     if (user && userProfile) {
       const userRole = userProfile?.role || user?.role;
 
       if (userRole === "doctor") {
         navigate("/bac-si/trang-chu", { replace: true });
+      } else if (userRole === "manager" || userRole === "MANAGER") {
+        navigate("/manager/trang-chu", { replace: true });
       }
       // Patient and admin can stay on homepage, no redirect
     }
   }, [user, userProfile, authLoading, profileLoading, navigate]);
 
   useEffect(() => {
-    // Only fetch data if user is not a doctor (guests, patients, admins can see homepage)
+    // Only fetch data if user is not a doctor or manager (guests, patients, admins can see homepage)
     if (authLoading || profileLoading) return;
 
-    // Check if user is a doctor - if so, will redirect, so no need to fetch
+    // Check if user is a doctor or manager - if so, will redirect, so no need to fetch
     if (user && userProfile) {
       const userRole = userProfile?.role || user?.role;
-      if (userRole === "doctor") {
+      if (
+        userRole === "doctor" ||
+        userRole === "manager" ||
+        userRole === "MANAGER"
+      ) {
         return; // Will redirect, so no need to fetch
       }
     }
@@ -890,7 +896,8 @@ const Homepage = () => {
                   >
                     <img
                       src={
-                        doctor.avatarUrl && !doctor.avatarUrl.includes("picsum.photos")
+                        doctor.avatarUrl &&
+                        !doctor.avatarUrl.includes("picsum.photos")
                           ? doctor.avatarUrl
                           : "/default-avatar.png"
                       }
