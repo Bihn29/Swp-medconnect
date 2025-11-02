@@ -97,7 +97,7 @@ const AdminDashboard = () => {
       icon: <DollarOutlined />,
       color: "#fa8c16",
       gradient: "linear-gradient(135deg, #fa8c16 0%, #ffa940 100%)",
-      path: "/admin/payment",
+      path: "/admin/statistics",
     },
   ];
 

@@ -52,9 +52,9 @@ const AdminLayout = () => {
       label: "Quản lý lịch hẹn",
     },
     {
-      key: "/admin/payment",
+      key: "/admin/statistics",
       icon: <FileTextOutlined />,
-      label: "Quản lí doanh thu",
+      label: "Thống kê",
     },
     
   ];

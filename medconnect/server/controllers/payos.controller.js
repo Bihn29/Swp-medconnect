@@ -38,7 +38,7 @@ export const createPayosPaymentLinkController = async (req, res) => {
       });
     }
 
-    const payUrl = await createPayosPaymentLink(userId, {
+    const paymentResult = await createPayosPaymentLink(userId, {
       appointmentId,
       amount,
       description,
@@ -46,7 +46,10 @@ export const createPayosPaymentLinkController = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: { payUrl },
+      data: {
+        payUrl: paymentResult.payUrl,
+        orderCode: paymentResult.orderCode,
+      },
       message: "Tạo link thanh toán PayOS thành công",
     });
   } catch (err) {

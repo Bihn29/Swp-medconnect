@@ -69,6 +69,12 @@ const PaymentResult = () => {
             response.data.status === "PAID" || response.data.status === "paid";
           setIsSuccess(isPaid);
           
+          // Clear localStorage nếu thanh toán thành công
+          if (isPaid) {
+            localStorage.removeItem("pendingAppointmentId");
+            localStorage.removeItem("pendingOrderCode");
+          }
+          
           // If payment is cancelled or failed from PayOS, cleanup appointment
           const isCancelled = response.data.status === "CANCELLED" || response.data.status === "cancelled";
           const isFailed = response.data.status === "EXPIRED" || response.data.status === "expired" || 
