@@ -142,6 +142,42 @@ export async function completeLogout() {
   }
 }
 
+// Change password (requires authentication)
+export async function changePassword(currentPassword, newPassword) {
+  try {
+    const r = await fetch(`${BASE}/api/auth/change-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+      }),
+    });
+
+    if (!r.ok) {
+      const errorText = await r.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText || "Có lỗi xảy ra khi đổi mật khẩu" };
+      }
+      const error = new Error(errorData.message || "Có lỗi xảy ra khi đổi mật khẩu");
+      error.status = r.status;
+      error.response = errorData;
+      throw error;
+    }
+
+    return await r.json();
+  } catch (error) {
+    console.error("Error changing password:", error);
+    throw error;
+  }
+}
+
 // Admin functions
 export async function getPendingDoctors() {
   const r = await fetch(`${BASE}/api/admin/doctors/pending`, {
