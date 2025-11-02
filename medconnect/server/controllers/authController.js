@@ -458,6 +458,18 @@ export async function register(req, res) {
     } catch (e) {
       console.warn("Failed to create AuthProvider record:", e.message || e);
     }
+
+    // Send welcome email if role is patient
+    if ((role || "patient").toLowerCase() === "patient") {
+      try {
+        await sendPatientWelcomeEmail(userDoc);
+        console.log("✅ Patient welcome email sent successfully");
+      } catch (emailError) {
+        console.error("⚠️ Failed to send patient welcome email:", emailError.message);
+        // Don't block registration if email fails
+      }
+    }
+
     return ok(res, {
       customToken,
       role: userDoc.role,
@@ -644,6 +656,116 @@ async function sendOtpMail(to, otp) {
 /* Helper tạo OTP 6 số ngẫu nhiên từ 100000 đến 999999 */
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+/* Helper function: Send welcome email to patient */
+async function sendPatientWelcomeEmail(user) {
+  try {
+    if (!user || !user.email) {
+      console.warn("⚠️ Patient email not found, skipping welcome email");
+      return;
+    }
+
+    const patientName = user.fullName || "Bệnh nhân";
+    const registrationDate = new Date().toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #059669; border-bottom: 2px solid #059669; padding-bottom: 10px;">
+          Chào mừng bạn đến với MedConnect
+        </h2>
+        <p>Xin chào <strong>${patientName}</strong>,</p>
+        <p>Chúng tôi rất vui mừng chào đón bạn tham gia vào cộng đồng MedConnect - nền tảng chăm sóc sức khỏe trực tuyến hàng đầu.</p>
+        
+        <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #047857;">Thông tin tài khoản của bạn:</h3>
+          <p style="margin: 8px 0;"><strong>Họ và tên:</strong> ${patientName}</p>
+          <p style="margin: 8px 0;"><strong>Email:</strong> ${user.email}</p>
+          <p style="margin: 8px 0;"><strong>Ngày đăng ký:</strong> ${registrationDate}</p>
+        </div>
+
+        <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #0284c7;">Những gì bạn có thể làm với MedConnect:</h3>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Đặt lịch hẹn với bác sĩ phù hợp với nhu cầu của bạn</li>
+            <li>Theo dõi lịch sử khám bệnh và kết quả điều trị</li>
+            <li>Nhận tư vấn sức khỏe từ các chuyên gia hàng đầu</li>
+            <li>Tương tác với bác sĩ qua video call hoặc tin nhắn</li>
+            <li>Truy cập hồ sơ bệnh án điện tử của bạn mọi lúc, mọi nơi</li>
+          </ul>
+        </div>
+
+        <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #d97706;">Lưu ý quan trọng:</h3>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Vui lòng bảo mật thông tin đăng nhập của bạn</li>
+            <li>Kiểm tra và cập nhật thông tin cá nhân để sử dụng dịch vụ tốt nhất</li>
+            <li>Liên hệ với chúng tôi nếu bạn có bất kỳ câu hỏi nào</li>
+          </ul>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${process.env.CLIENT_URL || "http://localhost:5173"}/auth/login" 
+             style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            Bắt đầu sử dụng
+          </a>
+        </div>
+        
+        <p style="margin-top: 30px;">Chúng tôi cam kết mang đến cho bạn trải nghiệm chăm sóc sức khỏe tốt nhất. Chúc bạn luôn khỏe mạnh!</p>
+        
+        <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect - Đội ngũ chăm sóc khách hàng</strong></p>
+      </div>
+    `;
+
+    const textContent = `
+Chào mừng bạn đến với MedConnect
+
+Xin chào ${patientName},
+
+Chúng tôi rất vui mừng chào đón bạn tham gia vào cộng đồng MedConnect - nền tảng chăm sóc sức khỏe trực tuyến hàng đầu.
+
+Thông tin tài khoản của bạn:
+- Họ và tên: ${patientName}
+- Email: ${user.email}
+- Ngày đăng ký: ${registrationDate}
+
+Những gì bạn có thể làm với MedConnect:
+- Đặt lịch hẹn với bác sĩ phù hợp với nhu cầu của bạn
+- Theo dõi lịch sử khám bệnh và kết quả điều trị
+- Nhận tư vấn sức khỏe từ các chuyên gia hàng đầu
+- Tương tác với bác sĩ qua video call hoặc tin nhắn
+- Truy cập hồ sơ bệnh án điện tử của bạn mọi lúc, mọi nơi
+
+Lưu ý quan trọng:
+- Vui lòng bảo mật thông tin đăng nhập của bạn
+- Kiểm tra và cập nhật thông tin cá nhân để sử dụng dịch vụ tốt nhất
+- Liên hệ với chúng tôi nếu bạn có bất kỳ câu hỏi nào
+
+Chúng tôi cam kết mang đến cho bạn trải nghiệm chăm sóc sức khỏe tốt nhất. Chúc bạn luôn khỏe mạnh!
+
+Trân trọng,
+MedConnect - Đội ngũ chăm sóc khách hàng
+    `;
+
+    console.log(`📧 Attempting to send patient welcome email via sendMail...`);
+    const emailResult = await sendMail({
+      to: user.email,
+      subject: "Chào mừng bạn đến với MedConnect",
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log(`✅ Patient welcome email sent successfully to ${user.email}`);
+    console.log(`📧 Email result:`, { messageId: emailResult?.messageId, response: emailResult?.response });
+  } catch (error) {
+    console.error("❌ Error sending patient welcome email:", error?.message || error);
+    // Không throw error để không ảnh hưởng đến flow chính
+  }
 }
 /**
  * POST /api/auth/forgot

@@ -36,8 +36,9 @@ const corsOptions = {
 };
 
 // Parse JSON and urlencoded request bodies FIRST
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increased limit to 10MB to handle base64 avatar images
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CORS must be after body parsers
 app.use(cors(corsOptions));
