@@ -289,6 +289,7 @@ export default function ScheduleManagement() {
         reason: slot.reason || null,
         mode: slot.mode || null,
         appointmentId: slot.appointmentId || null,
+        rescheduledFromId: slot.rescheduledFromId || null, // Flag to identify rescheduled appointments
         leaveReason: slot.leaveReason || null, // Lý do nghỉ
         hasPendingLeaveRequest: slot.hasPendingLeaveRequest || false, // Flag leave request đang pending
         isEmpty: false,
@@ -418,8 +419,17 @@ export default function ScheduleManagement() {
     }
   };
 
-  const getStatusText = (status, hasPendingLeaveRequest = false) => {
+  const getStatusText = (
+    status,
+    hasPendingLeaveRequest = false,
+    rescheduledFromId = null
+  ) => {
     if (!status) return "Không xác định";
+
+    // Nếu slot này từ appointment đã dời lịch, hiển thị "Đã dời lịch" (ưu tiên cao nhất)
+    if (rescheduledFromId) {
+      return "Đã dời lịch";
+    }
 
     // Nếu có leave request đang pending, hiển thị "Lịch nghỉ đang xét duyệt" (bất kể status)
     // Trừ khi status là "blocked" (đã được approve) hoặc có appointment
@@ -473,10 +483,18 @@ export default function ScheduleManagement() {
       case "pending":
         return "Chờ duyệt";
       case "confirmed":
+        // Nếu có rescheduledFromId, hiển thị "Đã dời lịch" thay vì "Đã xác nhận"
+        if (rescheduledFromId) {
+          return "Đã dời lịch";
+        }
         return "Đã xác nhận";
       case "completed":
         return "Hoàn thành";
       case "booked":
+        // Nếu có rescheduledFromId, hiển thị "Đã dời lịch" thay vì "Đã đặt"
+        if (rescheduledFromId) {
+          return "Đã dời lịch";
+        }
         return "Đã đặt";
       case "blocked":
         return "Bác sĩ nghỉ";
@@ -1180,7 +1198,8 @@ export default function ScheduleManagement() {
                             }}
                           >
                             <div className="slot-content">
-                              {slot.status === "available" ? (
+                              {slot.status === "available" &&
+                              !slot.hasPendingLeaveRequest ? (
                                 <>
                                   <div
                                     className="slot-status"
@@ -1192,21 +1211,24 @@ export default function ScheduleManagement() {
                                   >
                                     {getStatusText(
                                       slot.status,
-                                      slot.hasPendingLeaveRequest
+                                      slot.hasPendingLeaveRequest,
+                                      slot.rescheduledFromId
                                     )}
                                   </div>
                                 </>
-                              ) : slot.status === "blocked" ? (
-                                <div
-                                  className="slot-status"
-                                  style={{
-                                    backgroundColor: getStatusColor(
-                                      slot.status
-                                    ),
-                                    width: "100%",
-                                  }}
-                                >
-                                  🚫 {getStatusText(slot.status)}
+                              ) : slot.status === "blocked" ||
+                                (slot.status === "available" &&
+                                  slot.hasPendingLeaveRequest) ? (
+                                <div className="booked-slot blocked">
+                                  <div className="patient-name-main">
+                                    {slot.status === "blocked"
+                                      ? getStatusText(slot.status, false, null)
+                                      : getStatusText(
+                                          slot.status,
+                                          slot.hasPendingLeaveRequest,
+                                          slot.rescheduledFromId
+                                        )}
+                                  </div>
                                 </div>
                               ) : (
                                 <div className={`booked-slot ${slot.status}`}>
@@ -1216,7 +1238,8 @@ export default function ScheduleManagement() {
                                   <div className="status-text-small">
                                     {getStatusText(
                                       slot.status,
-                                      slot.hasPendingLeaveRequest
+                                      slot.hasPendingLeaveRequest,
+                                      slot.rescheduledFromId
                                     )}
                                   </div>
                                 </div>
@@ -1637,6 +1660,77 @@ export default function ScheduleManagement() {
                   </div>
                 )}
               </div>
+
+              {/* Thông tin dời lịch - hiển thị nếu appointment đã được dời từ lịch cũ */}
+              {selectedAppointmentDetail.rescheduledFromId && (
+                <div className="detail-section">
+                  <h3 className="detail-section-title">
+                    📅 Thông tin dời lịch
+                  </h3>
+                  <div className="detail-item">
+                    <span className="detail-label">Thời gian cũ:</span>
+                    <span className="detail-value">
+                      {selectedAppointmentDetail.rescheduledFromId.slotId
+                        ? `${new Date(
+                            selectedAppointmentDetail.rescheduledFromId.slotId.startAt
+                          ).toLocaleString("vi-VN")} - ${new Date(
+                            selectedAppointmentDetail.rescheduledFromId.slotId.endAt
+                          ).toLocaleTimeString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`
+                        : selectedAppointmentDetail.rescheduledFromId
+                            .scheduledStart
+                        ? new Date(
+                            selectedAppointmentDetail.rescheduledFromId.scheduledStart
+                          ).toLocaleString("vi-VN")
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Thời gian mới:</span>
+                    <span className="detail-value">
+                      {selectedAppointmentDetail.slotId
+                        ? `${new Date(
+                            selectedAppointmentDetail.slotId.startAt
+                          ).toLocaleString("vi-VN")} - ${new Date(
+                            selectedAppointmentDetail.slotId.endAt
+                          ).toLocaleTimeString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`
+                        : selectedAppointmentDetail.scheduledStart
+                        ? new Date(
+                            selectedAppointmentDetail.scheduledStart
+                          ).toLocaleString("vi-VN")
+                        : "N/A"}
+                    </span>
+                  </div>
+                  {selectedAppointmentDetail.rescheduledFromId
+                    .rescheduleReason && (
+                    <div className="detail-item">
+                      <span className="detail-label">Lý do dời lịch:</span>
+                      <span className="detail-value">
+                        {
+                          selectedAppointmentDetail.rescheduledFromId
+                            .rescheduleReason
+                        }
+                      </span>
+                    </div>
+                  )}
+                  {selectedAppointmentDetail.rescheduledFromId
+                    .rescheduledAt && (
+                    <div className="detail-item">
+                      <span className="detail-label">Ngày dời lịch:</span>
+                      <span className="detail-value">
+                        {new Date(
+                          selectedAppointmentDetail.rescheduledFromId.rescheduledAt
+                        ).toLocaleString("vi-VN")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {selectedAppointmentDetail.mode === "online" &&
                 (selectedAppointmentDetail.status === "confirmed" ||

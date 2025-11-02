@@ -407,6 +407,15 @@ export async function getDoctorAppointmentDetail(req, res) {
       })
       .populate("clinicId", "name address")
       .populate("slotId", "startAt endAt")
+      .populate({
+        path: "rescheduledFromId",
+        select:
+          "scheduledStart scheduledEnd status rescheduleReason rescheduledAt",
+        populate: {
+          path: "slotId",
+          select: "startAt endAt",
+        },
+      })
       .lean();
 
     if (!appointment) {
@@ -2811,17 +2820,12 @@ export async function getDoctorTimeSlots(req, res) {
       });
 
       // Fetch appointments for these slots
-      // Exclude rescheduled appointments (they are replaced by new appointments)
-      // Only exclude if status is "rescheduled" AND has rescheduledToId
+      // Exclude ALL rescheduled appointments (they are replaced by new appointments)
+      // A rescheduled appointment means the old appointment is no longer active
       const appointments = await Appointment.find({
         slotId: { $in: slotIds },
-        // Filter out appointments that are rescheduled AND have been replaced
-        $nor: [
-          {
-            status: "rescheduled",
-            rescheduledToId: { $exists: true, $ne: null },
-          },
-        ],
+        // Filter out ALL appointments with status "rescheduled" - they should not appear in the schedule
+        status: { $ne: "rescheduled" },
       })
         .populate({
           path: "patientId",
@@ -2871,6 +2875,9 @@ export async function getDoctorTimeSlots(req, res) {
           reason: appointment.reason || null,
           appointmentStatus: appointment.status || "booked", // Include appointment status
           mode: appointment.mode || "offline", // Include mode (online/offline)
+          rescheduledFromId: appointment.rescheduledFromId
+            ? appointment.rescheduledFromId.toString()
+            : null, // Include rescheduledFromId to identify rescheduled appointments
         };
       });
 
@@ -2910,6 +2917,13 @@ export async function getDoctorTimeSlots(req, res) {
           };
           displayStatus =
             statusMap[appointment.appointmentStatus] || slot.status;
+        } else {
+          // No appointment found for this slot
+          // If slot status is "booked" but no appointment exists (e.g., rescheduled appointment was removed),
+          // treat it as "available" so it appears empty
+          if (slot.status === "booked") {
+            displayStatus = "available";
+          }
         }
 
         console.log("🔍 Serializing slot:", {
@@ -2936,6 +2950,7 @@ export async function getDoctorTimeSlots(req, res) {
           reason: appointment?.reason || null,
           mode: appointment?.mode || null,
           appointmentId: appointment?.appointmentId || null, // Add appointmentId to slot - FROM appointmentMap
+          rescheduledFromId: appointment?.rescheduledFromId || null, // Flag to identify rescheduled appointments
           leaveReason: slot.leaveReason || null, // Lý do nghỉ
           hasPendingLeaveRequest: !!pendingLeaveRequest, // Flag để biết có leave request đang pending
           leaveRequestId: pendingLeaveRequest?._id?.toString() || null,

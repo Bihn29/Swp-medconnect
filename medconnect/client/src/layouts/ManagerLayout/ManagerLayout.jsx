@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Layout, Menu, Avatar, Badge, Button, Dropdown } from "antd";
 import {
@@ -20,6 +20,28 @@ const ManagerLayout = () => {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
 
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
+  // Fetch unread notification count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const { api } = await import("../../lib/api");
+        const response = await api.get("/api/notifications/unread-count");
+        if (response.success) {
+          setUnreadNotificationCount(response.data.unreadCount || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching unread count:", error);
+      }
+    };
+
+    fetchUnreadCount();
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Menu items
   const menuItems = [
     {
@@ -37,6 +59,12 @@ const ManagerLayout = () => {
       icon: <FileTextOutlined />,
       label: "Yêu cầu nghỉ phép",
       badge: null, // TODO: Add badge count for pending requests
+    },
+    {
+      key: "/manager/thong-bao",
+      icon: <BellOutlined />,
+      label: "Thông báo",
+      badge: unreadNotificationCount > 0 ? unreadNotificationCount : null,
     },
   ];
 
@@ -136,7 +164,12 @@ const ManagerLayout = () => {
               type="text"
               icon={<BellOutlined />}
               className="notification-btn"
-            />
+              onClick={() => navigate("/manager/thong-bao")}
+            >
+              {unreadNotificationCount > 0 && (
+                <Badge count={unreadNotificationCount} size="small" />
+              )}
+            </Button>
 
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Button type="text" className="user-btn">

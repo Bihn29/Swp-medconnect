@@ -10,6 +10,7 @@ import {
   blockSingleSlotForManager,
   blockSlotsByDateRangeForManager,
   unblockSlotsByDateRangeForManager,
+  rescheduleAppointmentByManager,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
@@ -59,6 +60,11 @@ router.get(
   getAppointmentDetailForManager
 );
 router.post("/appointments", authGuard, createAppointmentByManager);
+router.put(
+  "/appointments/:appointmentId/reschedule",
+  authGuard,
+  rescheduleAppointmentByManager
+);
 
 // Leave request routes
 router.get("/leave-requests", authGuard, getLeaveRequests);

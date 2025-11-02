@@ -540,6 +540,16 @@
                 background: #fed7aa; // Light orange
                 color: #c2410c; // Dark orange text
                 font-weight: 600;
+
+                .patient-name-main {
+                  white-space: normal; // Cho phép xuống dòng
+                  overflow: visible; // Không cắt text
+                  text-overflow: unset; // Bỏ ellipsis
+                  word-wrap: break-word; // Xuống dòng khi cần
+                  line-height: 1.3; // Khoảng cách dòng hợp lý
+                  text-align: center; // Căn giữa
+                  font-size: 12px; // Giảm font-size một chút để vừa khung
+                }
               }
 
               &.in_progress,

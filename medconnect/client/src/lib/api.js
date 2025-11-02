@@ -817,6 +817,27 @@ export async function cancelAppointment(appointmentId) {
   return r.json();
 }
 
+// Manager functions
+export async function rescheduleAppointmentByManager(
+  appointmentId,
+  newDateTime,
+  reason,
+  mode,
+  clinicId
+) {
+  const r = await fetch(
+    `${BASE}/api/managers/appointments/${appointmentId}/reschedule`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ newDateTime, reason, mode, clinicId }),
+    }
+  );
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 // Payment functions
 export async function makePayment(paymentData) {
   const r = await fetch(`${BASE}/api/payments`, {
@@ -1290,6 +1311,7 @@ const apiObject = {
   bookAppointment,
   rescheduleAppointment,
   cancelAppointment,
+  rescheduleAppointmentByManager,
 
   // Payment functions
   makePayment,

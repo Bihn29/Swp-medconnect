@@ -103,6 +103,20 @@ export async function createLeaveRequest(req, res) {
       `✅ Leave request created: ${leaveRequest._id} for doctor ${doctor.fullName} at slot ${slot.startAt}`
     );
 
+    // Send notification to all managers
+    try {
+      const { createLeaveRequestNotification } = await import(
+        "../services/notificationService.js"
+      );
+      await createLeaveRequestNotification(leaveRequest._id);
+    } catch (notificationError) {
+      console.error(
+        "❌ Error creating leave request notification:",
+        notificationError
+      );
+      // Don't fail the request if notification fails
+    }
+
     return ok(res, {
       message: "Leave request created successfully",
       leaveRequest: {
@@ -254,6 +268,20 @@ export async function approveLeaveRequest(req, res) {
       `✅ Leave request approved: ${leaveRequest._id} by manager ${user.fullName}`
     );
 
+    // Send notification to doctor about approval
+    try {
+      const { createLeaveRequestStatusNotification } = await import(
+        "../services/notificationService.js"
+      );
+      await createLeaveRequestStatusNotification(leaveRequest._id, "approved");
+    } catch (notificationError) {
+      console.error(
+        "❌ Error creating leave request approval notification:",
+        notificationError
+      );
+      // Don't fail the request if notification fails
+    }
+
     return ok(res, {
       message: "Leave request approved successfully",
       leaveRequest: {
@@ -333,6 +361,20 @@ export async function rejectLeaveRequest(req, res) {
     console.log(
       `✅ Leave request rejected: ${leaveRequest._id} by manager ${user.fullName}`
     );
+
+    // Send notification to doctor about rejection
+    try {
+      const { createLeaveRequestStatusNotification } = await import(
+        "../services/notificationService.js"
+      );
+      await createLeaveRequestStatusNotification(leaveRequest._id, "rejected");
+    } catch (notificationError) {
+      console.error(
+        "❌ Error creating leave request rejection notification:",
+        notificationError
+      );
+      // Don't fail the request if notification fails
+    }
 
     return ok(res, {
       message: "Leave request rejected successfully",

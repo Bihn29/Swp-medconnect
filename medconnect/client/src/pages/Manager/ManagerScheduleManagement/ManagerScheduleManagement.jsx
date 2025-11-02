@@ -24,7 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../components/ui/Select";
-import { api } from "../../../lib/api";
+import { api, rescheduleAppointmentByManager } from "../../../lib/api";
+import { RescheduleModal } from "../../../components/RescheduleModal/RescheduleModal";
 import "./ManagerScheduleManagement.scss";
 
 export default function ManagerScheduleManagement() {
@@ -68,6 +69,9 @@ export default function ManagerScheduleManagement() {
     useState(null);
   const [loadingAppointmentDetail, setLoadingAppointmentDetail] =
     useState(false);
+
+  // Reschedule modal states
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
   // Load specializations on mount
   useEffect(() => {
@@ -342,6 +346,7 @@ export default function ManagerScheduleManagement() {
         reason: slot.reason || null,
         mode: slot.mode || null,
         appointmentId: slot.appointmentId || null,
+        rescheduledFromId: slot.rescheduledFromId || null, // Flag to identify rescheduled appointments
         leaveReason: slot.leaveReason || null, // Lý do nghỉ
         hasPendingLeaveRequest: slot.hasPendingLeaveRequest || false, // Flag leave request đang pending
         isEmpty: false,
@@ -459,8 +464,17 @@ export default function ManagerScheduleManagement() {
     }
   };
 
-  const getStatusText = (status, hasPendingLeaveRequest = false) => {
+  const getStatusText = (
+    status,
+    hasPendingLeaveRequest = false,
+    rescheduledFromId = null
+  ) => {
     if (!status) return "Không xác định";
+
+    // Nếu slot này từ appointment đã dời lịch, hiển thị "Đã dời lịch" (ưu tiên cao nhất)
+    if (rescheduledFromId) {
+      return "Đã dời lịch";
+    }
 
     // Nếu có leave request đang pending và status là pending, hiển thị "Lịch nghỉ đang xét duyệt"
     if (
@@ -496,10 +510,18 @@ export default function ManagerScheduleManagement() {
       case "pending":
         return "Chờ duyệt";
       case "confirmed":
+        // Nếu có rescheduledFromId, hiển thị "Đã dời lịch" thay vì "Đã xác nhận"
+        if (rescheduledFromId) {
+          return "Đã dời lịch";
+        }
         return "Đã xác nhận";
       case "completed":
         return "Hoàn thành";
       case "booked":
+        // Nếu có rescheduledFromId, hiển thị "Đã dời lịch" thay vì "Đã đặt"
+        if (rescheduledFromId) {
+          return "Đã dời lịch";
+        }
         return "Đã đặt";
       case "blocked":
         return "Bác sĩ nghỉ";
@@ -1048,7 +1070,8 @@ export default function ManagerScheduleManagement() {
                                 onClick={(e) => handleSlotClick(slot, e)}
                               >
                                 <div className="slot-content">
-                                  {slot.status === "available" ? (
+                                  {slot.status === "available" &&
+                                  !slot.hasPendingLeaveRequest ? (
                                     <>
                                       <div
                                         className="slot-status"
@@ -1060,7 +1083,8 @@ export default function ManagerScheduleManagement() {
                                       >
                                         {getStatusText(
                                           slot.status,
-                                          slot.hasPendingLeaveRequest
+                                          slot.hasPendingLeaveRequest,
+                                          slot.rescheduledFromId
                                         )}
                                       </div>
                                       <button
@@ -1074,10 +1098,22 @@ export default function ManagerScheduleManagement() {
                                         <Trash2 size={12} />
                                       </button>
                                     </>
-                                  ) : slot.status === "blocked" ? (
+                                  ) : slot.status === "blocked" ||
+                                    (slot.status === "available" &&
+                                      slot.hasPendingLeaveRequest) ? (
                                     <div className="booked-slot blocked">
                                       <div className="patient-name-main">
-                                        {getStatusText(slot.status)}
+                                        {slot.status === "blocked"
+                                          ? getStatusText(
+                                              slot.status,
+                                              false,
+                                              null
+                                            )
+                                          : getStatusText(
+                                              slot.status,
+                                              slot.hasPendingLeaveRequest,
+                                              slot.rescheduledFromId
+                                            )}
                                       </div>
                                     </div>
                                   ) : (
@@ -1090,7 +1126,8 @@ export default function ManagerScheduleManagement() {
                                       <div className="status-text-small">
                                         {getStatusText(
                                           slot.status,
-                                          slot.hasPendingLeaveRequest
+                                          slot.hasPendingLeaveRequest,
+                                          slot.rescheduledFromId
                                         )}
                                       </div>
                                     </div>
@@ -1360,6 +1397,94 @@ export default function ManagerScheduleManagement() {
                 )}
               </div>
 
+              {/* Thông tin dời lịch - hiển thị nếu appointment đã được dời từ lịch cũ */}
+              {selectedAppointmentDetail.rescheduledFromId && (
+                <div className="detail-section">
+                  <h3 className="detail-section-title">
+                    📅 Thông tin dời lịch
+                  </h3>
+                  <div className="detail-item">
+                    <span className="detail-label">Thời gian cũ:</span>
+                    <span className="detail-value">
+                      {selectedAppointmentDetail.rescheduledFromId.slotId
+                        ? `${new Date(
+                            selectedAppointmentDetail.rescheduledFromId.slotId.startAt
+                          ).toLocaleString("vi-VN")} - ${new Date(
+                            selectedAppointmentDetail.rescheduledFromId.slotId.endAt
+                          ).toLocaleTimeString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`
+                        : selectedAppointmentDetail.rescheduledFromId
+                            .scheduledStart
+                        ? new Date(
+                            selectedAppointmentDetail.rescheduledFromId.scheduledStart
+                          ).toLocaleString("vi-VN")
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Thời gian mới:</span>
+                    <span className="detail-value">
+                      {selectedAppointmentDetail.slotId
+                        ? `${new Date(
+                            selectedAppointmentDetail.slotId.startAt
+                          ).toLocaleString("vi-VN")} - ${new Date(
+                            selectedAppointmentDetail.slotId.endAt
+                          ).toLocaleTimeString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`
+                        : selectedAppointmentDetail.scheduledStart
+                        ? new Date(
+                            selectedAppointmentDetail.scheduledStart
+                          ).toLocaleString("vi-VN")
+                        : "N/A"}
+                    </span>
+                  </div>
+                  {selectedAppointmentDetail.rescheduledFromId
+                    .rescheduleReason && (
+                    <div className="detail-item">
+                      <span className="detail-label">Lý do dời lịch:</span>
+                      <span className="detail-value">
+                        {
+                          selectedAppointmentDetail.rescheduledFromId
+                            .rescheduleReason
+                        }
+                      </span>
+                    </div>
+                  )}
+                  {selectedAppointmentDetail.rescheduledFromId
+                    .rescheduledAt && (
+                    <div className="detail-item">
+                      <span className="detail-label">Ngày dời lịch:</span>
+                      <span className="detail-value">
+                        {new Date(
+                          selectedAppointmentDetail.rescheduledFromId.rescheduledAt
+                        ).toLocaleString("vi-VN")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Reschedule button - only show for pending_doctor or accepted status */}
+              {(selectedAppointmentDetail.status === "pending_doctor" ||
+                selectedAppointmentDetail.status === "accepted") && (
+                <div className="detail-actions">
+                  <Button
+                    className="reschedule-button"
+                    onClick={() => {
+                      setShowRescheduleModal(true);
+                      setShowAppointmentDetail(false);
+                    }}
+                  >
+                    <Calendar size={16} style={{ marginRight: 8 }} />
+                    Dời lịch
+                  </Button>
+                </div>
+              )}
+
               {selectedAppointmentDetail.mode === "online" &&
                 (selectedAppointmentDetail.status === "confirmed" ||
                   selectedAppointmentDetail.status === "booked" ||
@@ -1405,6 +1530,34 @@ export default function ManagerScheduleManagement() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Reschedule Modal */}
+      {selectedAppointmentDetail && (
+        <RescheduleModal
+          visible={showRescheduleModal}
+          appointment={selectedAppointmentDetail}
+          onClose={() => {
+            setShowRescheduleModal(false);
+            setSelectedAppointmentDetail(null);
+          }}
+          customSubmitHandler={async (requestBody) => {
+            // Custom handler for manager to directly reschedule (no approval needed)
+            const response = await rescheduleAppointmentByManager(
+              requestBody.appointmentId,
+              requestBody.newDateTime,
+              requestBody.reason,
+              requestBody.mode,
+              requestBody.clinicId
+            );
+            return response;
+          }}
+          onSuccess={async (response) => {
+            if (response?.success) {
+              await loadTimeSlots(); // Reload slots to show updated appointment
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

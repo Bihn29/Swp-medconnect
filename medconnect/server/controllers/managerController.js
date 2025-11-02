@@ -1,9 +1,11 @@
+import mongoose from "mongoose";
 import Doctor from "../models/doctor.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Appointment from "../models/appointment.model.js";
 import Patient from "../models/patient.model.js";
 import User from "../models/user.model.js";
 import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
+import { createAppointmentNotification } from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
@@ -132,15 +134,12 @@ export async function getDoctorTimeSlotsForManager(req, res) {
     const slotIds = timeSlots.map((slot) => slot._id);
 
     // Fetch appointments for these slots
+    // Exclude ALL rescheduled appointments (they are replaced by new appointments)
+    // A rescheduled appointment means the old appointment is no longer active
     const appointments = await Appointment.find({
       slotId: { $in: slotIds },
-      // Filter out appointments that are rescheduled AND have been replaced
-      $nor: [
-        {
-          status: "rescheduled",
-          rescheduledToId: { $exists: true, $ne: null },
-        },
-      ],
+      // Filter out ALL appointments with status "rescheduled" - they should not appear in the schedule
+      status: { $ne: "rescheduled" },
     })
       .populate({
         path: "patientId",
@@ -172,6 +171,9 @@ export async function getDoctorTimeSlotsForManager(req, res) {
         reason: appointment.reason || null,
         appointmentStatus: appointment.status || "booked",
         mode: appointment.mode || "offline",
+        rescheduledFromId: appointment.rescheduledFromId
+          ? appointment.rescheduledFromId.toString()
+          : null, // Include rescheduledFromId to identify rescheduled appointments
       };
     });
 
@@ -209,6 +211,13 @@ export async function getDoctorTimeSlotsForManager(req, res) {
           no_show: "cancelled",
         };
         displayStatus = statusMap[appointment.appointmentStatus] || slot.status;
+      } else {
+        // No appointment found for this slot
+        // If slot status is "booked" but no appointment exists (e.g., rescheduled appointment was removed),
+        // treat it as "available" so it appears empty
+        if (slot.status === "booked") {
+          displayStatus = "available";
+        }
       }
 
       return {
@@ -222,6 +231,7 @@ export async function getDoctorTimeSlotsForManager(req, res) {
         appointmentStatus: appointment?.appointmentStatus || null,
         reason: appointment?.reason || null,
         mode: appointment?.mode || null,
+        rescheduledFromId: appointment?.rescheduledFromId || null, // Flag to identify rescheduled appointments
         leaveReason: slot.leaveReason || null, // Lý do nghỉ
         hasPendingLeaveRequest: !!pendingLeaveRequest, // Flag để biết có leave request đang pending
         leaveRequestId: pendingLeaveRequest?._id?.toString() || null,
@@ -275,6 +285,15 @@ export async function getAppointmentDetailForManager(req, res) {
       })
       .populate("clinicId", "name address")
       .populate("slotId", "startAt endAt")
+      .populate({
+        path: "rescheduledFromId",
+        select:
+          "scheduledStart scheduledEnd status rescheduleReason rescheduledAt",
+        populate: {
+          path: "slotId",
+          select: "startAt endAt",
+        },
+      })
       .lean();
 
     if (!appointment) {
@@ -941,6 +960,278 @@ export async function blockSlotsByDateRangeForManager(req, res) {
       ERROR_CODES.SERVER_ERROR,
       error.message || String(error)
     );
+  }
+}
+
+/**
+ * Reschedule appointment by manager (direct reschedule without approval)
+ */
+export async function rescheduleAppointmentByManager(req, res) {
+  try {
+    const { appointmentId } = req.params;
+    const { newDateTime, reason, mode, clinicId } = req.body;
+    const userId = req.user.app_user_id;
+
+    if (!appointmentId || !newDateTime || !reason || !mode) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Missing required fields: appointmentId, newDateTime, reason, mode"
+      );
+    }
+
+    // Validate mode
+    if (!["online", "offline"].includes(mode)) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Mode must be 'online' or 'offline'"
+      );
+    }
+
+    // If offline mode, clinicId is required
+    if (mode === "offline" && !clinicId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Clinic ID is required for offline appointments"
+      );
+    }
+
+    // Find appointment with populated data
+    const originalAppointment = await Appointment.findById(appointmentId)
+      .populate("patientId", "userId fullName")
+      .populate("doctorId", "userId fullName")
+      .populate({
+        path: "patientId",
+        populate: {
+          path: "userId",
+          select: "email fullName",
+        },
+      })
+      .populate({
+        path: "doctorId",
+        populate: {
+          path: "userId",
+          select: "email fullName",
+        },
+      });
+
+    if (!originalAppointment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
+    }
+
+    // Check if appointment can be rescheduled
+    if (!["pending_doctor", "accepted"].includes(originalAppointment.status)) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Appointment cannot be rescheduled in current status"
+      );
+    }
+
+    // Validate new datetime
+    const newDate = new Date(newDateTime);
+    const now = new Date();
+
+    if (newDate <= now) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "New appointment time must be in the future"
+      );
+    }
+
+    // Start transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // Update original appointment status
+      await Appointment.findByIdAndUpdate(
+        originalAppointment._id,
+        {
+          status: "rescheduled",
+          rescheduledToId: null, // Will be set after creating new appointment
+          rescheduledBy: userId,
+          rescheduledAt: new Date(),
+          rescheduleReason: reason.trim(),
+        },
+        { session }
+      );
+
+      // Calculate appointment duration
+      const appointmentDuration =
+        originalAppointment.scheduledEnd.getTime() -
+        originalAppointment.scheduledStart.getTime();
+
+      const newScheduledStart = newDate;
+      const newScheduledEnd = new Date(newDate.getTime() + appointmentDuration);
+
+      const doctorId =
+        originalAppointment.doctorId._id || originalAppointment.doctorId;
+
+      // Find or create a time slot for the new datetime
+      let newTimeSlot = await DoctorTimeSlot.findOne({
+        doctorId: doctorId,
+        startAt: newScheduledStart,
+        endAt: newScheduledEnd,
+      }).session(session);
+
+      if (!newTimeSlot) {
+        // Create new time slot for the rescheduled appointment
+        newTimeSlot = new DoctorTimeSlot({
+          doctorId: doctorId,
+          startAt: newScheduledStart,
+          endAt: newScheduledEnd,
+          status: "available", // Will be set to "booked" after appointment creation
+        });
+        await newTimeSlot.save({ session });
+        console.log(
+          `✅ Created new time slot ${newTimeSlot._id} for rescheduled appointment`
+        );
+      }
+
+      // Verify slot is available
+      if (newTimeSlot.status !== "available") {
+        await session.abortTransaction();
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Time slot for new datetime is no longer available"
+        );
+      }
+
+      // Create new appointment with the NEW time slot
+      const newAppointmentData = {
+        patientId:
+          originalAppointment.patientId._id || originalAppointment.patientId,
+        doctorId: doctorId,
+        clinicId:
+          mode === "offline"
+            ? clinicId ||
+              originalAppointment.clinicId?._id ||
+              originalAppointment.clinicId
+            : undefined,
+        slotId: newTimeSlot._id,
+        scheduledStart: newScheduledStart,
+        scheduledEnd: newScheduledEnd,
+        mode: mode,
+        status: "accepted",
+        reason:
+          originalAppointment.reason || originalAppointment.reasonForVisit,
+        rescheduledFromId: originalAppointment._id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const newAppointment = new Appointment(newAppointmentData);
+      await newAppointment.save({ session });
+
+      // Mark the new time slot as booked
+      await DoctorTimeSlot.findByIdAndUpdate(
+        newTimeSlot._id,
+        { status: "booked" },
+        { session }
+      );
+
+      // Free the old slot by setting it to "available"
+      // This allows the old slot to be reused since the appointment has been moved
+      const oldSlotId =
+        originalAppointment.slotId?._id || originalAppointment.slotId;
+      if (oldSlotId) {
+        await DoctorTimeSlot.findByIdAndUpdate(
+          oldSlotId,
+          { status: "available" },
+          { session }
+        );
+        console.log(
+          `✅ Freed old slot ${oldSlotId} - set to available after reschedule`
+        );
+      }
+
+      // Update original appointment with new appointment ID
+      await Appointment.findByIdAndUpdate(
+        originalAppointment._id,
+        { rescheduledToId: newAppointment._id },
+        { session }
+      );
+
+      // Commit transaction
+      await session.commitTransaction();
+
+      // Send notifications to both doctor and patient
+      try {
+        // Notification for both patient and doctor (using original appointment to get both users)
+        await createAppointmentNotification(
+          originalAppointment._id,
+          "rescheduled",
+          {
+            reason: reason.trim(),
+            newDateTime: newDate,
+            rescheduledBy: userId,
+            rescheduledByType: "manager",
+            notifyDoctor: true, // Flag to notify doctor
+            newAppointmentId: newAppointment._id, // Include new appointment ID for reference
+          }
+        );
+
+        console.log(
+          `✅ Reschedule notifications sent for appointment ${originalAppointment._id}`
+        );
+      } catch (notificationError) {
+        console.error(
+          "❌ Error creating reschedule notifications:",
+          notificationError
+        );
+      }
+
+      // Send email notification to patient (reuse function from rescheduleController)
+      try {
+        const { sendAppointmentRescheduledEmail } = await import(
+          "../controllers/rescheduleController.js"
+        );
+
+        // Get doctor object for email (populate userId if needed)
+        const doctor = await Doctor.findById(doctorId)
+          .populate("userId", "email fullName")
+          .lean();
+
+        await sendAppointmentRescheduledEmail(
+          originalAppointment,
+          newAppointment,
+          reason.trim(),
+          doctor
+        );
+        console.log("✅ Reschedule confirmation email sent successfully");
+      } catch (emailError) {
+        console.error(
+          "⚠️ Failed to send reschedule confirmation email:",
+          emailError.message
+        );
+        // Don't block reschedule if email fails
+      }
+
+      return ok(res, {
+        message: "Appointment rescheduled successfully",
+        newAppointment: newAppointment,
+        originalAppointment: originalAppointment._id,
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  } catch (error) {
+    console.error("❌ Error rescheduling appointment by manager:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message);
   }
 }
 
