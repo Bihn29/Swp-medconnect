@@ -44,11 +44,11 @@ const DoctorSchema = new Schema(
     // Thông tin phê duyệt/từ chối
     approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
     approvedAt: { type: Date },
-    rejectedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    rejectedBy: { type: Schema.Types.ObjectId, ref: "User" }, 
     rejectedAt: { type: Date },
     rejectionReason: { type: String, trim: true },
     
-    // Thông tin bổ sung
+    // Thông tin bổ sun
     education: [{ 
       degree: String,
       school: String,
