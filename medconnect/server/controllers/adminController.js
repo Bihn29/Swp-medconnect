@@ -1041,21 +1041,67 @@ export const getAllUsers = async (req, res) => {
       .select("fullName email role status createdAt updatedAt")
       .sort({ createdAt: -1 });
 
-    const formattedUsers = users.map((user) => ({
-      id: user._id,
-      name: user.fullName || "Chưa có tên",
-      email: user.email,
-      role: user.role,
-      status:
-        user.status === "active"
-          ? "active"
-          : user.status === "blocked"
-          ? "suspended"
-          : "inactive",
-      joinDate: formatDate(user.createdAt),
-      lastActive: formatDate(user.updatedAt),
-      avatar: null,
-    }));
+    // Fetch avatars for all users in parallel
+    const formattedUsers = await Promise.all(
+      users.map(async (user) => {
+        let avatarUrl = null;
+
+        // Fetch avatar based on role
+        if (user.role === "patient") {
+          try {
+            const patient = await Patient.findOne({ userId: user._id })
+              .select("avatarUrl")
+              .lean();
+            avatarUrl = patient?.avatarUrl || null;
+            if (avatarUrl) {
+              console.log(
+                `✅ Found patient avatar for user ${user._id}:`,
+                avatarUrl.substring(0, 50) + "..."
+              );
+            }
+          } catch (error) {
+            console.error(
+              `Error fetching patient avatar for user ${user._id}:`,
+              error
+            );
+          }
+        } else if (user.role === "doctor") {
+          try {
+            const doctor = await Doctor.findOne({ userId: user._id })
+              .select("avatarUrl")
+              .lean();
+            avatarUrl = doctor?.avatarUrl || null;
+            if (avatarUrl) {
+              console.log(
+                `✅ Found doctor avatar for user ${user._id}:`,
+                avatarUrl.substring(0, 50) + "..."
+              );
+            }
+          } catch (error) {
+            console.error(
+              `Error fetching doctor avatar for user ${user._id}:`,
+              error
+            );
+          }
+        }
+
+        return {
+          id: user._id,
+          name: user.fullName || "Chưa có tên",
+          email: user.email,
+          role: user.role,
+          status:
+            user.status === "active"
+              ? "active"
+              : user.status === "blocked"
+              ? "suspended"
+              : "inactive",
+          joinDate: formatDate(user.createdAt),
+          lastActive: formatDate(user.updatedAt),
+          avatar: avatarUrl,
+        };
+      })
+    );
 
     res.json({
       success: true,
@@ -1148,23 +1194,33 @@ export const getUserDetails = async (req, res) => {
 
     let roleSpecificData = null;
 
-    // Fetch role-specific data based on user role
+    // Fetch avatar and role-specific data based on user role
+    let avatarUrl = null;
+
     if (user.role === "patient") {
       try {
-        roleSpecificData = await Patient.findOne({ userId: id })
+        const patient = await Patient.findOne({ userId: id })
           .populate("userId", "fullName email phone")
           .select("-__v");
+        if (patient) {
+          roleSpecificData = patient;
+          avatarUrl = patient.avatarUrl || null;
+        }
       } catch (error) {
         console.error("Error fetching patient data:", error);
         // Continue without role-specific data
       }
     } else if (user.role === "doctor") {
       try {
-        roleSpecificData = await Doctor.findOne({ userId: id })
+        const doctor = await Doctor.findOne({ userId: id })
           .populate("userId", "fullName email phone")
           .populate("specializationIds", "name description avatar")
           .populate("clinicDefaultId", "name address")
           .select("-__v");
+        if (doctor) {
+          roleSpecificData = doctor;
+          avatarUrl = doctor.avatarUrl || null;
+        }
       } catch (error) {
         console.error("Error fetching doctor data:", error);
         // Continue without role-specific data
@@ -1174,9 +1230,10 @@ export const getUserDetails = async (req, res) => {
       roleSpecificData = null;
     }
 
-    // Combine user data with role-specific data
+    // Combine user data with role-specific data and avatar
     const userDetails = {
       ...user.toObject(),
+      avatar: avatarUrl,
       roleSpecificData: roleSpecificData,
     };
 

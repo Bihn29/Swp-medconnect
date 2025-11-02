@@ -46,6 +46,10 @@ import "./UserManagement.scss";
 // Helper function to get full image URL
 const getImageUrl = (url) => {
   if (!url) return null;
+  // If URL is a base64 data URL, return as is
+  if (url.startsWith("data:image/")) {
+    return url;
+  }
   // If URL is already absolute (starts with http:// or https://), return as is
   if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
@@ -414,7 +418,11 @@ const UserManagement = () => {
           return (
             <Card key={user.id} className="user-card">
               <div className="user-info">
-                <Avatar size={60} src={user.avatar} />
+                <Avatar
+                  size={60}
+                  src={user.avatar ? getImageUrl(user.avatar) : null}
+                  icon={<UserOutlined />}
+                />
                 <div className="user-details">
                   <div className="user-name">
                     <h3>{user.name}</h3>
@@ -470,7 +478,9 @@ const UserManagement = () => {
             <div className="user-header">
               <Avatar
                 size={80}
-                src={userDetails.avatar}
+                src={
+                  userDetails.avatar ? getImageUrl(userDetails.avatar) : null
+                }
                 icon={<UserOutlined />}
               />
               <div className="user-info">
