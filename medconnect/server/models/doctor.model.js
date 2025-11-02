@@ -8,63 +8,52 @@ const { Schema, model } = mongoose;
 
 const DoctorSchema = new Schema(
   {
-    userId: { 
-      type: Schema.Types.ObjectId, 
-      ref: "User", 
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
       required: true,
-      unique: true 
+      unique: true,
     },
-    
+
     fullName: { type: String, required: true, trim: true },
     licenseNo: { type: String }, // Store license image file path/URL
     yearsExperience: { type: Number, min: 0, default: 0 },
     bio: { type: String, trim: true },
     avatarUrl: { type: String },
-    
+
     // Chuyên khoa
-    specializationIds: [{ 
-      type: Schema.Types.ObjectId, 
-      ref: "Specialization" 
-    }],
-    
+    specializationIds: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Specialization",
+      },
+    ],
+
     // Phòng khám
-    clinicDefaultId: { 
-      type: Schema.Types.ObjectId, 
-      ref: "Clinic" 
+    clinicDefaultId: {
+      type: Schema.Types.ObjectId,
+      ref: "Clinic",
     },
-    
+
     // Đánh giá
     ratingAvg: { type: Number, min: 0, max: 5, default: 0 },
     ratingCount: { type: Number, min: 0, default: 0 },
-    
+
     // Trạng thái
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
-    
+
     // Thông tin phê duyệt/từ chối
     approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
     approvedAt: { type: Date },
     rejectedBy: { type: Schema.Types.ObjectId, ref: "User" },
     rejectedAt: { type: Date },
     rejectionReason: { type: String, trim: true },
-    
-    // Thông tin bổ sung
-    education: [{ 
-      degree: String,
-      school: String,
-      year: Number
-    }],
-    
-    certifications: [{ 
-      name: String,
-      issuer: String,
-      date: Date
-    }],
   },
-  { 
-    timestamps: true, 
-    versionKey: false, 
-    collection: "Doctors" 
+  {
+    timestamps: true,
+    versionKey: false,
+    collection: "Doctors",
   }
 );
 

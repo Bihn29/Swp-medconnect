@@ -12,8 +12,6 @@ export async function getAllClinics(req, res) {
       page = 1,
       limit = 10,
       search = "",
-      type = "all",
-      location = "all",
       sortBy = "createdAt",
       sortOrder = "desc",
     } = req.query;
@@ -26,16 +24,6 @@ export async function getAllClinics(req, res) {
         { address: { $regex: search, $options: "i" } },
         { phone: { $regex: search, $options: "i" } },
       ];
-    }
-
-    // Filter by type if specified
-    if (type !== "all") {
-      searchQuery.type = type;
-    }
-
-    // Filter by location if specified
-    if (location !== "all") {
-      searchQuery.location = location;
     }
 
     // Build sort query
@@ -55,23 +43,16 @@ export async function getAllClinics(req, res) {
     // Get total count
     const total = await Clinic.countDocuments(searchQuery);
 
-    // Format response
+    // Format response - only include fields that exist in the model
     const formattedClinics = clinics.map((clinic) => ({
       id: clinic._id,
-      name: clinic.name,
-      type: clinic.type || "hospital",
-      location: clinic.location || "Không xác định",
-      address: clinic.address,
-      phone: clinic.phone,
+      _id: clinic._id,
+      name: clinic.name || "",
+      address: clinic.address || "",
+      phone: clinic.phone || "",
       latitude: clinic.latitude,
       longitude: clinic.longitude,
       coordinates: clinic.geo?.coordinates,
-      specialties: clinic.specialties || [],
-      doctorCount: clinic.doctorCount || 0,
-      rating: clinic.rating || 4.0,
-      reviewCount: clinic.reviewCount || 0,
-      description: clinic.description || "",
-      image: clinic.image || "",
       createdAt: clinic.createdAt,
       updatedAt: clinic.updatedAt,
     }));

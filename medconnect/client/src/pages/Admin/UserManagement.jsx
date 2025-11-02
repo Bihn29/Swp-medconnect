@@ -15,6 +15,7 @@ import {
   message,
   Descriptions,
   Divider,
+  Image,
 } from "antd";
 import {
   SearchOutlined,
@@ -38,8 +39,21 @@ import {
   updateUser,
   changeUserPassword,
   createUser,
+  getAllSpecializations,
 } from "../../lib/api";
 import "./UserManagement.scss";
+
+// Helper function to get full image URL
+const getImageUrl = (url) => {
+  if (!url) return null;
+  // If URL is already absolute (starts with http:// or https://), return as is
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  // If URL starts with /, it's a server path, prepend API base URL
+  const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
+  return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
+};
 
 const UserManagement = () => {
   const [searchText, setSearchText] = useState("");
@@ -56,6 +70,8 @@ const UserManagement = () => {
   const [passwordForm] = Form.useForm();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [createForm] = Form.useForm();
+  const [specializations, setSpecializations] = useState([]);
+  const [clinics, setClinics] = useState([]);
 
   // Debounce search text
   useEffect(() => {
@@ -87,6 +103,49 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Load specializations and clinics
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load specializations
+        const specResponse = await getAllSpecializations({ limit: 100 });
+        if (specResponse.success && specResponse.data) {
+          setSpecializations(specResponse.data);
+        }
+
+        // Load clinics
+        const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const clinicsResponse = await fetch(`${BASE}/api/clinics?limit=1000`, {
+          credentials: "include",
+        });
+        if (clinicsResponse.ok) {
+          const clinicsData = await clinicsResponse.json();
+          console.log("🔍 Clinics API response:", clinicsData);
+
+          // API returns { success: true, data: { clinics: [...], pagination: {...} } }
+          let clinicsArray = [];
+          if (clinicsData.success && clinicsData.data) {
+            if (Array.isArray(clinicsData.data.clinics)) {
+              clinicsArray = clinicsData.data.clinics;
+            } else if (Array.isArray(clinicsData.clinics)) {
+              // Fallback for different response format
+              clinicsArray = clinicsData.clinics;
+            }
+          }
+
+          console.log("🔍 Setting clinics:", clinicsArray.length, "clinics");
+          setClinics(clinicsArray);
+        } else {
+          console.error("❌ Failed to load clinics:", clinicsResponse.status);
+          setClinics([]);
+        }
+      } catch (err) {
+        console.error("Error loading specializations/clinics:", err);
+      }
+    };
+    loadData();
+  }, []);
 
   const handleSearchChange = useCallback((e) => {
     setSearchText(e.target.value);
@@ -173,16 +232,31 @@ const UserManagement = () => {
       setSelectedUser(users.find((user) => user.id === userId));
 
       // Populate form with current user data
-      editForm.setFieldsValue({
+      const formValues = {
         fullName: userData.fullName,
         email: userData.email,
         phone: userData.phone,
         role: userData.role,
         status: userData.status,
-        address: userData.address,
-        dateOfBirth: userData.dateOfBirth,
-        gender: userData.gender,
-      });
+      };
+
+      // Add doctor-specific fields if user is a doctor
+      if (userData.role === "doctor" && userData.roleSpecificData) {
+        formValues.specializationIds =
+          userData.roleSpecificData.specializationIds?.map(
+            (spec) => spec._id
+          ) || [];
+        formValues.yearsExperience =
+          userData.roleSpecificData.yearsExperience || 0;
+        formValues.bio = userData.roleSpecificData.bio || "";
+
+        // Set clinicAddress to clinic ID for the Select component
+        const clinicId = userData.roleSpecificData.clinicDefaultId?._id || null;
+        formValues.clinicAddress = clinicId; // Use clinic ID as Select value
+        formValues.clinicDefaultId = clinicId;
+      }
+
+      editForm.setFieldsValue(formValues);
 
       setEditModalVisible(true);
     } catch (err) {
@@ -433,30 +507,6 @@ const UserManagement = () => {
                   userDetails.phone ||
                   "Chưa cập nhật"}
               </Descriptions.Item>
-              <Descriptions.Item label="Ngày sinh">
-                <CalendarOutlined
-                  style={{ marginRight: "8px", color: "#1890ff" }}
-                />
-                {userDetails.roleSpecificData?.dob
-                  ? new Date(
-                      userDetails.roleSpecificData.dob
-                    ).toLocaleDateString("vi-VN")
-                  : "Chưa cập nhật"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Giới tính">
-                {userDetails.roleSpecificData?.gender === "male"
-                  ? "Nam"
-                  : userDetails.roleSpecificData?.gender === "female"
-                  ? "Nữ"
-                  : userDetails.roleSpecificData?.gender === "other"
-                  ? "Khác"
-                  : "Chưa cập nhật"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Địa chỉ" span={2}>
-                {userDetails.roleSpecificData?.address ||
-                  userDetails.address ||
-                  "Chưa cập nhật"}
-              </Descriptions.Item>
             </Descriptions>
 
             {/* Role-specific Information */}
@@ -493,8 +543,27 @@ const UserManagement = () => {
               <>
                 <Divider />
                 <Descriptions title="Thông tin bác sĩ" bordered column={2}>
-                  <Descriptions.Item label="Số giấy phép hành nghề">
-                    {userDetails.roleSpecificData.licenseNo || "Chưa cập nhật"}
+                  <Descriptions.Item label="Giấy phép hành nghề" span={2}>
+                    {userDetails.roleSpecificData.licenseNo ? (
+                      <Image
+                        src={getImageUrl(
+                          `/server-uploads/doctors/${userDetails.roleSpecificData.licenseNo}`
+                        )}
+                        alt="Giấy phép hành nghề"
+                        width={200}
+                        height={200}
+                        style={{
+                          objectFit: "cover",
+                          borderRadius: "8px",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                        }}
+                        preview={{
+                          mask: "Xem ảnh",
+                        }}
+                      />
+                    ) : (
+                      "Chưa cập nhật"
+                    )}
                   </Descriptions.Item>
                   <Descriptions.Item label="Số năm kinh nghiệm">
                     {userDetails.roleSpecificData.yearsExperience || 0} năm
@@ -507,7 +576,7 @@ const UserManagement = () => {
                           .join(", ")
                       : "Chưa cập nhật"}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Phòng khám mặc định">
+                  <Descriptions.Item label="Phòng khám">
                     {userDetails.roleSpecificData.clinicDefaultId?.name ||
                       "Chưa cập nhật"}
                   </Descriptions.Item>
@@ -617,67 +686,100 @@ const UserManagement = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item label="Ngày sinh" name="dateOfBirth">
-            <Input placeholder="DD/MM/YYYY" />
-          </Form.Item>
-
-          <Form.Item label="Giới tính" name="gender">
-            <Select placeholder="Chọn giới tính">
-              <Select.Option value="male">Nam</Select.Option>
-              <Select.Option value="female">Nữ</Select.Option>
-              <Select.Option value="other">Khác</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item label="Địa chỉ" name="address">
-            <Input.TextArea placeholder="Nhập địa chỉ" rows={3} />
-          </Form.Item>
-
-          <Divider>Đổi mật khẩu</Divider>
-
-          <Form
-            form={passwordForm}
-            layout="vertical"
-            onFinish={handleChangePassword}
+          {/* Doctor-specific fields */}
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) =>
+              prevValues.role !== currentValues.role
+            }
           >
-            <Form.Item
-              label="Mật khẩu mới"
-              name="newPassword"
-              rules={[
-                { required: true, message: "Vui lòng nhập mật khẩu mới" },
-                { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
-              ]}
-            >
-              <Input.Password placeholder="Nhập mật khẩu mới" />
-            </Form.Item>
+            {({ getFieldValue }) =>
+              getFieldValue("role") === "doctor" ? (
+                <>
+                  <Divider>Thông tin bác sĩ</Divider>
 
-            <Form.Item
-              label="Xác nhận mật khẩu"
-              name="confirmPassword"
-              dependencies={["newPassword"]}
-              rules={[
-                { required: true, message: "Vui lòng xác nhận mật khẩu" },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (!value || getFieldValue("newPassword") === value) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(
-                      new Error("Mật khẩu xác nhận không khớp")
-                    );
-                  },
-                }),
-              ]}
-            >
-              <Input.Password placeholder="Xác nhận mật khẩu mới" />
-            </Form.Item>
+                  <Form.Item
+                    label="Chuyên khoa"
+                    name="specializationIds"
+                    tooltip="Có thể chọn nhiều chuyên khoa"
+                  >
+                    <Select
+                      mode="multiple"
+                      placeholder="Chọn chuyên khoa"
+                      showSearch
+                      filterOption={(input, option) =>
+                        option?.children
+                          ?.toLowerCase()
+                          .includes(input.toLowerCase()) ?? false
+                      }
+                    >
+                      {specializations.map((spec) => (
+                        <Select.Option
+                          key={spec.id || spec._id}
+                          value={spec.id || spec._id}
+                        >
+                          {spec.name}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" icon={<LockOutlined />}>
-                Đổi mật khẩu
-              </Button>
-            </Form.Item>
-          </Form>
+                  <Form.Item label="Năm kinh nghiệm" name="yearsExperience">
+                    <Input
+                      type="number"
+                      placeholder="Nhập số năm kinh nghiệm"
+                      min={0}
+                    />
+                  </Form.Item>
+
+                  <Form.Item label="Giới thiệu" name="bio">
+                    <Input.TextArea
+                      placeholder="Nhập giới thiệu về bác sĩ"
+                      rows={4}
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Địa chỉ phòng khám"
+                    name="clinicAddress"
+                    tooltip="Chọn phòng khám từ danh sách có sẵn"
+                  >
+                    <Select
+                      placeholder="Chọn phòng khám"
+                      showSearch
+                      filterOption={(input, option) => {
+                        const label = option?.children?.toLowerCase() || "";
+                        return label.includes(input.toLowerCase());
+                      }}
+                      allowClear
+                      onChange={(value) => {
+                        // When clinic is selected, set clinicDefaultId
+                        editForm.setFieldsValue({
+                          clinicDefaultId: value || null,
+                        });
+                      }}
+                    >
+                      {Array.isArray(clinics) &&
+                        clinics.map((clinic) => (
+                          <Select.Option
+                            key={clinic.id || clinic._id}
+                            value={clinic.id || clinic._id}
+                          >
+                            {clinic.name} -{" "}
+                            {clinic.address || "Chưa có địa chỉ"}
+                          </Select.Option>
+                        ))}
+                    </Select>
+                  </Form.Item>
+
+                  {/* Hidden field to store clinic ID */}
+                  <Form.Item name="clinicDefaultId" style={{ display: "none" }}>
+                    <Input />
+                  </Form.Item>
+                </>
+              ) : null
+            }
+          </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, marginTop: "24px" }}>
             <Space>
@@ -686,6 +788,52 @@ const UserManagement = () => {
               </Button>
               <Button onClick={() => setEditModalVisible(false)}>Hủy</Button>
             </Space>
+          </Form.Item>
+        </Form>
+
+        <Divider>Đổi mật khẩu</Divider>
+
+        <Form
+          form={passwordForm}
+          layout="vertical"
+          onFinish={handleChangePassword}
+        >
+          <Form.Item
+            label="Mật khẩu mới"
+            name="newPassword"
+            rules={[
+              { required: true, message: "Vui lòng nhập mật khẩu mới" },
+              { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
+            ]}
+          >
+            <Input.Password placeholder="Nhập mật khẩu mới" />
+          </Form.Item>
+
+          <Form.Item
+            label="Xác nhận mật khẩu"
+            name="confirmPassword"
+            dependencies={["newPassword"]}
+            rules={[
+              { required: true, message: "Vui lòng xác nhận mật khẩu" },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue("newPassword") === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(
+                    new Error("Mật khẩu xác nhận không khớp")
+                  );
+                },
+              }),
+            ]}
+          >
+            <Input.Password placeholder="Xác nhận mật khẩu mới" />
+          </Form.Item>
+
+          <Form.Item>
+            <Button type="primary" htmlType="submit" icon={<LockOutlined />}>
+              Đổi mật khẩu
+            </Button>
           </Form.Item>
         </Form>
       </Modal>
