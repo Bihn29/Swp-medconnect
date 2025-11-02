@@ -25,6 +25,12 @@ const DoctorTimeSlotSchema = new Schema(
       index: true,
     },
 
+    // Lý do nghỉ (chỉ khi status = "blocked")
+    leaveReason: {
+      type: String,
+      default: "",
+    },
+
     // chống double-book khi đặt
     version: { type: Number, default: 0 },
   },

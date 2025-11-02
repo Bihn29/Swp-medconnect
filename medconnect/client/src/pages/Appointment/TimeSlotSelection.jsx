@@ -620,14 +620,22 @@ const TimeSlotSelection = () => {
                       {timeSlots.map((slot) => {
                         // Kiểm tra slot đã qua giờ
                         const isPassed = isSlotPassed(slot);
-                        // Kiểm tra slot không available (đã có appointment)
+                        // Kiểm tra slot không available (đã có appointment hoặc bị blocked)
                         const isUnavailable = !slot.available;
-                        // Slot bị disable nếu đã qua giờ hoặc không available
-                        const isDisabled = isPassed || isUnavailable;
+                        // Kiểm tra slot bị blocked (bác sĩ nghỉ)
+                        const isBlocked =
+                          slot.isBlocked || slot.status === "blocked";
+                        // Slot bị disable nếu đã qua giờ, không available, hoặc bị blocked
+                        const isDisabled =
+                          isPassed || isUnavailable || isBlocked;
 
                         // Tạo tooltip text để giải thích tại sao slot bị disable
                         let disabledReason = "";
-                        if (isPassed) {
+                        if (isBlocked) {
+                          disabledReason = slot.leaveReason
+                            ? `Bác sĩ nghỉ: ${slot.leaveReason}`
+                            : "Bác sĩ nghỉ";
+                        } else if (isPassed) {
                           disabledReason = "Khung giờ này đã qua";
                         } else if (isUnavailable && slot.appointmentStatus) {
                           // Hiển thị status cụ thể của appointment

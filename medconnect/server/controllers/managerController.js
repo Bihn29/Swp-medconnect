@@ -175,10 +175,26 @@ export async function getDoctorTimeSlotsForManager(req, res) {
       };
     });
 
+    // Fetch leave requests for these slots
+    const LeaveRequest = (await import("../models/leaveRequest.model.js"))
+      .default;
+    const leaveRequests = await LeaveRequest.find({
+      slotId: { $in: slotIds },
+      status: "pending",
+    }).lean();
+
+    // Create a map of slotId -> leave request
+    const leaveRequestMap = {};
+    leaveRequests.forEach((leaveRequest) => {
+      const slotIdKey = leaveRequest.slotId.toString();
+      leaveRequestMap[slotIdKey] = leaveRequest;
+    });
+
     // Format slots similar to doctor's own view with proper status mapping
     const formattedSlots = timeSlots.map((slot) => {
       const slotIdStr = slot._id.toString();
       const appointment = appointmentMap[slotIdStr];
+      const pendingLeaveRequest = leaveRequestMap[slotIdStr];
 
       // Map appointment status to display status (same logic as Doctor)
       let displayStatus = slot.status;
@@ -206,6 +222,9 @@ export async function getDoctorTimeSlotsForManager(req, res) {
         appointmentStatus: appointment?.appointmentStatus || null,
         reason: appointment?.reason || null,
         mode: appointment?.mode || null,
+        leaveReason: slot.leaveReason || null, // Lý do nghỉ
+        hasPendingLeaveRequest: !!pendingLeaveRequest, // Flag để biết có leave request đang pending
+        leaveRequestId: pendingLeaveRequest?._id?.toString() || null,
       };
     });
 
@@ -221,6 +240,56 @@ export async function getDoctorTimeSlotsForManager(req, res) {
     console.error("❌ Error stack:", error.stack);
     console.error("❌ Error message:", error.message);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Get appointment detail by appointment ID (manager can view any doctor's appointments)
+ */
+export async function getAppointmentDetailForManager(req, res) {
+  try {
+    const { appointmentId } = req.params;
+
+    if (!appointmentId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Appointment ID is required"
+      );
+    }
+
+    const appointment = await Appointment.findById(appointmentId)
+      .populate({
+        path: "patientId",
+        select:
+          "fullName dob gender phone relationshipToOwner representativeName representativeRelation representativePhone representativeCitizenId",
+      })
+      .populate({
+        path: "doctorId",
+        select: "fullName specializationIds phone avatarUrl",
+        populate: {
+          path: "specializationIds",
+          select: "name",
+        },
+      })
+      .populate("clinicId", "name address")
+      .populate("slotId", "startAt endAt")
+      .lean();
+
+    if (!appointment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
+    }
+
+    return ok(res, appointment);
+  } catch (error) {
+    console.error("❌ getAppointmentDetailForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
   }
 }
 
@@ -667,6 +736,297 @@ export async function deleteTimeSlotForManager(req, res) {
     });
   } catch (error) {
     console.error("❌ deleteTimeSlotForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Block a single slot by slotId for a specific doctor (manager can block for any doctor)
+ */
+export async function blockSingleSlotForManager(req, res) {
+  try {
+    const { doctorId, slotId } = req.params;
+    const { reason } = req.body || {};
+
+    if (!doctorId || !slotId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Doctor ID and Slot ID are required"
+      );
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Find the specific slot
+    const slot = await DoctorTimeSlot.findOne({
+      _id: slotId,
+      doctorId: doctor._id,
+    });
+
+    if (!slot) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Time slot not found or does not belong to this doctor"
+      );
+    }
+
+    // Check if slot has active appointments
+    const activeAppointments = await Appointment.find({
+      slotId: slot._id,
+      status: {
+        $nin: ["cancelled", "rejected", "no_show", "rescheduled"],
+      },
+    }).select("slotId status");
+
+    if (activeAppointments.length > 0) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Cannot block slot with active appointment. Please cancel the appointment first."
+      );
+    }
+
+    // Block the slot
+    slot.status = "blocked";
+    slot.leaveReason = reason || "";
+    await slot.save();
+
+    console.log(
+      `✅ Manager blocked single slot ${slotId} for doctor ${doctor.fullName} at ${slot.startAt}`
+    );
+    if (reason) {
+      console.log(`Reason: ${reason}`);
+    }
+
+    return ok(res, {
+      message: "Slot blocked successfully",
+      blockedSlotId: slotId,
+      slot: {
+        id: slot._id,
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        status: slot.status,
+      },
+    });
+  } catch (error) {
+    console.error("❌ blockSingleSlotForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Block/unblock slots by date range for a specific doctor (manager can block for any doctor)
+ */
+export async function blockSlotsByDateRangeForManager(req, res) {
+  try {
+    const { doctorId } = req.params;
+    const { startDate, endDate, reason } = req.body;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    if (!startDate || !endDate) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Start date and end date are required"
+      );
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    if (start > end) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Start date must be before end date"
+      );
+    }
+
+    // Find all slots in the date range for this doctor
+    const slotsToBlock = await DoctorTimeSlot.find({
+      doctorId: doctor._id,
+      startAt: { $gte: start, $lte: end },
+    });
+
+    if (slotsToBlock.length === 0) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "No slots found in the specified date range"
+      );
+    }
+
+    // Check if any slots have active appointments
+    const slotIds = slotsToBlock.map((slot) => slot._id);
+    const activeAppointments = await Appointment.find({
+      slotId: { $in: slotIds },
+      status: {
+        $nin: ["cancelled", "rejected", "no_show", "rescheduled"],
+      },
+    }).select("slotId status");
+
+    if (activeAppointments.length > 0) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        `Cannot block ${activeAppointments.length} slot(s) with active appointments. Please cancel those appointments first.`
+      );
+    }
+
+    // Block all slots in the date range
+    const updateResult = await DoctorTimeSlot.updateMany(
+      {
+        _id: { $in: slotIds },
+      },
+      {
+        $set: { status: "blocked" },
+      }
+    );
+
+    console.log(
+      `✅ Manager blocked ${updateResult.modifiedCount} slots for doctor ${doctor.fullName} from ${startDate} to ${endDate}`
+    );
+    if (reason) {
+      console.log(`Reason: ${reason}`);
+    }
+
+    return ok(res, {
+      message: `Successfully blocked ${updateResult.modifiedCount} slots`,
+      blockedSlots: updateResult.modifiedCount,
+      dateRange: {
+        startDate: startDate,
+        endDate: endDate,
+      },
+      reason: reason || null,
+    });
+  } catch (error) {
+    console.error("❌ blockSlotsByDateRangeForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Unblock slots by date range for a specific doctor (manager can unblock for any doctor)
+ */
+export async function unblockSlotsByDateRangeForManager(req, res) {
+  try {
+    const { doctorId } = req.params;
+    const { startDate, endDate } = req.body;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    if (!startDate || !endDate) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Start date and end date are required"
+      );
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    if (start > end) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Start date must be before end date"
+      );
+    }
+
+    // Find all blocked slots in the date range for this doctor
+    const slotsToUnblock = await DoctorTimeSlot.find({
+      doctorId: doctor._id,
+      startAt: { $gte: start, $lte: end },
+      status: "blocked",
+    });
+
+    if (slotsToUnblock.length === 0) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "No blocked slots found in the specified date range"
+      );
+    }
+
+    // Unblock all slots in the date range
+    const updateResult = await DoctorTimeSlot.updateMany(
+      {
+        doctorId: doctor._id,
+        startAt: { $gte: start, $lte: end },
+        status: "blocked",
+      },
+      {
+        $set: { status: "available" },
+      }
+    );
+
+    console.log(
+      `✅ Manager unblocked ${updateResult.modifiedCount} slots for doctor ${doctor.fullName} from ${startDate} to ${endDate}`
+    );
+
+    return ok(res, {
+      message: `Successfully unblocked ${updateResult.modifiedCount} slots`,
+      unblockedSlots: updateResult.modifiedCount,
+      dateRange: {
+        startDate: startDate,
+        endDate: endDate,
+      },
+    });
+  } catch (error) {
+    console.error("❌ unblockSlotsByDateRangeForManager error:", error);
     return fail(
       res,
       500,

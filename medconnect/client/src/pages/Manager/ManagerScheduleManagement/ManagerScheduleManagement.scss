@@ -536,6 +536,12 @@
                 color: #065f46; // Dark green text
               }
 
+              &.blocked {
+                background: #fed7aa; // Light orange
+                color: #c2410c; // Dark orange text
+                font-weight: 600;
+              }
+
               &.in_progress,
               &.completed,
               &.done {

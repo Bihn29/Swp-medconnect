@@ -12,7 +12,6 @@ import {
   Phone,
   User,
   MessageSquare,
-  Trash2,
 } from "lucide-react";
 import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
@@ -31,18 +30,13 @@ import {
   SelectValue,
 } from "../../../components/ui/Select";
 import { auth } from "../../../lib/firebase";
-import {
-  getDoctorTimeSlots,
-  autoGenerateTimeSlots,
-  deleteTimeSlot,
-} from "../../../lib/api";
+import { getDoctorTimeSlots, createLeaveRequest } from "../../../lib/api";
 import "./ScheduleManagement.scss";
 
 export default function ScheduleManagement() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [authUser, setAuthUser] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [timeSlots, setTimeSlots] = useState([]);
 
   // Leave request states
@@ -52,6 +46,17 @@ export default function ScheduleManagement() {
     endDate: "",
     reason: "",
   });
+
+  // Slot action menu state
+  const [showSlotActionMenu, setShowSlotActionMenu] = useState(false);
+  const [actionMenuSlot, setActionMenuSlot] = useState(null);
+
+  // Block slot with reason dialog state
+  const [showBlockSlotDialog, setShowBlockSlotDialog] = useState(false);
+  const [blockSlotReason, setBlockSlotReason] = useState("");
+
+  // Block detail dialog state
+  const [showBlockDetailDialog, setShowBlockDetailDialog] = useState(false);
 
   // Booking states
   const [showBookSlot, setShowBookSlot] = useState(false);
@@ -228,49 +233,6 @@ export default function ScheduleManagement() {
     }
   };
 
-  const handleGenerateSlots = async () => {
-    try {
-      setGenerating(true);
-      console.log("🔍 Generating time slots...");
-      const response = await autoGenerateTimeSlots();
-      console.log("🔍 Generate response:", response);
-      if (response.success) {
-        const createdCount = response.data.createdSlots || 0;
-        const totalSlots = response.data.totalFutureSlots || 0;
-        const existingSlots = response.data.existingSlots || 0;
-
-        // Different messages based on response
-        if (createdCount === 0) {
-          // No slots created (already have >= 100)
-          alert(
-            `ℹ️ Hiện tại bạn đã có ${existingSlots} slot trong tương lai.\n\nKhông cần tạo thêm slot lúc này.\nChỉ tạo slot mới khi số lượng slot < 100.`
-          );
-        } else {
-          // Slots created successfully
-          let message = `✅ Đã tạo ${createdCount} slot mới trong 1 tháng tới (bao gồm cả cuối tuần)`;
-          message += `\n\n📊 Tổng slot tương lai: ${totalSlots} slot`;
-
-          // Warning if slots are running low
-          if (totalSlots < 30) {
-            message += `\n\n⚠️ CẢNH BÁO: Bạn chỉ còn ${totalSlots} slot. Vui lòng tạo thêm slot sớm!`;
-          } else if (totalSlots < 50) {
-            message += `\n\n💡 LƯU Ý: Bạn còn ${totalSlots} slot. Nên tạo thêm slot trong thời gian tới.`;
-          }
-
-          alert(message);
-        }
-        await loadTimeSlots();
-      } else {
-        alert("❌ Lỗi khi tạo slots: " + (response.message || "Unknown error"));
-      }
-    } catch (error) {
-      console.error("❌ Error generating slots:", error);
-      alert("❌ Lỗi khi tạo slots: " + error.message);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
   // Processed slots for display - chỉ hiển thị slot thực sự có trong database
   const processedSlots = React.useMemo(() => {
     const slotsMap = {};
@@ -327,6 +289,8 @@ export default function ScheduleManagement() {
         reason: slot.reason || null,
         mode: slot.mode || null,
         appointmentId: slot.appointmentId || null,
+        leaveReason: slot.leaveReason || null, // Lý do nghỉ
+        hasPendingLeaveRequest: slot.hasPendingLeaveRequest || false, // Flag leave request đang pending
         isEmpty: false,
       };
 
@@ -454,8 +418,31 @@ export default function ScheduleManagement() {
     }
   };
 
-  const getStatusText = (status) => {
+  const getStatusText = (status, hasPendingLeaveRequest = false) => {
     if (!status) return "Không xác định";
+
+    // Nếu có leave request đang pending, hiển thị "Lịch nghỉ đang xét duyệt" (bất kể status)
+    // Trừ khi status là "blocked" (đã được approve) hoặc có appointment
+    if (
+      hasPendingLeaveRequest &&
+      status !== "blocked" &&
+      status !== "pending" &&
+      status !== "pending_doctor" &&
+      status !== "confirmed" &&
+      status !== "in_progress" &&
+      status !== "completed" &&
+      status !== "booked"
+    ) {
+      return "Lịch nghỉ đang xét duyệt";
+    }
+
+    // Nếu có leave request pending và status là pending, hiển thị "Lịch nghỉ đang xét duyệt"
+    if (
+      hasPendingLeaveRequest &&
+      (status === "pending" || status === "pending_doctor")
+    ) {
+      return "Lịch nghỉ đang xét duyệt";
+    }
 
     switch (status) {
       // Status từ appointment model
@@ -478,6 +465,10 @@ export default function ScheduleManagement() {
 
       // Status từ slot (backward compatibility)
       case "available":
+        // Nếu có leave request pending, hiển thị "Lịch nghỉ đang xét duyệt" thay vì "Trống"
+        if (hasPendingLeaveRequest) {
+          return "Lịch nghỉ đang xét duyệt";
+        }
         return "Trống";
       case "pending":
         return "Chờ duyệt";
@@ -488,7 +479,7 @@ export default function ScheduleManagement() {
       case "booked":
         return "Đã đặt";
       case "blocked":
-        return "Bị chặn";
+        return "Bác sĩ nghỉ";
 
       default: {
         console.warn("Unknown status:", status);
@@ -516,13 +507,36 @@ export default function ScheduleManagement() {
     }
   };
 
-  const handleSlotClick = async (slot) => {
+  const handleSlotClick = async (slot, event) => {
     if (!slot) return;
 
-    // Nếu slot available, mở modal đặt lịch
-    if (slot.status === "available") {
+    // Nếu slot blocked, hiển thị chi tiết lý do nghỉ
+    if (slot.status === "blocked") {
       setSelectedSlot(slot);
-      setShowBookSlot(true);
+      setShowBlockDetailDialog(true);
+      return;
+    }
+
+    // Check if right-click (context menu)
+    if (event && event.button === 2) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Right-click on available slot -> mở dialog nhập lý do
+      if (slot.status === "available") {
+        setActionMenuSlot(slot);
+        setShowBlockSlotDialog(true);
+        setBlockSlotReason("");
+        return;
+      }
+      return;
+    }
+
+    // Nếu slot available, mở trực tiếp dialog đăng ký nghỉ
+    if (slot.status === "available") {
+      setActionMenuSlot(slot);
+      setShowBlockSlotDialog(true);
+      setBlockSlotReason("");
       return;
     }
 
@@ -563,11 +577,91 @@ export default function ScheduleManagement() {
     }
   };
 
-  const handleLeaveRequest = () => {
-    console.log("Leave request:", leaveData);
-    alert("Yêu cầu nghỉ phép đã được gửi!");
-    setShowLeaveRequest(false);
-    setLeaveData({ startDate: "", endDate: "", reason: "" });
+  const handleLeaveRequest = async () => {
+    if (!leaveData.startDate || !leaveData.endDate) {
+      alert("Vui lòng chọn ngày bắt đầu và ngày kết thúc!");
+      return;
+    }
+
+    try {
+      console.log("Leave request:", leaveData);
+      const response = await blockSlotsByDateRange(
+        leaveData.startDate,
+        leaveData.endDate,
+        leaveData.reason || ""
+      );
+
+      if (response.success) {
+        alert(
+          `✅ Đã chặn ${response.data.blockedSlots} slot từ ${leaveData.startDate} đến ${leaveData.endDate}`
+        );
+        setShowLeaveRequest(false);
+        setLeaveData({ startDate: "", endDate: "", reason: "" });
+        await loadTimeSlots(); // Reload to show blocked slots
+      } else {
+        alert("❌ Lỗi khi chặn slot: " + (response.message || "Unknown error"));
+      }
+    } catch (error) {
+      console.error("❌ Error blocking slots:", error);
+      alert("❌ Lỗi khi chặn slot: " + error.message);
+    }
+  };
+
+  // Handler khi chọn "Đặt lịch khám" từ menu
+  const handleBookSlotFromMenu = () => {
+    if (actionMenuSlot) {
+      setSelectedSlot(actionMenuSlot);
+      setShowSlotActionMenu(false);
+      setShowBookSlot(true);
+      setActionMenuSlot(null);
+    }
+  };
+
+  // Handler khi chọn "Đăng ký nghỉ" từ menu
+  const handleBlockSlotFromMenu = () => {
+    if (!actionMenuSlot) return;
+    // Mở dialog nhập lý do
+    setShowSlotActionMenu(false);
+    setShowBlockSlotDialog(true);
+    setBlockSlotReason("");
+  };
+
+  // Handler khi xác nhận tạo leave request
+  const handleConfirmBlockSlot = async () => {
+    if (!blockSlotReason.trim()) {
+      alert("Vui lòng nhập lý do nghỉ!");
+      return;
+    }
+
+    if (!actionMenuSlot) return;
+
+    try {
+      const slotId = actionMenuSlot?._id || actionMenuSlot?.id;
+      if (!slotId) {
+        alert("Không tìm thấy thông tin slot cần nghỉ");
+        return;
+      }
+
+      const response = await createLeaveRequest(slotId, blockSlotReason.trim());
+
+      if (response.success) {
+        alert(
+          `✅ Đã gửi yêu cầu nghỉ phép thành công! Vui lòng chờ manager phê duyệt.`
+        );
+        setShowBlockSlotDialog(false);
+        setActionMenuSlot(null);
+        setBlockSlotReason("");
+        await loadTimeSlots();
+      } else {
+        alert(
+          "Không thể gửi yêu cầu nghỉ phép: " +
+            (response.message || "Unknown error")
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error creating leave request:", error);
+      alert("Có lỗi xảy ra khi gửi yêu cầu nghỉ phép: " + error.message);
+    }
   };
 
   const handleBookSlot = async () => {
@@ -802,7 +896,8 @@ export default function ScheduleManagement() {
     }
   };
 
-  const handleDeleteSlot = async (slot) => {
+  // Removed: handleDeleteSlot - doctors can no longer delete slots
+  const _handleDeleteSlot_removed = async (slot) => {
     // Check for slot ID (could be _id or id depending on mapping)
     const slotId = slot?._id || slot?.id;
     if (!slot || !slotId) {
@@ -929,13 +1024,6 @@ export default function ScheduleManagement() {
         <div className="header-right">
           <div className="action-buttons">
             <Button
-              onClick={handleGenerateSlots}
-              className="auto-generate-btn"
-              disabled={generating}
-            >
-              🚀 Tạo slot tự động
-            </Button>
-            <Button
               onClick={() => setShowLeaveRequest(true)}
               className="leave-btn"
             >
@@ -971,18 +1059,7 @@ export default function ScheduleManagement() {
             <div className="empty-state">
               <Calendar size={64} className="empty-icon" />
               <h3>Chưa có slot nào trong tuần này</h3>
-              <p>
-                Bấm nút "Tạo slot tự động" để tạo lịch làm việc cho 1 tháng tới
-                (bao gồm cả cuối tuần)
-              </p>
-              <Button
-                onClick={handleGenerateSlots}
-                className="auto-generate-btn"
-                disabled={generating}
-                size="lg"
-              >
-                🚀 Tạo slot tự động ngay
-              </Button>
+              <p>Liên hệ manager để được tạo slot làm việc.</p>
             </div>
           </div>
         )}
@@ -1096,7 +1173,11 @@ export default function ScheduleManagement() {
                             className={`slot-cell ${
                               day.isPast ? "past-day" : ""
                             }`}
-                            onClick={() => handleSlotClick(slot)}
+                            onClick={(e) => handleSlotClick(slot, e)}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              handleSlotClick(slot, { button: 2 });
+                            }}
                           >
                             <div className="slot-content">
                               {slot.status === "available" ? (
@@ -1109,26 +1190,34 @@ export default function ScheduleManagement() {
                                       ),
                                     }}
                                   >
-                                    {getStatusText(slot.status)}
+                                    {getStatusText(
+                                      slot.status,
+                                      slot.hasPendingLeaveRequest
+                                    )}
                                   </div>
-                                  <button
-                                    className="delete-slot-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation(); // Prevent opening modal
-                                      handleDeleteSlot(slot);
-                                    }}
-                                    title="Xóa slot"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
                                 </>
+                              ) : slot.status === "blocked" ? (
+                                <div
+                                  className="slot-status"
+                                  style={{
+                                    backgroundColor: getStatusColor(
+                                      slot.status
+                                    ),
+                                    width: "100%",
+                                  }}
+                                >
+                                  🚫 {getStatusText(slot.status)}
+                                </div>
                               ) : (
                                 <div className={`booked-slot ${slot.status}`}>
                                   <div className="patient-name-main">
                                     {slot.patientName || "Bệnh nhân"}
                                   </div>
                                   <div className="status-text-small">
-                                    {getStatusText(slot.status)}
+                                    {getStatusText(
+                                      slot.status,
+                                      slot.hasPendingLeaveRequest
+                                    )}
                                   </div>
                                 </div>
                               )}
@@ -1190,6 +1279,110 @@ export default function ScheduleManagement() {
             </Button>
             <Button onClick={handleLeaveRequest} variant="primary">
               Gửi yêu cầu
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Slot Action Menu Dialog */}
+      <Dialog open={showSlotActionMenu} onOpenChange={setShowSlotActionMenu}>
+        <DialogContent className="slot-action-menu-dialog">
+          <DialogHeader>
+            <DialogTitle>Chọn hành động</DialogTitle>
+          </DialogHeader>
+          <div
+            style={{
+              padding: "20px 0",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
+            {actionMenuSlot && (
+              <div
+                style={{
+                  marginBottom: "10px",
+                  fontSize: "14px",
+                  color: "#666",
+                }}
+              >
+                Thời gian:{" "}
+                {new Date(actionMenuSlot.startAt).toLocaleString("vi-VN")}
+              </div>
+            )}
+            <Button
+              onClick={handleBookSlotFromMenu}
+              variant="primary"
+              style={{ width: "100%", padding: "12px" }}
+            >
+              📅 Đặt lịch khám
+            </Button>
+            <Button
+              onClick={handleBlockSlotFromMenu}
+              variant="outline"
+              style={{ width: "100%", padding: "12px", borderColor: "#6b7280" }}
+            >
+              🚫 Đăng ký nghỉ
+            </Button>
+          </div>
+          <div className="dialog-actions">
+            <Button
+              onClick={() => {
+                setShowSlotActionMenu(false);
+                setActionMenuSlot(null);
+              }}
+              variant="outline"
+            >
+              Hủy
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Block Slot Dialog - Nhập lý do nghỉ */}
+      <Dialog open={showBlockSlotDialog} onOpenChange={setShowBlockSlotDialog}>
+        <DialogContent className="block-slot-dialog">
+          <DialogHeader>
+            <DialogTitle>Đăng ký nghỉ</DialogTitle>
+          </DialogHeader>
+          {actionMenuSlot && (
+            <div
+              style={{
+                marginBottom: "15px",
+                fontSize: "14px",
+                color: "#666",
+              }}
+            >
+              Thời gian:{" "}
+              {new Date(actionMenuSlot.startAt).toLocaleString("vi-VN")}
+            </div>
+          )}
+          <div className="form-group">
+            <label>Lý do nghỉ: *</label>
+            <Input
+              value={blockSlotReason}
+              onChange={(e) => setBlockSlotReason(e.target.value)}
+              placeholder="Nhập lý do nghỉ (bắt buộc)..."
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  handleConfirmBlockSlot();
+                }
+              }}
+            />
+          </div>
+          <div className="dialog-actions">
+            <Button
+              onClick={() => {
+                setShowBlockSlotDialog(false);
+                setBlockSlotReason("");
+                setActionMenuSlot(null);
+              }}
+              variant="outline"
+            >
+              Hủy
+            </Button>
+            <Button onClick={handleConfirmBlockSlot} variant="primary">
+              Xác nhận nghỉ
             </Button>
           </div>
         </DialogContent>
@@ -1282,6 +1475,48 @@ export default function ScheduleManagement() {
               Đặt lịch
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Block Detail Dialog - Hiển thị lý do nghỉ */}
+      <Dialog
+        open={showBlockDetailDialog}
+        onOpenChange={setShowBlockDetailDialog}
+      >
+        <DialogContent className="block-detail-dialog">
+          <DialogHeader>
+            <DialogTitle>Chi tiết nghỉ phép</DialogTitle>
+          </DialogHeader>
+          {selectedSlot && (
+            <div className="block-detail-content">
+              <div className="detail-section">
+                <div className="detail-item">
+                  <span className="detail-label">Thời gian nghỉ:</span>
+                  <span className="detail-value">
+                    {new Date(selectedSlot.startAt).toLocaleString("vi-VN")}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Lý do nghỉ:</span>
+                  <span className="detail-value">
+                    {selectedSlot.leaveReason || "Không có lý do"}
+                  </span>
+                </div>
+              </div>
+              <div className="dialog-actions">
+                <Button
+                  onClick={() => {
+                    setShowBlockDetailDialog(false);
+                    setSelectedSlot(null);
+                  }}
+                  variant="outline"
+                  style={{ width: "100%" }}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

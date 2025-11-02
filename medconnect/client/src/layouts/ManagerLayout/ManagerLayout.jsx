@@ -8,6 +8,7 @@ import {
   BellOutlined,
   UserOutlined,
   DownOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import { clearUserData } from "../../utils/clearUserData";
 import "./ManagerLayout.scss";
@@ -30,6 +31,12 @@ const ManagerLayout = () => {
       key: "/manager/quan-ly-lich",
       icon: <CalendarOutlined />,
       label: "Quản lý lịch bác sĩ",
+    },
+    {
+      key: "/manager/yeu-cau-nghi-phep",
+      icon: <FileTextOutlined />,
+      label: "Yêu cầu nghỉ phép",
+      badge: null, // TODO: Add badge count for pending requests
     },
   ];
 

@@ -512,12 +512,12 @@ export async function getDoctorTimeSlots(req, res) {
     const endDate = new Date(date);
     endDate.setHours(23, 59, 59, 999);
 
-    // Get all time slots for the doctor on the specified date (both available and booked)
-    // We need to check both because cancelled appointments might leave slots as "booked"
+    // Get all time slots for the doctor on the specified date (available, booked, and blocked)
+    // Include blocked slots so patients can see when doctor is on leave (but cannot book)
     const timeSlots = await DoctorTimeSlot.find({
       doctorId: doctorId,
       startAt: { $gte: startDate, $lte: endDate },
-      status: { $in: ["available", "booked"] }, // Include both available and booked slots
+      status: { $in: ["available", "booked", "blocked"] }, // Include blocked slots for display
     })
       .sort({ startAt: 1 })
       .lean();
@@ -551,11 +551,12 @@ export async function getDoctorTimeSlots(req, res) {
     });
 
     // Format ALL time slots for frontend (not just available ones)
-    // Mark slots as unavailable if they have active appointments
+    // Mark slots as unavailable if they have active appointments or are blocked
     const formattedSlots = timeSlots.map((slot) => {
       const slotIdStr = slot._id.toString();
       const appointmentStatus = bookedSlotMap.get(slotIdStr);
-      const isAvailable = !appointmentStatus; // Available if no active appointment
+      const isBlocked = slot.status === "blocked";
+      const isAvailable = !appointmentStatus && !isBlocked; // Available if no active appointment and not blocked
 
       return {
         _id: slot._id,
@@ -568,6 +569,9 @@ export async function getDoctorTimeSlots(req, res) {
           .slice(0, 5)}`,
         available: isAvailable,
         appointmentStatus: appointmentStatus || null, // Include appointment status for frontend display
+        status: slot.status, // Include slot status (available, booked, blocked)
+        isBlocked: isBlocked, // Flag to identify blocked slots
+        leaveReason: slot.leaveReason || null, // Reason for leave (if blocked)
       };
     });
 

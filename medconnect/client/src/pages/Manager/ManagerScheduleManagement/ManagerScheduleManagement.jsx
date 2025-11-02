@@ -43,15 +43,12 @@ export default function ManagerScheduleManagement() {
   const [loadingDoctors, setLoadingDoctors] = useState(false);
 
   // Leave request states
-  const [showLeaveRequest, setShowLeaveRequest] = useState(false);
-  const [leaveData, setLeaveData] = useState({
-    startDate: "",
-    endDate: "",
-    reason: "",
-  });
 
   // Status filter state
   const [selectedStatus, setSelectedStatus] = useState("pending");
+
+  // Block detail dialog state (chỉ để xem lý do nghỉ, không thể đăng ký nghỉ)
+  const [showBlockDetailDialog, setShowBlockDetailDialog] = useState(false);
 
   // Booking states
   const [showBookSlot, setShowBookSlot] = useState(false);
@@ -314,13 +311,6 @@ export default function ManagerScheduleManagement() {
     }
   };
 
-  const handleLeaveRequest = () => {
-    console.log("Leave request:", leaveData);
-    alert("Yêu cầu nghỉ phép đã được gửi!");
-    setShowLeaveRequest(false);
-    setLeaveData({ startDate: "", endDate: "", reason: "" });
-  };
-
   // Process slots similar to ScheduleManagement
   const processedSlots = React.useMemo(() => {
     const slotsMap = {};
@@ -352,6 +342,8 @@ export default function ManagerScheduleManagement() {
         reason: slot.reason || null,
         mode: slot.mode || null,
         appointmentId: slot.appointmentId || null,
+        leaveReason: slot.leaveReason || null, // Lý do nghỉ
+        hasPendingLeaveRequest: slot.hasPendingLeaveRequest || false, // Flag leave request đang pending
         isEmpty: false,
       };
 
@@ -467,8 +459,16 @@ export default function ManagerScheduleManagement() {
     }
   };
 
-  const getStatusText = (status) => {
+  const getStatusText = (status, hasPendingLeaveRequest = false) => {
     if (!status) return "Không xác định";
+
+    // Nếu có leave request đang pending và status là pending, hiển thị "Lịch nghỉ đang xét duyệt"
+    if (
+      hasPendingLeaveRequest &&
+      (status === "pending" || status === "pending_doctor")
+    ) {
+      return "Lịch nghỉ đang xét duyệt";
+    }
 
     switch (status) {
       case "pending_doctor":
@@ -488,6 +488,10 @@ export default function ManagerScheduleManagement() {
       case "rescheduled":
         return "Đã dời lịch";
       case "available":
+        // Nếu có leave request pending, hiển thị "Lịch nghỉ đang xét duyệt" thay vì "Trống"
+        if (hasPendingLeaveRequest) {
+          return "Lịch nghỉ đang xét duyệt";
+        }
         return "Trống";
       case "pending":
         return "Chờ duyệt";
@@ -498,19 +502,26 @@ export default function ManagerScheduleManagement() {
       case "booked":
         return "Đã đặt";
       case "blocked":
-        return "Bị chặn";
+        return "Bác sĩ nghỉ";
       default:
         return "Không xác định";
     }
   };
 
-  const handleSlotClick = async (slot) => {
+  const handleSlotClick = async (slot, event) => {
     if (!slot) return;
 
-    if (slot.status === "available") {
+    // Nếu slot blocked, hiển thị chi tiết lý do nghỉ
+    if (slot.status === "blocked") {
       setSelectedSlot(slot);
-      setShowBookSlot(true);
+      setShowBlockDetailDialog(true);
       return;
+    }
+
+    // Manager chỉ có thể xem appointment detail, không thể đăng ký nghỉ
+    // Slot available không có hành động gì ở manager
+    if (slot.status === "available") {
+      return; // Không làm gì cả
     }
 
     if (slot.appointmentId) {
@@ -519,7 +530,7 @@ export default function ManagerScheduleManagement() {
 
       try {
         const response = await api.get(
-          `/api/doctors/me/appointments/${slot.appointmentId}`
+          `/api/managers/appointments/${slot.appointmentId}`
         );
 
         if (response.success) {
@@ -888,12 +899,6 @@ export default function ManagerScheduleManagement() {
                   🚀 Tạo slot tự động
                 </Button>
                 <Button
-                  onClick={() => setShowLeaveRequest(true)}
-                  className="leave-btn"
-                >
-                  📅 Lịch nghỉ
-                </Button>
-                <Button
                   onClick={() => setCurrentDate(new Date())}
                   className="today-btn"
                 >
@@ -1040,7 +1045,7 @@ export default function ManagerScheduleManagement() {
                                 className={`slot-cell ${
                                   day.isPast ? "past-day" : ""
                                 }`}
-                                onClick={() => handleSlotClick(slot)}
+                                onClick={(e) => handleSlotClick(slot, e)}
                               >
                                 <div className="slot-content">
                                   {slot.status === "available" ? (
@@ -1053,7 +1058,10 @@ export default function ManagerScheduleManagement() {
                                           ),
                                         }}
                                       >
-                                        {getStatusText(slot.status)}
+                                        {getStatusText(
+                                          slot.status,
+                                          slot.hasPendingLeaveRequest
+                                        )}
                                       </div>
                                       <button
                                         className="delete-slot-btn"
@@ -1066,6 +1074,12 @@ export default function ManagerScheduleManagement() {
                                         <Trash2 size={12} />
                                       </button>
                                     </>
+                                  ) : slot.status === "blocked" ? (
+                                    <div className="booked-slot blocked">
+                                      <div className="patient-name-main">
+                                        {getStatusText(slot.status)}
+                                      </div>
+                                    </div>
                                   ) : (
                                     <div
                                       className={`booked-slot ${slot.status}`}
@@ -1074,7 +1088,10 @@ export default function ManagerScheduleManagement() {
                                         {slot.patientName || "Bệnh nhân"}
                                       </div>
                                       <div className="status-text-small">
-                                        {getStatusText(slot.status)}
+                                        {getStatusText(
+                                          slot.status,
+                                          slot.hasPendingLeaveRequest
+                                        )}
                                       </div>
                                     </div>
                                   )}
@@ -1093,53 +1110,45 @@ export default function ManagerScheduleManagement() {
         </>
       )}
 
-      {/* Leave Request Dialog */}
-      <Dialog open={showLeaveRequest} onOpenChange={setShowLeaveRequest}>
-        <DialogContent>
+      {/* Block Detail Dialog - Hiển thị lý do nghỉ (chỉ xem, không đăng ký) */}
+      <Dialog
+        open={showBlockDetailDialog}
+        onOpenChange={setShowBlockDetailDialog}
+      >
+        <DialogContent className="block-detail-dialog">
           <DialogHeader>
-            <DialogTitle>Đăng ký lịch nghỉ</DialogTitle>
+            <DialogTitle>Chi tiết nghỉ phép</DialogTitle>
           </DialogHeader>
-          <div className="form-group">
-            <label>Ngày bắt đầu:</label>
-            <Input
-              type="date"
-              value={leaveData.startDate}
-              onChange={(e) =>
-                setLeaveData({ ...leaveData, startDate: e.target.value })
-              }
-            />
-          </div>
-          <div className="form-group">
-            <label>Ngày kết thúc:</label>
-            <Input
-              type="date"
-              value={leaveData.endDate}
-              onChange={(e) =>
-                setLeaveData({ ...leaveData, endDate: e.target.value })
-              }
-            />
-          </div>
-          <div className="form-group">
-            <label>Lý do:</label>
-            <Input
-              value={leaveData.reason}
-              onChange={(e) =>
-                setLeaveData({ ...leaveData, reason: e.target.value })
-              }
-              placeholder="Nhập lý do nghỉ..."
-            />
-          </div>
-          <div className="dialog-actions">
-            <Button
-              onClick={() => setShowLeaveRequest(false)}
-              variant="outline"
-            >
-              Hủy
-            </Button>
-            <Button onClick={handleLeaveRequest} variant="primary">
-              Gửi yêu cầu
-            </Button>
-          </div>
+          {selectedSlot && (
+            <div className="block-detail-content">
+              <div className="detail-section">
+                <div className="detail-item">
+                  <span className="detail-label">Thời gian nghỉ:</span>
+                  <span className="detail-value">
+                    {new Date(selectedSlot.startAt).toLocaleString("vi-VN")}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Lý do nghỉ:</span>
+                  <span className="detail-value">
+                    {selectedSlot.leaveReason || "Không có lý do"}
+                  </span>
+                </div>
+              </div>
+              <div className="dialog-actions">
+                <Button
+                  onClick={() => {
+                    setShowBlockDetailDialog(false);
+                    setSelectedSlot(null);
+                  }}
+                  variant="outline"
+                  style={{ width: "100%" }}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

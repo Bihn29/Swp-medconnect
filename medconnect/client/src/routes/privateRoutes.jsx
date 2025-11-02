@@ -52,6 +52,7 @@ import AdminLayout from "../layouts/AdminLayout/AdminLayout";
 // Manager Components
 import ManagerDashboard from "../pages/Manager/ManagerDashboard/ManagerDashboard";
 import ManagerScheduleManagement from "../pages/Manager/ManagerScheduleManagement/ManagerScheduleManagement";
+import LeaveRequestManagement from "../pages/Manager/LeaveRequestManagement/LeaveRequestManagement";
 import ManagerLayout from "../layouts/ManagerLayout/ManagerLayout";
 
 /**
@@ -224,6 +225,10 @@ export const privateRoutes = (
         <Route
           path="/manager/quan-ly-lich"
           element={<ManagerScheduleManagement />}
+        />
+        <Route
+          path="/manager/yeu-cau-nghi-phep"
+          element={<LeaveRequestManagement />}
         />
       </Route>
     </Route>
