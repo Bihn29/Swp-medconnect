@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import PropTypes from "prop-types"
-import { User, Mail, Phone, MapPin, Award, Calendar, Lock, Upload } from "lucide-react"
+import { User, Mail, Phone, MapPin, Award, Calendar, Lock, Upload, FileText } from "lucide-react"
 import { Image } from "antd"
 import { getDoctorProfileWithFallback, updateDoctorProfile } from "../../../lib/api"
 import "./ProfileSettings.scss"
@@ -394,16 +394,6 @@ const ProfileSettings = () => {
                     onChange={(e) => handleInputChange("address", e.target.value)}
                   />
                 </div>
-                <div className="formGroup fullWidth">
-                  <label>Giới thiệu</label>
-                  <textarea
-                    rows="4"
-                    value={formData.bio}
-                    onChange={(e) => handleInputChange("bio", e.target.value)}
-                    placeholder="Nhập thông tin giới thiệu về bạn..."
-                    className="textarea"
-                  />
-                </div>
               </div>
 
               <div className="formActions">
@@ -424,8 +414,32 @@ const ProfileSettings = () => {
                   <h2>Thông tin chuyên môn</h2>
                 </div>
 
-                <div className="infoCards">
-                  <InfoCard icon={Calendar} title="Năm kinh nghiệm" content={`${formData.yearsExperience || 0} năm`} />
+                {/* Years Experience Section */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                    <Calendar size={16} style={{ color: '#06b6d4' }} />
+                    Năm kinh nghiệm
+                  </label>
+                  <div style={{ padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#f5f5f5', fontSize: '0.875rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                    {formData.yearsExperience || 0} năm
+                  </div>
+                </div>
+                
+                {/* Bio Section */}
+                <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                    <FileText size={16} style={{ color: '#06b6d4' }} />
+                    Giới thiệu
+                  </label>
+                  <textarea
+                    rows="2"
+                    value={formData.bio}
+                    onChange={(e) => handleInputChange("bio", e.target.value)}
+                    placeholder="Nhập thông tin giới thiệu về bạn..."
+                    className="textarea"
+                    disabled={true}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.875rem', fontFamily: 'inherit', resize: 'vertical', backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                  />
                 </div>
                 
                 {/* License Certificate Image */}
