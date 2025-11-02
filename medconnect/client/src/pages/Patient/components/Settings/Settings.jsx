@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { User, Lock, CreditCard, Upload, Eye, EyeOff } from "lucide-react";
 import { useUserProfile } from "../../../../hooks/useUserProfile";
-import { updateCurrentPatientProfile, changePassword } from "../../../../lib/api";
+import {
+  updateCurrentPatientProfile,
+  changePassword,
+} from "../../../../lib/api";
 import "./Settings.scss";
 
 export function Settings() {
@@ -184,8 +187,8 @@ export function Settings() {
         break;
 
       case "citizenId":
-        if (value && !/^[0-9]{9,12}$/.test(value)) {
-          errors.citizenId = "CCCD/CMND phải có 9-12 chữ số";
+        if (value && !/^[0-9]{12}$/.test(value)) {
+          errors.citizenId = "Căn cước công dân phải có đúng 12 chữ số";
         }
         break;
 
@@ -242,7 +245,11 @@ export function Settings() {
           errors.newPassword = "Mật khẩu mới phải có ít nhất 8 ký tự";
         } else if (value && value.length > 50) {
           errors.newPassword = "Mật khẩu mới không được quá 50 ký tự";
-        } else if (value && formData.currentPassword && value === formData.currentPassword) {
+        } else if (
+          value &&
+          formData.currentPassword &&
+          value === formData.currentPassword
+        ) {
           errors.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại";
         }
         break;
@@ -258,13 +265,41 @@ export function Settings() {
   };
 
   const handleInputChange = (field, value) => {
+    let processedValue = value;
+
+    // Auto-format birth date: DD/MM/YYYY
+    if (field === "birthDate") {
+      // Remove all non-digit characters
+      const digitsOnly = value.replace(/\D/g, "");
+
+      // Limit to 8 digits (DDMMYYYY)
+      const limitedDigits = digitsOnly.slice(0, 8);
+
+      // Format: DD/MM/YYYY
+      if (limitedDigits.length <= 2) {
+        // DD
+        processedValue = limitedDigits;
+      } else if (limitedDigits.length <= 4) {
+        // DD/MM
+        processedValue = `${limitedDigits.slice(0, 2)}/${limitedDigits.slice(
+          2
+        )}`;
+      } else {
+        // DD/MM/YYYY
+        processedValue = `${limitedDigits.slice(0, 2)}/${limitedDigits.slice(
+          2,
+          4
+        )}/${limitedDigits.slice(4)}`;
+      }
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [field]: value,
+      [field]: processedValue,
     }));
 
     // Real-time validation
-    const fieldValidation = validateField(field, value);
+    const fieldValidation = validateField(field, processedValue);
     setFieldErrors((prev) => ({
       ...prev,
       [field]: fieldValidation[field] || null,
@@ -339,9 +374,9 @@ export function Settings() {
       }
     }
 
-    // Validate citizen ID format (Vietnamese CCCD/CMND)
-    if (formData.citizenId && !/^[0-9]{9,12}$/.test(formData.citizenId)) {
-      errors.citizenId = "CCCD/CMND phải có 9-12 chữ số";
+    // Validate citizen ID format (Vietnamese CCCD - must be exactly 12 digits)
+    if (formData.citizenId && !/^[0-9]{12}$/.test(formData.citizenId)) {
+      errors.citizenId = "Căn cước công dân phải có đúng 12 chữ số";
     }
 
     // Validate representative citizen ID
@@ -494,7 +529,11 @@ export function Settings() {
       }
 
       // Check if new password is different from current password
-      if (formData.currentPassword && formData.newPassword && formData.currentPassword === formData.newPassword) {
+      if (
+        formData.currentPassword &&
+        formData.newPassword &&
+        formData.currentPassword === formData.newPassword
+      ) {
         passwordErrors.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại";
       }
 
@@ -528,7 +567,10 @@ export function Settings() {
         // Handle API errors
         if (error.status === 400 && error.response?.message) {
           const errorMessage = error.response.message;
-          if (errorMessage.includes("Mật khẩu hiện tại không đúng") || errorMessage.includes("mật khẩu hiện tại")) {
+          if (
+            errorMessage.includes("Mật khẩu hiện tại không đúng") ||
+            errorMessage.includes("mật khẩu hiện tại")
+          ) {
             setFieldErrors({
               currentPassword: "Mật khẩu hiện tại không đúng",
             });
@@ -540,7 +582,11 @@ export function Settings() {
             alert(errorMessage || "Có lỗi xảy ra khi đổi mật khẩu");
           }
         } else {
-          alert(error.response?.message || error.message || "Có lỗi xảy ra khi đổi mật khẩu. Vui lòng thử lại.");
+          alert(
+            error.response?.message ||
+              error.message ||
+              "Có lỗi xảy ra khi đổi mật khẩu. Vui lòng thử lại."
+          );
         }
         throw error;
       }
@@ -551,7 +597,7 @@ export function Settings() {
       setIsChangingPassword(false);
     }
   };
-//--------------------------------- Change Password ---------------------------------
+  //--------------------------------- Change Password ---------------------------------
 
   return (
     <div className="settings-container">
@@ -715,6 +761,30 @@ export function Settings() {
                       onChange={(e) =>
                         handleInputChange("birthDate", e.target.value)
                       }
+                      onKeyDown={(e) => {
+                        // Allow: backspace, delete, tab, escape, enter, and numbers
+                        if (
+                          [46, 8, 9, 27, 13, 110, 190].indexOf(e.keyCode) !==
+                            -1 ||
+                          // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                          (e.keyCode === 65 && e.ctrlKey === true) ||
+                          (e.keyCode === 67 && e.ctrlKey === true) ||
+                          (e.keyCode === 86 && e.ctrlKey === true) ||
+                          (e.keyCode === 88 && e.ctrlKey === true) ||
+                          // Allow: home, end, left, right, down, up
+                          (e.keyCode >= 35 && e.keyCode <= 40)
+                        ) {
+                          return;
+                        }
+                        // Ensure that it is a number and stop the keypress
+                        if (
+                          (e.shiftKey || e.keyCode < 48 || e.keyCode > 57) &&
+                          (e.keyCode < 96 || e.keyCode > 105)
+                        ) {
+                          e.preventDefault();
+                        }
+                      }}
+                      maxLength={10}
                       placeholder="DD/MM/YYYY"
                     />
                     {fieldErrors.birthDate && (
@@ -772,17 +842,22 @@ export function Settings() {
 
                 <div className="form-column">
                   <div className="form-group">
-                    <label className="form-label">CCCD/CMND</label>
+                    <label className="form-label">Căn cước công dân</label>
                     <input
                       type="text"
                       className={`form-input ${
                         fieldErrors.citizenId ? "error" : ""
                       }`}
                       value={formData.citizenId}
-                      onChange={(e) =>
-                        handleInputChange("citizenId", e.target.value)
-                      }
-                      placeholder="Nhập số CCCD/CMND"
+                      onChange={(e) => {
+                        // Only allow numbers, limit to 12 digits
+                        const digitsOnly = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 12);
+                        handleInputChange("citizenId", digitsOnly);
+                      }}
+                      maxLength={12}
+                      placeholder="Nhập số căn cước công dân (12 số)"
                     />
                     {fieldErrors.citizenId && (
                       <div className="error-text">{fieldErrors.citizenId}</div>
