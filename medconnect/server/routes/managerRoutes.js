@@ -4,6 +4,8 @@ import {
   getAllDoctorsForManager,
   getDoctorTimeSlotsForManager,
   createAppointmentByManager,
+  generateSlotsForManager,
+  deleteTimeSlotForManager,
 } from "../controllers/managerController.js";
 
 const router = express.Router();
@@ -16,6 +18,16 @@ router.get(
   "/doctors/:doctorId/time-slots",
   authGuard,
   getDoctorTimeSlotsForManager
+);
+router.post(
+  "/doctors/:doctorId/generate-slots",
+  authGuard,
+  generateSlotsForManager
+);
+router.delete(
+  "/doctors/:doctorId/time-slots/:slotId",
+  authGuard,
+  deleteTimeSlotForManager
 );
 router.post("/appointments", authGuard, createAppointmentByManager);
 

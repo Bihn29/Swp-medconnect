@@ -24,6 +24,7 @@ import {
   debugAuth,
   getDoctorTimeSlots,
   autoGenerateTimeSlots,
+  deleteTimeSlot,
   getDoctorScheduleRules,
   updateDoctorScheduleRules,
   createTestTimeSlots,
@@ -87,6 +88,7 @@ router.post(
 );
 router.get("/me/time-slots", authGuard, getDoctorTimeSlots);
 router.post("/me/time-slots/auto-generate", authGuard, autoGenerateTimeSlots);
+router.delete("/me/time-slots/:slotId", authGuard, deleteTimeSlot);
 router.get("/me/schedule-rules", authGuard, getDoctorScheduleRules);
 router.put("/me/schedule-rules", authGuard, updateDoctorScheduleRules);
 router.get("/me/debug-auth", authGuard, debugAuth);

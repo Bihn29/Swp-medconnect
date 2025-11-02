@@ -165,7 +165,9 @@ export async function changePassword(currentPassword, newPassword) {
       } catch {
         errorData = { message: errorText || "Có lỗi xảy ra khi đổi mật khẩu" };
       }
-      const error = new Error(errorData.message || "Có lỗi xảy ra khi đổi mật khẩu");
+      const error = new Error(
+        errorData.message || "Có lỗi xảy ra khi đổi mật khẩu"
+      );
       error.status = r.status;
       error.response = errorData;
       throw error;
@@ -613,6 +615,15 @@ export async function autoGenerateTimeSlots() {
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify({}),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function deleteTimeSlot(slotId) {
+  const r = await fetch(`${BASE}/api/doctors/me/time-slots/${slotId}`, {
+    method: "DELETE",
+    credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -1246,6 +1257,7 @@ const apiObject = {
   // Time slot management functions
   getDoctorTimeSlots,
   autoGenerateTimeSlots,
+  deleteTimeSlot,
 
   // Review functions
   getDoctorReviews,

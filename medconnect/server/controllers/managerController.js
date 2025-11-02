@@ -3,6 +3,7 @@ import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import Appointment from "../models/appointment.model.js";
 import Patient from "../models/patient.model.js";
 import User from "../models/user.model.js";
+import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
@@ -73,6 +74,13 @@ export async function getDoctorTimeSlotsForManager(req, res) {
     const { doctorId } = req.params;
     const { page = 1, limit = 1000, startDate, endDate } = req.query;
 
+    console.log("🔍 [Manager] getDoctorTimeSlotsForManager called with:", {
+      doctorId,
+      startDate,
+      endDate,
+      limit,
+    });
+
     if (!doctorId) {
       return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
     }
@@ -80,8 +88,11 @@ export async function getDoctorTimeSlotsForManager(req, res) {
     // Verify doctor exists
     const doctor = await Doctor.findById(doctorId);
     if (!doctor) {
+      console.log("❌ Doctor not found:", doctorId);
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
     }
+
+    console.log("✅ Doctor found:", { id: doctor._id, name: doctor.fullName });
 
     const filter = { doctorId };
 
@@ -106,47 +117,95 @@ export async function getDoctorTimeSlotsForManager(req, res) {
       }
     }
 
+    console.log("🔍 Querying time slots with filter:", filter);
+
     const timeSlots = await DoctorTimeSlot.find(filter)
-      .populate({
-        path: "appointmentId",
-        select: "status mode reason patientId scheduledStart scheduledEnd",
-        populate: {
-          path: "patientId",
-          select: "fullName phone",
-        },
-      })
       .sort({ startAt: 1 })
       .limit(parseInt(limit))
       .lean();
 
-    // Format slots similar to doctor's own view
-    const formattedSlots = timeSlots.map((slot) => {
-      const appointment = slot.appointmentId;
-      let patientName = null;
-      let appointmentStatus = null;
-      let reason = null;
-      let mode = null;
+    console.log(
+      `✅ Found ${timeSlots.length} time slots for doctor ${doctor.fullName}`
+    );
 
-      if (appointment) {
-        patientName = appointment.patientId?.fullName || null;
-        appointmentStatus = appointment.status || null;
-        reason = appointment.reason || null;
-        mode = appointment.mode || null;
+    // Get slot IDs to fetch appointments
+    const slotIds = timeSlots.map((slot) => slot._id);
+
+    // Fetch appointments for these slots
+    const appointments = await Appointment.find({
+      slotId: { $in: slotIds },
+      // Filter out appointments that are rescheduled AND have been replaced
+      $nor: [
+        {
+          status: "rescheduled",
+          rescheduledToId: { $exists: true, $ne: null },
+        },
+      ],
+    })
+      .populate({
+        path: "patientId",
+        select: "fullName phone",
+        model: "Patient",
+      })
+      .lean();
+
+    console.log(`✅ Found ${appointments.length} appointments for these slots`);
+
+    // Create a map of slotId -> appointment
+    const appointmentMap = {};
+    appointments.forEach((appointment) => {
+      const slotIdKey = appointment.slotId.toString();
+
+      let patientName = null;
+      if (appointment.patientId) {
+        if (
+          typeof appointment.patientId === "object" &&
+          appointment.patientId.fullName
+        ) {
+          patientName = appointment.patientId.fullName;
+        }
       }
 
-      const isAvailable = !appointment && slot.status === "available";
+      appointmentMap[slotIdKey] = {
+        appointmentId: appointment._id.toString(),
+        patientName: patientName,
+        reason: appointment.reason || null,
+        appointmentStatus: appointment.status || "booked",
+        mode: appointment.mode || "offline",
+      };
+    });
+
+    // Format slots similar to doctor's own view with proper status mapping
+    const formattedSlots = timeSlots.map((slot) => {
+      const slotIdStr = slot._id.toString();
+      const appointment = appointmentMap[slotIdStr];
+
+      // Map appointment status to display status (same logic as Doctor)
+      let displayStatus = slot.status;
+      if (appointment) {
+        const statusMap = {
+          pending_doctor: "pending",
+          accepted: "confirmed",
+          in_progress: "in_progress",
+          cancelled: "cancelled",
+          done: "completed",
+          rejected: "cancelled",
+          no_show: "cancelled",
+        };
+        displayStatus = statusMap[appointment.appointmentStatus] || slot.status;
+      }
 
       return {
-        _id: slot._id,
+        _id: slot._id.toString(),
+        doctorId: slot.doctorId.toString(),
         startAt: slot.startAt,
         endAt: slot.endAt,
-        status: slot.status,
-        patientName,
-        appointmentId: appointment?._id || null,
-        appointmentStatus,
-        reason,
-        mode,
-        available: isAvailable,
+        status: displayStatus, // Use mapped status
+        patientName: appointment?.patientName || null,
+        appointmentId: appointment?.appointmentId || null,
+        appointmentStatus: appointment?.appointmentStatus || null,
+        reason: appointment?.reason || null,
+        mode: appointment?.mode || null,
       };
     });
 
@@ -158,7 +217,9 @@ export async function getDoctorTimeSlotsForManager(req, res) {
       },
     });
   } catch (error) {
-    console.error("Error fetching doctor time slots for manager:", error);
+    console.error("❌ Error fetching doctor time slots for manager:", error);
+    console.error("❌ Error stack:", error.stack);
+    console.error("❌ Error message:", error.message);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }
@@ -256,5 +317,361 @@ export async function createAppointmentByManager(req, res) {
   } catch (error) {
     console.error("Error creating appointment by manager:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Generate time slots for a specific doctor (manager can generate for any doctor)
+ */
+export async function generateSlotsForManager(req, res) {
+  try {
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    console.log("🔍 generateSlotsForManager - doctorId:", doctorId);
+
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    console.log("🔍 generateSlotsForManager - Found doctor:", {
+      id: doctor._id,
+      fullName: doctor.fullName,
+    });
+
+    // First, create default schedule rules for missing weekdays
+    const existingRules = await DoctorScheduleRule.find({
+      doctorId: doctor._id,
+      isActive: true,
+    });
+
+    // Get existing weekdays
+    const existingWeekdays = new Set(existingRules.map((rule) => rule.weekday));
+
+    console.log(
+      `Existing weekdays for doctor ${doctor._id}:`,
+      Array.from(existingWeekdays)
+    );
+
+    // Create default schedule rules for missing weekdays (Monday to Sunday)
+    const defaultRules = [];
+
+    // Check all weekdays: 0 (Sunday), 1 (Monday), 2 (Tuesday), 3 (Wednesday), 4 (Thursday), 5 (Friday), 6 (Saturday)
+    const allWeekdays = [0, 1, 2, 3, 4, 5, 6];
+
+    for (const weekday of allWeekdays) {
+      // Skip if rule already exists for this weekday
+      if (existingWeekdays.has(weekday)) {
+        console.log(`Rule for weekday ${weekday} already exists, skipping...`);
+        continue;
+      }
+
+      // Create rule for this weekday
+      const rule = {
+        doctorId: doctor._id,
+        weekday: weekday,
+        blocks: [
+          {
+            startTime: "07:00",
+            endTime: "11:40",
+          },
+          {
+            startTime: "13:00",
+            endTime: "17:00",
+          },
+        ],
+        slotBlockMinutes: 20,
+        consultMinutes: 20,
+        effectiveFrom: new Date(),
+        isActive: true,
+      };
+      defaultRules.push(rule);
+    }
+
+    if (defaultRules.length > 0) {
+      await DoctorScheduleRule.insertMany(defaultRules);
+      console.log(
+        `Created ${defaultRules.length} default schedule rules for doctor ${
+          doctor._id
+        } (missing weekdays: ${defaultRules.map((r) => r.weekday).join(", ")})`
+      );
+    } else {
+      console.log(
+        `All schedule rules already exist for doctor ${doctor._id} (all 7 days)`
+      );
+    }
+
+    // Get active schedule rules for this doctor
+    const scheduleRules = await DoctorScheduleRule.find({
+      doctorId: doctor._id,
+      isActive: true,
+    }).lean();
+
+    if (scheduleRules.length === 0) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "No schedule rules found. Please set up schedule rules first."
+      );
+    }
+
+    console.log(
+      `📋 Found ${scheduleRules.length} schedule rules for doctor ${doctor.fullName}`
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endDate = new Date(today);
+    endDate.setMonth(today.getMonth() + 1); // 1 month instead of 14 days
+    endDate.setHours(23, 59, 59, 999);
+
+    console.log("🔍 Creating slots from:", today.toISOString().split("T")[0]);
+    console.log(
+      "🔍 Creating slots until:",
+      endDate.toISOString().split("T")[0]
+    );
+
+    // Check how many future slots already exist
+    const existingFutureSlots = await DoctorTimeSlot.countDocuments({
+      doctorId: doctor._id,
+      startAt: { $gte: today },
+    });
+
+    console.log(`📊 Existing future slots: ${existingFutureSlots}`);
+
+    // Only create slots if we have less than 100 future slots
+    // This prevents creating slots too frequently
+    if (existingFutureSlots >= 100) {
+      console.log(
+        `⏭️ Skipping slot generation - already have ${existingFutureSlots} future slots (>= 100)`
+      );
+      return ok(res, {
+        message: `No new slots created. Doctor already has ${existingFutureSlots} future slots.`,
+        createdSlots: 0,
+        skippedSlots: 0,
+        existingSlots: existingFutureSlots,
+        note: "Slots are only auto-generated when doctor has less than 100 future slots.",
+      });
+    }
+
+    const createdSlots = [];
+    const skippedSlots = [];
+
+    // Calculate number of days in the month
+    const daysInMonth = Math.ceil(
+      (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    for (let dayOffset = 0; dayOffset < daysInMonth; dayOffset++) {
+      const currentDate = new Date(today);
+      currentDate.setDate(today.getDate() + dayOffset);
+      const weekday = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
+
+      // Find schedule rule for this weekday
+      const dayRule = scheduleRules.find((rule) => rule.weekday === weekday);
+      if (!dayRule) {
+        console.log(
+          `⚠️ No schedule rule for weekday ${weekday} (${currentDate.toDateString()})`
+        );
+        continue;
+      }
+
+      console.log(
+        `📅 Processing ${currentDate.toDateString()} (weekday ${weekday}) with ${
+          dayRule.blocks.length
+        } blocks`
+      );
+      let daySlotCount = 0;
+
+      // Generate slots based on schedule rules
+      const generatedSlots = DoctorScheduleRule.generateSlotsForDate({
+        date: currentDate,
+        blocks: dayRule.blocks,
+        slotBlockMinutes: dayRule.slotBlockMinutes,
+      });
+
+      console.log(
+        `🔍 Generated ${
+          generatedSlots.length
+        } slots for ${currentDate.toDateString()}`
+      );
+
+      for (const slotData of generatedSlots) {
+        try {
+          console.log(
+            `🔍 Checking slot: ${slotData.startAt.toTimeString()} - ${slotData.endAt.toTimeString()}`
+          );
+
+          const existingSlot = await DoctorTimeSlot.findOne({
+            doctorId: doctor._id,
+            startAt: slotData.startAt,
+            endAt: slotData.endAt,
+          });
+
+          if (!existingSlot) {
+            console.log(
+              `✅ Creating new slot: ${slotData.startAt.toTimeString()} - ${slotData.endAt.toTimeString()}`
+            );
+            const newSlot = await DoctorTimeSlot.create({
+              doctorId: doctor._id,
+              startAt: slotData.startAt,
+              endAt: slotData.endAt,
+              status: "available",
+            });
+            createdSlots.push(newSlot);
+            daySlotCount++;
+            console.log(`✅ Slot created successfully: ${newSlot._id}`);
+          } else {
+            console.log(
+              `⚠️ Slot already exists: ${slotData.startAt.toTimeString()} - ${slotData.endAt.toTimeString()}`
+            );
+            skippedSlots.push({
+              startAt: slotData.startAt,
+              endAt: slotData.endAt,
+              reason: "Already exists",
+            });
+          }
+        } catch (error) {
+          console.error(
+            `❌ Error creating slot ${slotData.startAt.toTimeString()} - ${slotData.endAt.toTimeString()}:`,
+            error
+          );
+          skippedSlots.push({
+            startAt: slotData.startAt,
+            endAt: slotData.endAt,
+            reason: error.message,
+          });
+        }
+      }
+
+      console.log(
+        `📊 Day ${dayOffset + 1} completed: ${daySlotCount} slots created`
+      );
+    }
+
+    console.log(
+      `✅ Created ${createdSlots.length} new time slots for doctor ${doctor.fullName} based on schedule rules`
+    );
+    console.log(
+      `⚠️ Skipped ${skippedSlots.length} slots (already exist or error)`
+    );
+    console.log(`📊 Actual created: ${createdSlots.length} slots`);
+
+    // Count total future slots after creation
+    const totalFutureSlots = await DoctorTimeSlot.countDocuments({
+      doctorId: doctor._id,
+      startAt: { $gte: today },
+    });
+
+    return ok(res, {
+      message: `Generated ${createdSlots.length} new time slots for doctor ${doctor.fullName} based on schedule rules (next month)`,
+      createdSlots: createdSlots.length,
+      skippedSlots: skippedSlots.length,
+      totalFutureSlots: totalFutureSlots, // Total future slots after creation
+      dateRange: {
+        startDate: today.toISOString().split("T")[0],
+        endDate: endDate.toISOString().split("T")[0],
+      },
+      scheduleRules: scheduleRules.length,
+      details: {
+        created: createdSlots.slice(0, 5),
+        skipped: skippedSlots.slice(0, 5),
+      },
+    });
+  } catch (error) {
+    console.error("❌ generateSlotsForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Delete a time slot for a specific doctor (manager can delete for any doctor)
+ */
+export async function deleteTimeSlotForManager(req, res) {
+  try {
+    const { doctorId, slotId } = req.params;
+
+    if (!doctorId || !slotId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Doctor ID and Slot ID are required"
+      );
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    console.log(
+      "🔍 deleteTimeSlotForManager - doctor:",
+      doctor._id,
+      "slot:",
+      slotId
+    );
+
+    // Find the slot and verify it belongs to the specified doctor
+    const slot = await DoctorTimeSlot.findOne({
+      _id: slotId,
+      doctorId: doctor._id,
+    });
+
+    if (!slot) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Time slot not found or does not belong to this doctor"
+      );
+    }
+
+    // Check if slot has active appointment
+    const appointment = await Appointment.findOne({
+      slotId: slot._id,
+      status: {
+        $nin: ["cancelled", "rejected", "no_show", "rescheduled"],
+      },
+    });
+
+    if (appointment) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Cannot delete slot with active appointment"
+      );
+    }
+
+    // Delete the slot
+    await DoctorTimeSlot.findByIdAndDelete(slotId);
+    console.log(
+      `✅ Manager deleted time slot ${slotId} for doctor ${doctor.fullName}`
+    );
+
+    return ok(res, {
+      message: "Time slot deleted successfully",
+      deletedSlotId: slotId,
+    });
+  } catch (error) {
+    console.error("❌ deleteTimeSlotForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
   }
 }

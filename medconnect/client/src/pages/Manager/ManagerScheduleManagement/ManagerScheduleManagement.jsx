@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Clock, Calendar, RefreshCw, Phone, User, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  Clock,
+  Calendar,
+  RefreshCw,
+  Phone,
+  User,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import {
@@ -19,17 +28,30 @@ import { api } from "../../../lib/api";
 import "./ManagerScheduleManagement.scss";
 
 export default function ManagerScheduleManagement() {
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDoctorId, setSelectedDoctorId] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [timeSlots, setTimeSlots] = useState([]);
+  const [generating, setGenerating] = useState(false);
 
   // Filter states
   const [searchName, setSearchName] = useState("");
   const [selectedSpecializationId, setSelectedSpecializationId] = useState("");
   const [specializations, setSpecializations] = useState([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
+
+  // Leave request states
+  const [showLeaveRequest, setShowLeaveRequest] = useState(false);
+  const [leaveData, setLeaveData] = useState({
+    startDate: "",
+    endDate: "",
+    reason: "",
+  });
+
+  // Status filter state
+  const [selectedStatus, setSelectedStatus] = useState("pending");
 
   // Booking states
   const [showBookSlot, setShowBookSlot] = useState(false);
@@ -242,6 +264,63 @@ export default function ManagerScheduleManagement() {
     }
   };
 
+  const handleGenerateSlots = async () => {
+    if (!selectedDoctorId) {
+      alert("Vui lòng chọn bác sĩ!");
+      return;
+    }
+
+    try {
+      setGenerating(true);
+      console.log("🔍 Generating time slots for doctor:", selectedDoctorId);
+      const response = await api.post(
+        `/api/managers/doctors/${selectedDoctorId}/generate-slots`
+      );
+      console.log("🔍 Generate response:", response);
+      if (response.success) {
+        const createdCount = response.data.createdSlots || 0;
+        const totalSlots = response.data.totalFutureSlots || 0;
+        const existingSlots = response.data.existingSlots || 0;
+
+        // Different messages based on response
+        if (createdCount === 0) {
+          // No slots created (already have >= 100)
+          alert(
+            `ℹ️ Hiện tại bác sĩ đã có ${existingSlots} slot trong tương lai.\n\nKhông cần tạo thêm slot lúc này.\nChỉ tạo slot mới khi số lượng slot < 100.`
+          );
+        } else {
+          // Slots created successfully
+          let message = `✅ Đã tạo ${createdCount} slot mới trong 1 tháng tới (bao gồm cả cuối tuần)`;
+          message += `\n\n📊 Tổng slot tương lai: ${totalSlots} slot`;
+
+          // Warning if slots are running low
+          if (totalSlots < 30) {
+            message += `\n\n⚠️ CẢNH BÁO: Bác sĩ chỉ còn ${totalSlots} slot. Vui lòng tạo thêm slot sớm!`;
+          } else if (totalSlots < 50) {
+            message += `\n\n💡 LƯU Ý: Bác sĩ còn ${totalSlots} slot. Nên tạo thêm slot trong thời gian tới.`;
+          }
+
+          alert(message);
+        }
+        await loadTimeSlots();
+      } else {
+        alert("❌ Lỗi khi tạo slots: " + (response.message || "Unknown error"));
+      }
+    } catch (error) {
+      console.error("❌ Error generating slots:", error);
+      alert("❌ Lỗi khi tạo slots: " + error.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleLeaveRequest = () => {
+    console.log("Leave request:", leaveData);
+    alert("Yêu cầu nghỉ phép đã được gửi!");
+    setShowLeaveRequest(false);
+    setLeaveData({ startDate: "", endDate: "", reason: "" });
+  };
+
   // Process slots similar to ScheduleManagement
   const processedSlots = React.useMemo(() => {
     const slotsMap = {};
@@ -276,8 +355,52 @@ export default function ManagerScheduleManagement() {
         isEmpty: false,
       };
 
-      if (!slotsMap[slotDate][slotTime]) {
+      // Nếu đã có slot ở cùng time, ưu tiên slot có appointment
+      if (slotsMap[slotDate][slotTime]) {
+        const existingSlot = slotsMap[slotDate][slotTime];
+        const existingHasAppointment =
+          existingSlot.appointmentId || existingSlot.status !== "available";
+        const newHasAppointment =
+          mappedSlot.appointmentId || mappedSlot.status !== "available";
+
+        // Nếu slot mới có appointment và slot cũ không có, thay thế
+        if (newHasAppointment && !existingHasAppointment) {
+          console.log(
+            `🔄 Replacing slot at ${slotTime} for date ${slotDate} (new has appointment)`
+          );
+          slotsMap[slotDate][slotTime] = mappedSlot;
+        } else if (!newHasAppointment && existingHasAppointment) {
+          console.log(
+            `⏭️ Keeping existing slot at ${slotTime} for date ${slotDate} (existing has appointment)`
+          );
+          // Giữ slot cũ
+        } else {
+          // Cả hai đều có hoặc không có appointment, giữ slot đầu tiên
+          console.log(
+            `⚠️ Duplicate slot time found: ${slotTime} for date: ${slotDate}, keeping first`
+          );
+        }
+      } else {
+        // Chưa có slot, thêm mới
         slotsMap[slotDate][slotTime] = mappedSlot;
+
+        // Log for booked slots
+        if (
+          slot.status === "booked" ||
+          slot.status === "pending" ||
+          slot.status === "confirmed" ||
+          slot.status === "completed" ||
+          slot.status === "in_progress"
+        ) {
+          console.log("✅ Booked slot mapped:", {
+            slotId: slot._id,
+            date: slotDate,
+            time: slotTime,
+            patientName: mappedSlot.patientName,
+            mode: mappedSlot.mode,
+            status: mappedSlot.status,
+          });
+        }
       }
     });
 
@@ -506,6 +629,41 @@ export default function ManagerScheduleManagement() {
     }
   };
 
+  const handleDeleteSlot = async (slot) => {
+    // Check for slot ID (could be _id or id depending on mapping)
+    const slotId = slot?._id || slot?.id;
+    if (!slot || !slotId || !selectedDoctorId) {
+      alert("Không tìm thấy thông tin slot cần xóa");
+      return;
+    }
+
+    // Confirm delete
+    const confirmDelete = window.confirm(
+      "Bạn có chắc chắn muốn xóa slot này? Slot có appointment sẽ không thể xóa."
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    try {
+      console.log("🗑️ Deleting slot:", slotId);
+      const response = await api.delete(
+        `/api/managers/doctors/${selectedDoctorId}/time-slots/${slotId}`
+      );
+
+      if (response.success) {
+        alert("Xóa slot thành công!");
+        await loadTimeSlots(); // Reload time slots
+      } else {
+        alert("Không thể xóa slot: " + (response.message || "Unknown error"));
+      }
+    } catch (error) {
+      console.error("❌ Error deleting slot:", error);
+      alert("Có lỗi xảy ra khi xóa slot: " + error.message);
+    }
+  };
+
   const selectedDoctor = doctors.find((d) => d._id === selectedDoctorId);
 
   return (
@@ -674,16 +832,41 @@ export default function ManagerScheduleManagement() {
                 &gt;
               </button>
             </div>
-            <div className="action-buttons">
-              <Button
-                onClick={() => setCurrentDate(new Date())}
-                className="today-btn"
+
+            <div className="status-filters">
+              <span>Trạng thái:</span>
+              <button
+                className={`status-filter pending ${
+                  selectedStatus === "pending" ? "active" : ""
+                }`}
+                onClick={() => setSelectedStatus("pending")}
               >
-                🏠 Hôm nay
-              </Button>
-              <Button onClick={loadTimeSlots} className="refresh-btn">
-                <RefreshCw size={16} />
-              </Button>
+                Chờ duyệt
+              </button>
+              <button
+                className={`status-filter completed ${
+                  selectedStatus === "completed" ? "active" : ""
+                }`}
+                onClick={() => setSelectedStatus("completed")}
+              >
+                Hoàn thành
+              </button>
+              <button
+                className={`status-filter booked ${
+                  selectedStatus === "booked" ? "active" : ""
+                }`}
+                onClick={() => setSelectedStatus("booked")}
+              >
+                Đã đặt
+              </button>
+              <button
+                className={`status-filter cancelled ${
+                  selectedStatus === "cancelled" ? "active" : ""
+                }`}
+                onClick={() => setSelectedStatus("cancelled")}
+              >
+                Đã hủy
+              </button>
             </div>
           </div>
 
@@ -693,6 +876,33 @@ export default function ManagerScheduleManagement() {
                 <Calendar className="icon" />
                 Lịch làm việc - {selectedDoctor?.fullName}
               </h1>
+            </div>
+
+            <div className="header-right">
+              <div className="action-buttons">
+                <Button
+                  onClick={handleGenerateSlots}
+                  className="auto-generate-btn"
+                  disabled={generating}
+                >
+                  🚀 Tạo slot tự động
+                </Button>
+                <Button
+                  onClick={() => setShowLeaveRequest(true)}
+                  className="leave-btn"
+                >
+                  📅 Lịch nghỉ
+                </Button>
+                <Button
+                  onClick={() => setCurrentDate(new Date())}
+                  className="today-btn"
+                >
+                  🏠 Hôm nay
+                </Button>
+                <Button onClick={loadTimeSlots} className="refresh-btn">
+                  <RefreshCw size={16} />
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -709,6 +919,18 @@ export default function ManagerScheduleManagement() {
                 <div className="empty-state">
                   <Calendar size={64} className="empty-icon" />
                   <h3>Chưa có slot nào trong tuần này</h3>
+                  <p>
+                    Bấm nút "Tạo slot tự động" để tạo lịch làm việc cho 1 tháng
+                    tới (bao gồm cả cuối tuần)
+                  </p>
+                  <Button
+                    onClick={handleGenerateSlots}
+                    className="auto-generate-btn"
+                    disabled={generating}
+                    size="lg"
+                  >
+                    🚀 Tạo slot tự động ngay
+                  </Button>
                 </div>
               </div>
             )}
@@ -732,6 +954,19 @@ export default function ManagerScheduleManagement() {
                 </div>
 
                 <div className="grid-body">
+                  {/* Buổi sáng label */}
+                  <div className="time-row morning-label">
+                    <div className="time-cell">Buổi sáng</div>
+                    {daysWithSlots.map((day, dayIndex) => (
+                      <div
+                        key={`label-morning-${dayIndex}`}
+                        className="slot-cell"
+                      >
+                        <div className="slot-content"></div>
+                      </div>
+                    ))}
+                  </div>
+
                   {timesWithSlots.map((time, timeIndex) => {
                     const hour = parseInt(time.split(":")[0]);
                     const morningStartIndex = timesWithSlots.findIndex(
@@ -742,71 +977,113 @@ export default function ManagerScheduleManagement() {
                     );
 
                     return (
-                      <div key={timeIndex} className="time-row">
-                        <div className="time-cell">{time}</div>
-                        {daysWithSlots.map((day, dayIndex) => {
-                          const slot =
-                            processedSlots.slotsMap?.[day.fullDate]?.[time];
+                      <>
+                        {/* Thêm label "Buổi chiều" trước slot 13:00 */}
+                        {timeIndex === afternoonStartIndex && (
+                          <div className="time-row afternoon-label">
+                            <div className="time-cell">Buổi chiều</div>
+                            {daysWithSlots.map((day, dayIndex) => (
+                              <div
+                                key={`label-afternoon-${dayIndex}`}
+                                className="slot-cell"
+                              >
+                                <div className="slot-content"></div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
-                          if (!slot) {
+                        <div
+                          key={timeIndex}
+                          className={`time-row ${
+                            timeIndex === morningStartIndex
+                              ? "morning-section"
+                              : ""
+                          } ${
+                            timeIndex === afternoonStartIndex
+                              ? "afternoon-section"
+                              : ""
+                          }`}
+                        >
+                          <div className="time-cell">{time}</div>
+                          {daysWithSlots.map((day, dayIndex) => {
+                            const slot =
+                              processedSlots.slotsMap?.[day.fullDate]?.[time];
+
+                            if (!slot) {
+                              return (
+                                <div
+                                  key={`${dayIndex}-${timeIndex}`}
+                                  className="slot-cell empty-no-border"
+                                  onClick={() => {
+                                    setSelectedDate(day.fullDate);
+                                    setSelectedTime(time);
+                                    setSelectedSlot(null);
+                                    setBookingData({
+                                      patientName: "",
+                                      patientPhone: "",
+                                      reason: "",
+                                      mode: "online",
+                                    });
+                                    setShowBookSlot(true);
+                                  }}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  {/* Empty slot - clickable to book */}
+                                </div>
+                              );
+                            }
+
                             return (
                               <div
                                 key={`${dayIndex}-${timeIndex}`}
-                                className="slot-cell empty-no-border"
-                                onClick={() => {
-                                  setSelectedDate(day.fullDate);
-                                  setSelectedTime(time);
-                                  setSelectedSlot(null);
-                                  setBookingData({
-                                    patientName: "",
-                                    patientPhone: "",
-                                    reason: "",
-                                    mode: "online",
-                                  });
-                                  setShowBookSlot(true);
-                                }}
-                                style={{ cursor: "pointer" }}
+                                className={`slot-cell ${
+                                  day.isPast ? "past-day" : ""
+                                }`}
+                                onClick={() => handleSlotClick(slot)}
                               >
-                                {/* Empty slot - clickable to book */}
+                                <div className="slot-content">
+                                  {slot.status === "available" ? (
+                                    <>
+                                      <div
+                                        className="slot-status"
+                                        style={{
+                                          backgroundColor: getStatusColor(
+                                            slot.status
+                                          ),
+                                        }}
+                                      >
+                                        {getStatusText(slot.status)}
+                                      </div>
+                                      <button
+                                        className="delete-slot-btn"
+                                        onClick={(e) => {
+                                          e.stopPropagation(); // Prevent opening modal
+                                          handleDeleteSlot(slot);
+                                        }}
+                                        title="Xóa slot"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <div
+                                      className={`booked-slot ${slot.status}`}
+                                    >
+                                      <div className="patient-name-main">
+                                        {slot.patientName || "Bệnh nhân"}
+                                      </div>
+                                      <div className="status-text-small">
+                                        {getStatusText(slot.status)}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             );
-                          }
-
-                          return (
-                            <div
-                              key={`${dayIndex}-${timeIndex}`}
-                              className={`slot-cell ${
-                                day.isPast ? "past-day" : ""
-                              }`}
-                              onClick={() => handleSlotClick(slot)}
-                            >
-                              <div className="slot-content">
-                                {slot.status === "available" ? (
-                                  <div
-                                    className="slot-status"
-                                    style={{
-                                      backgroundColor: getStatusColor(
-                                        slot.status
-                                      ),
-                                    }}
-                                  >
-                                    {getStatusText(slot.status)}
-                                  </div>
-                                ) : (
-                                  <div className={`booked-slot ${slot.status}`}>
-                                    <div className="patient-name-main">
-                                      {slot.patientName || "Bệnh nhân"}
-                                    </div>
-                                    <div className="status-text-small">
-                                      {getStatusText(slot.status)}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                          })}
+                        </div>
+                      </>
                     );
                   })}
                 </div>
@@ -815,6 +1092,56 @@ export default function ManagerScheduleManagement() {
           </div>
         </>
       )}
+
+      {/* Leave Request Dialog */}
+      <Dialog open={showLeaveRequest} onOpenChange={setShowLeaveRequest}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Đăng ký lịch nghỉ</DialogTitle>
+          </DialogHeader>
+          <div className="form-group">
+            <label>Ngày bắt đầu:</label>
+            <Input
+              type="date"
+              value={leaveData.startDate}
+              onChange={(e) =>
+                setLeaveData({ ...leaveData, startDate: e.target.value })
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label>Ngày kết thúc:</label>
+            <Input
+              type="date"
+              value={leaveData.endDate}
+              onChange={(e) =>
+                setLeaveData({ ...leaveData, endDate: e.target.value })
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label>Lý do:</label>
+            <Input
+              value={leaveData.reason}
+              onChange={(e) =>
+                setLeaveData({ ...leaveData, reason: e.target.value })
+              }
+              placeholder="Nhập lý do nghỉ..."
+            />
+          </div>
+          <div className="dialog-actions">
+            <Button
+              onClick={() => setShowLeaveRequest(false)}
+              variant="outline"
+            >
+              Hủy
+            </Button>
+            <Button onClick={handleLeaveRequest} variant="primary">
+              Gửi yêu cầu
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Book Slot Dialog */}
       <Dialog open={showBookSlot} onOpenChange={setShowBookSlot}>
@@ -940,6 +1267,29 @@ export default function ManagerScheduleManagement() {
                       "N/A"}
                   </span>
                 </div>
+                {selectedAppointmentDetail.patientId?.dob && (
+                  <div className="detail-item">
+                    <span className="detail-label">Ngày sinh:</span>
+                    <span className="detail-value">
+                      {new Date(
+                        selectedAppointmentDetail.patientId.dob
+                      ).toLocaleDateString("vi-VN")}
+                    </span>
+                  </div>
+                )}
+                {selectedAppointmentDetail.patientId?.gender && (
+                  <div className="detail-item">
+                    <span className="detail-label">Giới tính:</span>
+                    <span className="detail-value">
+                      {selectedAppointmentDetail.patientId.gender === "male"
+                        ? "Nam"
+                        : selectedAppointmentDetail.patientId.gender ===
+                          "female"
+                        ? "Nữ"
+                        : selectedAppointmentDetail.patientId.gender}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="detail-section">
@@ -947,7 +1297,16 @@ export default function ManagerScheduleManagement() {
                 <div className="detail-item">
                   <span className="detail-label">Thời gian:</span>
                   <span className="detail-value">
-                    {selectedAppointmentDetail.scheduledStart
+                    {selectedAppointmentDetail.slotId
+                      ? `${new Date(
+                          selectedAppointmentDetail.slotId.startAt
+                        ).toLocaleString("vi-VN")} - ${new Date(
+                          selectedAppointmentDetail.slotId.endAt
+                        ).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}`
+                      : selectedAppointmentDetail.scheduledStart
                       ? new Date(
                           selectedAppointmentDetail.scheduledStart
                         ).toLocaleString("vi-VN")
@@ -975,10 +1334,52 @@ export default function ManagerScheduleManagement() {
                 <div className="detail-item">
                   <span className="detail-label">Lý do khám:</span>
                   <span className="detail-value">
-                    {selectedAppointmentDetail.reason || "Chưa có thông tin"}
+                    {selectedAppointmentDetail.reason ||
+                      selectedAppointmentDetail.cancelReason ||
+                      selectedAppointmentDetail.rejectReason ||
+                      "Chưa có thông tin"}
                   </span>
                 </div>
+                {selectedAppointmentDetail.clinicId && (
+                  <div className="detail-item">
+                    <span className="detail-label">Phòng khám:</span>
+                    <span className="detail-value">
+                      {selectedAppointmentDetail.clinicId.name ||
+                        selectedAppointmentDetail.clinicId}
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {selectedAppointmentDetail.mode === "online" &&
+                (selectedAppointmentDetail.status === "confirmed" ||
+                  selectedAppointmentDetail.status === "booked" ||
+                  selectedAppointmentDetail.status === "accepted" ||
+                  selectedAppointmentDetail.status === "in_progress") && (
+                  <div className="detail-actions">
+                    <Button
+                      className="call-button"
+                      onClick={() => {
+                        const slot = timeSlots.find(
+                          (s) =>
+                            s.appointmentId === selectedAppointmentDetail._id
+                        ) || {
+                          appointmentId: selectedAppointmentDetail._id,
+                          patientName:
+                            selectedAppointmentDetail.patientId?.fullName,
+                          mode: selectedAppointmentDetail.mode,
+                          status: selectedAppointmentDetail.status,
+                        };
+                        // Manager không có quyền gọi video
+                        alert("Chỉ bác sĩ mới có thể bắt đầu cuộc gọi video");
+                        setShowAppointmentDetail(false);
+                      }}
+                    >
+                      <Phone size={16} />
+                      Xem thông tin cuộc gọi
+                    </Button>
+                  </div>
+                )}
             </div>
           ) : (
             <div className="no-data">

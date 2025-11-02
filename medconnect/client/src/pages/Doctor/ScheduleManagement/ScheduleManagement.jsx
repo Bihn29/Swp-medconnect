@@ -1,12 +1,41 @@
 import React, { useState, useEffect } from "react";
-import { Clock, Send, ChevronLeft, ChevronRight, Plus, Search, Calendar, Filter, RefreshCw, Phone, User, MessageSquare } from "lucide-react";
+import {
+  Clock,
+  Send,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Search,
+  Calendar,
+  Filter,
+  RefreshCw,
+  Phone,
+  User,
+  MessageSquare,
+  Trash2,
+} from "lucide-react";
 import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../components/ui/Dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/Select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../../components/ui/Dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../../components/ui/Select";
 import { auth } from "../../../lib/firebase";
-import { getDoctorTimeSlots, autoGenerateTimeSlots } from "../../../lib/api";
+import {
+  getDoctorTimeSlots,
+  autoGenerateTimeSlots,
+  deleteTimeSlot,
+} from "../../../lib/api";
 import "./ScheduleManagement.scss";
 
 export default function ScheduleManagement() {
@@ -15,7 +44,7 @@ export default function ScheduleManagement() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [timeSlots, setTimeSlots] = useState([]);
-  
+
   // Leave request states
   const [showLeaveRequest, setShowLeaveRequest] = useState(false);
   const [leaveData, setLeaveData] = useState({
@@ -38,8 +67,10 @@ export default function ScheduleManagement() {
 
   // Appointment detail modal states
   const [showAppointmentDetail, setShowAppointmentDetail] = useState(false);
-  const [selectedAppointmentDetail, setSelectedAppointmentDetail] = useState(null);
-  const [loadingAppointmentDetail, setLoadingAppointmentDetail] = useState(false);
+  const [selectedAppointmentDetail, setSelectedAppointmentDetail] =
+    useState(null);
+  const [loadingAppointmentDetail, setLoadingAppointmentDetail] =
+    useState(false);
 
   // Listen to authentication changes
   useEffect(() => {
@@ -52,11 +83,11 @@ export default function ScheduleManagement() {
       setAuthUser(null);
     };
 
-    window.addEventListener('userLoggedOut', handleLogout);
+    window.addEventListener("userLoggedOut", handleLogout);
 
     return () => {
       unsubscribe();
-      window.removeEventListener('userLoggedOut', handleLogout);
+      window.removeEventListener("userLoggedOut", handleLogout);
     };
   }, []);
 
@@ -71,7 +102,7 @@ export default function ScheduleManagement() {
   // Navigation functions
   const navigateWeek = (direction) => {
     const newDate = new Date(currentDate);
-    newDate.setDate(newDate.getDate() + (direction * 7));
+    newDate.setDate(newDate.getDate() + direction * 7);
     setCurrentDate(newDate);
   };
 
@@ -91,8 +122,8 @@ export default function ScheduleManagement() {
     end.setDate(end.getDate() + 6);
     end.setHours(23, 59, 59, 999);
     return {
-      startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0]
+      startDate: start.toISOString().split("T")[0],
+      endDate: end.toISOString().split("T")[0],
     };
   };
 
@@ -104,19 +135,22 @@ export default function ScheduleManagement() {
     for (let i = 0; i < 7; i++) {
       const day = new Date(start);
       day.setDate(start.getDate() + i);
-      
+
       // Sử dụng cùng timezone để tránh mismatch
       const year = day.getFullYear();
-      const month = String(day.getMonth() + 1).padStart(2, '0');
-      const date = String(day.getDate()).padStart(2, '0');
+      const month = String(day.getMonth() + 1).padStart(2, "0");
+      const date = String(day.getDate()).padStart(2, "0");
       const fullDate = `${year}-${month}-${date}`;
-      
+
       const dayInfo = {
-        name: day.toLocaleDateString('vi-VN', { weekday: 'short' }),
-        date: day.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
+        name: day.toLocaleDateString("vi-VN", { weekday: "short" }),
+        date: day.toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
         fullDate: fullDate, // Sử dụng cùng format với API
         isToday: day.getTime() === today.getTime(),
-        isPast: day < today
+        isPast: day < today,
       };
       days.push(dayInfo);
     }
@@ -124,8 +158,18 @@ export default function ScheduleManagement() {
   };
 
   const formatDateRange = () => {
-    const startDate = getWeekStart(currentDate).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
-    const endDate = new Date(getWeekStart(currentDate).getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const startDate = getWeekStart(currentDate).toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    const endDate = new Date(
+      getWeekStart(currentDate).getTime() + 6 * 24 * 60 * 60 * 1000
+    ).toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
     return `${startDate} - ${endDate}`;
   };
 
@@ -136,9 +180,9 @@ export default function ScheduleManagement() {
       const response = await getDoctorTimeSlots({
         startDate: weekRange.startDate,
         endDate: weekRange.endDate,
-        limit: 1000  // Tăng limit để lấy đủ slot
+        limit: 1000, // Tăng limit để lấy đủ slot
       });
-      
+
       console.log("🔍 Load time slots response:", response);
       console.log("🔍 Response structure:", {
         success: response.success,
@@ -147,9 +191,9 @@ export default function ScheduleManagement() {
         slotsLength: response.data?.slots?.length || 0,
         slotsType: typeof response.data?.slots,
         isArray: Array.isArray(response.data?.slots),
-        fullResponse: response
+        fullResponse: response,
       });
-      
+
       // Kiểm tra nhiều format response có thể có
       let slots = [];
       if (response.success && response.data && response.data.slots) {
@@ -165,10 +209,10 @@ export default function ScheduleManagement() {
         slots = response;
         console.log("🔍 Using direct array format");
       }
-      
+
       console.log("🔍 Extracted slots:", slots);
       console.log("🔍 Slots count:", slots.length);
-      
+
       if (slots && slots.length > 0) {
         console.log("🔍 Time slots loaded:", slots);
         setTimeSlots(slots);
@@ -191,7 +235,30 @@ export default function ScheduleManagement() {
       const response = await autoGenerateTimeSlots();
       console.log("🔍 Generate response:", response);
       if (response.success) {
-        alert(`✅ Đã tạo ${response.data.createdSlots} slot mới trong 14 ngày tới (chỉ ngày trong tuần)`);
+        const createdCount = response.data.createdSlots || 0;
+        const totalSlots = response.data.totalFutureSlots || 0;
+        const existingSlots = response.data.existingSlots || 0;
+
+        // Different messages based on response
+        if (createdCount === 0) {
+          // No slots created (already have >= 100)
+          alert(
+            `ℹ️ Hiện tại bạn đã có ${existingSlots} slot trong tương lai.\n\nKhông cần tạo thêm slot lúc này.\nChỉ tạo slot mới khi số lượng slot < 100.`
+          );
+        } else {
+          // Slots created successfully
+          let message = `✅ Đã tạo ${createdCount} slot mới trong 1 tháng tới (bao gồm cả cuối tuần)`;
+          message += `\n\n📊 Tổng slot tương lai: ${totalSlots} slot`;
+
+          // Warning if slots are running low
+          if (totalSlots < 30) {
+            message += `\n\n⚠️ CẢNH BÁO: Bạn chỉ còn ${totalSlots} slot. Vui lòng tạo thêm slot sớm!`;
+          } else if (totalSlots < 50) {
+            message += `\n\n💡 LƯU Ý: Bạn còn ${totalSlots} slot. Nên tạo thêm slot trong thời gian tới.`;
+          }
+
+          alert(message);
+        }
         await loadTimeSlots();
       } else {
         alert("❌ Lỗi khi tạo slots: " + (response.message || "Unknown error"));
@@ -208,48 +275,48 @@ export default function ScheduleManagement() {
   const processedSlots = React.useMemo(() => {
     const slotsMap = {};
     const timesSet = new Set(); // Để collect tất cả times từ slots
-    
+
     console.log("🔍 Processing slots:", timeSlots);
-    
+
     // Chỉ thêm slot thật từ database vào map
-    timeSlots.forEach(slot => {
+    timeSlots.forEach((slot) => {
       console.log("🔍 Processing slot:", {
         id: slot._id,
         startAt: slot.startAt,
         status: slot.status,
         patientName: slot.patientName,
         hasPatientName: !!slot.patientName,
-        appointmentId: slot.appointmentId || 'NULL - Không có appointment'
+        appointmentId: slot.appointmentId || "NULL - Không có appointment",
       });
-      
-      const slotDate = new Date(slot.startAt).toISOString().split('T')[0];
-      const slotTime = new Date(slot.startAt).toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
+
+      const slotDate = new Date(slot.startAt).toISOString().split("T")[0];
+      const slotTime = new Date(slot.startAt).toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
       });
-      
+
       // Filter out times >= 17:00
-      const hour = parseInt(slotTime.split(':')[0]);
+      const hour = parseInt(slotTime.split(":")[0]);
       if (hour >= 17) {
         console.log(`🔍 Skipping slot at ${slotTime} (hour >= 17)`);
         return; // Skip slots >= 17:00
       }
-      
+
       // Thêm time vào set để tạo danh sách times
       timesSet.add(slotTime);
-      
+
       // Khởi tạo map cho ngày nếu chưa có
       if (!slotsMap[slotDate]) {
         slotsMap[slotDate] = {};
       }
-      
+
       console.log("🔍 Slot mapping:", {
         slotDate,
         slotTime,
-        existsInMap: !!(slotsMap[slotDate] && slotsMap[slotDate][slotTime])
+        existsInMap: !!(slotsMap[slotDate] && slotsMap[slotDate][slotTime]),
       });
-      
+
       // Tạo mapped slot
       const mappedSlot = {
         id: slot._id,
@@ -260,44 +327,58 @@ export default function ScheduleManagement() {
         reason: slot.reason || null,
         mode: slot.mode || null,
         appointmentId: slot.appointmentId || null,
-        isEmpty: false
+        isEmpty: false,
       };
-      
+
       // Nếu đã có slot ở cùng time, ưu tiên slot có appointment
       if (slotsMap[slotDate][slotTime]) {
         const existingSlot = slotsMap[slotDate][slotTime];
-        const existingHasAppointment = existingSlot.appointmentId || (existingSlot.status !== 'available');
-        const newHasAppointment = mappedSlot.appointmentId || (mappedSlot.status !== 'available');
-        
+        const existingHasAppointment =
+          existingSlot.appointmentId || existingSlot.status !== "available";
+        const newHasAppointment =
+          mappedSlot.appointmentId || mappedSlot.status !== "available";
+
         // Nếu slot mới có appointment và slot cũ không có, thay thế
         if (newHasAppointment && !existingHasAppointment) {
-          console.log(`🔄 Replacing slot at ${slotTime} for date ${slotDate} (new has appointment)`);
+          console.log(
+            `🔄 Replacing slot at ${slotTime} for date ${slotDate} (new has appointment)`
+          );
           slotsMap[slotDate][slotTime] = mappedSlot;
         } else if (!newHasAppointment && existingHasAppointment) {
-          console.log(`⏭️ Keeping existing slot at ${slotTime} for date ${slotDate} (existing has appointment)`);
+          console.log(
+            `⏭️ Keeping existing slot at ${slotTime} for date ${slotDate} (existing has appointment)`
+          );
           // Giữ slot cũ
         } else {
           // Cả hai đều có hoặc không có appointment, giữ slot đầu tiên
-          console.log(`⚠️ Duplicate slot time found: ${slotTime} for date: ${slotDate}, keeping first`);
+          console.log(
+            `⚠️ Duplicate slot time found: ${slotTime} for date: ${slotDate}, keeping first`
+          );
         }
       } else {
         // Chưa có slot, thêm mới
-      slotsMap[slotDate][slotTime] = mappedSlot;
-      
-      // Log for booked slots
-      if (slot.status === 'booked' || slot.status === 'pending' || slot.status === 'confirmed' || slot.status === 'completed' || slot.status === 'in_progress') {
-        console.log("✅ Booked slot mapped:", {
-          slotId: slot._id,
-          date: slotDate,
-          time: slotTime,
-          patientName: mappedSlot.patientName,
-          mode: mappedSlot.mode,
-          status: mappedSlot.status
-        });
+        slotsMap[slotDate][slotTime] = mappedSlot;
+
+        // Log for booked slots
+        if (
+          slot.status === "booked" ||
+          slot.status === "pending" ||
+          slot.status === "confirmed" ||
+          slot.status === "completed" ||
+          slot.status === "in_progress"
+        ) {
+          console.log("✅ Booked slot mapped:", {
+            slotId: slot._id,
+            date: slotDate,
+            time: slotTime,
+            patientName: mappedSlot.patientName,
+            mode: mappedSlot.mode,
+            status: mappedSlot.status,
+          });
         }
       }
     });
-    
+
     console.log("🔍 Processed slots map:", slotsMap);
     console.log("🔍 All unique times found:", Array.from(timesSet).sort());
     return { slotsMap, timesSet };
@@ -327,115 +408,154 @@ export default function ScheduleManagement() {
       pending: 0,
       completed: 0,
       booked: 0,
-      cancelled: 0
+      cancelled: 0,
     };
 
-    timeSlots.forEach(slot => {
-      if (slot.status === 'pending' || slot.status === 'pending_doctor') counts.pending++;
-      else if (slot.status === 'completed' || slot.status === 'done') counts.completed++;
-      else if (slot.status === 'booked' || slot.status === 'confirmed' || slot.status === 'accepted') counts.booked++;
-      else if (slot.status === 'cancelled') counts.cancelled++;
+    timeSlots.forEach((slot) => {
+      if (slot.status === "pending" || slot.status === "pending_doctor")
+        counts.pending++;
+      else if (slot.status === "completed" || slot.status === "done")
+        counts.completed++;
+      else if (
+        slot.status === "booked" ||
+        slot.status === "confirmed" ||
+        slot.status === "accepted"
+      )
+        counts.booked++;
+      else if (slot.status === "cancelled") counts.cancelled++;
     });
 
     return counts;
   }, [timeSlots]);
 
   // State cho filter status
-  const [selectedStatus, setSelectedStatus] = useState('pending');
+  const [selectedStatus, setSelectedStatus] = useState("pending");
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'available': return '#f3f4f6'; // Màu xám nhạt cho slot trống
-      case 'pending': return '#fbbf24'; // Màu vàng cho chờ duyệt
-      case 'confirmed': return '#10b981'; // Màu xanh lá cho đã xác nhận
-      case 'in_progress': return '#3b82f6'; // Màu xanh dương cho đang diễn ra
-      case 'cancelled': return '#ef4444'; // Màu đỏ cho đã hủy
-      case 'completed': return '#3b82f6'; // Màu xanh dương cho hoàn thành
-      case 'booked': return '#10b981'; // Màu xanh lá cho đã đặt (tương tự confirmed)
-      case 'blocked': return '#6b7280'; // Màu xám cho bị chặn
-      default: return '#6b7280';
+      case "available":
+        return "#f3f4f6"; // Màu xám nhạt cho slot trống
+      case "pending":
+        return "#fbbf24"; // Màu vàng cho chờ duyệt
+      case "confirmed":
+        return "#10b981"; // Màu xanh lá cho đã xác nhận
+      case "in_progress":
+        return "#3b82f6"; // Màu xanh dương cho đang diễn ra
+      case "cancelled":
+        return "#ef4444"; // Màu đỏ cho đã hủy
+      case "completed":
+        return "#3b82f6"; // Màu xanh dương cho hoàn thành
+      case "booked":
+        return "#10b981"; // Màu xanh lá cho đã đặt (tương tự confirmed)
+      case "blocked":
+        return "#6b7280"; // Màu xám cho bị chặn
+      default:
+        return "#6b7280";
     }
   };
 
   const getStatusText = (status) => {
-    if (!status) return 'Không xác định';
-    
+    if (!status) return "Không xác định";
+
     switch (status) {
       // Status từ appointment model
-      case 'pending_doctor': return 'Chờ duyệt';
-      case 'accepted': return 'Đã xác nhận';
-      case 'rejected': return 'Đã từ chối';
-      case 'in_progress': return 'Đang diễn ra';
-      case 'cancelled': return 'Đã hủy';
-      case 'done': return 'Hoàn thành';
-      case 'no_show': return 'Không đến';
-      case 'rescheduled': return 'Đã dời lịch';
-      
+      case "pending_doctor":
+        return "Chờ duyệt";
+      case "accepted":
+        return "Đã xác nhận";
+      case "rejected":
+        return "Đã từ chối";
+      case "in_progress":
+        return "Đang diễn ra";
+      case "cancelled":
+        return "Đã hủy";
+      case "done":
+        return "Hoàn thành";
+      case "no_show":
+        return "Không đến";
+      case "rescheduled":
+        return "Đã dời lịch";
+
       // Status từ slot (backward compatibility)
-      case 'available': return 'Trống';
-      case 'pending': return 'Chờ duyệt';
-      case 'confirmed': return 'Đã xác nhận';
-      case 'completed': return 'Hoàn thành';
-      case 'booked': return 'Đã đặt';
-      case 'blocked': return 'Bị chặn';
-      
+      case "available":
+        return "Trống";
+      case "pending":
+        return "Chờ duyệt";
+      case "confirmed":
+        return "Đã xác nhận";
+      case "completed":
+        return "Hoàn thành";
+      case "booked":
+        return "Đã đặt";
+      case "blocked":
+        return "Bị chặn";
+
       default: {
-        console.warn('Unknown status:', status);
-        return 'Không xác định';
+        console.warn("Unknown status:", status);
+        return "Không xác định";
       }
     }
   };
 
   const getStatusDotColor = (status) => {
     switch (status) {
-      case 'pending': return '#fbbf24'; // Chấm vàng
-      case 'confirmed': return '#10b981'; // Chấm xanh lá
-      case 'in_progress': return '#3b82f6'; // Chấm xanh dương
-      case 'cancelled': return '#ef4444'; // Chấm đỏ
-      case 'completed': return '#3b82f6'; // Chấm xanh dương
-      case 'booked': return '#10b981'; // Chấm xanh lá cho đã đặt
-      default: return '#6b7280';
+      case "pending":
+        return "#fbbf24"; // Chấm vàng
+      case "confirmed":
+        return "#10b981"; // Chấm xanh lá
+      case "in_progress":
+        return "#3b82f6"; // Chấm xanh dương
+      case "cancelled":
+        return "#ef4444"; // Chấm đỏ
+      case "completed":
+        return "#3b82f6"; // Chấm xanh dương
+      case "booked":
+        return "#10b981"; // Chấm xanh lá cho đã đặt
+      default:
+        return "#6b7280";
     }
   };
 
   const handleSlotClick = async (slot) => {
     if (!slot) return;
-    
+
     // Nếu slot available, mở modal đặt lịch
-    if (slot.status === 'available') {
+    if (slot.status === "available") {
       setSelectedSlot(slot);
       setShowBookSlot(true);
       return;
     }
-    
+
     // Nếu có appointment, mở modal chi tiết
     if (slot.appointmentId) {
       setLoadingAppointmentDetail(true);
       setShowAppointmentDetail(true);
-      
+
       try {
-        const apiModule = await import('../../../lib/api');
-        const response = await apiModule.api.get(`/api/doctors/me/appointments/${slot.appointmentId}`);
-        
-        console.log('🔍 Appointment detail response:', response);
-        
+        const apiModule = await import("../../../lib/api");
+        const response = await apiModule.api.get(
+          `/api/doctors/me/appointments/${slot.appointmentId}`
+        );
+
+        console.log("🔍 Appointment detail response:", response);
+
         if (response.success) {
-          console.log('🔍 Appointment data:', {
+          console.log("🔍 Appointment data:", {
             status: response.data?.status,
             mode: response.data?.mode,
             reason: response.data?.reason,
             patientId: response.data?.patientId,
-            fullData: response.data
+            fullData: response.data,
           });
           setSelectedAppointmentDetail(response.data);
         } else {
-          console.error('❌ Failed to fetch appointment:', response);
-          alert('Không thể tải thông tin chi tiết lịch hẹn');
+          console.error("❌ Failed to fetch appointment:", response);
+          alert("Không thể tải thông tin chi tiết lịch hẹn");
           setShowAppointmentDetail(false);
         }
       } catch (error) {
-        console.error('❌ Error fetching appointment detail:', error);
-        alert('Có lỗi xảy ra khi tải thông tin');
+        console.error("❌ Error fetching appointment detail:", error);
+        alert("Có lỗi xảy ra khi tải thông tin");
         setShowAppointmentDetail(false);
       } finally {
         setLoadingAppointmentDetail(false);
@@ -451,7 +571,11 @@ export default function ScheduleManagement() {
   };
 
   const handleBookSlot = async () => {
-    if (!bookingData.patientName || !bookingData.patientPhone || !bookingData.reason) {
+    if (
+      !bookingData.patientName ||
+      !bookingData.patientPhone ||
+      !bookingData.reason
+    ) {
       alert("Vui lòng điền đầy đủ thông tin!");
       return;
     }
@@ -468,22 +592,28 @@ export default function ScheduleManagement() {
         slotId = selectedSlot.id || selectedSlot._id;
       } else if (selectedDate && selectedTime) {
         // Nếu click vào ô trống (không có slot)
-        const [hour, minute] = selectedTime.split(':').map(Number);
-        const startDateTime = new Date(`${selectedDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`);
+        const [hour, minute] = selectedTime.split(":").map(Number);
+        const startDateTime = new Date(
+          `${selectedDate}T${String(hour).padStart(2, "0")}:${String(
+            minute
+          ).padStart(2, "0")}:00`
+        );
         const endDateTime = new Date(startDateTime);
         endDateTime.setMinutes(endDateTime.getMinutes() + 20); // Slot 20 phút
-        
+
         scheduledStart = startDateTime.toISOString();
         scheduledEnd = endDateTime.toISOString();
-        
+
         // Tìm slot trong timeSlots nếu có
-        const foundSlot = timeSlots.find(slot => {
+        const foundSlot = timeSlots.find((slot) => {
           const slotDate = new Date(slot.startAt);
-          return slotDate.toISOString().split('T')[0] === selectedDate &&
-                 slotDate.getHours() === hour &&
-                 slotDate.getMinutes() === minute;
+          return (
+            slotDate.toISOString().split("T")[0] === selectedDate &&
+            slotDate.getHours() === hour &&
+            slotDate.getMinutes() === minute
+          );
         });
-        
+
         if (foundSlot) {
           slotId = foundSlot.id || foundSlot._id;
         }
@@ -493,8 +623,8 @@ export default function ScheduleManagement() {
       }
 
       // Tìm hoặc tạo patient profile từ số điện thoại
-      const apiModule = await import('../../../lib/api');
-      
+      const apiModule = await import("../../../lib/api");
+
       // Tạo/tìm patient và appointment
       const appointmentData = {
         slotId: slotId, // Có thể null, backend sẽ tự tạo slot
@@ -506,15 +636,23 @@ export default function ScheduleManagement() {
         scheduledEnd: scheduledEnd,
       };
 
-      console.log('🔍 Creating appointment:', appointmentData);
+      console.log("🔍 Creating appointment:", appointmentData);
 
       // Gọi API để tạo appointment (cần tạo endpoint riêng cho doctor)
-      const response = await apiModule.api.post('/api/doctors/me/appointments/create', appointmentData);
+      const response = await apiModule.api.post(
+        "/api/doctors/me/appointments/create",
+        appointmentData
+      );
 
       if (response.success) {
         alert("Đặt lịch thành công!");
         setShowBookSlot(false);
-        setBookingData({ patientName: "", patientPhone: "", reason: "", mode: "online" });
+        setBookingData({
+          patientName: "",
+          patientPhone: "",
+          reason: "",
+          mode: "online",
+        });
         setSelectedSlot(null);
         setSelectedDate(null);
         setSelectedTime(null);
@@ -523,7 +661,7 @@ export default function ScheduleManagement() {
         alert("Lỗi khi đặt lịch: " + (response.message || "Unknown error"));
       }
     } catch (error) {
-      console.error('❌ Error booking slot:', error);
+      console.error("❌ Error booking slot:", error);
       alert("Có lỗi xảy ra khi đặt lịch: " + error.message);
     }
   };
@@ -531,82 +669,171 @@ export default function ScheduleManagement() {
   // Hàm xử lý gọi video - MỞ SANG TAB MỚI
   const handleVideoCall = async (slot) => {
     console.log("🎥🎥🎥 handleVideoCall - Called with slot:", slot);
-    console.log("🎥🎥🎥 handleVideoCall - Slot data:", JSON.stringify(slot, null, 2));
-    
+    console.log(
+      "🎥🎥🎥 handleVideoCall - Slot data:",
+      JSON.stringify(slot, null, 2)
+    );
+
     try {
       // Sử dụng appointmentId từ slot (đã được populate từ backend)
       if (!slot || !slot.appointmentId) {
         console.error("❌❌❌ handleVideoCall - No slot or appointmentId");
-        alert(`Không tìm thấy lịch hẹn cho slot này. Slot ID: ${slot?.id || 'Không có'}, Patient: ${slot?.patientName || 'Không có'}`);
+        alert(
+          `Không tìm thấy lịch hẹn cho slot này. Slot ID: ${
+            slot?.id || "Không có"
+          }, Patient: ${slot?.patientName || "Không có"}`
+        );
         return;
       }
 
-      console.log("✅✅✅ handleVideoCall - Found appointment ID from slot:", slot.appointmentId);
-      
-      const apiModule = await import('../../../lib/api');
-      const VideoCallAPI = await import('../../../services/videoCallAPI');
+      console.log(
+        "✅✅✅ handleVideoCall - Found appointment ID from slot:",
+        slot.appointmentId
+      );
+
+      const apiModule = await import("../../../lib/api");
+      const VideoCallAPI = await import("../../../services/videoCallAPI");
       console.log("✅✅✅ handleVideoCall - APIs imported");
-      
-      console.log("🔍🔍🔍 handleVideoCall - Updating appointment status to in_progress...");
+
+      console.log(
+        "🔍🔍🔍 handleVideoCall - Updating appointment status to in_progress..."
+      );
       // Step 1: Update appointment status to "in_progress" (only if not already in_progress)
       try {
         const statusUrl = `/api/doctors/me/appointments/${slot.appointmentId}/status`;
         console.log("🔍🔍🔍 handleVideoCall - Calling PUT:", statusUrl);
 
         const response = await apiModule.api.put(statusUrl, {
-          status: 'in_progress'
+          status: "in_progress",
         });
 
-        console.log("🔍🔍🔍 handleVideoCall - Status update response:", response);
+        console.log(
+          "🔍🔍🔍 handleVideoCall - Status update response:",
+          response
+        );
 
         if (response.success) {
-          console.log("✅✅✅ handleVideoCall - Appointment status updated to in_progress");
+          console.log(
+            "✅✅✅ handleVideoCall - Appointment status updated to in_progress"
+          );
         } else {
           // If status is already in_progress, continue anyway
-          if (response.message?.includes('Invalid status transition from in_progress')) {
-            console.log("ℹ️ℹ️ℹ️ handleVideoCall - Appointment already in_progress, continuing...");
+          if (
+            response.message?.includes(
+              "Invalid status transition from in_progress"
+            )
+          ) {
+            console.log(
+              "ℹ️ℹ️ℹ️ handleVideoCall - Appointment already in_progress, continuing..."
+            );
           } else {
-            console.error("❌❌❌ handleVideoCall - Status update failed:", response);
+            console.error(
+              "❌❌❌ handleVideoCall - Status update failed:",
+              response
+            );
           }
         }
       } catch (statusError) {
-        console.error("❌❌❌ handleVideoCall - Error updating appointment status:", statusError);
+        console.error(
+          "❌❌❌ handleVideoCall - Error updating appointment status:",
+          statusError
+        );
         // If error is about already being in_progress, continue anyway
-        if (statusError.message?.includes('Invalid status transition from in_progress')) {
-          console.log("ℹ️ℹ️ℹ️ handleVideoCall - Appointment already in_progress, continuing...");
+        if (
+          statusError.message?.includes(
+            "Invalid status transition from in_progress"
+          )
+        ) {
+          console.log(
+            "ℹ️ℹ️ℹ️ handleVideoCall - Appointment already in_progress, continuing..."
+          );
         } else {
-          console.error("❌❌❌ handleVideoCall - Error details:", statusError.message, statusError.stack);
+          console.error(
+            "❌❌❌ handleVideoCall - Error details:",
+            statusError.message,
+            statusError.stack
+          );
         }
       }
-      
+
       console.log("🔍🔍🔍 handleVideoCall - Creating video call room...");
       // Step 2: Create video call room
       try {
-        console.log("🔍🔍🔍 handleVideoCall - Calling VideoCallAPI.createRoom with:", slot.appointmentId);
-        const videoCallResponse = await VideoCallAPI.default.createRoom(slot.appointmentId);
-        console.log("✅✅✅ handleVideoCall - Video call room created:", videoCallResponse);
+        console.log(
+          "🔍🔍🔍 handleVideoCall - Calling VideoCallAPI.createRoom with:",
+          slot.appointmentId
+        );
+        const videoCallResponse = await VideoCallAPI.default.createRoom(
+          slot.appointmentId
+        );
+        console.log(
+          "✅✅✅ handleVideoCall - Video call room created:",
+          videoCallResponse
+        );
       } catch (videoCallError) {
-        console.error("❌❌❌ handleVideoCall - Error creating video call room:", videoCallError);
-        console.error("❌❌❌ handleVideoCall - Error details:", videoCallError.message, videoCallError.stack);
+        console.error(
+          "❌❌❌ handleVideoCall - Error creating video call room:",
+          videoCallError
+        );
+        console.error(
+          "❌❌❌ handleVideoCall - Error details:",
+          videoCallError.message,
+          videoCallError.stack
+        );
         // Continue even if video call creation fails - will be created when page loads
       }
-      
+
       console.log("🔍🔍🔍 handleVideoCall - Reloading time slots...");
       // Reload time slots to reflect status change
       await loadTimeSlots();
-      
+
       console.log("🔍🔍🔍 handleVideoCall - Opening video call window...");
       // Mở video call trong TAB MỚI thay vì thay đổi trang hiện tại
-      window.open(`/bac-si/video-call/${slot.appointmentId}`, '_blank');
+      window.open(`/bac-si/video-call/${slot.appointmentId}`, "_blank");
       console.log("✅✅✅ handleVideoCall - Video call window opened");
-      
     } catch (error) {
       console.error("❌❌❌ handleVideoCall - Unexpected error:", error);
-      console.error("❌❌❌ handleVideoCall - Error details:", error.message, error.stack);
+      console.error(
+        "❌❌❌ handleVideoCall - Error details:",
+        error.message,
+        error.stack
+      );
       alert(`Lỗi khi bắt đầu cuộc gọi video: ${error.message}`);
     }
   };
 
+  const handleDeleteSlot = async (slot) => {
+    // Check for slot ID (could be _id or id depending on mapping)
+    const slotId = slot?._id || slot?.id;
+    if (!slot || !slotId) {
+      alert("Không tìm thấy thông tin slot cần xóa");
+      return;
+    }
+
+    // Confirm delete
+    const confirmDelete = window.confirm(
+      "Bạn có chắc chắn muốn xóa slot này? Slot có appointment sẽ không thể xóa."
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    try {
+      console.log("🗑️ Deleting slot:", slotId);
+      const response = await deleteTimeSlot(slotId);
+
+      if (response.success) {
+        alert("Xóa slot thành công!");
+        await loadTimeSlots(); // Reload time slots
+      } else {
+        alert("Không thể xóa slot: " + (response.message || "Unknown error"));
+      }
+    } catch (error) {
+      console.error("❌ Error deleting slot:", error);
+      alert("Có lỗi xảy ra khi xóa slot: " + error.message);
+    }
+  };
 
   if (!authUser) {
     return (
@@ -639,55 +866,57 @@ export default function ScheduleManagement() {
           <div className="summary-label">Đã hủy</div>
           <div className="summary-value">{stats.cancelled}</div>
         </div>
-        </div>
-        
+      </div>
+
       {/* Navigation and Filters */}
       <div className="schedule-controls">
-          <div className="week-navigation">
-            <span>Tuần:</span>
-          <button 
-            className="nav-arrow"
-              onClick={() => navigateWeek(-1)}
-            >
+        <div className="week-navigation">
+          <span>Tuần:</span>
+          <button className="nav-arrow" onClick={() => navigateWeek(-1)}>
             &lt;
           </button>
-            <span className="date-range">{formatDateRange()}</span>
-          <button 
-            className="nav-arrow"
-              onClick={() => navigateWeek(1)}
-            >
+          <span className="date-range">{formatDateRange()}</span>
+          <button className="nav-arrow" onClick={() => navigateWeek(1)}>
             &gt;
           </button>
-          </div>
-          
+        </div>
+
         <div className="status-filters">
-            <span>Trạng thái:</span>
-          <button 
-            className={`status-filter pending ${selectedStatus === 'pending' ? 'active' : ''}`}
-            onClick={() => setSelectedStatus('pending')}
+          <span>Trạng thái:</span>
+          <button
+            className={`status-filter pending ${
+              selectedStatus === "pending" ? "active" : ""
+            }`}
+            onClick={() => setSelectedStatus("pending")}
           >
             Chờ duyệt
           </button>
-          <button 
-            className={`status-filter completed ${selectedStatus === 'completed' ? 'active' : ''}`}
-            onClick={() => setSelectedStatus('completed')}
+          <button
+            className={`status-filter completed ${
+              selectedStatus === "completed" ? "active" : ""
+            }`}
+            onClick={() => setSelectedStatus("completed")}
           >
             Hoàn thành
           </button>
-          <button 
-            className={`status-filter booked ${selectedStatus === 'booked' ? 'active' : ''}`}
-            onClick={() => setSelectedStatus('booked')}
+          <button
+            className={`status-filter booked ${
+              selectedStatus === "booked" ? "active" : ""
+            }`}
+            onClick={() => setSelectedStatus("booked")}
           >
             Đã đặt
           </button>
-          <button 
-            className={`status-filter cancelled ${selectedStatus === 'cancelled' ? 'active' : ''}`}
-            onClick={() => setSelectedStatus('cancelled')}
+          <button
+            className={`status-filter cancelled ${
+              selectedStatus === "cancelled" ? "active" : ""
+            }`}
+            onClick={() => setSelectedStatus("cancelled")}
           >
             Đã hủy
           </button>
-            </div>
-            </div>
+        </div>
+      </div>
 
       <div className="schedule-header">
         <div className="header-left">
@@ -695,30 +924,30 @@ export default function ScheduleManagement() {
             <Calendar className="icon" />
             Lịch làm việc
           </h1>
-          </div>
-          
+        </div>
+
         <div className="header-right">
           <div className="action-buttons">
-            <Button 
+            <Button
               onClick={handleGenerateSlots}
               className="auto-generate-btn"
               disabled={generating}
             >
               🚀 Tạo slot tự động
             </Button>
-            <Button 
+            <Button
               onClick={() => setShowLeaveRequest(true)}
               className="leave-btn"
             >
               📅 Lịch nghỉ
             </Button>
-            <Button 
+            <Button
               onClick={() => setCurrentDate(new Date())}
               className="today-btn"
             >
               🏠 Hôm nay
             </Button>
-            <Button 
+            <Button
               onClick={() => window.location.reload()}
               className="refresh-btn"
             >
@@ -735,15 +964,18 @@ export default function ScheduleManagement() {
             <p>Đang tải lịch làm việc...</p>
           </div>
         )}
-        
+
         {/* Hiển thị thông báo khi không có slot nào trong tuần */}
         {!loading && timeSlotsList.length === 0 && (
           <div className="no-slots-message">
             <div className="empty-state">
               <Calendar size={64} className="empty-icon" />
               <h3>Chưa có slot nào trong tuần này</h3>
-              <p>Bấm nút "Tạo slot tự động" để tạo lịch làm việc cho tuần này</p>
-              <Button 
+              <p>
+                Bấm nút "Tạo slot tự động" để tạo lịch làm việc cho 1 tháng tới
+                (bao gồm cả cuối tuần)
+              </p>
+              <Button
                 onClick={handleGenerateSlots}
                 className="auto-generate-btn"
                 disabled={generating}
@@ -754,117 +986,163 @@ export default function ScheduleManagement() {
             </div>
           </div>
         )}
-        
-        {timeSlotsList.length > 0 && <div className="schedule-grid">
-          <div className="grid-header">
-            <div className="time-column">
-              <Clock size={16} />
-              Giờ
-            </div>
-            {daysWithSlots.map((day, index) => (
-              <div key={index} className={`day-column ${day.isPast ? 'past-day' : ''}`}>
-                <div className="day-name">{day.name}</div>
-                <div className="day-date">{day.date}</div>
+
+        {timeSlotsList.length > 0 && (
+          <div className="schedule-grid">
+            <div className="grid-header">
+              <div className="time-column">
+                <Clock size={16} />
+                Giờ
               </div>
-            ))}
-          </div>
-          
-          <div className="grid-body">
-            {/* Buổi sáng label */}
-            <div className="time-row morning-label">
-              <div className="time-cell">Buổi sáng</div>
-              {daysWithSlots.map((day, dayIndex) => (
-                <div key={`label-morning-${dayIndex}`} className="slot-cell">
-                  <div className="slot-content"></div>
+              {daysWithSlots.map((day, index) => (
+                <div
+                  key={index}
+                  className={`day-column ${day.isPast ? "past-day" : ""}`}
+                >
+                  <div className="day-name">{day.name}</div>
+                  <div className="day-date">{day.date}</div>
                 </div>
               ))}
             </div>
-            
-            {timesWithSlots.map((time, timeIndex) => {
-              // Xác định buổi dựa trên giờ
-              const hour = parseInt(time.split(':')[0]);
-              
-              // Tìm vị trí đầu tiên của buổi sáng và buổi chiều
-              const morningStartIndex = timesWithSlots.findIndex(t => parseInt(t.split(':')[0]) < 12);
-              const afternoonStartIndex = timesWithSlots.findIndex(t => parseInt(t.split(':')[0]) >= 13);
-              
-              console.log(`🔍 Time ${time} (index ${timeIndex}): morningStart=${morningStartIndex}, afternoonStart=${afternoonStartIndex}`);
-              
-              return (
-                <>
-                  {/* Thêm label "Buổi chiều" trước slot 13:00 */}
-                  {timeIndex === afternoonStartIndex && (
-                    <div className="time-row afternoon-label">
-                      <div className="time-cell">Buổi chiều</div>
-                      {daysWithSlots.map((day, dayIndex) => (
-                        <div key={`label-afternoon-${dayIndex}`} className="slot-cell">
-                          <div className="slot-content"></div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <div key={timeIndex} className={`time-row ${timeIndex === morningStartIndex ? 'morning-section' : ''} ${timeIndex === afternoonStartIndex ? 'afternoon-section' : ''}`}>
-                    <div className="time-cell">
-                      {time}
-                    </div>
-                  {daysWithSlots.map((day, dayIndex) => {
-                    const slot = processedSlots.slotsMap?.[day.fullDate]?.[time];
-                    
-                    // Nếu không có slot, vẫn render ô trống nhưng có thể click để đặt lịch
-                    if (!slot) {
-                      return (
-                        <div 
-                          key={`${dayIndex}-${timeIndex}`} 
-                          className="slot-cell empty-no-border"
-                          onClick={() => {
-                            // Mở form đặt lịch khi click vào ô trống
-                            setSelectedDate(day.fullDate);
-                            setSelectedTime(time);
-                            setSelectedSlot(null);
-                            setBookingData({
-                              patientName: "",
-                              patientPhone: "",
-                              reason: "",
-                              mode: "online",
-                            });
-                            setShowBookSlot(true);
-                          }}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          {/* Ô trống - có thể click để đặt lịch */}
-                        </div>
-                      );
-                    }
-                    
-                    return (
-                      <div 
-                        key={`${dayIndex}-${timeIndex}`} 
-                        className={`slot-cell ${day.isPast ? 'past-day' : ''}`}
-                        onClick={() => handleSlotClick(slot)}
-                      >
-                      <div className="slot-content">
-                        {slot.status === 'available' ? (
-                          <div className="slot-status" style={{ backgroundColor: getStatusColor(slot.status) }}>
-                            {getStatusText(slot.status)}
-                          </div>
-                        ) : (
-                          <div className={`booked-slot ${slot.status}`}>
-                            <div className="patient-name-main">{slot.patientName || 'Bệnh nhân'}</div>
-                            <div className="status-text-small">{getStatusText(slot.status)}</div>
-                          </div>
-                        )}
-                      </div>
-                      </div>
-                    );
-                  })}
+
+            <div className="grid-body">
+              {/* Buổi sáng label */}
+              <div className="time-row morning-label">
+                <div className="time-cell">Buổi sáng</div>
+                {daysWithSlots.map((day, dayIndex) => (
+                  <div key={`label-morning-${dayIndex}`} className="slot-cell">
+                    <div className="slot-content"></div>
                   </div>
-                </>
-              );
-            })}
+                ))}
+              </div>
+
+              {timesWithSlots.map((time, timeIndex) => {
+                // Xác định buổi dựa trên giờ
+                const hour = parseInt(time.split(":")[0]);
+
+                // Tìm vị trí đầu tiên của buổi sáng và buổi chiều
+                const morningStartIndex = timesWithSlots.findIndex(
+                  (t) => parseInt(t.split(":")[0]) < 12
+                );
+                const afternoonStartIndex = timesWithSlots.findIndex(
+                  (t) => parseInt(t.split(":")[0]) >= 13
+                );
+
+                console.log(
+                  `🔍 Time ${time} (index ${timeIndex}): morningStart=${morningStartIndex}, afternoonStart=${afternoonStartIndex}`
+                );
+
+                return (
+                  <>
+                    {/* Thêm label "Buổi chiều" trước slot 13:00 */}
+                    {timeIndex === afternoonStartIndex && (
+                      <div className="time-row afternoon-label">
+                        <div className="time-cell">Buổi chiều</div>
+                        {daysWithSlots.map((day, dayIndex) => (
+                          <div
+                            key={`label-afternoon-${dayIndex}`}
+                            className="slot-cell"
+                          >
+                            <div className="slot-content"></div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div
+                      key={timeIndex}
+                      className={`time-row ${
+                        timeIndex === morningStartIndex ? "morning-section" : ""
+                      } ${
+                        timeIndex === afternoonStartIndex
+                          ? "afternoon-section"
+                          : ""
+                      }`}
+                    >
+                      <div className="time-cell">{time}</div>
+                      {daysWithSlots.map((day, dayIndex) => {
+                        const slot =
+                          processedSlots.slotsMap?.[day.fullDate]?.[time];
+
+                        // Nếu không có slot, vẫn render ô trống nhưng có thể click để đặt lịch
+                        if (!slot) {
+                          return (
+                            <div
+                              key={`${dayIndex}-${timeIndex}`}
+                              className="slot-cell empty-no-border"
+                              onClick={() => {
+                                // Mở form đặt lịch khi click vào ô trống
+                                setSelectedDate(day.fullDate);
+                                setSelectedTime(time);
+                                setSelectedSlot(null);
+                                setBookingData({
+                                  patientName: "",
+                                  patientPhone: "",
+                                  reason: "",
+                                  mode: "online",
+                                });
+                                setShowBookSlot(true);
+                              }}
+                              style={{ cursor: "pointer" }}
+                            >
+                              {/* Ô trống - có thể click để đặt lịch */}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={`${dayIndex}-${timeIndex}`}
+                            className={`slot-cell ${
+                              day.isPast ? "past-day" : ""
+                            }`}
+                            onClick={() => handleSlotClick(slot)}
+                          >
+                            <div className="slot-content">
+                              {slot.status === "available" ? (
+                                <>
+                                  <div
+                                    className="slot-status"
+                                    style={{
+                                      backgroundColor: getStatusColor(
+                                        slot.status
+                                      ),
+                                    }}
+                                  >
+                                    {getStatusText(slot.status)}
+                                  </div>
+                                  <button
+                                    className="delete-slot-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Prevent opening modal
+                                      handleDeleteSlot(slot);
+                                    }}
+                                    title="Xóa slot"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </>
+                              ) : (
+                                <div className={`booked-slot ${slot.status}`}>
+                                  <div className="patient-name-main">
+                                    {slot.patientName || "Bệnh nhân"}
+                                  </div>
+                                  <div className="status-text-small">
+                                    {getStatusText(slot.status)}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })}
+            </div>
           </div>
-          
-        </div>}
+        )}
       </div>
 
       {/* Leave Request Dialog */}
@@ -878,7 +1156,9 @@ export default function ScheduleManagement() {
             <Input
               type="date"
               value={leaveData.startDate}
-              onChange={(e) => setLeaveData({...leaveData, startDate: e.target.value})}
+              onChange={(e) =>
+                setLeaveData({ ...leaveData, startDate: e.target.value })
+              }
             />
           </div>
           <div className="form-group">
@@ -886,19 +1166,26 @@ export default function ScheduleManagement() {
             <Input
               type="date"
               value={leaveData.endDate}
-              onChange={(e) => setLeaveData({...leaveData, endDate: e.target.value})}
+              onChange={(e) =>
+                setLeaveData({ ...leaveData, endDate: e.target.value })
+              }
             />
           </div>
           <div className="form-group">
             <label>Lý do:</label>
             <Input
               value={leaveData.reason}
-              onChange={(e) => setLeaveData({...leaveData, reason: e.target.value})}
+              onChange={(e) =>
+                setLeaveData({ ...leaveData, reason: e.target.value })
+              }
               placeholder="Nhập lý do nghỉ..."
             />
           </div>
           <div className="dialog-actions">
-            <Button onClick={() => setShowLeaveRequest(false)} variant="outline">
+            <Button
+              onClick={() => setShowLeaveRequest(false)}
+              variant="outline"
+            >
               Hủy
             </Button>
             <Button onClick={handleLeaveRequest} variant="primary">
@@ -918,7 +1205,9 @@ export default function ScheduleManagement() {
             <label>Tên bệnh nhân:</label>
             <Input
               value={bookingData.patientName}
-              onChange={(e) => setBookingData({...bookingData, patientName: e.target.value})}
+              onChange={(e) =>
+                setBookingData({ ...bookingData, patientName: e.target.value })
+              }
               placeholder="Nhập tên bệnh nhân..."
             />
           </div>
@@ -926,7 +1215,9 @@ export default function ScheduleManagement() {
             <label>Số điện thoại:</label>
             <Input
               value={bookingData.patientPhone}
-              onChange={(e) => setBookingData({...bookingData, patientPhone: e.target.value})}
+              onChange={(e) =>
+                setBookingData({ ...bookingData, patientPhone: e.target.value })
+              }
               placeholder="Nhập số điện thoại..."
             />
           </div>
@@ -934,7 +1225,9 @@ export default function ScheduleManagement() {
             <label>Lý do khám:</label>
             <Input
               value={bookingData.reason}
-              onChange={(e) => setBookingData({...bookingData, reason: e.target.value})}
+              onChange={(e) =>
+                setBookingData({ ...bookingData, reason: e.target.value })
+              }
               placeholder="Nhập lý do khám..."
             />
           </div>
@@ -947,7 +1240,9 @@ export default function ScheduleManagement() {
                   name="mode"
                   value="online"
                   checked={bookingData.mode === "online"}
-                  onChange={(e) => setBookingData({...bookingData, mode: e.target.value})}
+                  onChange={(e) =>
+                    setBookingData({ ...bookingData, mode: e.target.value })
+                  }
                 />
                 <span>Online</span>
               </label>
@@ -957,20 +1252,30 @@ export default function ScheduleManagement() {
                   name="mode"
                   value="offline"
                   checked={bookingData.mode === "offline"}
-                  onChange={(e) => setBookingData({...bookingData, mode: e.target.value})}
+                  onChange={(e) =>
+                    setBookingData({ ...bookingData, mode: e.target.value })
+                  }
                 />
                 <span>Offline</span>
               </label>
             </div>
           </div>
           <div className="dialog-actions">
-            <Button onClick={() => {
-              setShowBookSlot(false);
-              setBookingData({ patientName: "", patientPhone: "", reason: "", mode: "online" });
-              setSelectedSlot(null);
-              setSelectedDate(null);
-              setSelectedTime(null);
-            }} variant="outline">
+            <Button
+              onClick={() => {
+                setShowBookSlot(false);
+                setBookingData({
+                  patientName: "",
+                  patientPhone: "",
+                  reason: "",
+                  mode: "online",
+                });
+                setSelectedSlot(null);
+                setSelectedDate(null);
+                setSelectedTime(null);
+              }}
+              variant="outline"
+            >
               Hủy
             </Button>
             <Button onClick={handleBookSlot} variant="primary">
@@ -981,7 +1286,10 @@ export default function ScheduleManagement() {
       </Dialog>
 
       {/* Appointment Detail Modal */}
-      <Dialog open={showAppointmentDetail} onOpenChange={setShowAppointmentDetail}>
+      <Dialog
+        open={showAppointmentDetail}
+        onOpenChange={setShowAppointmentDetail}
+      >
         <DialogContent className="appointment-detail-dialog">
           <DialogHeader>
             <DialogTitle>Chi tiết lịch hẹn</DialogTitle>
@@ -998,20 +1306,26 @@ export default function ScheduleManagement() {
                 <div className="detail-item">
                   <span className="detail-label">Họ và tên:</span>
                   <span className="detail-value">
-                    {selectedAppointmentDetail.patientId?.fullName || selectedAppointmentDetail.patientName || 'N/A'}
+                    {selectedAppointmentDetail.patientId?.fullName ||
+                      selectedAppointmentDetail.patientName ||
+                      "N/A"}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Số điện thoại:</span>
                   <span className="detail-value">
-                    {selectedAppointmentDetail.patientId?.phone || selectedAppointmentDetail.patientPhone || 'N/A'}
+                    {selectedAppointmentDetail.patientId?.phone ||
+                      selectedAppointmentDetail.patientPhone ||
+                      "N/A"}
                   </span>
                 </div>
                 {selectedAppointmentDetail.patientId?.dob && (
                   <div className="detail-item">
                     <span className="detail-label">Ngày sinh:</span>
                     <span className="detail-value">
-                      {new Date(selectedAppointmentDetail.patientId.dob).toLocaleDateString('vi-VN')}
+                      {new Date(
+                        selectedAppointmentDetail.patientId.dob
+                      ).toLocaleDateString("vi-VN")}
                     </span>
                   </div>
                 )}
@@ -1019,9 +1333,12 @@ export default function ScheduleManagement() {
                   <div className="detail-item">
                     <span className="detail-label">Giới tính:</span>
                     <span className="detail-value">
-                      {selectedAppointmentDetail.patientId.gender === 'male' ? 'Nam' : 
-                       selectedAppointmentDetail.patientId.gender === 'female' ? 'Nữ' : 
-                       selectedAppointmentDetail.patientId.gender}
+                      {selectedAppointmentDetail.patientId.gender === "male"
+                        ? "Nam"
+                        : selectedAppointmentDetail.patientId.gender ===
+                          "female"
+                        ? "Nữ"
+                        : selectedAppointmentDetail.patientId.gender}
                     </span>
                   </div>
                 )}
@@ -1032,70 +1349,88 @@ export default function ScheduleManagement() {
                 <div className="detail-item">
                   <span className="detail-label">Thời gian:</span>
                   <span className="detail-value">
-                    {selectedAppointmentDetail.slotId 
-                      ? `${new Date(selectedAppointmentDetail.slotId.startAt).toLocaleString('vi-VN')} - ${new Date(selectedAppointmentDetail.slotId.endAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+                    {selectedAppointmentDetail.slotId
+                      ? `${new Date(
+                          selectedAppointmentDetail.slotId.startAt
+                        ).toLocaleString("vi-VN")} - ${new Date(
+                          selectedAppointmentDetail.slotId.endAt
+                        ).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}`
                       : selectedAppointmentDetail.scheduledStart
-                      ? new Date(selectedAppointmentDetail.scheduledStart).toLocaleString('vi-VN')
-                      : 'N/A'}
+                      ? new Date(
+                          selectedAppointmentDetail.scheduledStart
+                        ).toLocaleString("vi-VN")
+                      : "N/A"}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Trạng thái:</span>
-                  <span className={`detail-value status-badge ${selectedAppointmentDetail.status}`}>
+                  <span
+                    className={`detail-value status-badge ${selectedAppointmentDetail.status}`}
+                  >
                     {getStatusText(selectedAppointmentDetail.status)}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Hình thức:</span>
                   <span className="detail-value">
-                    {selectedAppointmentDetail.mode === 'online' ? 'Online' : 
-                     selectedAppointmentDetail.mode === 'offline' ? 'Offline' : 
-                     'N/A'}
+                    {selectedAppointmentDetail.mode === "online"
+                      ? "Online"
+                      : selectedAppointmentDetail.mode === "offline"
+                      ? "Offline"
+                      : "N/A"}
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Lý do khám:</span>
                   <span className="detail-value">
-                    {selectedAppointmentDetail.reason || 
-                     selectedAppointmentDetail.cancelReason || 
-                     selectedAppointmentDetail.rejectReason || 
-                     'Chưa có thông tin'}
+                    {selectedAppointmentDetail.reason ||
+                      selectedAppointmentDetail.cancelReason ||
+                      selectedAppointmentDetail.rejectReason ||
+                      "Chưa có thông tin"}
                   </span>
                 </div>
                 {selectedAppointmentDetail.clinicId && (
                   <div className="detail-item">
                     <span className="detail-label">Phòng khám:</span>
                     <span className="detail-value">
-                      {selectedAppointmentDetail.clinicId.name || selectedAppointmentDetail.clinicId}
+                      {selectedAppointmentDetail.clinicId.name ||
+                        selectedAppointmentDetail.clinicId}
                     </span>
                   </div>
                 )}
               </div>
 
-              {selectedAppointmentDetail.mode === 'online' && 
-               (selectedAppointmentDetail.status === 'confirmed' || 
-                selectedAppointmentDetail.status === 'booked' || 
-                selectedAppointmentDetail.status === 'accepted' ||
-                selectedAppointmentDetail.status === 'in_progress') && (
-                <div className="detail-actions">
-                  <Button
-                    className="call-button"
-                    onClick={() => {
-                      const slot = timeSlots.find(s => s.appointmentId === selectedAppointmentDetail._id) || {
-                        appointmentId: selectedAppointmentDetail._id,
-                        patientName: selectedAppointmentDetail.patientId?.fullName,
-                        mode: selectedAppointmentDetail.mode,
-                        status: selectedAppointmentDetail.status
-                      };
-                      handleVideoCall(slot);
-                      setShowAppointmentDetail(false);
-                    }}
-                  >
-                    <Phone size={16} />
-                    Gọi video
-                  </Button>
-                </div>
-              )}
+              {selectedAppointmentDetail.mode === "online" &&
+                (selectedAppointmentDetail.status === "confirmed" ||
+                  selectedAppointmentDetail.status === "booked" ||
+                  selectedAppointmentDetail.status === "accepted" ||
+                  selectedAppointmentDetail.status === "in_progress") && (
+                  <div className="detail-actions">
+                    <Button
+                      className="call-button"
+                      onClick={() => {
+                        const slot = timeSlots.find(
+                          (s) =>
+                            s.appointmentId === selectedAppointmentDetail._id
+                        ) || {
+                          appointmentId: selectedAppointmentDetail._id,
+                          patientName:
+                            selectedAppointmentDetail.patientId?.fullName,
+                          mode: selectedAppointmentDetail.mode,
+                          status: selectedAppointmentDetail.status,
+                        };
+                        handleVideoCall(slot);
+                        setShowAppointmentDetail(false);
+                      }}
+                    >
+                      <Phone size={16} />
+                      Gọi video
+                    </Button>
+                  </div>
+                )}
             </div>
           ) : (
             <div className="no-data">
@@ -1103,7 +1438,10 @@ export default function ScheduleManagement() {
             </div>
           )}
           <div className="dialog-actions">
-            <Button onClick={() => setShowAppointmentDetail(false)} variant="outline">
+            <Button
+              onClick={() => setShowAppointmentDetail(false)}
+              variant="outline"
+            >
               Đóng
             </Button>
           </div>
