@@ -46,7 +46,7 @@ import VerifyDoctors from "../pages/Admin/VerifyDoctors";
 import UserManagement from "../pages/Admin/UserManagement";
 import Specializations from "../pages/Admin/Specializations";
 import AppointmentManagement from "../pages/Admin/AppointmentManagement";
-import PaymentManagement from "../pages/Admin/PaymentManagement";
+import Statistics from "../pages/Admin/Statistics";
 import AdminLayout from "../layouts/AdminLayout/AdminLayout";
 
 // Manager Components
@@ -211,7 +211,7 @@ export const privateRoutes = (
         <Route path="/admin/users" element={<UserManagement />} />
         <Route path="/admin/specializations" element={<Specializations />} />
         <Route path="/admin/appointments" element={<AppointmentManagement />} />
-        <Route path="/admin/payment" element={<PaymentManagement />} />
+        <Route path="/admin/statistics" element={<Statistics />} />
       </Route>
     </Route>
 
