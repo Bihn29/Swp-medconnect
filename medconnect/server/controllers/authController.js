@@ -1023,8 +1023,9 @@ export async function testEmail(req, res) {
  * POST /api/auth/change-password
  * body: { currentPassword, newPassword }
  * 
- * 
- *  đang fix lỗi chưa xong 
+ * Đổi mật khẩu khi đã đăng nhập vào tài khoản.
+ * Không cần OTP - chỉ cần nhập đúng mật khẩu hiện tại.
+ * Yêu cầu: người dùng phải đã đăng nhập (authGuard).
  */
 export async function changePassword(req, res) {
   try {
@@ -1034,8 +1035,8 @@ export async function changePassword(req, res) {
     }
 
     // Validate password length
-    if (newPassword.length < 6) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu mới phải có ít nhất 6 ký tự");
+    if (newPassword.length < 8) {
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu mới phải có ít nhất 8 ký tự");
     }
 
     // Lấy user từ req.user (đã được authGuard xác thực)

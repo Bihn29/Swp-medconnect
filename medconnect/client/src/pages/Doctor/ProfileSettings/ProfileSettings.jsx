@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import PropTypes from "prop-types"
 import { User, Mail, Phone, MapPin, Award, Calendar, Lock, Upload, FileText } from "lucide-react"
 import { Image } from "antd"
-import { getDoctorProfileWithFallback, updateDoctorProfile } from "../../../lib/api"
+import { getDoctorProfileWithFallback, updateDoctorProfile, changePassword } from "../../../lib/api"
 import "./ProfileSettings.scss"
 
 // Helper function to get full image URL
@@ -134,19 +134,55 @@ const ProfileSettings = () => {
     }
   }
 
+  //--------------------------------- Change Password  ---------------------------------
   const handlePasswordChange = (field, value) => {
-    setPasswordData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-    
-    // Clear error when user starts typing
-    if (passwordErrors[field]) {
-      setPasswordErrors(prev => ({
+    setPasswordData(prev => {
+      const updated = {
         ...prev,
-        [field]: ""
-      }))
-    }
+        [field]: value
+      }
+      
+      // Real-time validation when user types
+      const errors = {}
+      
+      // Validate new password if it matches current password
+      if (field === "newPassword" && value && updated.currentPassword && value === updated.currentPassword) {
+        errors.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại"
+      }
+      // Also check when current password changes
+      if (field === "currentPassword" && updated.newPassword && value === updated.newPassword) {
+        errors.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại"
+      }
+      
+      // Validate password length
+      if (field === "newPassword" && value && value.length > 0 && value.length < 8) {
+        errors.newPassword = "Mật khẩu mới phải có ít nhất 8 ký tự"
+      }
+      
+      // Validate confirm password
+      if (field === "confirmPassword" && value && updated.newPassword && value !== updated.newPassword) {
+        errors.confirmPassword = "Mật khẩu xác nhận không khớp"
+      }
+      if (field === "newPassword" && updated.confirmPassword && value !== updated.confirmPassword) {
+        errors.confirmPassword = "Mật khẩu xác nhận không khớp"
+      }
+      
+      // Update errors
+      if (Object.keys(errors).length > 0) {
+        setPasswordErrors(prev => ({
+          ...prev,
+          ...errors
+        }))
+      } else {
+        // Clear error for the field being edited
+        setPasswordErrors(prev => ({
+          ...prev,
+          [field]: ""
+        }))
+      }
+      
+      return updated
+    })
   }
 
   const validatePassword = () => {
@@ -158,8 +194,8 @@ const ProfileSettings = () => {
     
     if (!passwordData.newPassword) {
       errors.newPassword = "Vui lòng nhập mật khẩu mới"
-    } else if (passwordData.newPassword.length < 6) {
-      errors.newPassword = "Mật khẩu mới phải có ít nhất 6 ký tự"
+    } else if (passwordData.newPassword.length < 8) {
+      errors.newPassword = "Mật khẩu mới phải có ít nhất 8 ký tự"
     }
     
     if (!passwordData.confirmPassword) {
@@ -183,39 +219,35 @@ const ProfileSettings = () => {
     
     try {
       // Call API to change password
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/change-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
-        }),
-      })
+      await changePassword(passwordData.currentPassword, passwordData.newPassword)
       
-      if (response.ok) {
-        alert("Mật khẩu đã được thay đổi thành công")
-        setPasswordData({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: ""
-        })
-        setPasswordErrors({})
-      } else {
-        if (response.status === 400) {
-          setPasswordErrors({ currentPassword: "Mật khẩu hiện tại không đúng" })
-        } else {
-          alert("Có lỗi xảy ra khi thay đổi mật khẩu")
-        }
-      }
+      alert("Mật khẩu đã được thay đổi thành công")
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+      })
+      setPasswordErrors({})
     } catch (error) {
       console.error("Error changing password:", error)
-      alert("Có lỗi xảy ra khi thay đổi mật khẩu")
+      
+      // Handle API errors
+      if (error.status === 400 && error.response?.message) {
+        const errorMessage = error.response.message
+        if (errorMessage.includes("Mật khẩu hiện tại không đúng") || errorMessage.includes("mật khẩu hiện tại")) {
+          setPasswordErrors({ currentPassword: "Mật khẩu hiện tại không đúng" })
+        } else if (errorMessage.includes("khác mật khẩu hiện tại")) {
+          setPasswordErrors({ newPassword: "Mật khẩu mới phải khác mật khẩu hiện tại" })
+        } else {
+          alert(errorMessage || "Có lỗi xảy ra khi đổi mật khẩu")
+        }
+      } else {
+        alert(error.response?.message || error.message || "Có lỗi xảy ra khi thay đổi mật khẩu")
+      }
     }
   }
 
+//--------------------------------- Change Password ---------------------------------
 
   // Handle avatar upload
   const resizeImage = (file, maxWidth, maxHeight, quality = 0.8) => {
