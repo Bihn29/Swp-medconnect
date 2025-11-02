@@ -105,6 +105,8 @@ export const checkPaymentStatusController = async (req, res) => {
     // 1. Check với PayOS
     const paymentInfo = await checkPaymentStatus(Number(orderCode));
     
+    console.log(`📋 PayOS paymentInfo for ${orderCode}:`, JSON.stringify(paymentInfo, null, 2));
+    
     // 2. Nếu thanh toán thành công, tự động xử lý (fallback cho webhook)
     if (paymentInfo && (paymentInfo.status === "PAID" || paymentInfo.status === "paid")) {
       try {
@@ -119,7 +121,7 @@ export const checkPaymentStatusController = async (req, res) => {
           success: true
         };
         
-        const result = await handlePayosWebhook(webhookData);
+        const result = await handlePayosWebhook(webhookData, true); // skipVerification = true for fallback
         console.log(`✅ Auto-processed payment via check-status: ${orderCode}`, result);
       } catch (webhookError) {
         // Nếu webhook handler lỗi (có thể đã xử lý rồi), ignore

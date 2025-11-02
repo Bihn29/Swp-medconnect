@@ -21,18 +21,41 @@
   .stats-row {
     margin-bottom: 32px;
 
+    .ant-col {
+      display: flex;
+    }
+
     .stat-card {
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       border: none;
       position: relative;
       overflow: hidden;
+      width: 100%;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+
+      &.clickable {
+        cursor: pointer;
+        
+        &:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        &:active {
+          transform: translateY(-2px);
+        }
+      }
 
       .ant-card-body {
         padding: 24px;
         display: flex;
         align-items: center;
         gap: 16px;
+        flex: 1;
+        min-height: 140px;
       }
 
       .stat-icon {

@@ -10,6 +10,7 @@ dotenv.config();
 import apiRouter from "./routes/api.router.js";
 import { initializeFirebase } from "./config/firebase.js";
 import { startAppointmentCleanupJob } from "./services/appointmentCleanupService.js";
+import { startVideoCallReminderJob } from "./services/videoCallReminderService.js";
 
 // Initialize Firebase Admin SDK (will exit process if config missing)
 initializeFirebase();
@@ -83,6 +84,9 @@ mongoose
     // Tắt cron job tự động hủy appointments - không giới hạn thời gian thanh toán
     // startAppointmentCleanupJob();
     console.log("ℹ️  Auto-cancel appointments is disabled - no payment deadline");
+    
+    // Khởi động cron job gửi email nhắc nhở video call 10 phút trước
+    startVideoCallReminderJob();
   })
   .catch((err) => {
     console.error("❌ Lỗi kết nối đến MongoDB:", err.message);
