@@ -52,15 +52,11 @@ const AdminLayout = () => {
       label: "Quản lý lịch hẹn",
     },
     {
-      key: "/admin/reports",
+      key: "/admin/payment",
       icon: <FileTextOutlined />,
-      label: "Báo cáo",
+      label: "Quản lí doanh thu",
     },
-    {
-      key: "/admin/system-settings",
-      icon: <SettingOutlined />,
-      label: "Cài đặt hệ thống",
-    },
+    
   ];
 
   const handleMenuClick = ({ key }) => {

@@ -26,7 +26,8 @@ export function configureExpress() {
   //   }
   //   next();
   // });
-  app.use(express.json());
+  // Increased limit to 10MB to handle base64 avatar images
+  app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
   app.use(cors({ origin: ["http://localhost:5173"], credentials: true }));
   app.use(morgan("dev"));

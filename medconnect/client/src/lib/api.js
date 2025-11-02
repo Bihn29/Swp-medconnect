@@ -142,6 +142,42 @@ export async function completeLogout() {
   }
 }
 
+// Change password (requires authentication)
+export async function changePassword(currentPassword, newPassword) {
+  try {
+    const r = await fetch(`${BASE}/api/auth/change-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+      }),
+    });
+
+    if (!r.ok) {
+      const errorText = await r.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText || "Có lỗi xảy ra khi đổi mật khẩu" };
+      }
+      const error = new Error(errorData.message || "Có lỗi xảy ra khi đổi mật khẩu");
+      error.status = r.status;
+      error.response = errorData;
+      throw error;
+    }
+
+    return await r.json();
+  } catch (error) {
+    console.error("Error changing password:", error);
+    throw error;
+  }
+}
+
 // Admin functions
 export async function getPendingDoctors() {
   const r = await fetch(`${BASE}/api/admin/doctors/pending`, {
@@ -293,7 +329,11 @@ export async function updateDoctorProfile(profileData) {
     credentials: "include",
     body: JSON.stringify(profileData),
   });
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    const errorText = await r.text();
+    console.log("updateDoctorProfile failed:", r.status, errorText);
+    throw new Error(errorText);
+  }
   return r.json();
 }
 
@@ -932,6 +972,30 @@ export async function getAdminDashboardActivities() {
 
 export async function getAdminSystemStatus() {
   const r = await fetch(`${BASE}/api/admin/dashboard/system-status`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getPaymentRevenueStats(params = {}) {
+  const { period = "today", startDate, endDate } = params;
+  let url = `${BASE}/api/admin/payment/revenue-stats?period=${period}`;
+  if (startDate) url += `&startDate=${startDate}`;
+  if (endDate) url += `&endDate=${endDate}`;
+  const r = await fetch(url, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getAdminInvoices(params = {}) {
+  const { period = "today", startDate, endDate } = params;
+  let url = `${BASE}/api/admin/payment/invoices?period=${period}`;
+  if (startDate) url += `&startDate=${startDate}`;
+  if (endDate) url += `&endDate=${endDate}`;
+  const r = await fetch(url, {
     credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());

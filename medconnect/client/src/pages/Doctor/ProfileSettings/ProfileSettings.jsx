@@ -2,9 +2,22 @@
 
 import { useState, useEffect } from "react"
 import PropTypes from "prop-types"
-import { User, Mail, Phone, MapPin, Award, Calendar, Lock, Upload } from "lucide-react"
-import { getDoctorProfileWithFallback, updateDoctorProfile } from "../../../lib/api"
+import { User, Mail, Phone, MapPin, Award, Calendar, Lock, Upload, FileText } from "lucide-react"
+import { Image } from "antd"
+import { getDoctorProfileWithFallback, updateDoctorProfile, changePassword } from "../../../lib/api"
 import "./ProfileSettings.scss"
+
+// Helper function to get full image URL
+const getImageUrl = (url) => {
+  if (!url) return null;
+  // If URL is already absolute (starts with http:// or https://), return as is
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  // If URL starts with /, it's a server path, prepend API base URL
+  const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
+  return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
+};
 
 const ProfileSettings = () => {
   const [doctorInfo, setDoctorInfo] = useState(null)
@@ -41,13 +54,15 @@ const ProfileSettings = () => {
           console.log("🔍 ProfileSettings - Doctor fullName:", doctor.fullName)
           console.log("🔍 ProfileSettings - User fullName:", doctor.userId?.fullName)
           console.log("🔍 ProfileSettings - Final name:", doctor.userId?.fullName || doctor.fullName)
+          console.log("🔍 ProfileSettings - specializationIds:", doctor.specializationIds)
+          console.log("🔍 ProfileSettings - specializationIds names:", doctor.specializationIds?.map(spec => spec?.name))
           
           setDoctorInfo(doctor)
           setFormData({
             fullName: doctor.userId?.fullName || doctor.fullName || "",
             email: doctor.userId?.email || "",
             phone: doctor.userId?.phone || "",
-            specialization: doctor.specializationIds?.map(spec => spec.name).join(', ') || "",
+            specialization: doctor.specializationIds?.filter(spec => spec && spec.name).map(spec => spec.name).join(', ') || "",
             address: doctor.clinicDefaultId?.address || "",
             bio: doctor.bio || "",
             licenseNo: doctor.licenseNo || "",
@@ -119,19 +134,55 @@ const ProfileSettings = () => {
     }
   }
 
+  //--------------------------------- Change Password  ---------------------------------
   const handlePasswordChange = (field, value) => {
-    setPasswordData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-    
-    // Clear error when user starts typing
-    if (passwordErrors[field]) {
-      setPasswordErrors(prev => ({
+    setPasswordData(prev => {
+      const updated = {
         ...prev,
-        [field]: ""
-      }))
-    }
+        [field]: value
+      }
+      
+      // Real-time validation when user types
+      const errors = {}
+      
+      // Validate new password if it matches current password
+      if (field === "newPassword" && value && updated.currentPassword && value === updated.currentPassword) {
+        errors.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại"
+      }
+      // Also check when current password changes
+      if (field === "currentPassword" && updated.newPassword && value === updated.newPassword) {
+        errors.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại"
+      }
+      
+      // Validate password length
+      if (field === "newPassword" && value && value.length > 0 && value.length < 8) {
+        errors.newPassword = "Mật khẩu mới phải có ít nhất 8 ký tự"
+      }
+      
+      // Validate confirm password
+      if (field === "confirmPassword" && value && updated.newPassword && value !== updated.newPassword) {
+        errors.confirmPassword = "Mật khẩu xác nhận không khớp"
+      }
+      if (field === "newPassword" && updated.confirmPassword && value !== updated.confirmPassword) {
+        errors.confirmPassword = "Mật khẩu xác nhận không khớp"
+      }
+      
+      // Update errors
+      if (Object.keys(errors).length > 0) {
+        setPasswordErrors(prev => ({
+          ...prev,
+          ...errors
+        }))
+      } else {
+        // Clear error for the field being edited
+        setPasswordErrors(prev => ({
+          ...prev,
+          [field]: ""
+        }))
+      }
+      
+      return updated
+    })
   }
 
   const validatePassword = () => {
@@ -143,8 +194,8 @@ const ProfileSettings = () => {
     
     if (!passwordData.newPassword) {
       errors.newPassword = "Vui lòng nhập mật khẩu mới"
-    } else if (passwordData.newPassword.length < 6) {
-      errors.newPassword = "Mật khẩu mới phải có ít nhất 6 ký tự"
+    } else if (passwordData.newPassword.length < 8) {
+      errors.newPassword = "Mật khẩu mới phải có ít nhất 8 ký tự"
     }
     
     if (!passwordData.confirmPassword) {
@@ -168,39 +219,35 @@ const ProfileSettings = () => {
     
     try {
       // Call API to change password
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/change-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
-        }),
-      })
+      await changePassword(passwordData.currentPassword, passwordData.newPassword)
       
-      if (response.ok) {
-        alert("Mật khẩu đã được thay đổi thành công")
-        setPasswordData({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: ""
-        })
-        setPasswordErrors({})
-      } else {
-        if (response.status === 400) {
-          setPasswordErrors({ currentPassword: "Mật khẩu hiện tại không đúng" })
-        } else {
-          alert("Có lỗi xảy ra khi thay đổi mật khẩu")
-        }
-      }
+      alert("Mật khẩu đã được thay đổi thành công")
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+      })
+      setPasswordErrors({})
     } catch (error) {
       console.error("Error changing password:", error)
-      alert("Có lỗi xảy ra khi thay đổi mật khẩu")
+      
+      // Handle API errors
+      if (error.status === 400 && error.response?.message) {
+        const errorMessage = error.response.message
+        if (errorMessage.includes("Mật khẩu hiện tại không đúng") || errorMessage.includes("mật khẩu hiện tại")) {
+          setPasswordErrors({ currentPassword: "Mật khẩu hiện tại không đúng" })
+        } else if (errorMessage.includes("khác mật khẩu hiện tại")) {
+          setPasswordErrors({ newPassword: "Mật khẩu mới phải khác mật khẩu hiện tại" })
+        } else {
+          alert(errorMessage || "Có lỗi xảy ra khi đổi mật khẩu")
+        }
+      } else {
+        alert(error.response?.message || error.message || "Có lỗi xảy ra khi thay đổi mật khẩu")
+      }
     }
   }
 
+//--------------------------------- Change Password ---------------------------------
 
   // Handle avatar upload
   const resizeImage = (file, maxWidth, maxHeight, quality = 0.8) => {
@@ -266,6 +313,9 @@ const ProfileSettings = () => {
       if (updatedDoctor) {
         setDoctorInfo(updatedDoctor)
       }
+
+      // Dispatch custom event to update sidebar
+      window.dispatchEvent(new CustomEvent('avatarUpdated'))
 
       alert('Cập nhật ảnh đại diện thành công!')
     } catch (error) {
@@ -376,16 +426,6 @@ const ProfileSettings = () => {
                     onChange={(e) => handleInputChange("address", e.target.value)}
                   />
                 </div>
-                <div className="formGroup fullWidth">
-                  <label>Giới thiệu</label>
-                  <textarea
-                    rows="4"
-                    value={formData.bio}
-                    onChange={(e) => handleInputChange("bio", e.target.value)}
-                    placeholder="Nhập thông tin giới thiệu về bạn..."
-                    className="textarea"
-                  />
-                </div>
               </div>
 
               <div className="formActions">
@@ -406,15 +446,55 @@ const ProfileSettings = () => {
                   <h2>Thông tin chuyên môn</h2>
                 </div>
 
-                <div className="infoCards">
-                  <InfoCard
-                    icon={Award}
-                    title="Bằng cấp"
-                    content={`${doctorInfo?.education?.[0]?.degree || "Bác sĩ Đa khoa"} - ${doctorInfo?.education?.[0]?.school || "ĐH Y Dược"}`}
-                  />
-                  <InfoCard icon={Calendar} title="Năm kinh nghiệm" content={`${formData.yearsExperience || 0} năm`} />
-                  <InfoCard icon={Award} title="Chứng chỉ hành nghề" content={`Số ${formData.licenseNo || "Không có"}`} />
+                {/* Years Experience Section */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                    <Calendar size={16} style={{ color: '#06b6d4' }} />
+                    Năm kinh nghiệm
+                  </label>
+                  <div style={{ padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: '#f5f5f5', fontSize: '0.875rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                    {formData.yearsExperience || 0} năm
+                  </div>
                 </div>
+                
+                {/* Bio Section */}
+                <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                    <FileText size={16} style={{ color: '#06b6d4' }} />
+                    Giới thiệu
+                  </label>
+                  <textarea
+                    rows="2"
+                    value={formData.bio}
+                    onChange={(e) => handleInputChange("bio", e.target.value)}
+                    placeholder="Nhập thông tin giới thiệu về bạn..."
+                    className="textarea"
+                    disabled={true}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.875rem', fontFamily: 'inherit', resize: 'vertical', backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                  />
+                </div>
+                
+                {/* License Certificate Image */}
+                {doctorInfo?.licenseImageUrl && (
+                  <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--foreground)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Award size={16} style={{ color: '#06b6d4' }} />
+                      Chứng chỉ hành nghề:
+                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <Image
+                        src={getImageUrl(doctorInfo.licenseImageUrl)}
+                        alt="Chứng chỉ hành nghề"
+                        width={200}
+                        height={200}
+                        style={{ objectFit: 'cover', borderRadius: '8px', boxShadow: 'var(--shadow-md)' }}
+                        preview={{
+                          mask: 'Xem ảnh',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Security */}

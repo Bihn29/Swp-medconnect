@@ -27,7 +27,7 @@ const DoctorSchema = new Schema(
       ref: "Specialization" 
     }],
     
-    // Phòng khám mặc định
+    // Phòng khám
     clinicDefaultId: { 
       type: Schema.Types.ObjectId, 
       ref: "Clinic" 

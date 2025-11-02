@@ -2,10 +2,13 @@ import mongoose from "mongoose";
 import RescheduleRequest from "../models/rescheduleRequest.model.js";
 import Appointment from "../models/appointment.model.js";
 import Doctor from "../models/doctor.model.js";
+import Patient from "../models/patient.model.js";
+import User from "../models/user.model.js";
 import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import { createAppointmentNotification } from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
+import { sendMail } from "../utils/email.js";
 
 /**
  * Request reschedule for an appointment
@@ -263,10 +266,18 @@ export async function approveReschedule(req, res) {
       return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Doctor not found");
     }
 
-    // Find reschedule request
-    const request = await RescheduleRequest.findById(requestId).populate(
-      "originalAppointmentId"
-    );
+    // Find reschedule request with populated patient data
+    const request = await RescheduleRequest.findById(requestId).populate({
+      path: "originalAppointmentId",
+      populate: {
+        path: "patientId",
+        select: "fullName userId",
+        populate: {
+          path: "userId",
+          select: "email fullName"
+        }
+      }
+    });
 
     if (!request) {
       return fail(
@@ -432,6 +443,20 @@ export async function approveReschedule(req, res) {
         );
       }
 
+      // Send email notification to patient
+      try {
+        await sendAppointmentRescheduledEmail(
+          originalAppointment,
+          newAppointment,
+          request.reason,
+          doctor
+        );
+        console.log("✅ Reschedule confirmation email sent successfully");
+      } catch (emailError) {
+        console.error("⚠️ Failed to send reschedule confirmation email:", emailError.message);
+        // Don't block reschedule if email fails
+      }
+
       return ok(res, {
         message: "Reschedule request approved successfully",
         newAppointment: newAppointment,
@@ -580,5 +605,196 @@ export async function getPatientRescheduleRequests(req, res) {
   } catch (error) {
     console.error("❌ Error getting patient reschedule requests:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, error.message);
+  }
+}
+
+/**
+ * Helper function: Send reschedule confirmation email to patient
+ */
+async function sendAppointmentRescheduledEmail(originalAppointment, newAppointment, reason, doctor) {
+  try {
+    console.log(`📧 sendAppointmentRescheduledEmail called with:`, {
+      originalAppointmentId: originalAppointment?._id,
+      newAppointmentId: newAppointment?._id,
+      patientEmail: originalAppointment?.patientId?.userId?.email,
+    });
+
+    // Lấy email từ Patient userId
+    let patientEmail = null;
+    
+    if (originalAppointment?.patientId?.userId && typeof originalAppointment.patientId.userId === 'object' && originalAppointment.patientId.userId.email) {
+      // userId đã được populate
+      patientEmail = originalAppointment.patientId.userId.email;
+      console.log(`📧 Found email from populated userId: ${patientEmail}`);
+    } else if (originalAppointment?.patientId?.userId) {
+      // userId là ObjectId, cần query
+      console.log(`📧 Querying User for email, userId: ${originalAppointment.patientId.userId}`);
+      const patientUser = await User.findById(originalAppointment.patientId.userId).select("email fullName").lean();
+      if (patientUser) {
+        patientEmail = patientUser.email;
+        console.log(`📧 Found email from User query: ${patientEmail}`);
+      } else {
+        console.log(`⚠️ User not found for userId: ${originalAppointment.patientId.userId}`);
+      }
+    }
+
+    // Nếu vẫn không có email, không gửi
+    if (!patientEmail) {
+      console.log("⚠️ Patient email not found, skipping reschedule email notification. Patient data:", {
+        patientId: originalAppointment?.patientId?._id,
+        userId: originalAppointment?.patientId?.userId
+      });
+      return;
+    }
+
+    console.log(`📧 Sending reschedule confirmation email to: ${patientEmail}`);
+
+    // Format thời gian cũ
+    const oldScheduledStart = new Date(originalAppointment.scheduledStart);
+    const oldScheduledEnd = new Date(originalAppointment.scheduledEnd);
+    const oldDateStr = oldScheduledStart.toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const oldTimeStr = `${oldScheduledStart.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })} - ${oldScheduledEnd.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+
+    // Format thời gian mới
+    const newScheduledStart = new Date(newAppointment.scheduledStart);
+    const newScheduledEnd = new Date(newAppointment.scheduledEnd);
+    const newDateStr = newScheduledStart.toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const newTimeStr = `${newScheduledStart.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })} - ${newScheduledEnd.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+
+    const oldModeText = originalAppointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
+    const newModeText = newAppointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
+    
+    // Lấy tên bác sĩ và bệnh nhân
+    const doctorName = doctor?.fullName || "Bác sĩ";
+    const patientName = originalAppointment?.patientId?.fullName || originalAppointment?.patientId?.userId?.fullName || "Bệnh nhân";
+    const approvalDate = new Date().toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    // Tạo nội dung email
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #059669; border-bottom: 2px solid #059669; padding-bottom: 10px;">
+          Lịch hẹn của bạn đã được dời thành công
+        </h2>
+        <p>Xin chào <strong>${patientName}</strong>,</p>
+        <p>Chúng tôi xin thông báo rằng yêu cầu dời lịch hẹn của bạn đã được <strong style="color: #059669;">bác sĩ chấp thuận</strong>.</p>
+        
+        <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #0284c7;">Thông tin bác sĩ:</h3>
+          <p style="margin: 8px 0;"><strong>Bác sĩ:</strong> ${doctorName}</p>
+          ${originalAppointment.reason ? `<p style="margin: 8px 0;"><strong>Lý do khám:</strong> ${originalAppointment.reason}</p>` : ""}
+        </div>
+
+        <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #b91c1c;">Thời gian cũ (đã hủy):</h3>
+          <p style="margin: 8px 0;"><strong>Ngày:</strong> ${oldDateStr}</p>
+          <p style="margin: 8px 0;"><strong>Giờ:</strong> ${oldTimeStr}</p>
+          <p style="margin: 8px 0;"><strong>Hình thức:</strong> ${oldModeText}</p>
+        </div>
+
+        <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #047857;">Thời gian mới:</h3>
+          <p style="margin: 8px 0;"><strong>Ngày:</strong> ${newDateStr}</p>
+          <p style="margin: 8px 0;"><strong>Giờ:</strong> ${newTimeStr}</p>
+          <p style="margin: 8px 0;"><strong>Hình thức:</strong> ${newModeText}</p>
+          <p style="margin: 8px 0;"><strong>Trạng thái:</strong> <span style="color: #059669; font-weight: bold;">Đã xác nhận</span></p>
+        </div>
+
+        ${reason ? `
+        <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #d97706;">Lý do dời lịch:</h3>
+          <p style="margin: 0; white-space: pre-wrap;">${reason}</p>
+        </div>
+        ` : ""}
+
+        <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #0284c7;">Lưu ý:</h3>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Vui lòng đảm bảo bạn có mặt đúng giờ hẹn mới</li>
+            <li>Thời gian cũ của bạn đã được hủy</li>
+            ${newAppointment.mode === "online" ? "<li><strong>Lưu ý:</strong> Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ.</li>" : ""}
+          </ul>
+        </div>
+
+        <p style="margin-top: 30px;">Cảm ơn bạn đã sử dụng dịch vụ của MedConnect.</p>
+        
+        <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect</strong></p>
+      </div>
+    `;
+
+    const textContent = `
+Lịch hẹn của bạn đã được dời thành công
+
+Xin chào ${patientName},
+
+Chúng tôi xin thông báo rằng yêu cầu dời lịch hẹn của bạn đã được bác sĩ chấp thuận.
+
+Thông tin bác sĩ:
+- Bác sĩ: ${doctorName}
+${originalAppointment.reason ? `- Lý do khám: ${originalAppointment.reason}` : ""}
+
+Thời gian cũ (đã hủy):
+- Ngày: ${oldDateStr}
+- Giờ: ${oldTimeStr}
+- Hình thức: ${oldModeText}
+
+Thời gian mới:
+- Ngày: ${newDateStr}
+- Giờ: ${newTimeStr}
+- Hình thức: ${newModeText}
+- Trạng thái: Đã xác nhận
+
+${reason ? `Lý do dời lịch: ${reason}` : ""}
+
+Lưu ý:
+- Vui lòng đảm bảo bạn có mặt đúng giờ hẹn mới
+- Thời gian cũ của bạn đã được hủy
+${newAppointment.mode === "online" ? "- Lưu ý: Đây là cuộc hẹn online. Vui lòng chuẩn bị kết nối internet ổn định và tham gia cuộc gọi video đúng giờ." : ""}
+
+Cảm ơn bạn đã sử dụng dịch vụ của MedConnect.
+
+Trân trọng,
+MedConnect
+    `;
+
+    console.log(`📧 Attempting to send reschedule confirmation email via sendMail...`);
+    const emailResult = await sendMail({
+      to: patientEmail,
+      subject: "Lịch hẹn của bạn đã được dời thành công - MedConnect",
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log(`✅ Reschedule confirmation email sent successfully to ${patientEmail}`);
+    console.log(`📧 Email result:`, { messageId: emailResult?.messageId, response: emailResult?.response });
+  } catch (error) {
+    console.error("❌ Error sending reschedule confirmation email:", error?.message || error);
+    // Không throw error để không ảnh hưởng đến flow chính
   }
 }

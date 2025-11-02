@@ -38,7 +38,11 @@ import {
 
   // Cleanup controller
   cleanupUnpaidAppointments,
-} from "../../controllers/adminController.js";
+  
+  // Payment revenue controller
+  getPaymentRevenueStats,
+  getAdminInvoices
+} from '../../controllers/adminController.js';
 
 const adminRouter = express.Router();
 
@@ -82,5 +86,9 @@ adminRouter.delete("/appointments/:id", deleteAppointment);
 
 // ================== CLEANUP ROUTES ==================
 adminRouter.post("/cleanup/unpaid-appointments", cleanupUnpaidAppointments);
+
+// ================== PAYMENT ROUTES ==================
+adminRouter.get('/payment/revenue-stats', getPaymentRevenueStats);
+adminRouter.get('/payment/invoices', getAdminInvoices);
 
 export default adminRouter;

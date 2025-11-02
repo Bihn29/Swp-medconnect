@@ -1,10 +1,11 @@
-import User from "../models/user.model.js";
-import Doctor from "../models/doctor.model.js";
-import Specialization from "../models/specialization.model.js";
-import Appointment from "../models/appointment.model.js";
-import Patient from "../models/patient.model.js";
-import Clinic from "../models/clinic.model.js";
-import { runCleanupNow } from "../services/appointmentCleanupService.js";
+import User from '../models/user.model.js';
+import Doctor from '../models/doctor.model.js';
+import Specialization from '../models/specialization.model.js';
+import Appointment from '../models/appointment.model.js';
+import Patient from '../models/patient.model.js';
+import Clinic from '../models/clinic.model.js';
+import Payment from '../models/payment.model.js';
+import { runCleanupNow } from '../services/appointmentCleanupService.js';
 
 // ================== HELPER FUNCTIONS ==================
 
@@ -70,16 +71,18 @@ export const getDashboardStats = async (req, res) => {
     const monthlyAppointments = await Appointment.countDocuments({
       createdAt: { $gte: currentMonth },
     });
-
-    // Revenue calculation based on appointments - get actual revenue from database
-    const revenueAppointments = await Appointment.find({
-      createdAt: { $gte: currentMonth },
-      status: "done", // Only count completed appointments
+    
+    // Revenue calculation based on successful payments - get actual revenue from Payment collection
+    // Calculate total revenue from all successful payments (captured or authorized status)
+    const successfulPayments = await Payment.find({
+      status: { $in: ['captured', 'authorized'] }
     });
-
-    // Calculate actual revenue from completed appointments
-    const revenue = revenueAppointments.reduce((total, appointment) => {
-      return total + (appointment.fee || 0); // Use actual fee from appointment
+    
+    // Calculate total revenue: sum of all successful payments minus refunds
+    const revenue = successfulPayments.reduce((total, payment) => {
+      // Total revenue = payment.total - refundAmount (if any)
+      const netRevenue = payment.total - (payment.refundAmount || 0);
+      return total + netRevenue;
     }, 0);
 
     const stats = {
@@ -1725,6 +1728,343 @@ export const cleanupUnpaidAppointments = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Lỗi khi chạy cleanup: " + error.message,
+    });
+  }
+};
+
+// ================== PAYMENT REVENUE CONTROLLER ==================
+
+/**
+ * Helper function to get date range based on period
+ */
+function getDateRange(period, req = null) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  let startDate, endDate;
+  
+  switch (period) {
+    case 'today':
+      startDate = new Date(today);
+      endDate = new Date(now);
+      break;
+    case 'thisWeek':
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - today.getDay());
+      endDate = new Date(now);
+      break;
+    case 'thisMonth':
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      endDate = new Date(now);
+      break;
+    case 'threeMonths':
+      startDate = new Date(today);
+      startDate.setMonth(today.getMonth() - 3);
+      endDate = new Date(now);
+      break;
+    case 'thisYear':
+      startDate = new Date(today.getFullYear(), 0, 1);
+      endDate = new Date(now);
+      break;
+    case '24hours':
+      startDate = new Date(now);
+      startDate.setHours(startDate.getHours() - 24);
+      endDate = new Date(now);
+      break;
+    case '7days':
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 7);
+      endDate = new Date(now);
+      break;
+    case '30days':
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 30);
+      endDate = new Date(now);
+      break;
+    case '1year':
+      startDate = new Date(today);
+      startDate.setFullYear(startDate.getFullYear() - 1);
+      endDate = new Date(now);
+      break;
+    case 'all':
+      startDate = new Date(0); // Beginning of time
+      endDate = new Date(now);
+      break;
+    case 'custom':
+      // Custom date range will be passed via query params
+      if (req && req.query.startDate && req.query.endDate) {
+        startDate = new Date(req.query.startDate);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(req.query.endDate);
+        endDate.setHours(23, 59, 59, 999);
+      } else {
+        startDate = new Date(today);
+        endDate = new Date(now);
+      }
+      break;
+    default:
+      startDate = new Date(today);
+      endDate = new Date(now);
+  }
+  
+  return { startDate, endDate };
+}
+
+/**
+ * Get payment revenue statistics
+ * GET /api/admin/payment/revenue-stats?period=yesterday
+ */
+export const getPaymentRevenueStats = async (req, res) => {
+  try {
+    const { period = 'today', startDate: startDateParam, endDate: endDateParam } = req.query;
+    let startDate, endDate;
+    
+    if (period === 'custom' && startDateParam && endDateParam) {
+      startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      const range = getDateRange(period, req);
+      startDate = range.startDate;
+      endDate = range.endDate;
+    }
+    
+    // Get current period payments
+    const currentPayments = await Payment.find({
+      status: { $in: ['captured', 'authorized'] },
+      createdAt: { $gte: startDate, $lte: endDate }
+    }).populate('appointmentId');
+    
+    // Calculate previous period for comparison
+    const previousPeriodStart = new Date(startDate);
+    const previousPeriodEnd = new Date(endDate);
+    const periodDiff = endDate - startDate;
+    
+    previousPeriodStart.setTime(previousPeriodStart.getTime() - periodDiff - 1);
+    previousPeriodEnd.setTime(previousPeriodEnd.getTime() - periodDiff - 1);
+    
+    const previousPayments = await Payment.find({
+      status: { $in: ['captured', 'authorized'] },
+      createdAt: { $gte: previousPeriodStart, $lte: previousPeriodEnd }
+    });
+    
+    // Calculate total revenue
+    const totalRevenue = currentPayments.reduce((sum, payment) => {
+      return sum + (payment.total - (payment.refundAmount || 0));
+    }, 0);
+    
+    const previousRevenue = previousPayments.reduce((sum, payment) => {
+      return sum + (payment.total - (payment.refundAmount || 0));
+    }, 0);
+    
+    // Calculate revenue change percentage
+    const revenueChange = previousRevenue > 0 
+      ? Math.round(((totalRevenue - previousRevenue) / previousRevenue) * 100)
+      : (totalRevenue > 0 ? 100 : 0);
+    
+    // Count completed orders (payments)
+    const totalCompletedOrders = currentPayments.length;
+    const previousCompletedOrders = previousPayments.length;
+    
+    const ordersChange = previousCompletedOrders > 0
+      ? Math.round(((totalCompletedOrders - previousCompletedOrders) / previousCompletedOrders) * 100)
+      : (totalCompletedOrders > 0 ? 100 : 0);
+    
+    // Revenue by payment channel
+    const revenueByChannel = {};
+    currentPayments.forEach(payment => {
+      const channelName = payment.gateway || 'MedConnect';
+      if (!revenueByChannel[channelName]) {
+        revenueByChannel[channelName] = 0;
+      }
+      revenueByChannel[channelName] += payment.total - (payment.refundAmount || 0);
+    });
+    
+    const revenueByChannelArray = Object.entries(revenueByChannel).map(([name, amount]) => ({
+      name,
+      amount
+    }));
+    
+    // Order status statistics
+    const allPayments = await Payment.find({
+      createdAt: { $gte: startDate, $lte: endDate }
+    });
+    
+    const paidCount = allPayments.filter(p => ['captured', 'authorized'].includes(p.status)).length;
+    const cancelledCount = allPayments.filter(p => ['cancelled', 'voided', 'failed'].includes(p.status)).length;
+    
+    // Revenue trend (hourly for today/yesterday, monthly for 3 months, daily for others)
+    let revenueTrend = [];
+    if (period === 'today' || period === 'yesterday' || period === '24hours') {
+      // Hourly trend
+      for (let hour = 0; hour < 24; hour++) {
+        const hourStart = new Date(startDate);
+        hourStart.setHours(hour, 0, 0, 0);
+        const hourEnd = new Date(startDate);
+        hourEnd.setHours(hour, 59, 59, 999);
+        
+        const hourPayments = currentPayments.filter(p => {
+          const paymentDate = new Date(p.createdAt);
+          return paymentDate >= hourStart && paymentDate <= hourEnd;
+        });
+        
+        const hourRevenue = hourPayments.reduce((sum, p) => sum + (p.total - (p.refundAmount || 0)), 0);
+        const hourTransactionCount = hourPayments.length;
+        
+        const dateStr = `${(startDate.getMonth() + 1).toString().padStart(2, '0')}-${startDate.getDate().toString().padStart(2, '0')}`;
+        revenueTrend.push({
+          label: `Th${dateStr} ${hour.toString().padStart(2, '0')}`,
+          amount: hourRevenue,
+          transactionCount: hourTransactionCount
+        });
+      }
+    } else if (period === 'threeMonths') {
+      // Monthly trend for 3-month period
+      const monthlyRevenue = {};
+      currentPayments.forEach(payment => {
+        const paymentDate = new Date(payment.createdAt);
+        const monthKey = `${paymentDate.getFullYear()}-${(paymentDate.getMonth() + 1).toString().padStart(2, '0')}`;
+        
+        if (!monthlyRevenue[monthKey]) {
+          monthlyRevenue[monthKey] = {
+            amount: 0,
+            transactionCount: 0
+          };
+        }
+        
+        monthlyRevenue[monthKey].amount += payment.total - (payment.refundAmount || 0);
+        monthlyRevenue[monthKey].transactionCount += 1;
+      });
+      
+      // Generate all months in the range, even if no revenue
+      const currentMonth = new Date(startDate);
+      while (currentMonth <= endDate) {
+        const monthKey = `${currentMonth.getFullYear()}-${(currentMonth.getMonth() + 1).toString().padStart(2, '0')}`;
+        const monthData = monthlyRevenue[monthKey] || { amount: 0, transactionCount: 0 };
+        
+        revenueTrend.push({
+          label: `Th${currentMonth.getMonth() + 1}`,
+          amount: monthData.amount,
+          transactionCount: monthData.transactionCount
+        });
+        
+        // Move to next month
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+      }
+    } else {
+      // Daily trend for weekly/monthly periods
+      const currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const dayStart = new Date(currentDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(currentDate);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        const dayPayments = currentPayments.filter(p => {
+          const paymentDate = new Date(p.createdAt);
+          return paymentDate >= dayStart && paymentDate <= dayEnd;
+        });
+        
+        const dayRevenue = dayPayments.reduce((sum, p) => sum + (p.total - (p.refundAmount || 0)), 0);
+        const dayTransactionCount = dayPayments.length;
+        
+        const dateStr = `${(dayStart.getMonth() + 1).toString().padStart(2, '0')}-${dayStart.getDate().toString().padStart(2, '0')}`;
+        // Format: Th10-30 (without day of week here, will be added in frontend)
+        revenueTrend.push({
+          label: `Th${dateStr}`,
+          amount: dayRevenue,
+          transactionCount: dayTransactionCount
+        });
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        totalRevenue,
+        totalCompletedOrders,
+        revenueChange,
+        ordersChange,
+        revenueByChannel: revenueByChannelArray,
+        orderStatus: {
+          paid: paidCount,
+          cancelled: cancelledCount,
+          total: allPayments.length
+        },
+        revenueTrend,
+        totalTransactions: currentPayments.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching payment revenue stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tải thống kê doanh thu'
+    });
+  }
+};
+
+/**
+ * Get invoices/payments list
+ * GET /api/admin/payment/invoices?period=yesterday
+ */
+export const getAdminInvoices = async (req, res) => {
+  try {
+    const { period = 'today', startDate: startDateParam, endDate: endDateParam } = req.query;
+    let startDate, endDate;
+    
+    if (period === 'custom' && startDateParam && endDateParam) {
+      startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      const range = getDateRange(period, req);
+      startDate = range.startDate;
+      endDate = range.endDate;
+    }
+    
+    // Get payments for the selected period, sorted by latest first
+    const payments = await Payment.find({
+      createdAt: { $gte: startDate, $lte: endDate }
+    })
+      .populate('appointmentId', 'scheduledStart status')
+      .populate('billTo.patientId', 'fullName')
+      .populate('billFrom.doctorId', 'fullName')
+      .sort({ createdAt: -1 })
+      .limit(100); // Limit to latest 100 invoices
+    
+    const formattedInvoices = payments.map(payment => ({
+      _id: payment._id,
+      invoiceNumber: payment.invoiceNumber,
+      orderCode: payment.orderCode,
+      appointmentId: payment.appointmentId?._id,
+      patientName: payment.billTo?.name,
+      doctorName: payment.billFrom?.doctorName,
+      gateway: payment.gateway,
+      method: payment.method,
+      status: payment.status,
+      subtotal: payment.subtotal,
+      discount: payment.discount || 0,
+      total: payment.total,
+      refundAmount: payment.refundAmount || 0,
+      paidAt: payment.paidAt || payment.capturedAt || payment.createdAt,
+      createdAt: payment.createdAt,
+      currency: payment.currency || 'VND'
+    }));
+    
+    res.json({
+      success: true,
+      data: formattedInvoices
+    });
+  } catch (error) {
+    console.error('Error fetching invoices:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tải danh sách hóa đơn'
     });
   }
 };

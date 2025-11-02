@@ -14,6 +14,7 @@ import {
 } from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
+import { sendMail } from "../utils/email.js";
 
 /**
  * Cancel appointment by patient
@@ -77,7 +78,11 @@ export async function cancelAppointment(req, res) {
       },
       { new: true }
     )
-      .populate("patientId", "fullName phone")
+      .populate("patientId", "fullName phone userId")
+      .populate({
+        path: "patientId",
+        populate: { path: "userId", select: "email fullName" },
+      })
       .populate("doctorId", "fullName")
       .populate("slotId", "startAt endAt")
       .lean();
@@ -86,6 +91,23 @@ export async function cancelAppointment(req, res) {
     await DoctorTimeSlot.findByIdAndUpdate(appointment.slotId, {
       status: "available",
     });
+
+    // Send cancellation confirmation email to patient
+    try {
+      await sendAppointmentCancellationEmail(
+        updatedAppointment,
+        updatedAppointment.patientId,
+        updatedAppointment.doctorId,
+        cancelReason
+      );
+      console.log("✅ Cancellation confirmation email sent successfully");
+    } catch (emailError) {
+      console.error(
+        "⚠️ Failed to send cancellation confirmation email:",
+        emailError.message
+      );
+      // Don't block cancellation if email fails
+    }
 
     // Create notification for doctor about cancellation
     try {
@@ -2225,6 +2247,56 @@ export async function addFavoriteDoctor(req, res) {
 /**
  * Remove a doctor from favorites
  */
+export async function removeFavoriteDoctor(req, res) {
+  try {
+    const claims = req.user || {};
+    const appUserId = claims.app_user_id;
+
+    if (!appUserId) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User ID not found in token"
+      );
+    }
+
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    // Find patient profile
+    const patient = await Patient.findOne({ userId: appUserId });
+    if (!patient) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Patient profile not found");
+    }
+
+    // Remove favorite
+    const result = await PatientFavorite.findOneAndDelete({
+      patientId: patient._id,
+      doctorId: doctorId,
+    });
+
+    if (!result) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Doctor not found in favorites"
+      );
+    }
+
+    return ok(res, {
+      message: "Doctor removed from favorites",
+    });
+  } catch (error) {
+    console.error("Error removing favorite doctor:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
 /**
  * Get visit count for a specific doctor (how many times patient has visited this doctor)
  */
@@ -2289,52 +2361,196 @@ export async function getDoctorVisitCount(req, res) {
   }
 }
 
-export async function removeFavoriteDoctor(req, res) {
+/**
+ * Helper function: Send cancellation confirmation email to patient
+ */
+async function sendAppointmentCancellationEmail(
+  appointment,
+  patient,
+  doctor,
+  cancelReason
+) {
   try {
-    const claims = req.user || {};
-    const appUserId = claims.app_user_id;
-
-    if (!appUserId) {
-      return fail(
-        res,
-        401,
-        ERROR_CODES.UNAUTHORIZED,
-        "User ID not found in token"
-      );
-    }
-
-    const { doctorId } = req.params;
-
-    if (!doctorId) {
-      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
-    }
-
-    // Find patient profile
-    const patient = await Patient.findOne({ userId: appUserId });
-    if (!patient) {
-      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Patient profile not found");
-    }
-
-    // Remove favorite
-    const result = await PatientFavorite.findOneAndDelete({
-      patientId: patient._id,
-      doctorId: doctorId,
+    console.log(`📧 sendAppointmentCancellationEmail called with:`, {
+      appointmentId: appointment?._id,
+      patientEmail: patient?.userId?.email,
+      patientUserId: patient?.userId,
     });
 
-    if (!result) {
-      return fail(
-        res,
-        404,
-        ERROR_CODES.NOT_FOUND,
-        "Doctor not found in favorites"
-      );
+    // Lấy email từ Patient userId
+    let patientEmail = null;
+
+    if (
+      patient?.userId &&
+      typeof patient.userId === "object" &&
+      patient.userId.email
+    ) {
+      // userId đã được populate
+      patientEmail = patient.userId.email;
+      console.log(`📧 Found email from populated userId: ${patientEmail}`);
+    } else if (patient?.userId) {
+      // userId là ObjectId, cần query
+      console.log(`📧 Querying User for email, userId: ${patient.userId}`);
+      const patientUser = await User.findById(patient.userId)
+        .select("email fullName")
+        .lean();
+      if (patientUser) {
+        patientEmail = patientUser.email;
+        console.log(`📧 Found email from User query: ${patientEmail}`);
+      } else {
+        console.log(`⚠️ User not found for userId: ${patient.userId}`);
+      }
     }
 
-    return ok(res, {
-      message: "Doctor removed from favorites",
+    // Nếu vẫn không có email, không gửi
+    if (!patientEmail) {
+      console.log(
+        "⚠️ Patient email not found, skipping cancellation email notification. Patient data:",
+        {
+          patientId: patient?._id,
+          userId: patient?.userId,
+        }
+      );
+      return;
+    }
+
+    console.log(
+      `📧 Sending cancellation confirmation email to: ${patientEmail}`
+    );
+
+    // Format thời gian
+    const scheduledStart = new Date(appointment.scheduledStart);
+    const scheduledEnd = new Date(appointment.scheduledEnd);
+
+    const dateStr = scheduledStart.toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const timeStr = `${scheduledStart.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })} - ${scheduledEnd.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+
+    const modeText =
+      appointment.mode === "online" ? "Online" : "Trực tiếp tại phòng khám";
+
+    // Lấy tên bác sĩ và bệnh nhân
+    const doctorName = doctor?.fullName || "Bác sĩ";
+    const patientName =
+      patient?.fullName || patient?.userId?.fullName || "Bệnh nhân";
+    const cancellationDate = new Date().toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    // Tạo nội dung email
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #dc2626; border-bottom: 2px solid #dc2626; padding-bottom: 10px;">
+          Xác nhận hủy lịch hẹn
+        </h2>
+        <p>Xin chào <strong>${patientName}</strong>,</p>
+        <p>Chúng tôi xác nhận rằng bạn đã <strong style="color: #dc2626;">hủy thành công</strong> lịch hẹn khám của mình.</p>
+        
+        <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #b91c1c;">Thông tin lịch hẹn đã hủy:</h3>
+          <p style="margin: 8px 0;"><strong>Bác sĩ:</strong> ${doctorName}</p>
+          <p style="margin: 8px 0;"><strong>Thời gian:</strong> ${dateStr}</p>
+          <p style="margin: 8px 0;"><strong>Giờ:</strong> ${timeStr}</p>
+          <p style="margin: 8px 0;"><strong>Hình thức:</strong> ${modeText}</p>
+          ${
+            appointment.reason
+              ? `<p style="margin: 8px 0;"><strong>Lý do khám ban đầu:</strong> ${appointment.reason}</p>`
+              : ""
+          }
+          <p style="margin: 8px 0;"><strong>Ngày hủy:</strong> ${cancellationDate}</p>
+          ${
+            cancelReason
+              ? `<p style="margin: 8px 0;"><strong>Lý do hủy:</strong> ${cancelReason}</p>`
+              : ""
+          }
+        </div>
+
+        <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #d97706;">Lưu ý:</h3>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Lịch hẹn của bạn đã được hủy thành công</li>
+            <li>Nếu bạn muốn đặt lại lịch hẹn mới, vui lòng đăng nhập vào hệ thống</li>
+            <li>Nếu bạn cần hỗ trợ, vui lòng liên hệ với chúng tôi</li>
+          </ul>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${
+            process.env.CLIENT_URL || "http://localhost:5173"
+          }/appointment/new" 
+             style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            Đặt lịch hẹn mới
+          </a>
+        </div>
+        
+        <p style="margin-top: 30px;">Cảm ơn bạn đã sử dụng dịch vụ của MedConnect. Chúng tôi luôn sẵn sàng hỗ trợ bạn khi cần.</p>
+        
+        <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect</strong></p>
+      </div>
+    `;
+
+    const textContent = `
+Xác nhận hủy lịch hẹn
+
+Xin chào ${patientName},
+
+Chúng tôi xác nhận rằng bạn đã hủy thành công lịch hẹn khám của mình.
+
+Thông tin lịch hẹn đã hủy:
+- Bác sĩ: ${doctorName}
+- Thời gian: ${dateStr}
+- Giờ: ${timeStr}
+- Hình thức: ${modeText}
+${appointment.reason ? `- Lý do khám ban đầu: ${appointment.reason}` : ""}
+- Ngày hủy: ${cancellationDate}
+${cancelReason ? `- Lý do hủy: ${cancelReason}` : ""}
+
+Lưu ý:
+- Lịch hẹn của bạn đã được hủy thành công
+- Nếu bạn muốn đặt lại lịch hẹn mới, vui lòng đăng nhập vào hệ thống
+- Nếu bạn cần hỗ trợ, vui lòng liên hệ với chúng tôi
+
+Cảm ơn bạn đã sử dụng dịch vụ của MedConnect. Chúng tôi luôn sẵn sàng hỗ trợ bạn khi cần.
+
+Trân trọng,
+MedConnect
+    `;
+
+    console.log(
+      `📧 Attempting to send cancellation confirmation email via sendMail...`
+    );
+    const emailResult = await sendMail({
+      to: patientEmail,
+      subject: "Xác nhận hủy lịch hẹn - MedConnect",
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log(
+      `✅ Cancellation confirmation email sent successfully to ${patientEmail}`
+    );
+    console.log(`📧 Email result:`, {
+      messageId: emailResult?.messageId,
+      response: emailResult?.response,
     });
   } catch (error) {
-    console.error("Error removing favorite doctor:", error);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+    console.error(
+      "❌ Error sending cancellation confirmation email:",
+      error?.message || error
+    );
+    // Không throw error để không ảnh hưởng đến flow chính
   }
 }
