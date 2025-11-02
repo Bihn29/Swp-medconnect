@@ -78,6 +78,12 @@ export async function getCurrentDoctorProfile(req, res) {
         "Doctor profile not found for user"
       );
     }
+
+    // Build licenseImageUrl from licenseNo (similar to getPendingDoctors and getVerifiedDoctors)
+    if (doctor.licenseNo && !doctor.licenseImageUrl) {
+      doctor.licenseImageUrl = `/server-uploads/doctors/${doctor.licenseNo}`;
+    }
+
     return ok(res, { doctor });
   } catch (e) {
     console.error("getCurrentDoctorProfile error:", e);

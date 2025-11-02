@@ -3,8 +3,21 @@
 import { useState, useEffect } from "react"
 import PropTypes from "prop-types"
 import { User, Mail, Phone, MapPin, Award, Calendar, Lock, Upload } from "lucide-react"
+import { Image } from "antd"
 import { getDoctorProfileWithFallback, updateDoctorProfile } from "../../../lib/api"
 import "./ProfileSettings.scss"
+
+// Helper function to get full image URL
+const getImageUrl = (url) => {
+  if (!url) return null;
+  // If URL is already absolute (starts with http:// or https://), return as is
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  // If URL starts with /, it's a server path, prepend API base URL
+  const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3000";
+  return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
+};
 
 const ProfileSettings = () => {
   const [doctorInfo, setDoctorInfo] = useState(null)
@@ -41,13 +54,15 @@ const ProfileSettings = () => {
           console.log("🔍 ProfileSettings - Doctor fullName:", doctor.fullName)
           console.log("🔍 ProfileSettings - User fullName:", doctor.userId?.fullName)
           console.log("🔍 ProfileSettings - Final name:", doctor.userId?.fullName || doctor.fullName)
+          console.log("🔍 ProfileSettings - specializationIds:", doctor.specializationIds)
+          console.log("🔍 ProfileSettings - specializationIds names:", doctor.specializationIds?.map(spec => spec?.name))
           
           setDoctorInfo(doctor)
           setFormData({
             fullName: doctor.userId?.fullName || doctor.fullName || "",
             email: doctor.userId?.email || "",
             phone: doctor.userId?.phone || "",
-            specialization: doctor.specializationIds?.map(spec => spec.name).join(', ') || "",
+            specialization: doctor.specializationIds?.filter(spec => spec && spec.name).map(spec => spec.name).join(', ') || "",
             address: doctor.clinicDefaultId?.address || "",
             bio: doctor.bio || "",
             licenseNo: doctor.licenseNo || "",
@@ -410,14 +425,30 @@ const ProfileSettings = () => {
                 </div>
 
                 <div className="infoCards">
-                  <InfoCard
-                    icon={Award}
-                    title="Bằng cấp"
-                    content={`${doctorInfo?.education?.[0]?.degree || "Bác sĩ Đa khoa"} - ${doctorInfo?.education?.[0]?.school || "ĐH Y Dược"}`}
-                  />
                   <InfoCard icon={Calendar} title="Năm kinh nghiệm" content={`${formData.yearsExperience || 0} năm`} />
-                  <InfoCard icon={Award} title="Chứng chỉ hành nghề" content={`Số ${formData.licenseNo || "Không có"}`} />
                 </div>
+                
+                {/* License Certificate Image */}
+                {doctorInfo?.licenseImageUrl && (
+                  <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--foreground)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Award size={16} style={{ color: '#06b6d4' }} />
+                      Chứng chỉ hành nghề:
+                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <Image
+                        src={getImageUrl(doctorInfo.licenseImageUrl)}
+                        alt="Chứng chỉ hành nghề"
+                        width={200}
+                        height={200}
+                        style={{ objectFit: 'cover', borderRadius: '8px', boxShadow: 'var(--shadow-md)' }}
+                        preview={{
+                          mask: 'Xem ảnh',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Security */}
