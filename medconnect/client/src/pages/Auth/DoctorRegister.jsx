@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { registerDoctor, getAllSpecializations } from "../../lib/api.js";
 import "./DoctorRegister.scss";
 
 export default function DoctorRegister() {
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -12,6 +13,7 @@ export default function DoctorRegister() {
     password: "",
     confirmPassword: "",
     specialty: "",
+    clinicDefaultId: "",
     license: null,
   });
 
@@ -23,6 +25,8 @@ export default function DoctorRegister() {
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [specialties, setSpecialties] = useState([]);
   const [loadingSpecialties, setLoadingSpecialties] = useState(true);
+  const [clinics, setClinics] = useState([]);
+  const [loadingClinics, setLoadingClinics] = useState(true);
 
   const toE164 = (raw, country = "+84") => {
     const num = String(raw || "").replace(/\D/g, "");
@@ -38,7 +42,7 @@ export default function DoctorRegister() {
       try {
         setLoadingSpecialties(true);
         const response = await getAllSpecializations();
-        
+
         // Handle different response formats
         let specs = [];
         if (response.success) {
@@ -56,14 +60,14 @@ export default function DoctorRegister() {
           // Direct array response
           specs = response;
         }
-        
+
         // Sort by name for better UX
         specs.sort((a, b) => {
           const nameA = a.name || "";
           const nameB = b.name || "";
           return nameA.localeCompare(nameB);
         });
-        
+
         setSpecialties(specs);
       } catch (error) {
         console.error("Error fetching specializations:", error);
@@ -75,6 +79,50 @@ export default function DoctorRegister() {
     };
 
     fetchSpecializations();
+  }, []);
+
+  // Fetch clinics from database
+  useEffect(() => {
+    const fetchClinics = async () => {
+      try {
+        setLoadingClinics(true);
+        const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const response = await fetch(`${BASE}/api/clinics?limit=1000`, {
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          let clinicsArray = [];
+
+          if (data.success && data.data) {
+            if (Array.isArray(data.data.clinics)) {
+              clinicsArray = data.data.clinics;
+            } else if (Array.isArray(data.clinics)) {
+              clinicsArray = data.clinics;
+            }
+          }
+
+          // Sort by name for better UX
+          clinicsArray.sort((a, b) => {
+            const nameA = a.name || "";
+            const nameB = b.name || "";
+            return nameA.localeCompare(nameB);
+          });
+
+          setClinics(clinicsArray);
+        } else {
+          setClinics([]);
+        }
+      } catch (error) {
+        console.error("Error fetching clinics:", error);
+        setClinics([]);
+      } finally {
+        setLoadingClinics(false);
+      }
+    };
+
+    fetchClinics();
   }, []);
 
   const isValidEmail = (v) =>
@@ -127,6 +175,11 @@ export default function DoctorRegister() {
       newErrors.specialty = "Vui lòng chọn chuyên khoa.";
     }
 
+    // Validate clinic
+    if (!formData.clinicDefaultId.trim()) {
+      newErrors.clinicDefaultId = "Vui lòng chọn địa chỉ khám.";
+    }
+
     // Validate license image
     if (!formData.license) {
       newErrors.license = "Vui lòng upload ảnh chứng chỉ hành nghề.";
@@ -136,9 +189,14 @@ export default function DoctorRegister() {
       if (formData.license.size > maxSize) {
         newErrors.license = "Kích thước ảnh không được vượt quá 5MB.";
       }
-      
+
       // Check file type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+      ];
       if (!allowedTypes.includes(formData.license.type)) {
         newErrors.license = "Chỉ chấp nhận file ảnh (JPG, PNG, WebP).";
       }
@@ -178,42 +236,51 @@ export default function DoctorRegister() {
 
     try {
       setLoading(true);
-      
+
       // Prepare form data for API
       const formDataToSend = new FormData();
-      formDataToSend.append('fullName', formData.fullName);
-      formDataToSend.append('email', formData.email);
-      formDataToSend.append('phone', toE164(formData.phone));
-      formDataToSend.append('password', formData.password);
-      formDataToSend.append('specialty', formData.specialty);
-      if (formData.license) {
-        formDataToSend.append('license', formData.license);
+      formDataToSend.append("fullName", formData.fullName);
+      formDataToSend.append("email", formData.email);
+      formDataToSend.append("phone", toE164(formData.phone));
+      formDataToSend.append("password", formData.password);
+      formDataToSend.append("specialty", formData.specialty);
+      if (formData.clinicDefaultId) {
+        formDataToSend.append("clinicDefaultId", formData.clinicDefaultId);
       }
-      
+      if (formData.license) {
+        formDataToSend.append("license", formData.license);
+      }
+
       // Call API to register doctor
       await registerDoctor(formDataToSend);
-      
+
       // Show success message
-      alert("Đăng ký thành công! Vui lòng đợi hệ thống xác nhận tài khoản của bạn.");
+      alert(
+        "Đăng ký thành công! Vui lòng đợi hệ thống xác nhận tài khoản của bạn. Bạn sẽ nhận được email thông báo khi tài khoản được xác nhận."
+      );
 
-      // Reset form after 5 seconds
+      // Reset form and clear state
+      setFormData({
+        fullName: "",
+        phone: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        specialty: "",
+        clinicDefaultId: "",
+        license: null,
+      });
+      setAcceptedTerms(false);
+      setAcceptedPrivacy(false);
+      setErrors({});
+
+      // Redirect to homepage after 3 seconds
       setTimeout(() => {
-        setFormData({
-          fullName: "",
-          phone: "",
-          email: "",
-          password: "",
-          confirmPassword: "",
-          specialty: "",
-          license: null,
-        });
-        setAcceptedTerms(false);
-        setAcceptedPrivacy(false);
-      }, 5000);
-
+        navigate("/");
+      }, 3000);
     } catch (err) {
       console.error("Registration error:", err);
-      
+
       // Parse error message from API response
       let errorMessage = "Có lỗi xảy ra khi đăng ký. Vui lòng thử lại.";
       try {
@@ -231,7 +298,7 @@ export default function DoctorRegister() {
             errorData = { message: errorText };
           }
         }
-        
+
         if (errorData.message) {
           errorMessage = errorData.message;
         }
@@ -241,19 +308,23 @@ export default function DoctorRegister() {
           errorMessage = err.message;
         }
       }
-      
+
       // Map common error messages to Vietnamese
       const errorMap = {
-        "Email already exists": "Email này đã được sử dụng. Vui lòng sử dụng email khác",
-        "Phone number already exists": "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác",
-        "Email này đã được sử dụng. Vui lòng sử dụng email khác": "Email này đã được sử dụng. Vui lòng sử dụng email khác",
-        "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác": "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác",
+        "Email already exists":
+          "Email này đã được sử dụng. Vui lòng sử dụng email khác",
+        "Phone number already exists":
+          "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác",
+        "Email này đã được sử dụng. Vui lòng sử dụng email khác":
+          "Email này đã được sử dụng. Vui lòng sử dụng email khác",
+        "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác":
+          "Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác",
       };
-      
+
       if (errorMap[errorMessage]) {
         errorMessage = errorMap[errorMessage];
       }
-      
+
       setErrors({
         general: errorMessage,
       });
@@ -261,7 +332,6 @@ export default function DoctorRegister() {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="doctor-register-wrap">
@@ -352,7 +422,7 @@ export default function DoctorRegister() {
                   e.preventDefault();
                   e.stopPropagation();
                 }}
-                style={{ border: 'none', background: 'none', outline: 'none' }}
+                style={{ border: "none", background: "none", outline: "none" }}
               />
             </div>
             {errors.password && (
@@ -389,7 +459,7 @@ export default function DoctorRegister() {
                   e.preventDefault();
                   e.stopPropagation();
                 }}
-                style={{ border: 'none', background: 'none', outline: 'none' }}
+                style={{ border: "none", background: "none", outline: "none" }}
               />
             </div>
             {errors.confirmPassword && (
@@ -410,16 +480,52 @@ export default function DoctorRegister() {
               disabled={loadingSpecialties}
             >
               <option value="">
-                {loadingSpecialties ? "Đang tải chuyên khoa..." : "Chọn chuyên khoa"}
+                {loadingSpecialties
+                  ? "Đang tải chuyên khoa..."
+                  : "Chọn chuyên khoa"}
               </option>
               {specialties.map((specialty) => (
-                <option key={specialty._id || specialty.id || specialty.name} value={specialty._id || specialty.id || specialty.name}>
+                <option
+                  key={specialty._id || specialty.id || specialty.name}
+                  value={specialty._id || specialty.id || specialty.name}
+                >
                   {specialty.name}
                 </option>
               ))}
             </select>
             {errors.specialty && (
               <div className="error-text">{errors.specialty}</div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="clinicDefaultId" className="form-label">
+              Địa chỉ khám <span className="required">*</span>
+            </label>
+            <select
+              className="doctor-register-input"
+              id="clinicDefaultId"
+              name="clinicDefaultId"
+              value={formData.clinicDefaultId}
+              onChange={handleInputChange}
+              disabled={loadingClinics}
+            >
+              <option value="">
+                {loadingClinics
+                  ? "Đang tải địa chỉ khám..."
+                  : "Chọn địa chỉ khám"}
+              </option>
+              {clinics.map((clinic) => (
+                <option
+                  key={clinic.id || clinic._id}
+                  value={clinic.id || clinic._id}
+                >
+                  {clinic.name} - {clinic.address || "Chưa có địa chỉ"}
+                </option>
+              ))}
+            </select>
+            {errors.clinicDefaultId && (
+              <div className="error-text">{errors.clinicDefaultId}</div>
             )}
           </div>
 
@@ -439,10 +545,9 @@ export default function DoctorRegister() {
               <label htmlFor="license" className="file-upload-label">
                 <i className="bi bi-cloud-upload"></i>
                 <span>
-                  {formData.license 
-                    ? formData.license.name 
-                    : "Chọn ảnh chứng chỉ hành nghề (JPG, PNG, WebP - Tối đa 5MB)"
-                  }
+                  {formData.license
+                    ? formData.license.name
+                    : "Chọn ảnh chứng chỉ hành nghề (JPG, PNG, WebP - Tối đa 5MB)"}
                 </span>
               </label>
             </div>
@@ -460,7 +565,11 @@ export default function DoctorRegister() {
               />
               <span>
                 Tôi đã đọc và đồng ý với {""}
-                <Link to="/dieu-khoan-su-dung" target="_blank" rel="noopener noreferrer">
+                <Link
+                  to="/dieu-khoan-su-dung"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Điều khoản sử dụng
                 </Link>
               </span>
@@ -477,7 +586,11 @@ export default function DoctorRegister() {
               />
               <span>
                 Tôi đồng ý với {""}
-                <Link to="/chinh-sach-bao-mat" target="_blank" rel="noopener noreferrer">
+                <Link
+                  to="/chinh-sach-bao-mat"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Chính sách bảo mật
                 </Link>
               </span>
@@ -496,10 +609,12 @@ export default function DoctorRegister() {
 
         <div className="doctor-register-links">
           <Link to="/dang-nhap">Đã có tài khoản? Đăng nhập</Link>
-          <Link to="/" className="home-link"> Quay về trang chủ</Link>
+          <Link to="/" className="home-link">
+            {" "}
+            Quay về trang chủ
+          </Link>
         </div>
       </div>
     </div>
   );
 }
-

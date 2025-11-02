@@ -224,6 +224,7 @@ export async function getCurrentPatientProfile(req, res) {
             email: patient.email,
             address: patient.address,
             houseNumber: patient.houseNumber,
+            avatarUrl: patient.avatarUrl,
             // Người đại diện
             representativeName: patient.representativeName,
             representativeCitizenId: patient.representativeCitizenId,
@@ -409,6 +410,8 @@ export async function updatePatientProfile(req, res) {
       email: updateData.email,
       address: updateData.address,
       houseNumber: updateData.houseNumber,
+      // Avatar
+      avatarUrl: updateData.avatarUrl,
       // Người đại diện
       representativeName: updateData.representativeName,
       representativeCitizenId: updateData.representativeCitizenId,
