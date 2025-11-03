@@ -11,12 +11,20 @@ import {
   blockSlotsByDateRangeForManager,
   unblockSlotsByDateRangeForManager,
   rescheduleAppointmentByManager,
+  getManagerInvoices,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
   approveLeaveRequest,
   rejectLeaveRequest,
 } from "../controllers/leaveRequestController.js";
+import {
+  getAllServicePrices,
+  getServicePriceById,
+  createServicePrice,
+  updateServicePrice,
+  deleteServicePrice,
+} from "../controllers/servicePriceController.js";
 
 const router = express.Router();
 
@@ -78,5 +86,15 @@ router.post(
   authGuard,
   rejectLeaveRequest
 );
+
+// Service price management routes (only for manager)
+router.get("/service-prices", authGuard, getAllServicePrices);
+router.get("/service-prices/:id", authGuard, getServicePriceById);
+router.post("/service-prices", authGuard, createServicePrice);
+router.put("/service-prices/:id", authGuard, updateServicePrice);
+router.delete("/service-prices/:id", authGuard, deleteServicePrice);
+
+// Invoice management routes (only for manager)
+router.get("/invoices", authGuard, getManagerInvoices);
 
 export default router;

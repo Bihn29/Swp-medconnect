@@ -114,10 +114,13 @@ export const checkPaymentStatusController = async (req, res) => {
     if (paymentInfo && (paymentInfo.status === "PAID" || paymentInfo.status === "paid")) {
       try {
         // Gọi webhook handler để xử lý payment
+        // Kiểm tra description để xác định loại payment (service hay booking)
+        const description = paymentInfo.description || `MedConnect ${orderCode}`;
+        
         const webhookData = {
           data: {
             orderCode: Number(orderCode),
-            description: paymentInfo.description || `MedConnect ${orderCode}`,
+            description: description,
             code: "00",
             amount: paymentInfo.amount,
           },

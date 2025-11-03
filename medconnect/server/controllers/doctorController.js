@@ -242,10 +242,40 @@ export async function getDoctorAppointments(req, res) {
       .limit(parseInt(limit))
       .lean();
 
+    // Check which appointments have consultation records
+    const appointmentIds = appointments.map((apt) => apt._id);
+    const consultationSummaries = await ConsultationSummary.find({
+      appointmentId: { $in: appointmentIds },
+    }).select("appointmentId").lean();
+    
+    const consultationAdvices = await ConsultationAdvice.find({
+      appointmentId: { $in: appointmentIds },
+    }).select("appointmentId").lean();
+
+    const summaryAppointmentIds = new Set(
+      consultationSummaries.map((s) => s.appointmentId.toString())
+    );
+    const adviceAppointmentIds = new Set(
+      consultationAdvices.map((a) => a.appointmentId.toString())
+    );
+
+    // Add hasConsultationRecord flag to each appointment
+    const appointmentsWithFlags = appointments.map((apt) => {
+      const aptIdStr = apt._id.toString();
+      const hasConsultationRecord = 
+        summaryAppointmentIds.has(aptIdStr) || 
+        adviceAppointmentIds.has(aptIdStr);
+      
+      return {
+        ...apt,
+        hasConsultationRecord,
+      };
+    });
+
     const total = await Appointment.countDocuments(filter);
 
     return ok(res, {
-      appointments,
+      appointments: appointmentsWithFlags,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

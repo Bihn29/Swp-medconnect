@@ -78,8 +78,27 @@ const server = http.createServer(app);
 
 mongoose
   .connect(process.env.MONGODB_URL || "mongodb://localhost:27017/MedConnect")
-  .then(() => {
+  .then(async () => {
     console.log("✅ Kết nối đến MongoDB thành công");
+    
+    // Fix old unique index on Payments collection if exists
+    try {
+      const db = mongoose.connection.db;
+      const collection = db.collection("Payments");
+      const indexes = await collection.indexes();
+      const oldIndex = indexes.find(idx => 
+        idx.name === "appointmentId_1" && idx.unique === true
+      );
+      
+      if (oldIndex) {
+        await collection.dropIndex("appointmentId_1");
+        console.log("✅ Đã xóa unique index cũ: appointmentId_1 trên collection Payments");
+      }
+    } catch (error) {
+      if (error.code !== 27 && !error.message?.includes("index not found")) {
+        console.log("ℹ️ Kiểm tra index (có thể đã được xóa):", error.message);
+      }
+    }
     
     // Tắt cron job tự động hủy appointments - không giới hạn thời gian thanh toán
     // startAppointmentCleanupJob();

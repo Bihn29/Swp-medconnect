@@ -1326,3 +1326,98 @@ export async function unblockSlotsByDateRangeForManager(req, res) {
     );
   }
 }
+
+// ================== INVOICE MANAGEMENT CONTROLLERS ==================
+
+/**
+ * Get all invoices (payments) for manager
+ * GET /api/managers/invoices?invoiceType=booking&page=1&limit=20
+ */
+export async function getManagerInvoices(req, res) {
+  try {
+    const { invoiceType, page = 1, limit = 20, status, startDate, endDate } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Build query
+    const query = {};
+
+    // Filter by invoiceType (booking or service)
+    if (invoiceType && invoiceType !== "all") {
+      query.invoiceType = invoiceType;
+    }
+
+    // Filter by status
+    if (status && status !== "all") {
+      query.status = status;
+    }
+
+    // Filter by date range
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    // Get payments with populated data
+    const Payment = (await import("../models/payment.model.js")).default;
+    
+    const payments = await Payment.find(query)
+      .populate("appointmentId", "scheduledStart status mode")
+      .populate("billTo.patientId", "fullName phone")
+      .populate("billFrom.doctorId", "fullName")
+      .populate("billFrom.clinicId", "name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Payment.countDocuments(query);
+
+    // Format invoices for response
+    const formattedInvoices = payments.map((payment) => ({
+      _id: payment._id,
+      invoiceNumber: payment.invoiceNumber,
+      invoiceType: payment.invoiceType,
+      orderCode: payment.orderCode,
+      appointmentId: payment.appointmentId?._id,
+      appointmentDate: payment.appointmentId?.scheduledStart,
+      appointmentStatus: payment.appointmentId?.status,
+      appointmentMode: payment.appointmentId?.mode,
+      patientName: payment.billTo?.name || payment.billTo?.patientId?.fullName || "N/A",
+      patientPhone: payment.billTo?.phone || payment.billTo?.patientId?.phone || null,
+      doctorName: payment.billFrom?.doctorName || payment.billFrom?.doctorId?.fullName || "N/A",
+      clinicName: payment.billFrom?.clinicName || payment.billFrom?.clinicId?.name || null,
+      items: payment.items || [],
+      subtotal: payment.subtotal,
+      discount: payment.discount || 0,
+      total: payment.total,
+      gateway: payment.gateway,
+      method: payment.method,
+      status: payment.status,
+      paidAt: payment.paidAt || payment.capturedAt || payment.createdAt,
+      createdAt: payment.createdAt,
+      currency: payment.currency || "VND",
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        invoices: formattedInvoices,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / parseInt(limit)),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching manager invoices:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi khi tải danh sách hóa đơn",
+      error: error.message,
+    });
+  }
+}

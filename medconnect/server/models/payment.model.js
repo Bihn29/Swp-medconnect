@@ -45,7 +45,14 @@ const PaymentSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Appointment",
       required: true,
-      unique: true,
+      // Bỏ unique để cho phép nhiều payment cho 1 appointment (booking + service)
+    },
+
+    invoiceType: {
+      type: String,
+      enum: ["booking", "service"],
+      required: true,
+      default: "booking",
     },
 
     invoiceNumber: { type: String, required: true, unique: true, trim: true },
@@ -88,6 +95,9 @@ const PaymentSchema = new Schema(
     // PayOS orderCode để tracking và webhook lookup
     orderCode: { type: Number, unique: true, sparse: true, index: true },
     
+    // Lưu tạm orderCode khi tạo payment link (chưa thanh toán) - cho service payment
+    pendingOrderCode: { type: Number, sparse: true, index: true },
+    
     providerTxnId: String,
     authorizedAt: Date,
     authorizationExpiresAt: Date,
@@ -106,6 +116,12 @@ const PaymentSchema = new Schema(
   },
   { timestamps: true, versionKey: false, collection: "Payments" }
 );
+
+// Index để query nhanh
+// Compound index cho phép nhiều payment cho 1 appointment (booking + service)
+// NOT unique - allows multiple payments per appointment
+PaymentSchema.index({ appointmentId: 1, invoiceType: 1 }, { unique: false });
+PaymentSchema.index({ pendingOrderCode: 1 });
 
 PaymentSchema.pre("validate", function (next) {
   if (this.items?.length) {
