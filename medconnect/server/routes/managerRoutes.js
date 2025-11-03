@@ -11,6 +11,10 @@ import {
   blockSlotsByDateRangeForManager,
   unblockSlotsByDateRangeForManager,
   rescheduleAppointmentByManager,
+  getDoctorPricingForManager,
+  setDoctorPricingForManager,
+  deleteDoctorPricingForManager,
+  getAllPatientsForManager,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
@@ -24,6 +28,7 @@ const router = express.Router();
 // Manager role check should be done in middleware if needed
 
 router.get("/doctors", authGuard, getAllDoctorsForManager);
+router.get("/patients", authGuard, getAllPatientsForManager);
 router.get(
   "/doctors/:doctorId/time-slots",
   authGuard,
@@ -77,6 +82,19 @@ router.post(
   "/leave-requests/:leaveRequestId/reject",
   authGuard,
   rejectLeaveRequest
+);
+
+// Pricing routes
+router.get("/doctors/:doctorId/pricing", authGuard, getDoctorPricingForManager);
+router.post(
+  "/doctors/:doctorId/pricing",
+  authGuard,
+  setDoctorPricingForManager
+);
+router.delete(
+  "/doctors/:doctorId/pricing/:pricingId",
+  authGuard,
+  deleteDoctorPricingForManager
 );
 
 export default router;

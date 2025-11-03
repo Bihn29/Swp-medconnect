@@ -120,16 +120,20 @@ const Facility = () => {
                 <Text>{facility.phone}</Text>
               </Space>
               <Space wrap>
-                {facility.specialties.slice(0, 3).map((specialty, index) => (
-                  <Tag key={index} color="green-inverse">
-                    {specialty}
-                  </Tag>
-                ))}
-                {facility.specialties.length > 3 && (
-                  <Tag color="default">
-                    +{facility.specialties.length - 3} khác
-                  </Tag>
-                )}
+                {facility.specialties &&
+                  Array.isArray(facility.specialties) &&
+                  facility.specialties.slice(0, 3).map((specialty, index) => (
+                    <Tag key={index} color="green-inverse">
+                      {specialty}
+                    </Tag>
+                  ))}
+                {facility.specialties &&
+                  Array.isArray(facility.specialties) &&
+                  facility.specialties.length > 3 && (
+                    <Tag color="default">
+                      +{facility.specialties.length - 3} khác
+                    </Tag>
+                  )}
               </Space>
             </Space>
           </div>

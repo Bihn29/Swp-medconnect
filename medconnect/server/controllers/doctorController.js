@@ -19,6 +19,56 @@ import { ERROR_CODES } from "../constants/index.js";
 import { sendMail } from "../utils/email.js";
 
 /**
+ * Check if doctor has all required information to be active
+ * Required fields: yearsExperience > 0, bio (non-empty), and at least one DoctorRate
+ */
+async function checkDoctorCanBeActive(doctorId) {
+  try {
+    const doctor = await Doctor.findById(doctorId).lean();
+    if (!doctor) {
+      return { canBeActive: false, reason: "Doctor not found" };
+    }
+
+    // Check yearsExperience
+    if (!doctor.yearsExperience || doctor.yearsExperience <= 0) {
+      return {
+        canBeActive: false,
+        reason: "Số năm kinh nghiệm chưa được điền hoặc bằng 0",
+      };
+    }
+
+    // Check bio
+    if (!doctor.bio || doctor.bio.trim().length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Lời giới thiệu chưa được điền",
+      };
+    }
+
+    // Check if doctor has at least one active DoctorRate
+    const doctorRates = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    }).lean();
+
+    if (!doctorRates || doctorRates.length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+      };
+    }
+
+    return { canBeActive: true };
+  } catch (error) {
+    console.error("Error checking doctor can be active:", error);
+    return {
+      canBeActive: false,
+      reason: "Lỗi khi kiểm tra thông tin bác sĩ",
+    };
+  }
+}
+
+/**
  * Get doctor profile by ID
  */
 export async function getDoctorProfile(req, res) {
@@ -164,6 +214,10 @@ export async function updateDoctorProfile(req, res) {
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
+
+    // Note: Doctors cannot update their profile themselves.
+    // Only manager/admin can update doctor information via updateUser endpoint.
+    // No automatic activation check here.
 
     return ok(res, { doctor });
   } catch (e) {
@@ -1219,9 +1273,22 @@ export async function getAllDoctors(req, res) {
     const skip = (page - 1) * limit;
     const filter = {};
 
-    // Only filter by verified if explicitly requested
+    // Default filter: Only show verified and active doctors for public API
+    // Note: isActive may not exist for old doctors (default is true in schema)
+    // So we filter by isVerified=true AND (isActive=true OR isActive doesn't exist)
+    filter.isVerified = true;
+    filter.$or = [
+      { isActive: true },
+      { isActive: { $exists: false } }, // Old doctors without isActive field (default is true)
+    ];
+
+    // Override isVerified if explicitly requested via query param
     if (verified !== undefined) {
       filter.isVerified = verified === "true";
+      // If explicitly requesting non-verified doctors, don't filter by isActive
+      if (verified === "false") {
+        delete filter.$or;
+      }
     }
 
     // Filter by specialization
@@ -1581,25 +1648,290 @@ export async function getAllDoctors(req, res) {
       }
     }
 
-    console.log("Doctor filter:", JSON.stringify(filter, null, 2)); // Debug log
-    console.log("Specialization parameter:", specialization); // Debug log
-    console.log("Facility parameter:", facility); // Debug log
-    console.log("Experience parameter:", experience); // Debug log
-    console.log("Rating parameter:", rating); // Debug log
-    console.log("PriceRange parameter:", priceRange); // Debug log
-    console.log("Location parameter:", location); // Debug log
-    console.log("Availability parameter:", availability); // Debug log
+    // Count total doctors with different statuses for debugging
+    const totalDoctorsInDB = await Doctor.countDocuments({});
+    const verifiedCount = await Doctor.countDocuments({ isVerified: true });
+    const activeCount = await Doctor.countDocuments({ isActive: true });
+    const verifiedAndActiveCount = await Doctor.countDocuments({
+      isVerified: true,
+      isActive: true,
+    });
+    const unverifiedCount = await Doctor.countDocuments({ isVerified: false });
+    const inactiveCount = await Doctor.countDocuments({ isActive: false });
+    // Count verified doctors without isActive field (old doctors)
+    const verifiedWithoutIsActive = await Doctor.countDocuments({
+      isVerified: true,
+      isActive: { $exists: false },
+    });
+    // Count verified doctors matching our filter (verified AND (active OR no isActive))
+    const verifiedMatchingFilter = await Doctor.countDocuments({
+      isVerified: true,
+      $or: [{ isActive: true }, { isActive: { $exists: false } }],
+    });
 
-    const doctors = await Doctor.find(filter)
-      .populate("userId", "fullName email phone")
-      .populate("specializationIds", "name code")
-      .populate("clinicDefaultId", "name address phone")
+    console.log(`📊 Doctor Statistics in MongoDB:`);
+    console.log(`   Total doctors in DB: ${totalDoctorsInDB}`);
+    console.log(`   ✅ Verified doctors: ${verifiedCount}`);
+    console.log(`   ✅ Active doctors (isActive=true): ${activeCount}`);
+    console.log(
+      `   ✅ Verified AND Active (isActive=true): ${verifiedAndActiveCount}`
+    );
+    console.log(
+      `   ⚠️  Verified but no isActive field: ${verifiedWithoutIsActive}`
+    );
+    console.log(
+      `   ✅ Verified matching filter (verified + active/missing): ${verifiedMatchingFilter}`
+    );
+    console.log(`   ❌ Unverified doctors: ${unverifiedCount}`);
+    console.log(`   ❌ Inactive doctors (isActive=false): ${inactiveCount}`);
+    console.log("🔍 Doctor filter applied:", JSON.stringify(filter, null, 2)); // Debug log
+    console.log("🔍 Specialization parameter:", specialization); // Debug log
+    console.log("🔍 Facility parameter:", facility); // Debug log
+    console.log("🔍 Experience parameter:", experience); // Debug log
+    console.log("🔍 Rating parameter:", rating); // Debug log
+    console.log("🔍 PriceRange parameter:", priceRange); // Debug log
+    console.log("🔍 Location parameter:", location); // Debug log
+    console.log("🔍 Availability parameter:", availability); // Debug log
+
+    // Debug: Check specific doctor by ID
+    const specificDoctorId = "690789003d30bfde2698ec1f";
+    const mongoose = await import("mongoose");
+    if (mongoose.default.Types.ObjectId.isValid(specificDoctorId)) {
+      const specificDoctor = await Doctor.findById(specificDoctorId).lean();
+      if (specificDoctor) {
+        console.log(`\n🔍 Checking specific doctor (ID: ${specificDoctorId}):`);
+        console.log(`   Name: ${specificDoctor.fullName}`);
+        console.log(`   isVerified: ${specificDoctor.isVerified}`);
+        console.log(`   isActive: ${specificDoctor.isActive}`);
+        console.log(`   Does it match filter? Testing...`);
+
+        // Test if this doctor matches the filter
+        const matchesFilter = await Doctor.findOne({
+          _id: specificDoctorId,
+          ...filter,
+        }).lean();
+
+        if (matchesFilter) {
+          console.log(
+            `   ✅ Doctor MATCHES the filter - should appear in results`
+          );
+
+          // Before pagination, check position
+          const allMatchingDoctors = await Doctor.find(filter)
+            .select("_id fullName")
+            .sort({ ratingAvg: -1, ratingCount: -1 })
+            .lean();
+          const doctorIndex = allMatchingDoctors.findIndex(
+            (d) => d._id.toString() === specificDoctorId
+          );
+          console.log(`\n📍 Specific doctor position in matching results:`);
+          console.log(
+            `   Total matching doctors: ${allMatchingDoctors.length}`
+          );
+          console.log(`   Doctor index (0-based): ${doctorIndex}`);
+          console.log(`   Page: ${page}, Limit: ${limit}, Skip: ${skip}`);
+          console.log(
+            `   Will appear on page: ${
+              Math.floor(doctorIndex / parseInt(limit)) + 1
+            }`
+          );
+          if (doctorIndex >= skip && doctorIndex < skip + parseInt(limit)) {
+            console.log(`   ✅ Doctor is in current page range`);
+          } else {
+            console.log(
+              `   ❌ Doctor is NOT in current page range (out of pagination)`
+            );
+          }
+        } else {
+          console.log(
+            `   ❌ Doctor does NOT match the filter - checking why...`
+          );
+
+          // Check each filter condition
+          if (filter.isVerified && !specificDoctor.isVerified) {
+            console.log(
+              `   ❌ isVerified mismatch: filter requires true, doctor has ${specificDoctor.isVerified}`
+            );
+          }
+          if (filter.$or) {
+            const matchesActive = specificDoctor.isActive === true;
+            const matchesMissing = !("isActive" in specificDoctor);
+            if (!matchesActive && !matchesMissing) {
+              console.log(
+                `   ❌ isActive mismatch: filter requires (true OR missing), doctor has ${specificDoctor.isActive}`
+              );
+            } else {
+              console.log(`   ✅ isActive condition matches`);
+            }
+          }
+        }
+      } else {
+        console.log(`   ⚠️ Specific doctor not found in database`);
+      }
+    }
+
+    // Query doctors with filter
+    let doctors = await Doctor.find(filter)
       .sort({ ratingAvg: -1, ratingCount: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
       .lean();
 
-    const total = await Doctor.countDocuments(filter);
+    console.log(
+      `\n🔍 Before populate: Found ${doctors.length} doctors matching filter`
+    );
+
+    // Check if specific doctor is in the results before populate
+    const specificDoctorInResults = doctors.find(
+      (d) => d._id.toString() === "690789003d30bfde2698ec1f"
+    );
+    if (specificDoctorInResults) {
+      console.log(`✅ Specific doctor found in query results BEFORE populate`);
+      console.log(`   Doctor data:`, {
+        _id: specificDoctorInResults._id,
+        fullName: specificDoctorInResults.fullName,
+        userId: specificDoctorInResults.userId,
+        isVerified: specificDoctorInResults.isVerified,
+        isActive: specificDoctorInResults.isActive,
+      });
+    } else {
+      console.log(
+        `❌ Specific doctor NOT found in query results BEFORE populate`
+      );
+      // Check all doctor IDs
+      console.log(
+        `   All doctor IDs in results:`,
+        doctors.map((d) => d._id.toString())
+      );
+    }
+
+    // Now populate
+    doctors = await Doctor.populate(doctors, [
+      {
+        path: "userId",
+        select: "fullName email phone status emailVerified phoneVerified",
+      },
+      { path: "specializationIds", select: "name code" },
+      { path: "clinicDefaultId", select: "name address phone" },
+    ]);
+
+    console.log(`🔍 After populate: ${doctors.length} doctors`);
+
+    // Check if specific doctor still exists after populate
+    const specificDoctorAfterPopulate = doctors.find(
+      (d) => d._id.toString() === "690789003d30bfde2698ec1f"
+    );
+    if (specificDoctorAfterPopulate) {
+      console.log(`✅ Specific doctor found AFTER populate`);
+      console.log(
+        `   userId populated:`,
+        specificDoctorAfterPopulate.userId ? "yes" : "no"
+      );
+    } else {
+      console.log(
+        `❌ Specific doctor NOT found AFTER populate (this shouldn't happen)`
+      );
+    }
+
+    // Apply pagination AFTER populate to ensure we don't lose doctors
+    const total = doctors.length; // Count before pagination
+    doctors = doctors.slice(skip, skip + parseInt(limit));
+
+    console.log(
+      `🔍 After pagination (skip=${skip}, limit=${limit}): ${doctors.length} doctors`
+    );
+
+    // Check if specific doctor is in paginated results
+    const specificDoctorInPaginated = doctors.find(
+      (d) => d._id.toString() === "690789003d30bfde2698ec1f"
+    );
+    if (specificDoctorInPaginated) {
+      console.log(
+        `✅ Specific doctor IS in paginated results - will be returned`
+      );
+    } else {
+      console.log(
+        `❌ Specific doctor NOT in paginated results (out of page range)`
+      );
+      // Find its position
+      const allDoctorsBeforePagination = await Doctor.find(filter)
+        .sort({ ratingAvg: -1, ratingCount: -1 })
+        .select("_id fullName")
+        .lean();
+      const doctorIndex = allDoctorsBeforePagination.findIndex(
+        (d) => d._id.toString() === "690789003d30bfde2698ec1f"
+      );
+      if (doctorIndex >= 0) {
+        console.log(
+          `   Doctor is at index ${doctorIndex} of ${allDoctorsBeforePagination.length}`
+        );
+        console.log(
+          `   Should appear on page ${
+            Math.floor(doctorIndex / parseInt(limit)) + 1
+          }`
+        );
+      }
+    }
+
+    const totalInDB = await Doctor.countDocuments(filter);
+
+    console.log(
+      `✅ Final result: Returning ${doctors.length} doctors out of ${totalInDB} total matching filter in DB`
+    ); // Debug log
+
+    // Log first few doctors for debugging
+    if (doctors.length > 0) {
+      console.log(
+        `📋 Sample doctors found (first ${Math.min(3, doctors.length)}):`
+      );
+      doctors.slice(0, 3).forEach((doctor, index) => {
+        console.log(`   ${index + 1}. ${doctor.fullName || "No name"}`, {
+          doctorId: doctor._id,
+          userId: doctor.userId?._id || doctor.userId,
+          isVerified: doctor.isVerified,
+          isActive: doctor.isActive,
+          userStatus: doctor.userId?.status,
+          emailVerified: doctor.userId?.emailVerified,
+          phoneVerified: doctor.userId?.phoneVerified,
+        });
+      });
+    } else {
+      console.log(
+        `⚠️ No doctors found matching filter. Listing sample of all doctors in database...`
+      );
+      const allDoctors = await Doctor.find({})
+        .select("_id fullName isVerified isActive userId")
+        .limit(10)
+        .lean();
+      console.log(`📋 Sample of all doctors in database (first 10):`);
+      allDoctors.forEach((doctor, index) => {
+        console.log(`   ${index + 1}. ${doctor.fullName || "No name"}`, {
+          doctorId: doctor._id,
+          isVerified: doctor.isVerified,
+          isActive: doctor.isActive,
+          userId: doctor.userId,
+        });
+      });
+
+      // Show status breakdown
+      const statusBreakdown = {
+        verified_active: await Doctor.countDocuments({
+          isVerified: true,
+          isActive: true,
+        }),
+        verified_inactive: await Doctor.countDocuments({
+          isVerified: true,
+          isActive: false,
+        }),
+        unverified_active: await Doctor.countDocuments({
+          isVerified: false,
+          isActive: true,
+        }),
+        unverified_inactive: await Doctor.countDocuments({
+          isVerified: false,
+          isActive: false,
+        }),
+      };
+      console.log(`📊 Status breakdown:`, statusBreakdown);
+    }
 
     // Filter out picsum.photos URLs from avatarUrl
     const cleanedDoctors = doctors.map((doctor) => {
@@ -1609,15 +1941,13 @@ export async function getAllDoctors(req, res) {
       return doctor;
     });
 
-    console.log(`Found ${cleanedDoctors.length} doctors out of ${total} total`); // Debug log
-
     return ok(res, {
       doctors: cleanedDoctors,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
+        total: totalInDB, // Use count from DB, not after populate
+        pages: Math.ceil(totalInDB / limit),
       },
     });
   } catch (e) {
@@ -3652,12 +3982,25 @@ export async function getSearchDoctors(req, res) {
 
     let filter = {};
 
+    // Add filters for verified and active doctors (must be first)
+    filter.isVerified = true;
+    filter.$and = [
+      {
+        $or: [
+          { isActive: true },
+          { isActive: { $exists: false } }, // Old doctors without isActive field
+        ],
+      },
+    ];
+
     // Search by name or specialty
     if (search) {
-      filter.$or = [
-        { fullName: { $regex: search, $options: "i" } },
-        { bio: { $regex: search, $options: "i" } },
-      ];
+      filter.$and.push({
+        $or: [
+          { fullName: { $regex: search, $options: "i" } },
+          { bio: { $regex: search, $options: "i" } },
+        ],
+      });
     }
 
     // Filter by specialization

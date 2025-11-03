@@ -1,17 +1,37 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, Row, Col, Button, Space, DatePicker, Spin, Alert } from "antd";
 import { 
   UserOutlined, 
   TeamOutlined, 
   CalendarOutlined, 
   DollarOutlined,
-  DownOutlined
+  DownOutlined,
+  MedicineBoxOutlined,
+  RiseOutlined,
+  LineChartOutlined
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line
+} from "recharts";
 import { getAdminStatistics } from "../../lib/api";
 import "./Statistics.scss";
 
 const Statistics = () => {
+  const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState("today");
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [dateRange, setDateRange] = useState([null, null]);
@@ -83,9 +103,11 @@ const Statistics = () => {
           title: "Tổng Bác Sĩ",
           value: (statistics.totalDoctors.value || 0).toLocaleString(),
           change: statistics.totalDoctors.changeLabel || "0 so với tháng trước",
-          icon: <UserOutlined />,
+          icon: <MedicineBoxOutlined />,
           cardClass: "stat-card-blue",
           textColor: "text-blue",
+          path: "/admin/users",
+          clickable: true,
         },
         {
           title: "Tổng Bệnh Nhân",
@@ -94,6 +116,8 @@ const Statistics = () => {
           icon: <TeamOutlined />,
           cardClass: "stat-card-cyan",
           textColor: "text-cyan",
+          path: "/admin/users",
+          clickable: true,
         },
         {
           title: "Khám Hôm Nay",
@@ -116,7 +140,7 @@ const Statistics = () => {
           })(),
           value: formatCurrency(statistics.monthRevenue.value || 0),
           change: statistics.monthRevenue.changeLabel || "0% so với tháng trước",
-          icon: <DollarOutlined />,
+          icon: <RiseOutlined />,
           cardClass: "stat-card-violet",
           textColor: "text-violet",
         },
@@ -126,9 +150,11 @@ const Statistics = () => {
           title: "Tổng Bác Sĩ",
           value: "0",
           change: "+0 so với tháng trước",
-          icon: <UserOutlined />,
+          icon: <MedicineBoxOutlined />,
           cardClass: "stat-card-blue",
           textColor: "text-blue",
+          path: "/admin/users",
+          clickable: true,
         },
         {
           title: "Tổng Bệnh Nhân",
@@ -137,6 +163,8 @@ const Statistics = () => {
           icon: <TeamOutlined />,
           cardClass: "stat-card-cyan",
           textColor: "text-cyan",
+          path: "/admin/users",
+          clickable: true,
         },
         {
           title: "Khám Hôm Nay",
@@ -159,7 +187,7 @@ const Statistics = () => {
           })(),
           value: "₫0",
           change: "+0% so với tháng trước",
-          icon: <DollarOutlined />,
+          icon: <RiseOutlined />,
           cardClass: "stat-card-violet",
           textColor: "text-violet",
         },
@@ -285,14 +313,22 @@ const Statistics = () => {
         <Row gutter={[16, 16]} className="stat-cards-row">
           {statCards.map((card, index) => (
             <Col xs={24} sm={12} lg={6} key={index}>
-              <Card className={`stat-card ${card.cardClass}`}>
+              <Card 
+                className={`stat-card ${card.cardClass} ${card.clickable ? 'clickable' : ''}`}
+                onClick={() => {
+                  if (card.clickable && card.path) {
+                    navigate(card.path);
+                  }
+                }}
+                style={card.clickable ? { cursor: 'pointer' } : {}}
+              >
                 <div className="stat-card-header">
                   <span className={`stat-card-title ${card.textColor}`}>
                     {card.title}
                   </span>
-                  <span className={`stat-card-icon ${card.textColor}`}>
+                  <div className={`stat-card-icon ${card.textColor}`}>
                     {card.icon}
-                  </span>
+                  </div>
                 </div>
                 <div className="stat-card-content">
                   <div className={`stat-card-value ${card.textColor}`}>
@@ -322,8 +358,25 @@ const Statistics = () => {
             >
               <div className="chart-placeholder">
                 <div className="chart-container" style={{ height: "300px" }}>
-                  {/* Placeholder for bar chart */}
-                  <div className="chart-empty">Biểu đồ sẽ được thêm vào đây</div>
+                  {statistics?.topDoctorsOnline?.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={statistics.topDoctorsOnline.map(doctor => ({
+                          name: doctor.name,
+                          count: doctor.count
+                        }))}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#1890ff" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="chart-empty">Chưa có dữ liệu</div>
+                  )}
                 </div>
                 <div className="chart-legend-list">
                   {statistics?.topDoctorsOnline?.length > 0
@@ -359,8 +412,25 @@ const Statistics = () => {
             >
               <div className="chart-placeholder">
                 <div className="chart-container" style={{ height: "300px" }}>
-                  {/* Placeholder for bar chart */}
-                  <div className="chart-empty">Biểu đồ sẽ được thêm vào đây</div>
+                  {statistics?.topDoctorsOffline?.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={statistics.topDoctorsOffline.map(doctor => ({
+                          name: doctor.name,
+                          count: doctor.count
+                        }))}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#13c2c2" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="chart-empty">Chưa có dữ liệu</div>
+                  )}
                 </div>
                 <div className="chart-legend-list">
                   {statistics?.topDoctorsOffline?.length > 0
@@ -443,8 +513,31 @@ const Statistics = () => {
             >
               <div className="pie-chart-placeholder">
                 <div className="chart-container" style={{ height: "200px" }}>
-                  {/* Placeholder for pie chart */}
-                  <div className="chart-empty">Biểu đồ tròn sẽ được thêm vào đây</div>
+                  {statistics?.appointmentRatio ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Online", value: statistics.appointmentRatio.online || 0 },
+                            { name: "Offline", value: statistics.appointmentRatio.offline || 0 }
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={false}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          <Cell fill="#1890ff" />
+                          <Cell fill="#13c2c2" />
+                        </Pie>
+                        <Tooltip formatter={(value, name) => [`${value}%`, name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="chart-empty">Chưa có dữ liệu</div>
+                  )}
                 </div>
                 <div className="pie-legend">
                   <div className="legend-item-center">
@@ -495,8 +588,46 @@ const Statistics = () => {
                   </div>
                 </div>
                 <div className="chart-container" style={{ height: "400px" }}>
-                  {/* Placeholder for line chart */}
-                  <div className="chart-empty">Biểu đồ đường sẽ được thêm vào đây</div>
+                  {statistics?.revenueTrend && statistics.revenueTrend.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={statistics.revenueTrend}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip 
+                          formatter={(value) => `${formatCurrency(value)}`}
+                        />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="offline" 
+                          stroke="#13c2c2" 
+                          strokeWidth={2}
+                          name="Offline"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="online" 
+                          stroke="#1890ff" 
+                          strokeWidth={2}
+                          name="Online"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="total" 
+                          stroke="#8c8c8c" 
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          name="Tổng"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="chart-empty">Chưa có dữ liệu</div>
+                  )}
                 </div>
               </div>
             </Card>

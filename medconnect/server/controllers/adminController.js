@@ -1,13 +1,74 @@
-import User from '../models/user.model.js';
-import Doctor from '../models/doctor.model.js';
-import Specialization from '../models/specialization.model.js';
-import Appointment from '../models/appointment.model.js';
-import Patient from '../models/patient.model.js';
-import Clinic from '../models/clinic.model.js';
-import Payment from '../models/payment.model.js';
-import { runCleanupNow } from '../services/appointmentCleanupService.js';
+import User from "../models/user.model.js";
+import Doctor from "../models/doctor.model.js";
+import Specialization from "../models/specialization.model.js";
+import Appointment from "../models/appointment.model.js";
+import Patient from "../models/patient.model.js";
+import Clinic from "../models/clinic.model.js";
+import Payment from "../models/payment.model.js";
+import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
+import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
+import DoctorRate from "../models/doctor_rates.model.js";
+import Review from "../models/review.model.js";
+import Prescription from "../models/prescription.model.js";
+import ConsultationAdvice from "../models/consultationAdvice.model.js";
+import ConsultationSummary from "../models/consultationSummary.model.js";
+import VideoCall from "../models/videoCall.model.js";
+import PatientFavorite from "../models/patientFavorite.model.js";
+import RescheduleRequest from "../models/rescheduleRequest.model.js";
+import Notification from "../models/notification.model.js";
+import { runCleanupNow } from "../services/appointmentCleanupService.js";
 
 // ================== HELPER FUNCTIONS ==================
+
+/**
+ * Check if doctor has all required information to be active
+ * Required fields: yearsExperience > 0, bio (non-empty), and at least one DoctorRate
+ */
+async function checkDoctorCanBeActive(doctorId) {
+  try {
+    const doctor = await Doctor.findById(doctorId).lean();
+    if (!doctor) {
+      return { canBeActive: false, reason: "Doctor not found" };
+    }
+
+    // Check yearsExperience
+    if (!doctor.yearsExperience || doctor.yearsExperience <= 0) {
+      return {
+        canBeActive: false,
+        reason: "Số năm kinh nghiệm chưa được điền hoặc bằng 0",
+      };
+    }
+
+    // Check bio
+    if (!doctor.bio || doctor.bio.trim().length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Lời giới thiệu chưa được điền",
+      };
+    }
+
+    // Check if doctor has at least one active DoctorRate
+    const doctorRates = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    }).lean();
+
+    if (!doctorRates || doctorRates.length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+      };
+    }
+
+    return { canBeActive: true };
+  } catch (error) {
+    console.error("Error checking doctor can be active:", error);
+    return {
+      canBeActive: false,
+      reason: "Lỗi khi kiểm tra thông tin bác sĩ",
+    };
+  }
+}
 
 // Helper function to get time ago
 function getTimeAgo(date) {
@@ -369,7 +430,7 @@ export const getAllDoctors = async (req, res) => {
       .populate("userId", "fullName email")
       .populate("specializationIds", "name")
       .select(
-        "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications isVerified createdAt updatedAt"
+        "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds isVerified createdAt updatedAt"
       )
       .sort({ createdAt: -1 });
 
@@ -400,10 +461,6 @@ export const getAllDoctors = async (req, res) => {
         name: doctor.fullName || doctor.userId?.fullName || "Chưa có tên",
         email: doctor.userId?.email || "Chưa có email",
         specialty: specialty,
-        education:
-          doctor.education
-            ?.map((edu) => `${edu.degree} - ${edu.school}`)
-            .join(", ") || "Chưa cập nhật",
         experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
         license: doctor.licenseNo || "Chưa có giấy phép",
         status: doctor.isVerified ? "verified" : "pending",
@@ -433,22 +490,10 @@ export const getPendingDoctors = async (req, res) => {
       .populate("specializationIds", "name")
       .populate("clinicDefaultId", "name address")
       .select(
-        "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications clinicDefaultId createdAt"
+        "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds clinicDefaultId createdAt"
       )
       .sort({ createdAt: -1 })
       .lean(); // Use lean() to convert to plain objects
-
-    // Debug: log first doctor to check populate
-    if (pendingDoctors.length > 0) {
-      console.log(
-        "📋 Sample doctor specializationIds:",
-        JSON.stringify(pendingDoctors[0].specializationIds)
-      );
-      console.log(
-        "📋 Sample doctor userId:",
-        pendingDoctors[0].userId ? "exists" : "null"
-      );
-    }
 
     // Format doctors data - license image comes from licenseNo field
     const formattedDoctors = pendingDoctors.map((doctor) => {
@@ -490,29 +535,11 @@ export const getPendingDoctors = async (req, res) => {
           email: userId.email || "Chưa có email",
           phone: userId.phone || "Chưa có số điện thoại",
           specialty: specialty,
-          education:
-            doctor.education &&
-            Array.isArray(doctor.education) &&
-            doctor.education.length > 0
-              ? doctor.education
-                  .map(
-                    (edu) => `${edu?.degree || "N/A"} - ${edu?.school || "N/A"}`
-                  )
-                  .join(", ")
-              : "Chưa cập nhật",
           experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
           hospital: clinicDefaultId.name || "Chưa cập nhật",
           license: doctor.licenseNo || "Chưa có giấy phép",
           licenseImageUrl: licenseImageUrl,
           bio: doctor.bio || "Chưa có mô tả",
-          certifications:
-            doctor.certifications &&
-            Array.isArray(doctor.certifications) &&
-            doctor.certifications.length > 0
-              ? doctor.certifications.map(
-                  (cert) => `${cert?.name || "N/A"} - ${cert?.issuer || "N/A"}`
-                )
-              : [],
           submittedDate: doctor.createdAt
             ? formatDate(doctor.createdAt)
             : "Chưa có ngày",
@@ -527,13 +554,11 @@ export const getPendingDoctors = async (req, res) => {
           email: "N/A",
           phone: "N/A",
           specialty: "N/A",
-          education: "N/A",
           experience: "N/A",
           hospital: "N/A",
           license: "N/A",
           licenseImageUrl: null,
           bio: "N/A",
-          certifications: [],
           submittedDate: "N/A",
           avatar: null,
         };
@@ -564,17 +589,9 @@ export const getVerifiedDoctors = async (req, res) => {
       .populate("specializationIds", "name")
       .populate("clinicDefaultId", "name address")
       .select(
-        "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds education certifications clinicDefaultId updatedAt"
+        "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds clinicDefaultId updatedAt isVerified isActive"
       )
       .sort({ updatedAt: -1 });
-
-    // Debug: log first doctor to check populate
-    if (verifiedDoctors.length > 0) {
-      console.log(
-        "📋 Sample verified doctor specializationIds:",
-        JSON.stringify(verifiedDoctors[0].specializationIds)
-      );
-    }
 
     const formattedDoctors = verifiedDoctors.map((doctor) => {
       // Build license image URL - if licenseNo exists, it's a filename in uploads/doctors/
@@ -609,23 +626,11 @@ export const getVerifiedDoctors = async (req, res) => {
         email: doctor.userId?.email || "Chưa có email",
         phone: doctor.userId?.phone || "Chưa có số điện thoại",
         specialty: specialty,
-        education:
-          doctor.education?.length > 0
-            ? doctor.education
-                .map((edu) => `${edu.degree || "N/A"} - ${edu.school || "N/A"}`)
-                .join(", ")
-            : "Chưa cập nhật",
         experience: `${doctor.yearsExperience || 0} năm kinh nghiệm`,
         hospital: doctor.clinicDefaultId?.name || "Chưa cập nhật",
         license: doctor.licenseNo || "Chưa có giấy phép",
         licenseImageUrl: licenseImageUrl,
         bio: doctor.bio || "Chưa có mô tả",
-        certifications:
-          doctor.certifications?.length > 0
-            ? doctor.certifications.map(
-                (cert) => `${cert.name || "N/A"} - ${cert.issuer || "N/A"}`
-              )
-            : [],
         verifiedDate: formatDate(doctor.updatedAt),
         verifiedBy: "Admin", // Would need to track who verified
         avatar: avatarUrl,
@@ -765,9 +770,6 @@ MedConnect - Đội ngũ quản trị
       text: textContent,
       html: htmlContent,
     });
-
-    console.log(`✅ Approval email sent successfully to ${user.email}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId });
   } catch (error) {
     console.error("❌ Error sending doctor approval email:", error);
     // Không throw error để không ảnh hưởng đến flow chính
@@ -880,9 +882,6 @@ MedConnect - Đội ngũ quản trị
       text: textContent,
       html: htmlContent,
     });
-
-    console.log(`✅ Rejection email sent successfully to ${user.email}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId });
   } catch (error) {
     console.error("❌ Error sending doctor rejection email:", error);
     // Không throw error để không ảnh hưởng đến flow chính
@@ -914,9 +913,14 @@ export const approveDoctor = async (req, res) => {
       reviewer = await User.findOne({ email: req.user.email });
     }
 
+    // Check if doctor can be active (has all required fields)
+    const activeCheck = await checkDoctorCanBeActive(doctor._id);
+    const canBeActive = activeCheck.canBeActive;
+
     // Update doctor verification status with approval info
     doctor.isVerified = true;
-    doctor.isActive = true;
+    // Only set isActive = true if doctor has all required information
+    doctor.isActive = canBeActive;
     doctor.approvedBy = reviewer ? reviewer._id : null;
     doctor.approvedAt = new Date();
     // Clear rejection info if exists
@@ -935,7 +939,7 @@ export const approveDoctor = async (req, res) => {
         { _id: id },
         {
           isVerified: true,
-          isActive: true,
+          isActive: canBeActive,
           approvedBy: reviewer ? reviewer._id : null,
           approvedAt: new Date(),
           $unset: { rejectedBy: "", rejectedAt: "", rejectionReason: "" },
@@ -943,28 +947,59 @@ export const approveDoctor = async (req, res) => {
       );
     }
 
-    // Update User status to 'active' so doctor can login
+    // Log the status for admin information
+    if (!canBeActive) {
+      console.warn(
+        `⚠️ Doctor ${doctor.fullName} (ID: ${doctor._id}) has been verified but is set to inactive due to: ${activeCheck.reason}`
+      );
+    }
+
+    // Update User status to 'active' and verify email/phone so doctor can login
     if (doctor.userId) {
+      // Handle both ObjectId and populated object
+      const userId = doctor.userId._id || doctor.userId;
+
       const user = await User.findByIdAndUpdate(
-        doctor.userId,
-        { status: "active" },
+        userId,
+        {
+          status: "active",
+          emailVerified: true, // Verify email when doctor is approved
+          phoneVerified: true, // Verify phone when doctor is approved
+        },
         { new: true }
       );
-      console.log(`✅ Updated User ${doctor.userId} status to 'active'`);
+
+      if (!user) {
+        console.error(`❌ User not found with ID: ${userId}`);
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy thông tin người dùng liên kết với bác sĩ",
+        });
+      }
+
+      // Verify the update was successful
+      if (!user.emailVerified || !user.phoneVerified) {
+        console.warn(
+          `⚠️ WARNING: User verification fields not updated correctly!`
+        );
+        console.warn(
+          `   emailVerified: ${user.emailVerified}, phoneVerified: ${user.phoneVerified}`
+        );
+        // Try to update again using updateOne to ensure it works
+        await User.updateOne(
+          { _id: userId },
+          {
+            emailVerified: true,
+            phoneVerified: true,
+          }
+        );
+        // Reload user to verify
+        await User.findById(userId);
+      }
 
       // Send approval email (don't block on error)
       try {
-        console.log(
-          `📧 Attempting to send approval email to: ${
-            user.email || doctor.userId?.email
-          }`
-        );
         await sendDoctorApprovalEmail(doctor, user || doctor.userId);
-        console.log(
-          `✅ Approval email sent successfully to ${
-            user.email || doctor.userId?.email
-          }`
-        );
       } catch (emailError) {
         console.error("❌ Failed to send approval email:", emailError);
         console.error("❌ Error details:", {
@@ -976,11 +1011,39 @@ export const approveDoctor = async (req, res) => {
       }
     }
 
+    // Final verification: Check if Doctor record still exists and is verified
+    const finalCheck = await Doctor.findById(id);
+    if (!finalCheck) {
+      console.error(
+        `❌ CRITICAL: Doctor record not found after approval! ID: ${id}`
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi: Bản ghi bác sĩ không tồn tại sau khi phê duyệt",
+      });
+    }
+
+    // Also verify by userId to ensure consistency
+    const userId = doctor.userId._id || doctor.userId;
+    const doctorByUserId = await Doctor.findOne({ userId: userId });
+
+    if (!doctorByUserId) {
+      console.error(`❌ WARNING: Doctor record not found by userId: ${userId}`);
+      console.error(`   But Doctor record exists with ID: ${id}`);
+      console.error(`   This suggests userId mismatch!`);
+    } else if (doctorByUserId._id.toString() !== id.toString()) {
+      console.error(`❌ WARNING: Doctor ID mismatch!`);
+      console.error(`   Requested ID: ${id}`);
+      console.error(`   Found by userId: ${doctorByUserId._id}`);
+    }
+
     res.json({
       success: true,
       message: "Đã phê duyệt bác sĩ thành công",
       data: {
         doctorId: id,
+        doctorName: finalCheck.fullName,
+        userId: finalCheck.userId,
         isVerified: true,
       },
     });
@@ -1039,12 +1102,11 @@ export const rejectDoctor = async (req, res) => {
 
     // Update User status to 'rejected' (allows re-registration)
     if (doctor.userId) {
-      const user = await User.findByIdAndUpdate(
+      await User.findByIdAndUpdate(
         doctor.userId,
         { status: "rejected" },
         { new: true }
       );
-      console.log(`✅ Updated User ${doctor.userId} status to 'rejected'`);
 
       // Send rejection email (don't block on error)
       try {
@@ -1094,25 +1156,113 @@ export const getAllUsers = async (req, res) => {
       ];
     }
 
+    // Get verified doctors' userIds if we need to filter doctors
+    let verifiedDoctorUserIds = null;
+    let verifiedDoctorUserIdsForQuery = [];
+    if (role === "doctor" || role === "all" || !role) {
+      const verifiedDoctors = await Doctor.find({ isVerified: true })
+        .select("userId")
+        .lean();
+      verifiedDoctorUserIdsForQuery = verifiedDoctors.map((doc) => doc.userId);
+      verifiedDoctorUserIds = new Set(
+        verifiedDoctorUserIdsForQuery.map((id) => id.toString())
+      );
+
+      // If filtering by doctor, only show verified doctors in query
+      if (role === "doctor") {
+        query._id = { $in: verifiedDoctorUserIdsForQuery };
+      }
+    }
+
     const users = await User.find(query)
       .select("fullName email role status createdAt updatedAt")
       .sort({ createdAt: -1 });
 
-    const formattedUsers = users.map((user) => ({
-      id: user._id,
-      name: user.fullName || "Chưa có tên",
-      email: user.email,
-      role: user.role,
-      status:
-        user.status === "active"
-          ? "active"
-          : user.status === "blocked"
-          ? "suspended"
-          : "inactive",
-      joinDate: formatDate(user.createdAt),
-      lastActive: formatDate(user.updatedAt),
-      avatar: null,
-    }));
+    // Filter out unverified doctors if role is "all" or not specified
+    let filteredUsers = users;
+    if ((role === "all" || !role) && verifiedDoctorUserIds) {
+      filteredUsers = users.filter((user) => {
+        // If user is a doctor, only include if verified
+        if (user.role === "doctor") {
+          return verifiedDoctorUserIds.has(user._id.toString());
+        }
+        // Include all non-doctor users
+        return true;
+      });
+    }
+
+    // Fetch avatars for all users in parallel
+    const formattedUsers = await Promise.all(
+      filteredUsers.map(async (user) => {
+        let avatarUrl = null;
+
+        // Fetch avatar based on role
+        if (user.role === "patient") {
+          try {
+            const patient = await Patient.findOne({ userId: user._id })
+              .select("avatarUrl")
+              .lean();
+            avatarUrl = patient?.avatarUrl || null;
+          } catch (error) {
+            console.error(
+              `Error fetching patient avatar for user ${user._id}:`,
+              error
+            );
+          }
+        } else if (user.role === "doctor") {
+          try {
+            const doctor = await Doctor.findOne({ userId: user._id })
+              .select("avatarUrl isActive yearsExperience bio")
+              .lean();
+            avatarUrl = doctor?.avatarUrl || null;
+            // For doctors, check if they can be active (even if isActive = true)
+            // This ensures old doctors without required fields are marked as suspended
+            if (doctor) {
+              const canBeActiveCheck = await checkDoctorCanBeActive(doctor._id);
+              if (!canBeActiveCheck.canBeActive) {
+                user._canBeActive = false; // Flag to indicate doctor cannot be active
+                // Also update the doctor's isActive status in database
+                if (doctor.isActive) {
+                  await Doctor.updateOne(
+                    { _id: doctor._id },
+                    { isActive: false }
+                  );
+                }
+              }
+            }
+          } catch (error) {
+            console.error(
+              `Error fetching doctor avatar for user ${user._id}:`,
+              error
+            );
+          }
+        }
+
+        // Determine status
+        let userStatus;
+        if (user.role === "doctor" && user._canBeActive === false) {
+          // Doctor cannot be active (missing required fields) → show as "suspended" (Tạm khóa)
+          userStatus = "suspended";
+        } else if (user.status === "active") {
+          userStatus = "active";
+        } else if (user.status === "blocked") {
+          userStatus = "suspended";
+        } else {
+          userStatus = "inactive";
+        }
+
+        return {
+          id: user._id,
+          name: user.fullName || "Chưa có tên",
+          email: user.email,
+          role: user.role,
+          status: userStatus,
+          joinDate: formatDate(user.createdAt),
+          lastActive: formatDate(user.updatedAt),
+          avatar: avatarUrl,
+        };
+      })
+    );
 
     res.json({
       success: true,
@@ -1205,23 +1355,45 @@ export const getUserDetails = async (req, res) => {
 
     let roleSpecificData = null;
 
-    // Fetch role-specific data based on user role
+    // Fetch avatar and role-specific data based on user role
+    let avatarUrl = null;
+
     if (user.role === "patient") {
       try {
-        roleSpecificData = await Patient.findOne({ userId: id })
+        const patient = await Patient.findOne({ userId: id })
           .populate("userId", "fullName email phone")
           .select("-__v");
+        if (patient) {
+          roleSpecificData = patient;
+          avatarUrl = patient.avatarUrl || null;
+        }
       } catch (error) {
         console.error("Error fetching patient data:", error);
         // Continue without role-specific data
       }
     } else if (user.role === "doctor") {
       try {
-        roleSpecificData = await Doctor.findOne({ userId: id })
+        const doctor = await Doctor.findOne({ userId: id })
           .populate("userId", "fullName email phone")
           .populate("specializationIds", "name description avatar")
           .populate("clinicDefaultId", "name address")
           .select("-__v");
+        if (doctor) {
+          roleSpecificData = doctor;
+          avatarUrl = doctor.avatarUrl || null;
+
+          // Check if doctor can actually be active (even if isActive = true)
+          // This ensures old doctors without required fields are marked as suspended
+          const canBeActiveCheck = await checkDoctorCanBeActive(doctor._id);
+          if (!canBeActiveCheck.canBeActive) {
+            // Update isActive in database if it's still true
+            if (doctor.isActive) {
+              await Doctor.updateOne({ _id: doctor._id }, { isActive: false });
+              // Update the roleSpecificData to reflect the change
+              roleSpecificData.isActive = false;
+            }
+          }
+        }
       } catch (error) {
         console.error("Error fetching doctor data:", error);
         // Continue without role-specific data
@@ -1231,9 +1403,29 @@ export const getUserDetails = async (req, res) => {
       roleSpecificData = null;
     }
 
-    // Combine user data with role-specific data
+    // Determine final status for response
+    let finalStatus = user.status;
+    if (user.role === "doctor" && roleSpecificData) {
+      // Check if doctor can be active
+      const canBeActiveCheck = await checkDoctorCanBeActive(
+        roleSpecificData._id
+      );
+      if (!canBeActiveCheck.canBeActive || !roleSpecificData.isActive) {
+        finalStatus = "suspended"; // Show as "Tạm khóa" for inactive doctors
+      } else {
+        finalStatus = "active";
+      }
+    } else if (user.status === "active") {
+      finalStatus = "active";
+    } else if (user.status === "blocked") {
+      finalStatus = "suspended";
+    }
+
+    // Combine user data with role-specific data and avatar
     const userDetails = {
       ...user.toObject(),
+      status: finalStatus, // Use the determined status
+      avatar: avatarUrl,
       roleSpecificData: roleSpecificData,
     };
 
@@ -1259,7 +1451,33 @@ export const updateUser = async (req, res) => {
     // Remove password from update data if present
     delete updateData.password;
 
-    const user = await User.findByIdAndUpdate(id, updateData, {
+    // Extract doctor-specific fields
+    const { specializationIds, yearsExperience, bio, clinicDefaultId, status } =
+      updateData;
+
+    // Remove doctor-specific fields from user update data
+    const userUpdateData = { ...updateData };
+    delete userUpdateData.specializationIds;
+    delete userUpdateData.yearsExperience;
+    delete userUpdateData.bio;
+    delete userUpdateData.clinicDefaultId;
+
+    // Handle status field: "suspended" is only for display (doctor isActive = false)
+    // User model only accepts: "active", "blocked", "pending", "rejected"
+    if (status === "suspended") {
+      // For doctors, "suspended" means isActive = false in Doctor model
+      // User status should remain "active" but Doctor.isActive controls visibility
+      // So we don't update User.status if it's "suspended"
+      delete userUpdateData.status;
+    } else if (
+      status &&
+      !["active", "blocked", "pending", "rejected"].includes(status)
+    ) {
+      // Invalid status value, remove it
+      delete userUpdateData.status;
+    }
+
+    const user = await User.findByIdAndUpdate(id, userUpdateData, {
       new: true,
       runValidators: true,
     }).select("-password");
@@ -1271,6 +1489,82 @@ export const updateUser = async (req, res) => {
       });
     }
 
+    // If user is a doctor, update doctor profile
+    if (user.role === "doctor") {
+      const doctorUpdateData = {};
+
+      if (specializationIds !== undefined) {
+        // Handle both array and single value, filter out invalid values
+        if (Array.isArray(specializationIds)) {
+          doctorUpdateData.specializationIds = specializationIds.filter(
+            (id) => id != null && id !== ""
+          );
+        } else if (specializationIds != null && specializationIds !== "") {
+          doctorUpdateData.specializationIds = [specializationIds];
+        } else {
+          doctorUpdateData.specializationIds = [];
+        }
+      }
+      if (yearsExperience !== undefined && yearsExperience !== null) {
+        const parsed = parseInt(yearsExperience);
+        doctorUpdateData.yearsExperience = isNaN(parsed) ? 0 : parsed;
+      }
+      if (bio !== undefined) {
+        doctorUpdateData.bio = bio || "";
+      }
+      if (clinicDefaultId !== undefined) {
+        doctorUpdateData.clinicDefaultId =
+          clinicDefaultId && clinicDefaultId !== "" ? clinicDefaultId : null;
+      }
+
+      if (Object.keys(doctorUpdateData).length > 0) {
+        try {
+          const doctor = await Doctor.findOneAndUpdate(
+            { userId: id },
+            doctorUpdateData,
+            { new: true, runValidators: true }
+          );
+
+          if (!doctor) {
+            console.warn(
+              `Doctor profile not found for user ${id}, but user update succeeded`
+            );
+          } else {
+            // If doctor is verified but not active, check if they can now be active
+            // (manager might have just filled in required fields: yearsExperience, bio)
+            if (doctor.isVerified && !doctor.isActive) {
+              try {
+                const activeCheck = await checkDoctorCanBeActive(doctor._id);
+                if (activeCheck.canBeActive) {
+                  doctor.isActive = true;
+                  await doctor.save();
+                }
+              } catch (activeCheckError) {
+                console.error(
+                  "Error checking if doctor can be active:",
+                  activeCheckError
+                );
+                // Don't fail the update if active check fails, just log it
+              }
+            }
+          }
+        } catch (doctorUpdateError) {
+          console.error("Error updating doctor profile:", doctorUpdateError);
+          console.error("Doctor update error details:", {
+            message: doctorUpdateError.message,
+            name: doctorUpdateError.name,
+            code: doctorUpdateError.code,
+            errors: doctorUpdateError.errors,
+          });
+          // If doctor update fails, still allow user update to succeed
+          // But log the error for debugging
+          throw new Error(
+            `Không thể cập nhật thông tin bác sĩ: ${doctorUpdateError.message}`
+          );
+        }
+      }
+    }
+
     res.json({
       success: true,
       message: "Cập nhật thông tin người dùng thành công",
@@ -1278,9 +1572,16 @@ export const updateUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating user:", error);
+    console.error("Error stack:", error.stack);
+    console.error("Error details:", {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+    });
     res.status(500).json({
       success: false,
       message: "Lỗi khi cập nhật thông tin người dùng",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -1332,8 +1633,8 @@ export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findByIdAndDelete(id);
-
+    // Find user first to check role before deleting
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -1341,9 +1642,105 @@ export const deleteUser = async (req, res) => {
       });
     }
 
+    // Cascade delete based on role
+    if (user.role === "doctor") {
+      // Find doctor record
+      const doctor = await Doctor.findOne({ userId: id });
+
+      if (doctor) {
+        const doctorId = doctor._id;
+
+        // Step 1: Get all appointments for this doctor first
+        const appointments = await Appointment.find({ doctorId });
+        const appointmentIds = appointments.map((a) => a._id);
+
+        // Step 2: Delete records linked to appointments
+        if (appointmentIds.length > 0) {
+          await Promise.all([
+            Prescription.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            ConsultationAdvice.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            ConsultationSummary.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            VideoCall.deleteMany({ appointmentId: { $in: appointmentIds } }),
+          ]);
+        }
+
+        // Step 3: Delete doctor-specific records and appointments
+        await Promise.all([
+          // Delete doctor-specific records
+          DoctorRate.deleteMany({ doctorId }),
+          DoctorScheduleRule.deleteMany({ doctorId }),
+          DoctorTimeSlot.deleteMany({ doctorId }),
+
+          // Delete reviews
+          Review.deleteMany({ doctorId }),
+
+          // Delete all appointments
+          Appointment.deleteMany({ doctorId }),
+
+          // Finally, delete doctor record
+          Doctor.findByIdAndDelete(doctorId),
+        ]);
+      }
+    } else if (user.role === "patient") {
+      // Find patient record
+      const patient = await Patient.findOne({ userId: id });
+
+      if (patient) {
+        const patientId = patient._id;
+
+        // Step 1: Get all appointments for this patient first
+        const appointments = await Appointment.find({ patientId });
+        const appointmentIds = appointments.map((a) => a._id);
+
+        // Step 2: Delete records linked to appointments
+        if (appointmentIds.length > 0) {
+          await Promise.all([
+            Prescription.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            ConsultationAdvice.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            ConsultationSummary.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            VideoCall.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            Payment.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            RescheduleRequest.deleteMany({
+              originalAppointmentId: { $in: appointmentIds },
+            }),
+          ]);
+        }
+
+        // Step 3: Delete patient-specific records
+        await Promise.all([
+          // Delete patient-specific records
+          PatientFavorite.deleteMany({ patientId }),
+          Review.deleteMany({ patientId }),
+
+          // Delete all appointments
+          Appointment.deleteMany({ patientId }),
+
+          // Delete notifications for this user
+          Notification.deleteMany({ userId: id }),
+
+          // Finally, delete patient record
+          Patient.findByIdAndDelete(patientId),
+        ]);
+      } else {
+        // If no patient record found, just delete notifications
+        await Notification.deleteMany({ userId: id });
+      }
+    }
+
+    // Finally, delete user
+    await User.findByIdAndDelete(id);
+
     res.json({
       success: true,
-      message: "Đã xóa người dùng",
+      message: "Đã xóa người dùng và tất cả dữ liệu liên quan",
     });
   } catch (error) {
     console.error("Error deleting user:", error);
@@ -1851,7 +2248,6 @@ export const deleteAppointment = async (req, res) => {
  */
 export const cleanupUnpaidAppointments = async (req, res) => {
   try {
-    console.log("🔄 Manual cleanup triggered by admin");
     const result = await runCleanupNow();
 
     res.json({
@@ -1876,57 +2272,57 @@ export const cleanupUnpaidAppointments = async (req, res) => {
 function getDateRange(period, req = null) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  
+
   let startDate, endDate;
-  
+
   switch (period) {
-    case 'today':
+    case "today":
       startDate = new Date(today);
       endDate = new Date(now);
       break;
-    case 'thisWeek':
+    case "thisWeek":
       startDate = new Date(today);
       startDate.setDate(today.getDate() - today.getDay());
       endDate = new Date(now);
       break;
-    case 'thisMonth':
+    case "thisMonth":
       startDate = new Date(today.getFullYear(), today.getMonth(), 1);
       endDate = new Date(now);
       break;
-    case 'threeMonths':
+    case "threeMonths":
       startDate = new Date(today);
       startDate.setMonth(today.getMonth() - 3);
       endDate = new Date(now);
       break;
-    case 'thisYear':
+    case "thisYear":
       startDate = new Date(today.getFullYear(), 0, 1);
       endDate = new Date(now);
       break;
-    case '24hours':
+    case "24hours":
       startDate = new Date(now);
       startDate.setHours(startDate.getHours() - 24);
       endDate = new Date(now);
       break;
-    case '7days':
+    case "7days":
       startDate = new Date(today);
       startDate.setDate(startDate.getDate() - 7);
       endDate = new Date(now);
       break;
-    case '30days':
+    case "30days":
       startDate = new Date(today);
       startDate.setDate(startDate.getDate() - 30);
       endDate = new Date(now);
       break;
-    case '1year':
+    case "1year":
       startDate = new Date(today);
       startDate.setFullYear(startDate.getFullYear() - 1);
       endDate = new Date(now);
       break;
-    case 'all':
+    case "all":
       startDate = new Date(0); // Beginning of time
       endDate = new Date(now);
       break;
-    case 'custom':
+    case "custom":
       // Custom date range will be passed via query params
       if (req && req.query.startDate && req.query.endDate) {
         startDate = new Date(req.query.startDate);
@@ -1942,7 +2338,7 @@ function getDateRange(period, req = null) {
       startDate = new Date(today);
       endDate = new Date(now);
   }
-  
+
   return { startDate, endDate };
 }
 
@@ -1952,10 +2348,14 @@ function getDateRange(period, req = null) {
  */
 export const getPaymentRevenueStats = async (req, res) => {
   try {
-    const { period = 'today', startDate: startDateParam, endDate: endDateParam } = req.query;
+    const {
+      period = "today",
+      startDate: startDateParam,
+      endDate: endDateParam,
+    } = req.query;
     let startDate, endDate;
-    
-    if (period === 'custom' && startDateParam && endDateParam) {
+
+    if (period === "custom" && startDateParam && endDateParam) {
       startDate = new Date(startDateParam);
       startDate.setHours(0, 0, 0, 0);
       endDate = new Date(endDateParam);
@@ -1965,126 +2365,163 @@ export const getPaymentRevenueStats = async (req, res) => {
       startDate = range.startDate;
       endDate = range.endDate;
     }
-    
+
     // Get current period payments
     const currentPayments = await Payment.find({
-      status: { $in: ['captured', 'authorized'] },
-      createdAt: { $gte: startDate, $lte: endDate }
-    }).populate('appointmentId');
-    
+      status: { $in: ["captured", "authorized"] },
+      createdAt: { $gte: startDate, $lte: endDate },
+    }).populate("appointmentId");
+
     // Calculate previous period for comparison
     const previousPeriodStart = new Date(startDate);
     const previousPeriodEnd = new Date(endDate);
     const periodDiff = endDate - startDate;
-    
+
     previousPeriodStart.setTime(previousPeriodStart.getTime() - periodDiff - 1);
     previousPeriodEnd.setTime(previousPeriodEnd.getTime() - periodDiff - 1);
-    
+
     const previousPayments = await Payment.find({
-      status: { $in: ['captured', 'authorized'] },
-      createdAt: { $gte: previousPeriodStart, $lte: previousPeriodEnd }
+      status: { $in: ["captured", "authorized"] },
+      createdAt: { $gte: previousPeriodStart, $lte: previousPeriodEnd },
     });
-    
+
     // Calculate total revenue
     const totalRevenue = currentPayments.reduce((sum, payment) => {
       return sum + (payment.total - (payment.refundAmount || 0));
     }, 0);
-    
+
     const previousRevenue = previousPayments.reduce((sum, payment) => {
       return sum + (payment.total - (payment.refundAmount || 0));
     }, 0);
-    
+
     // Calculate revenue change percentage
-    const revenueChange = previousRevenue > 0 
-      ? Math.round(((totalRevenue - previousRevenue) / previousRevenue) * 100)
-      : (totalRevenue > 0 ? 100 : 0);
-    
+    const revenueChange =
+      previousRevenue > 0
+        ? Math.round(((totalRevenue - previousRevenue) / previousRevenue) * 100)
+        : totalRevenue > 0
+        ? 100
+        : 0;
+
     // Count completed orders (payments)
     const totalCompletedOrders = currentPayments.length;
     const previousCompletedOrders = previousPayments.length;
-    
-    const ordersChange = previousCompletedOrders > 0
-      ? Math.round(((totalCompletedOrders - previousCompletedOrders) / previousCompletedOrders) * 100)
-      : (totalCompletedOrders > 0 ? 100 : 0);
-    
+
+    const ordersChange =
+      previousCompletedOrders > 0
+        ? Math.round(
+            ((totalCompletedOrders - previousCompletedOrders) /
+              previousCompletedOrders) *
+              100
+          )
+        : totalCompletedOrders > 0
+        ? 100
+        : 0;
+
     // Revenue by payment channel
     const revenueByChannel = {};
-    currentPayments.forEach(payment => {
-      const channelName = payment.gateway || 'MedConnect';
+    currentPayments.forEach((payment) => {
+      const channelName = payment.gateway || "MedConnect";
       if (!revenueByChannel[channelName]) {
         revenueByChannel[channelName] = 0;
       }
-      revenueByChannel[channelName] += payment.total - (payment.refundAmount || 0);
+      revenueByChannel[channelName] +=
+        payment.total - (payment.refundAmount || 0);
     });
-    
-    const revenueByChannelArray = Object.entries(revenueByChannel).map(([name, amount]) => ({
-      name,
-      amount
-    }));
-    
+
+    const revenueByChannelArray = Object.entries(revenueByChannel).map(
+      ([name, amount]) => ({
+        name,
+        amount,
+      })
+    );
+
     // Order status statistics
     const allPayments = await Payment.find({
-      createdAt: { $gte: startDate, $lte: endDate }
+      createdAt: { $gte: startDate, $lte: endDate },
     });
-    
-    const paidCount = allPayments.filter(p => ['captured', 'authorized'].includes(p.status)).length;
-    const cancelledCount = allPayments.filter(p => ['cancelled', 'voided', 'failed'].includes(p.status)).length;
-    
+
+    const paidCount = allPayments.filter((p) =>
+      ["captured", "authorized"].includes(p.status)
+    ).length;
+    const cancelledCount = allPayments.filter((p) =>
+      ["cancelled", "voided", "failed"].includes(p.status)
+    ).length;
+
     // Revenue trend (hourly for today/yesterday, monthly for 3 months, daily for others)
     let revenueTrend = [];
-    if (period === 'today' || period === 'yesterday' || period === '24hours') {
+    if (period === "today" || period === "yesterday" || period === "24hours") {
       // Hourly trend
       for (let hour = 0; hour < 24; hour++) {
         const hourStart = new Date(startDate);
         hourStart.setHours(hour, 0, 0, 0);
         const hourEnd = new Date(startDate);
         hourEnd.setHours(hour, 59, 59, 999);
-        
-        const hourPayments = currentPayments.filter(p => {
+
+        const hourPayments = currentPayments.filter((p) => {
           const paymentDate = new Date(p.createdAt);
           return paymentDate >= hourStart && paymentDate <= hourEnd;
         });
-        
-        const hourRevenue = hourPayments.reduce((sum, p) => sum + (p.total - (p.refundAmount || 0)), 0);
+
+        const hourRevenue = hourPayments.reduce(
+          (sum, p) => sum + (p.total - (p.refundAmount || 0)),
+          0
+        );
         const hourTransactionCount = hourPayments.length;
-        
-        const dateStr = `${(startDate.getMonth() + 1).toString().padStart(2, '0')}-${startDate.getDate().toString().padStart(2, '0')}`;
+
+        const dateStr = `${(startDate.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}-${startDate
+          .getDate()
+          .toString()
+          .padStart(2, "0")}`;
         revenueTrend.push({
-          label: `Th${dateStr} ${hour.toString().padStart(2, '0')}`,
+          label: `Th${dateStr} ${hour.toString().padStart(2, "0")}`,
           amount: hourRevenue,
-          transactionCount: hourTransactionCount
+          transactionCount: hourTransactionCount,
         });
       }
-    } else if (period === 'threeMonths') {
+    } else if (period === "threeMonths") {
       // Monthly trend for 3-month period
       const monthlyRevenue = {};
-      currentPayments.forEach(payment => {
+      currentPayments.forEach((payment) => {
         const paymentDate = new Date(payment.createdAt);
-        const monthKey = `${paymentDate.getFullYear()}-${(paymentDate.getMonth() + 1).toString().padStart(2, '0')}`;
-        
+        const monthKey = `${paymentDate.getFullYear()}-${(
+          paymentDate.getMonth() + 1
+        )
+          .toString()
+          .padStart(2, "0")}`;
+
         if (!monthlyRevenue[monthKey]) {
           monthlyRevenue[monthKey] = {
             amount: 0,
-            transactionCount: 0
+            transactionCount: 0,
           };
         }
-        
-        monthlyRevenue[monthKey].amount += payment.total - (payment.refundAmount || 0);
+
+        monthlyRevenue[monthKey].amount +=
+          payment.total - (payment.refundAmount || 0);
         monthlyRevenue[monthKey].transactionCount += 1;
       });
-      
+
       // Generate all months in the range, even if no revenue
       const currentMonth = new Date(startDate);
       while (currentMonth <= endDate) {
-        const monthKey = `${currentMonth.getFullYear()}-${(currentMonth.getMonth() + 1).toString().padStart(2, '0')}`;
-        const monthData = monthlyRevenue[monthKey] || { amount: 0, transactionCount: 0 };
-        
+        const monthKey = `${currentMonth.getFullYear()}-${(
+          currentMonth.getMonth() + 1
+        )
+          .toString()
+          .padStart(2, "0")}`;
+        const monthData = monthlyRevenue[monthKey] || {
+          amount: 0,
+          transactionCount: 0,
+        };
+
         revenueTrend.push({
           label: `Th${currentMonth.getMonth() + 1}`,
           amount: monthData.amount,
-          transactionCount: monthData.transactionCount
+          transactionCount: monthData.transactionCount,
         });
-        
+
         // Move to next month
         currentMonth.setMonth(currentMonth.getMonth() + 1);
       }
@@ -2096,27 +2533,32 @@ export const getPaymentRevenueStats = async (req, res) => {
         dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(currentDate);
         dayEnd.setHours(23, 59, 59, 999);
-        
-        const dayPayments = currentPayments.filter(p => {
+
+        const dayPayments = currentPayments.filter((p) => {
           const paymentDate = new Date(p.createdAt);
           return paymentDate >= dayStart && paymentDate <= dayEnd;
         });
-        
-        const dayRevenue = dayPayments.reduce((sum, p) => sum + (p.total - (p.refundAmount || 0)), 0);
+
+        const dayRevenue = dayPayments.reduce(
+          (sum, p) => sum + (p.total - (p.refundAmount || 0)),
+          0
+        );
         const dayTransactionCount = dayPayments.length;
-        
-        const dateStr = `${(dayStart.getMonth() + 1).toString().padStart(2, '0')}-${dayStart.getDate().toString().padStart(2, '0')}`;
+
+        const dateStr = `${(dayStart.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}-${dayStart.getDate().toString().padStart(2, "0")}`;
         // Format: Th10-30 (without day of week here, will be added in frontend)
         revenueTrend.push({
           label: `Th${dateStr}`,
           amount: dayRevenue,
-          transactionCount: dayTransactionCount
+          transactionCount: dayTransactionCount,
         });
-        
+
         currentDate.setDate(currentDate.getDate() + 1);
       }
     }
-    
+
     res.json({
       success: true,
       data: {
@@ -2128,17 +2570,17 @@ export const getPaymentRevenueStats = async (req, res) => {
         orderStatus: {
           paid: paidCount,
           cancelled: cancelledCount,
-          total: allPayments.length
+          total: allPayments.length,
         },
         revenueTrend,
-        totalTransactions: currentPayments.length
-      }
+        totalTransactions: currentPayments.length,
+      },
     });
   } catch (error) {
-    console.error('Error fetching payment revenue stats:', error);
+    console.error("Error fetching payment revenue stats:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải thống kê doanh thu'
+      message: "Lỗi khi tải thống kê doanh thu",
     });
   }
 };
@@ -2149,10 +2591,14 @@ export const getPaymentRevenueStats = async (req, res) => {
  */
 export const getAdminInvoices = async (req, res) => {
   try {
-    const { period = 'today', startDate: startDateParam, endDate: endDateParam } = req.query;
+    const {
+      period = "today",
+      startDate: startDateParam,
+      endDate: endDateParam,
+    } = req.query;
     let startDate, endDate;
-    
-    if (period === 'custom' && startDateParam && endDateParam) {
+
+    if (period === "custom" && startDateParam && endDateParam) {
       startDate = new Date(startDateParam);
       startDate.setHours(0, 0, 0, 0);
       endDate = new Date(endDateParam);
@@ -2162,18 +2608,18 @@ export const getAdminInvoices = async (req, res) => {
       startDate = range.startDate;
       endDate = range.endDate;
     }
-    
+
     // Get payments for the selected period, sorted by latest first
     const payments = await Payment.find({
-      createdAt: { $gte: startDate, $lte: endDate }
+      createdAt: { $gte: startDate, $lte: endDate },
     })
-      .populate('appointmentId', 'scheduledStart status')
-      .populate('billTo.patientId', 'fullName')
-      .populate('billFrom.doctorId', 'fullName')
+      .populate("appointmentId", "scheduledStart status")
+      .populate("billTo.patientId", "fullName")
+      .populate("billFrom.doctorId", "fullName")
       .sort({ createdAt: -1 })
       .limit(100); // Limit to latest 100 invoices
-    
-    const formattedInvoices = payments.map(payment => ({
+
+    const formattedInvoices = payments.map((payment) => ({
       _id: payment._id,
       invoiceNumber: payment.invoiceNumber,
       orderCode: payment.orderCode,
@@ -2189,18 +2635,18 @@ export const getAdminInvoices = async (req, res) => {
       refundAmount: payment.refundAmount || 0,
       paidAt: payment.paidAt || payment.capturedAt || payment.createdAt,
       createdAt: payment.createdAt,
-      currency: payment.currency || 'VND'
+      currency: payment.currency || "VND",
     }));
-    
+
     res.json({
       success: true,
-      data: formattedInvoices
+      data: formattedInvoices,
     });
   } catch (error) {
-    console.error('Error fetching invoices:', error);
+    console.error("Error fetching invoices:", error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh sách hóa đơn'
+      message: "Lỗi khi tải danh sách hóa đơn",
     });
   }
 };
@@ -2562,6 +3008,114 @@ export const getStatistics = async (req, res) => {
       ? Math.round((offlineCount / totalAppointmentsInPeriod) * 100)
       : 0;
 
+    // 9. Revenue Trend (Daily for week/month/year, hourly for today)
+    const revenueTrend = [];
+    const periodDurationMs = endDate - startDate;
+    const daysDiff = Math.ceil(periodDurationMs / (1000 * 60 * 60 * 24));
+    
+    if (originalPeriod === 'today') {
+      // Hourly trend for today
+      for (let hour = 0; hour < 24; hour++) {
+        const hourStart = new Date(startDate);
+        hourStart.setHours(hour, 0, 0, 0);
+        const hourEnd = new Date(startDate);
+        hourEnd.setHours(hour, 59, 59, 999);
+        
+        const hourPayments = await Payment.find({
+          status: { $in: ['captured', 'authorized'] },
+          createdAt: { $gte: hourStart, $lte: hourEnd }
+        }).populate('appointmentId', 'mode');
+        
+        let onlineRevenue = 0;
+        let offlineRevenue = 0;
+        
+        hourPayments.forEach(payment => {
+          const netAmount = payment.total - (payment.refundAmount || 0);
+          if (payment.appointmentId?.mode === 'online') {
+            onlineRevenue += netAmount;
+          } else if (payment.appointmentId?.mode === 'offline') {
+            offlineRevenue += netAmount;
+          }
+        });
+        
+        revenueTrend.push({
+          date: `${hour.toString().padStart(2, '0')}:00`,
+          online: onlineRevenue,
+          offline: offlineRevenue,
+          total: onlineRevenue + offlineRevenue
+        });
+      }
+    } else if (daysDiff <= 7) {
+      // Daily trend for week
+      const currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const dayStart = new Date(currentDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(currentDate);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        const dayPayments = await Payment.find({
+          status: { $in: ['captured', 'authorized'] },
+          createdAt: { $gte: dayStart, $lte: dayEnd }
+        }).populate('appointmentId', 'mode');
+        
+        let onlineRevenue = 0;
+        let offlineRevenue = 0;
+        
+        dayPayments.forEach(payment => {
+          const netAmount = payment.total - (payment.refundAmount || 0);
+          if (payment.appointmentId?.mode === 'online') {
+            onlineRevenue += netAmount;
+          } else if (payment.appointmentId?.mode === 'offline') {
+            offlineRevenue += netAmount;
+          }
+        });
+        
+        const dateStr = `${currentDate.getDate().toString().padStart(2, '0')}/${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`;
+        revenueTrend.push({
+          date: dateStr,
+          online: onlineRevenue,
+          offline: offlineRevenue,
+          total: onlineRevenue + offlineRevenue
+        });
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    } else {
+      // Monthly trend for month/year
+      const currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+        
+        const monthPayments = await Payment.find({
+          status: { $in: ['captured', 'authorized'] },
+          createdAt: { $gte: monthStart, $lte: monthEnd }
+        }).populate('appointmentId', 'mode');
+        
+        let onlineRevenue = 0;
+        let offlineRevenue = 0;
+        
+        monthPayments.forEach(payment => {
+          const netAmount = payment.total - (payment.refundAmount || 0);
+          if (payment.appointmentId?.mode === 'online') {
+            onlineRevenue += netAmount;
+          } else if (payment.appointmentId?.mode === 'offline') {
+            offlineRevenue += netAmount;
+          }
+        });
+        
+        revenueTrend.push({
+          date: `Th${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`,
+          online: onlineRevenue,
+          offline: offlineRevenue,
+          total: onlineRevenue + offlineRevenue
+        });
+        
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+    }
+
     const statistics = {
       totalDoctors: {
         value: totalDoctors,
@@ -2615,7 +3169,8 @@ export const getStatistics = async (req, res) => {
         online: onlinePercent,
         offline: offlinePercent,
         total: totalAppointmentsInPeriod
-      }
+      },
+      revenueTrend: revenueTrend
     };
 
     res.json({

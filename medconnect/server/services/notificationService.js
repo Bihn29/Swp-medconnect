@@ -285,8 +285,11 @@ export async function createAppointmentNotification(
 
 /**
  * Create notification for new appointment booking
+ * @param {string} appointmentId - The appointment ID
+ * @param {object} options - Additional options
+ * @param {boolean} options.createdByManager - Whether appointment was created by manager
  */
-export async function createBookingNotification(appointmentId) {
+export async function createBookingNotification(appointmentId, options = {}) {
   try {
     const appointment = await Appointment.findById(appointmentId)
       .populate("patientId", "userId fullName")
@@ -317,11 +320,18 @@ export async function createBookingNotification(appointmentId) {
 
     // Notify doctor about new appointment request
     if (doctorUser) {
+      const title = options.createdByManager
+        ? "Có lịch hẹn mới (Quản lý tạo)"
+        : "Có lịch hẹn mới";
+      const message = options.createdByManager
+        ? `Quản lý đã tạo lịch hẹn khám cho bệnh nhân ${patientName} vào ${appointmentTime}. Vui lòng xác nhận hoặc từ chối.`
+        : `Bệnh nhân ${patientName} đã đặt lịch hẹn khám vào ${appointmentTime}. Vui lòng xác nhận hoặc từ chối.`;
+
       const notification = await Notification.create({
         userId: doctorUser._id,
         type: "appointment",
-        title: "Có lịch hẹn mới",
-        message: `Bệnh nhân ${patientName} đã đặt lịch hẹn khám vào ${appointmentTime}. Vui lòng xác nhận hoặc từ chối.`,
+        title,
+        message,
         priority: "high",
         relatedId: appointmentId,
         relatedType: "appointment",
@@ -330,6 +340,7 @@ export async function createBookingNotification(appointmentId) {
           patientName,
           appointmentTime,
           status: "pending_confirmation",
+          createdByManager: options.createdByManager || false,
         },
       });
 

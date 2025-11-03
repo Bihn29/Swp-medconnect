@@ -5,9 +5,64 @@ import Appointment from "../models/appointment.model.js";
 import Patient from "../models/patient.model.js";
 import User from "../models/user.model.js";
 import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
-import { createAppointmentNotification } from "../services/notificationService.js";
+import DoctorRate from "../models/doctor_rates.model.js";
+import Clinic from "../models/clinic.model.js";
+import {
+  createAppointmentNotification,
+  createBookingNotification,
+} from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
+
+/**
+ * Check if doctor has all required information to be active
+ * Required fields: yearsExperience > 0, bio (non-empty), and at least one DoctorRate
+ */
+async function checkDoctorCanBeActive(doctorId) {
+  try {
+    const doctor = await Doctor.findById(doctorId).lean();
+    if (!doctor) {
+      return { canBeActive: false, reason: "Doctor not found" };
+    }
+
+    // Check yearsExperience
+    if (!doctor.yearsExperience || doctor.yearsExperience <= 0) {
+      return {
+        canBeActive: false,
+        reason: "Số năm kinh nghiệm chưa được điền hoặc bằng 0",
+      };
+    }
+
+    // Check bio
+    if (!doctor.bio || doctor.bio.trim().length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Lời giới thiệu chưa được điền",
+      };
+    }
+
+    // Check if doctor has at least one active DoctorRate
+    const doctorRates = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    }).lean();
+
+    if (!doctorRates || doctorRates.length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+      };
+    }
+
+    return { canBeActive: true };
+  } catch (error) {
+    console.error("Error checking doctor can be active:", error);
+    return {
+      canBeActive: false,
+      reason: "Lỗi khi kiểm tra thông tin bác sĩ",
+    };
+  }
+}
 
 /**
  * Get all doctors for manager to select
@@ -42,8 +97,9 @@ export async function getAllDoctorsForManager(req, res) {
     const doctors = await Doctor.find(filter)
       .populate("userId", "fullName email phone")
       .populate("specializationIds", "name")
+      .populate("clinicDefaultId", "name address phone")
       .select(
-        "fullName avatarUrl specializationIds ratingAvg ratingCount isVerified"
+        "fullName avatarUrl specializationIds ratingAvg ratingCount isVerified clinicDefaultId"
       )
       .sort({ fullName: 1 })
       .lean();
@@ -313,6 +369,83 @@ export async function getAppointmentDetailForManager(req, res) {
 }
 
 /**
+ * Get all patients for manager to select when booking appointments
+ */
+export async function getAllPatientsForManager(req, res) {
+  try {
+    const { search, page = 1, limit = 50 } = req.query;
+
+    // Build query
+    let query = {};
+    if (search) {
+      query.$or = [
+        { fullName: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get patients with populated user info, filter only users with role='patient'
+    const patients = await Patient.find(query)
+      .populate({
+        path: "userId",
+        select: "email status role createdAt",
+        match: { role: "patient" },
+      })
+      .select("fullName phone email dob gender avatarUrl createdAt updatedAt")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    // Filter out patients where userId is null (due to role filter)
+    const validPatients = patients.filter(
+      (p) => p.userId && p.userId.role === "patient"
+    );
+
+    // Get total count - need to count only patients with role='patient'
+    const patientUserIds = await User.find({ role: "patient" })
+      .select("_id")
+      .lean();
+    const patientIds = patientUserIds.map((u) => u._id);
+    const countQuery = { ...query, userId: { $in: patientIds } };
+    const total = await Patient.countDocuments(countQuery);
+
+    // Format response
+    const formattedPatients = validPatients.map((patient) => ({
+      _id: patient._id,
+      id: patient._id,
+      userId: patient.userId?._id,
+      fullName: patient.fullName,
+      phone: patient.phone,
+      email: patient.email || patient.userId?.email,
+      dob: patient.dob,
+      gender: patient.gender,
+      avatarUrl: patient.avatarUrl,
+      status: patient.userId?.status || "active",
+      createdAt: patient.createdAt,
+      updatedAt: patient.updatedAt,
+    }));
+
+    return ok(res, {
+      patients: formattedPatients,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching patients for manager:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
  * Create appointment by manager (for any doctor)
  */
 export async function createAppointmentByManager(req, res) {
@@ -320,23 +453,22 @@ export async function createAppointmentByManager(req, res) {
     const {
       doctorId,
       slotId,
-      patientName,
-      patientPhone,
+      patientId, // New: patient ID if selecting from existing patients
+      patientName, // For new patient
+      patientPhone, // For new patient
+      dob, // Date of birth for new patient
+      gender, // Gender for new patient
+      citizenId, // Citizen ID for new patient
+      address, // Address for new patient
+      allergyNotes, // Allergy notes for new patient
       reason,
       mode,
+      clinicId, // Clinic ID for offline mode
       scheduledStart,
       scheduledEnd,
     } = req.body;
 
-    if (
-      !doctorId ||
-      !patientName ||
-      !patientPhone ||
-      !reason ||
-      !mode ||
-      !scheduledStart ||
-      !scheduledEnd
-    ) {
+    if (!doctorId || !reason || !mode || !scheduledStart || !scheduledEnd) {
       return fail(
         res,
         400,
@@ -351,47 +483,288 @@ export async function createAppointmentByManager(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
     }
 
-    // Find or create patient
-    let patient = await Patient.findOne({ phone: patientPhone });
-    if (!patient) {
-      // Create a basic patient profile
-      const user = await User.findOne({ phone: patientPhone });
-      let userId = user?._id;
+    // Find patient - prioritize patientId, fallback to patientName/patientPhone
+    let patient = null;
 
-      if (!userId) {
-        // Create a basic user account
-        const newUser = new User({
-          phone: patientPhone,
-          fullName: patientName,
-          role: "patient",
-          status: "active",
+    if (patientId) {
+      // Use existing patient by ID
+      patient = await Patient.findById(patientId);
+      if (!patient) {
+        return fail(res, 404, ERROR_CODES.NOT_FOUND, "Patient not found");
+      }
+    } else if (patientPhone && patientName) {
+      // Create new patient with full information
+      console.log("🔍 [Manager] Creating new patient with data:", {
+        patientName,
+        patientPhone,
+        dob,
+        gender,
+        citizenId,
+        address,
+        hasAllergyNotes: !!allergyNotes,
+      });
+
+      // Validate required fields for new patient
+      if (!dob || !gender || !citizenId || !address) {
+        console.error("❌ [Manager] Missing required patient information:", {
+          hasDob: !!dob,
+          hasGender: !!gender,
+          hasCitizenId: !!citizenId,
+          hasAddress: !!address,
         });
-        await newUser.save();
-        userId = newUser._id;
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Missing required patient information: dob, gender, citizenId, address are required for new patients"
+        );
       }
 
+      // Find existing User by phone, or create minimal User if not found
+      let user = await User.findOne({ phone: patientPhone });
+      let userId;
+
+      if (!user) {
+        // Create minimal User for the patient (required by Patient model)
+        console.log(
+          "🔍 [Manager] User not found, creating minimal User for patient"
+        );
+        try {
+          // Generate a unique email
+          const baseEmail = `${patientPhone}@patient.medconnect.local`;
+          let finalEmail = baseEmail;
+          let emailExists = await User.findOne({ email: finalEmail });
+          let counter = 1;
+          while (emailExists) {
+            finalEmail = `${patientPhone}_${Date.now()}_${counter}@patient.medconnect.local`;
+            emailExists = await User.findOne({ email: finalEmail });
+            counter++;
+          }
+
+          // Create minimal User (no password required for phone auth)
+          user = new User({
+            phone: patientPhone,
+            email: finalEmail,
+            fullName: patientName,
+            role: "patient",
+            status: "active",
+            authProvider: "phone", // Set to "phone" so passwordHash is not required
+          });
+          await user.save();
+          userId = user._id;
+          console.log("✅ [Manager] Created minimal User:", userId);
+        } catch (userError) {
+          // Handle duplicate key error (race condition)
+          if (userError.code === 11000) {
+            console.log(
+              "⚠️ [Manager] Duplicate key error, finding existing user"
+            );
+            user = await User.findOne({ phone: patientPhone });
+            if (user) {
+              userId = user._id;
+              console.log(
+                "✅ [Manager] Found existing User after error:",
+                userId
+              );
+            } else {
+              console.error("❌ [Manager] Error creating User:", userError);
+              throw userError;
+            }
+          } else {
+            console.error("❌ [Manager] Error creating User:", userError);
+            throw userError;
+          }
+        }
+      } else {
+        userId = user._id;
+        console.log("✅ [Manager] Found existing User:", userId);
+      }
+
+      // Validate DOB format
+      let dobDate;
+      try {
+        dobDate = new Date(dob);
+        if (isNaN(dobDate.getTime())) {
+          console.error("❌ [Manager] Invalid DOB format:", dob);
+          return fail(
+            res,
+            400,
+            ERROR_CODES.INVALID_INPUT,
+            "Invalid date of birth format"
+          );
+        }
+      } catch (error) {
+        console.error("❌ [Manager] Error parsing DOB:", error, dob);
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Invalid date of birth format"
+        );
+      }
+
+      // Always create new patient (even if one exists with same phone)
+      console.log("🔍 [Manager] Creating new Patient");
       patient = new Patient({
         userId,
         fullName: patientName,
         phone: patientPhone,
-        isProfileComplete: false,
+        dob: dobDate,
+        gender: gender,
+        citizenId: citizenId,
+        address: address,
+        allergyNotes: allergyNotes || "",
+        isProfileComplete: true, // Mark as complete since we have all required fields
       });
       await patient.save();
+      console.log("✅ [Manager] Created new Patient:", patient._id);
+    } else {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Either patientId or patientName+patientPhone with full information must be provided"
+      );
     }
 
     // Create appointment (similar to doctor's createAppointmentByDoctor)
+    console.log("🔍 [Manager] Creating appointment with data:", {
+      patientId: patient._id,
+      doctorId: doctor._id,
+      slotId: slotId || null,
+      mode,
+      scheduledStart,
+      scheduledEnd,
+      reason,
+      clinicId: mode === "offline" ? clinicId : null,
+    });
+
+    // Validate scheduled dates
+    let scheduledStartDate, scheduledEndDate;
+    try {
+      if (!scheduledStart || !scheduledEnd) {
+        console.error("❌ [Manager] Missing scheduled dates:", {
+          scheduledStart,
+          scheduledEnd,
+        });
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Missing scheduledStart or scheduledEnd"
+        );
+      }
+
+      scheduledStartDate = new Date(scheduledStart);
+      scheduledEndDate = new Date(scheduledEnd);
+
+      if (
+        isNaN(scheduledStartDate.getTime()) ||
+        isNaN(scheduledEndDate.getTime())
+      ) {
+        console.error("❌ [Manager] Invalid scheduled dates:", {
+          scheduledStart,
+          scheduledEnd,
+          parsedStart: scheduledStartDate,
+          parsedEnd: scheduledEndDate,
+        });
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Invalid scheduled start or end date"
+        );
+      }
+    } catch (error) {
+      console.error("❌ [Manager] Error parsing scheduled dates:", error);
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Invalid scheduled start or end date format"
+      );
+    }
+
+    // Ensure dates are properly set and in future
+    console.log("🔍 [Manager] Validating scheduled dates:", {
+      scheduledStartDate: scheduledStartDate.toISOString(),
+      scheduledEndDate: scheduledEndDate.toISOString(),
+      now: new Date().toISOString(),
+      isFuture: scheduledStartDate > new Date(),
+    });
+
+    if (scheduledStartDate <= new Date()) {
+      console.error("❌ [Manager] scheduledStart is not in the future:", {
+        scheduledStart: scheduledStartDate.toISOString(),
+        now: new Date().toISOString(),
+      });
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Scheduled start time must be in the future"
+      );
+    }
+
     const appointmentData = {
       patientId: patient._id,
       doctorId: doctor._id,
       slotId: slotId || null,
       mode,
-      scheduledStart: new Date(scheduledStart),
-      scheduledEnd: new Date(scheduledEnd),
+      scheduledStart: scheduledStartDate,
+      scheduledEnd: scheduledEndDate,
       reason,
       status: "pending_doctor",
     };
 
+    // Add clinicId if mode is offline
+    if (mode === "offline") {
+      if (!clinicId) {
+        console.error(
+          "❌ [Manager] Clinic ID is required for offline appointments"
+        );
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Clinic ID is required for offline appointments"
+        );
+      }
+      // Verify clinic exists
+      const clinic = await Clinic.findById(clinicId);
+      if (!clinic) {
+        console.error("❌ [Manager] Clinic not found:", clinicId);
+        return fail(res, 404, ERROR_CODES.NOT_FOUND, "Clinic not found");
+      }
+      appointmentData.clinicId = clinicId;
+      console.log("✅ [Manager] Added clinicId to appointment:", clinicId);
+    }
+
+    // Double check that scheduledStartDate is set correctly
+    if (!appointmentData.scheduledStart || !appointmentData.scheduledEnd) {
+      console.error(
+        "❌ [Manager] scheduledStart or scheduledEnd is missing in appointmentData:",
+        appointmentData
+      );
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "scheduledStart and scheduledEnd must be set"
+      );
+    }
+
+    console.log("🔍 [Manager] Final appointmentData before save:", {
+      ...appointmentData,
+      scheduledStart: appointmentData.scheduledStart?.toISOString(),
+      scheduledEnd: appointmentData.scheduledEnd?.toISOString(),
+      scheduledStartType: typeof appointmentData.scheduledStart,
+      scheduledEndType: typeof appointmentData.scheduledEnd,
+    });
+
+    console.log("🔍 [Manager] Saving appointment...");
     const appointment = await Appointment.create(appointmentData);
+    console.log("✅ [Manager] Created appointment:", appointment._id);
 
     // Update slot status if slotId provided
     if (slotId) {
@@ -401,10 +774,39 @@ export async function createAppointmentByManager(req, res) {
       });
     }
 
+    // Send notification to doctor about new appointment created by manager
+    try {
+      await createBookingNotification(appointment._id, {
+        createdByManager: true,
+      });
+      console.log(
+        `✅ [Manager] Sent booking notification to doctor for appointment ${appointment._id}`
+      );
+    } catch (notificationError) {
+      // Log error but don't fail the request if notification fails
+      console.error(
+        "⚠️ [Manager] Error sending notification to doctor:",
+        notificationError
+      );
+    }
+
     return ok(res, { appointment });
   } catch (error) {
-    console.error("Error creating appointment by manager:", error);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+    console.error("❌ [Manager] Error creating appointment by manager:", error);
+    console.error("❌ [Manager] Error stack:", error.stack);
+    console.error(
+      "❌ [Manager] Request body:",
+      JSON.stringify(req.body, null, 2)
+    );
+
+    // Return more detailed error message
+    const errorMessage = error.message || "Internal server error";
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      `Error creating appointment: ${errorMessage}`
+    );
   }
 }
 
@@ -514,48 +916,73 @@ export async function generateSlotsForManager(req, res) {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const endDate = new Date(today);
-    endDate.setMonth(today.getMonth() + 1); // 1 month instead of 14 days
-    endDate.setHours(23, 59, 59, 999);
+
+    // Calculate end of current month (không tạo sang tháng mới)
+    const endDate = new Date(
+      today.getFullYear(),
+      today.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999
+    );
 
     console.log("🔍 Creating slots from:", today.toISOString().split("T")[0]);
     console.log(
-      "🔍 Creating slots until:",
+      "🔍 Creating slots until end of current month:",
       endDate.toISOString().split("T")[0]
     );
 
-    // Check how many future slots already exist
+    // Check how many future slots already exist in the current month
     const existingFutureSlots = await DoctorTimeSlot.countDocuments({
       doctorId: doctor._id,
-      startAt: { $gte: today },
+      startAt: {
+        $gte: today,
+        $lte: endDate,
+      },
     });
 
-    console.log(`📊 Existing future slots: ${existingFutureSlots}`);
+    console.log(
+      `📊 Existing future slots in current month: ${existingFutureSlots}`
+    );
 
-    // Only create slots if we have less than 100 future slots
-    // This prevents creating slots too frequently
-    if (existingFutureSlots >= 100) {
+    // Check if we already have slots for remaining days in the current month
+    // Estimate: if we have more than 80% of needed slots (assuming average 30 slots per day)
+    // Calculate days remaining from today to end of month
+    const daysRemaining = Math.ceil(
+      (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const estimatedSlotsNeeded = daysRemaining * 30; // Rough estimate: 30 slots per day
+
+    if (existingFutureSlots >= estimatedSlotsNeeded * 0.8) {
       console.log(
-        `⏭️ Skipping slot generation - already have ${existingFutureSlots} future slots (>= 100)`
+        `⏭️ Skipping slot generation - already have ${existingFutureSlots} slots in current month (>= ${Math.floor(
+          estimatedSlotsNeeded * 0.8
+        )})`
       );
       return ok(res, {
-        message: `No new slots created. Doctor already has ${existingFutureSlots} future slots.`,
+        message: `No new slots created. Doctor already has enough slots for the remaining days of current month.`,
         createdSlots: 0,
         skippedSlots: 0,
         existingSlots: existingFutureSlots,
-        note: "Slots are only auto-generated when doctor has less than 100 future slots.",
+        note: "Slots are only auto-generated when remaining days of current month have insufficient slots.",
       });
     }
 
     const createdSlots = [];
     const skippedSlots = [];
 
-    // Calculate number of days in the month
-    const daysInMonth = Math.ceil(
+    // Calculate number of days from today to end of current month
+    const daysFromTodayToEndOfMonth = Math.ceil(
       (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    for (let dayOffset = 0; dayOffset < daysInMonth; dayOffset++) {
+    for (
+      let dayOffset = 0;
+      dayOffset < daysFromTodayToEndOfMonth;
+      dayOffset++
+    ) {
       const currentDate = new Date(today);
       currentDate.setDate(today.getDate() + dayOffset);
       const weekday = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
@@ -657,7 +1084,7 @@ export async function generateSlotsForManager(req, res) {
     });
 
     return ok(res, {
-      message: `Generated ${createdSlots.length} new time slots for doctor ${doctor.fullName} based on schedule rules (next month)`,
+      message: `Generated ${createdSlots.length} new time slots for doctor ${doctor.fullName} for remaining days of current month`,
       createdSlots: createdSlots.length,
       skippedSlots: skippedSlots.length,
       totalFutureSlots: totalFutureSlots, // Total future slots after creation
@@ -1318,6 +1745,222 @@ export async function unblockSlotsByDateRangeForManager(req, res) {
     });
   } catch (error) {
     console.error("❌ unblockSlotsByDateRangeForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Get doctor pricing for a specific doctor
+ * Manager can view pricing for any doctor
+ */
+export async function getDoctorPricingForManager(req, res) {
+  try {
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Get all pricing for this doctor
+    const pricingList = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    })
+      .populate("clinicId", "name address")
+      .sort({ mode: 1, createdAt: -1 })
+      .lean();
+
+    return ok(res, {
+      doctor: {
+        _id: doctor._id,
+        fullName: doctor.fullName,
+      },
+      pricing: pricingList,
+    });
+  } catch (error) {
+    console.error("❌ getDoctorPricingForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Create or update doctor pricing
+ * Manager can set pricing for any doctor
+ */
+export async function setDoctorPricingForManager(req, res) {
+  try {
+    const { doctorId } = req.params;
+    const { mode, clinicId, weekdayPrice, weekendPrice, isActive } = req.body;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    if (!mode || !weekdayPrice || !weekendPrice) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Mode, weekdayPrice, and weekendPrice are required"
+      );
+    }
+
+    if (mode !== "online" && mode !== "offline") {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Mode must be 'online' or 'offline'"
+      );
+    }
+
+    if (mode === "offline" && !clinicId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Clinic ID is required for offline mode"
+      );
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Verify clinic exists if offline mode
+    if (mode === "offline") {
+      const clinic = await Clinic.findById(clinicId);
+      if (!clinic) {
+        return fail(res, 404, ERROR_CODES.NOT_FOUND, "Clinic not found");
+      }
+    }
+
+    // Check if pricing already exists
+    const existingPricing = await DoctorRate.findOne({
+      doctorId: doctor._id,
+      mode: mode,
+      ...(mode === "offline" && { clinicId: clinicId }),
+      ...(mode === "online" && { clinicId: { $exists: false } }),
+    });
+
+    let pricing;
+    if (existingPricing) {
+      // Update existing pricing
+      existingPricing.weekdayPrice = weekdayPrice;
+      existingPricing.weekendPrice = weekendPrice;
+      if (isActive !== undefined) {
+        existingPricing.isActive = isActive;
+      }
+      await existingPricing.save();
+      pricing = existingPricing;
+      console.log(`✅ Updated pricing for doctor ${doctor.fullName}`);
+    } else {
+      // Create new pricing
+      pricing = await DoctorRate.create({
+        doctorId: doctor._id,
+        mode: mode,
+        ...(mode === "offline" && { clinicId: clinicId }),
+        weekdayPrice: weekdayPrice,
+        weekendPrice: weekendPrice,
+        isActive: isActive !== undefined ? isActive : true,
+      });
+      console.log(`✅ Created new pricing for doctor ${doctor.fullName}`);
+    }
+
+    // If doctor is verified but not active, check if they can now be active
+    // (they might have just set their pricing)
+    if (doctor.isVerified && !doctor.isActive) {
+      const activeCheck = await checkDoctorCanBeActive(doctor._id);
+      if (activeCheck.canBeActive) {
+        doctor.isActive = true;
+        await doctor.save();
+        console.log(
+          `✅ Doctor ${doctor.fullName} (ID: ${doctor._id}) is now active after setting pricing`
+        );
+      }
+    }
+
+    return ok(res, {
+      message: existingPricing
+        ? "Pricing updated successfully"
+        : "Pricing created successfully",
+      pricing: pricing,
+    });
+  } catch (error) {
+    console.error("❌ setDoctorPricingForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Delete doctor pricing
+ * Manager can delete pricing for any doctor
+ */
+export async function deleteDoctorPricingForManager(req, res) {
+  try {
+    const { doctorId, pricingId } = req.params;
+
+    if (!doctorId || !pricingId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Doctor ID and Pricing ID are required"
+      );
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Find and delete pricing
+    const pricing = await DoctorRate.findOneAndDelete({
+      _id: pricingId,
+      doctorId: doctor._id,
+    });
+
+    if (!pricing) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Pricing not found or does not belong to this doctor"
+      );
+    }
+
+    console.log(`✅ Deleted pricing for doctor ${doctor.fullName}`);
+
+    return ok(res, {
+      message: "Pricing deleted successfully",
+      deletedPricingId: pricingId,
+    });
+  } catch (error) {
+    console.error("❌ deleteDoctorPricingForManager error:", error);
     return fail(
       res,
       500,

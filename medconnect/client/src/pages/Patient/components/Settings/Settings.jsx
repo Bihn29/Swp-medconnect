@@ -45,6 +45,7 @@ export function Settings() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Password change states
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -599,6 +600,89 @@ export function Settings() {
   };
   //--------------------------------- Change Password ---------------------------------
 
+  // Handle avatar upload
+  const resizeImage = (file, maxWidth, maxHeight, quality = 0.8) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          // Calculate new dimensions
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Ảnh quá lớn, vui lòng chọn ảnh nhỏ hơn 5MB");
+      return;
+    }
+
+    // Check file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      alert("Chỉ chấp nhận file ảnh (JPG, PNG, WebP)");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      // Resize image
+      const compressedImage = await resizeImage(file, 800, 800, 0.8);
+
+      // Update avatar via API
+      await updateCurrentPatientProfile({ avatarUrl: compressedImage });
+
+      // Refresh profile
+      await refreshProfile();
+
+      // Dispatch custom event to update sidebar/header if needed
+      window.dispatchEvent(new CustomEvent("avatarUpdated"));
+
+      alert("Cập nhật ảnh đại diện thành công!");
+    } catch (error) {
+      console.error("Error updating avatar:", error);
+      alert("Có lỗi xảy ra khi cập nhật ảnh đại diện");
+    } finally {
+      setUploadingAvatar(false);
+      // Reset file input
+      e.target.value = "";
+    }
+  };
+
   return (
     <div className="settings-container">
       {/* Header */}
@@ -642,6 +726,7 @@ export function Settings() {
               <div className="avatar-container">
                 <img
                   src={
+                    userProfile?.avatarUrl ||
                     userProfile?.photoURL ||
                     userProfile?.avatar ||
                     "/patient-consultation.png"
@@ -651,11 +736,25 @@ export function Settings() {
                 />
               </div>
               <div className="upload-section">
-                <button className="upload-button">
+                <input
+                  type="file"
+                  id="avatar-input"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleAvatarChange}
+                  disabled={uploadingAvatar}
+                  style={{ display: "none" }}
+                />
+                <label
+                  htmlFor="avatar-input"
+                  className={`upload-button ${
+                    uploadingAvatar ? "disabled" : ""
+                  }`}
+                  style={{ pointerEvents: uploadingAvatar ? "none" : "auto" }}
+                >
                   <Upload className="upload-icon" />
-                  Tải ảnh lên
-                </button>
-                <p className="upload-text">JPG, PNG tối đa 2MB</p>
+                  {uploadingAvatar ? "Đang tải lên..." : "Tải ảnh lên"}
+                </label>
+                <p className="upload-text">JPG, PNG, WebP tối đa 5MB</p>
               </div>
             </div>
 

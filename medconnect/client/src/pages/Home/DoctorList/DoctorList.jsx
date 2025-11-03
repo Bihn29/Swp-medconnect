@@ -558,17 +558,6 @@ const DoctorList = () => {
           </Col>
           <Col flex="160px">
             <div className="doctor-actions">
-              <div
-                className="price"
-                style={{
-                  fontSize: "18px",
-                  fontWeight: "600",
-                  color: "#f5222d",
-                  marginBottom: "8px",
-                }}
-              >
-                350.000đ
-              </div>
               <Button
                 type="primary"
                 size="large"

@@ -703,14 +703,6 @@ export function DoctorSearch() {
 
                   {/* Fee and Actions Section */}
                   <div className="fee-actions-section">
-                    {/* Consultation Fee */}
-                    <div className="consultation-fee">
-                      <span className="fee-label">Phí khám</span>
-                      <span className="fee-amount">
-                        {formatPrice(doctor.consultationFee || 500000)}
-                      </span>
-                    </div>
-
                     {/* Action Buttons */}
                     <div className="doctor-actions">
                       <button

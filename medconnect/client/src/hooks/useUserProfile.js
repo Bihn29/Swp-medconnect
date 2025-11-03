@@ -67,7 +67,8 @@ export function useUserProfile() {
             profileData?.profile?.fullName ||
             profileData?.user?.fullName ||
             firebaseUser.displayName,
-          avatar: firebaseUser.photoURL,
+          avatar: profileData?.profile?.avatarUrl || firebaseUser.photoURL,
+          avatarUrl: profileData?.profile?.avatarUrl || null,
           profileComplete: profileData?.profile?.isComplete || false,
           // Patient specific fields (from patient collection)
           dob: profileData?.profile?.dob,
@@ -161,7 +162,8 @@ export function useUserProfile() {
             profileData?.profile?.fullName ||
             profileData?.user?.fullName ||
             firebaseUser.displayName,
-          avatar: firebaseUser.photoURL,
+          avatar: profileData?.profile?.avatarUrl || firebaseUser.photoURL,
+          avatarUrl: profileData?.profile?.avatarUrl || null,
           profileComplete: profileData?.profile?.isComplete || false,
           // Patient specific fields (from patient collection)
           dob: profileData?.profile?.dob,
