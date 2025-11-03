@@ -359,18 +359,6 @@ export const getPendingDoctors = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean(); // Use lean() to convert to plain objects
 
-    // Debug: log first doctor to check populate
-    if (pendingDoctors.length > 0) {
-      console.log(
-        "📋 Sample doctor specializationIds:",
-        JSON.stringify(pendingDoctors[0].specializationIds)
-      );
-      console.log(
-        "📋 Sample doctor userId:",
-        pendingDoctors[0].userId ? "exists" : "null"
-      );
-    }
-
     // Format doctors data - license image comes from licenseNo field
     const formattedDoctors = pendingDoctors.map((doctor) => {
       try {
@@ -460,7 +448,6 @@ export const getPendingDoctors = async (req, res) => {
 // Get verified doctors
 export const getVerifiedDoctors = async (req, res) => {
   try {
-    console.log(`🔍 Fetching verified doctors...`);
     const verifiedDoctors = await Doctor.find({ isVerified: true })
       .populate("userId", "fullName email phone")
       .populate("specializationIds", "name")
@@ -469,28 +456,6 @@ export const getVerifiedDoctors = async (req, res) => {
         "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds clinicDefaultId updatedAt isVerified isActive"
       )
       .sort({ updatedAt: -1 });
-
-    console.log(`✅ Found ${verifiedDoctors.length} verified doctors`);
-
-    // Debug: log all doctors to check
-    verifiedDoctors.forEach((doctor, index) => {
-      console.log(`📋 Verified doctor ${index + 1}:`, {
-        doctorId: doctor._id,
-        doctorName: doctor.fullName,
-        userId: doctor.userId?._id || doctor.userId,
-        userEmail: doctor.userId?.email,
-        isVerified: doctor.isVerified,
-        isActive: doctor.isActive,
-      });
-    });
-
-    // Debug: log first doctor to check populate
-    if (verifiedDoctors.length > 0) {
-      console.log(
-        "📋 Sample verified doctor specializationIds:",
-        JSON.stringify(verifiedDoctors[0].specializationIds)
-      );
-    }
 
     const formattedDoctors = verifiedDoctors.map((doctor) => {
       // Build license image URL - if licenseNo exists, it's a filename in uploads/doctors/
@@ -669,9 +634,6 @@ MedConnect - Đội ngũ quản trị
       text: textContent,
       html: htmlContent,
     });
-
-    console.log(`✅ Approval email sent successfully to ${user.email}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId });
   } catch (error) {
     console.error("❌ Error sending doctor approval email:", error);
     // Không throw error để không ảnh hưởng đến flow chính
@@ -784,9 +746,6 @@ MedConnect - Đội ngũ quản trị
       text: textContent,
       html: htmlContent,
     });
-
-    console.log(`✅ Rejection email sent successfully to ${user.email}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId });
   } catch (error) {
     console.error("❌ Error sending doctor rejection email:", error);
     // Không throw error để không ảnh hưởng đến flow chính
@@ -799,8 +758,6 @@ export const approveDoctor = async (req, res) => {
     const { id } = req.params;
     const { adminNotes } = req.body;
 
-    console.log(`🔍 Approving doctor with ID: ${id}`);
-
     // Find the doctor first and populate userId
     const doctor = await Doctor.findById(id).populate(
       "userId",
@@ -808,22 +765,11 @@ export const approveDoctor = async (req, res) => {
     );
 
     if (!doctor) {
-      console.error(`❌ Doctor not found with ID: ${id}`);
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy bác sĩ",
       });
     }
-
-    console.log(`✅ Found doctor:`, {
-      doctorId: doctor._id,
-      doctorName: doctor.fullName,
-      userId: doctor.userId?._id,
-      userEmail: doctor.userId?.email,
-      userFullName: doctor.userId?.fullName,
-      isVerified: doctor.isVerified,
-      isActive: doctor.isActive,
-    });
 
     // Get reviewer User if available
     let reviewer = null;
@@ -834,13 +780,6 @@ export const approveDoctor = async (req, res) => {
     // Check if doctor can be active (has all required fields)
     const activeCheck = await checkDoctorCanBeActive(doctor._id);
     const canBeActive = activeCheck.canBeActive;
-
-    console.log(
-      `🔍 Doctor active check:`,
-      canBeActive
-        ? "✅ Can be active"
-        : `❌ Cannot be active - ${activeCheck.reason}`
-    );
 
     // Update doctor verification status with approval info
     doctor.isVerified = true;
@@ -883,7 +822,6 @@ export const approveDoctor = async (req, res) => {
     if (doctor.userId) {
       // Handle both ObjectId and populated object
       const userId = doctor.userId._id || doctor.userId;
-      console.log(`🔍 Updating User with ID: ${userId}`);
 
       const user = await User.findByIdAndUpdate(
         userId,
@@ -920,36 +858,12 @@ export const approveDoctor = async (req, res) => {
           }
         );
         // Reload user to verify
-        const reloadedUser = await User.findById(userId);
-        console.log(`✅ Re-updated User verification fields:`, {
-          emailVerified: reloadedUser?.emailVerified,
-          phoneVerified: reloadedUser?.phoneVerified,
-        });
+        await User.findById(userId);
       }
-
-      console.log(`✅ Updated User ${userId} status to 'active':`, {
-        userId: user._id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-        status: user.status,
-        emailVerified: user.emailVerified,
-        phoneVerified: user.phoneVerified,
-      });
 
       // Send approval email (don't block on error)
       try {
-        console.log(
-          `📧 Attempting to send approval email to: ${
-            user.email || doctor.userId?.email
-          }`
-        );
         await sendDoctorApprovalEmail(doctor, user || doctor.userId);
-        console.log(
-          `✅ Approval email sent successfully to ${
-            user.email || doctor.userId?.email
-          }`
-        );
       } catch (emailError) {
         console.error("❌ Failed to send approval email:", emailError);
         console.error("❌ Error details:", {
@@ -986,16 +900,6 @@ export const approveDoctor = async (req, res) => {
       console.error(`   Requested ID: ${id}`);
       console.error(`   Found by userId: ${doctorByUserId._id}`);
     }
-
-    console.log(`✅ Final check - Doctor verified:`, {
-      doctorId: finalCheck._id,
-      doctorName: finalCheck.fullName,
-      userId: finalCheck.userId,
-      userIdType: typeof finalCheck.userId,
-      isVerified: finalCheck.isVerified,
-      isActive: finalCheck.isActive,
-      doctorByUserId: doctorByUserId ? doctorByUserId._id : null,
-    });
 
     res.json({
       success: true,
@@ -1062,12 +966,11 @@ export const rejectDoctor = async (req, res) => {
 
     // Update User status to 'rejected' (allows re-registration)
     if (doctor.userId) {
-      const user = await User.findByIdAndUpdate(
+      await User.findByIdAndUpdate(
         doctor.userId,
         { status: "rejected" },
         { new: true }
       );
-      console.log(`✅ Updated User ${doctor.userId} status to 'rejected'`);
 
       // Send rejection email (don't block on error)
       try {
@@ -1164,12 +1067,6 @@ export const getAllUsers = async (req, res) => {
               .select("avatarUrl")
               .lean();
             avatarUrl = patient?.avatarUrl || null;
-            if (avatarUrl) {
-              console.log(
-                `✅ Found patient avatar for user ${user._id}:`,
-                avatarUrl.substring(0, 50) + "..."
-              );
-            }
           } catch (error) {
             console.error(
               `Error fetching patient avatar for user ${user._id}:`,
@@ -1182,12 +1079,6 @@ export const getAllUsers = async (req, res) => {
               .select("avatarUrl isActive yearsExperience bio")
               .lean();
             avatarUrl = doctor?.avatarUrl || null;
-            if (avatarUrl) {
-              console.log(
-                `✅ Found doctor avatar for user ${user._id}:`,
-                avatarUrl.substring(0, 50) + "..."
-              );
-            }
             // For doctors, check if they can be active (even if isActive = true)
             // This ensures old doctors without required fields are marked as suspended
             if (doctor) {
@@ -1199,9 +1090,6 @@ export const getAllUsers = async (req, res) => {
                   await Doctor.updateOne(
                     { _id: doctor._id },
                     { isActive: false }
-                  );
-                  console.log(
-                    `⚠️ Updated doctor ${doctor.fullName} (ID: ${doctor._id}) isActive to false - missing required fields`
                   );
                 }
               }
@@ -1365,9 +1253,6 @@ export const getUserDetails = async (req, res) => {
             // Update isActive in database if it's still true
             if (doctor.isActive) {
               await Doctor.updateOne({ _id: doctor._id }, { isActive: false });
-              console.log(
-                `⚠️ Updated doctor ${doctor.fullName} (ID: ${doctor._id}) isActive to false - missing required fields`
-              );
               // Update the roleSpecificData to reflect the change
               roleSpecificData.isActive = false;
             }
@@ -1517,9 +1402,6 @@ export const updateUser = async (req, res) => {
                 if (activeCheck.canBeActive) {
                   doctor.isActive = true;
                   await doctor.save();
-                  console.log(
-                    `✅ Doctor ${doctor.fullName} (ID: ${doctor._id}) is now active after manager updated profile`
-                  );
                 }
               } catch (activeCheckError) {
                 console.error(
@@ -1666,10 +1548,6 @@ export const deleteUser = async (req, res) => {
           // Finally, delete doctor record
           Doctor.findByIdAndDelete(doctorId),
         ]);
-
-        console.log(
-          `✅ Cascade deleted all doctor-related records for doctor ${doctorId}`
-        );
       }
     } else if (user.role === "patient") {
       // Find patient record
@@ -1715,10 +1593,6 @@ export const deleteUser = async (req, res) => {
           // Finally, delete patient record
           Patient.findByIdAndDelete(patientId),
         ]);
-
-        console.log(
-          `✅ Cascade deleted all patient-related records for patient ${patientId}`
-        );
       } else {
         // If no patient record found, just delete notifications
         await Notification.deleteMany({ userId: id });
@@ -2238,7 +2112,6 @@ export const deleteAppointment = async (req, res) => {
  */
 export const cleanupUnpaidAppointments = async (req, res) => {
   try {
-    console.log("🔄 Manual cleanup triggered by admin");
     const result = await runCleanupNow();
 
     res.json({
