@@ -214,6 +214,7 @@ export const privateRoutes = (
         <Route path="/admin/specializations" element={<Specializations />} />
         <Route path="/admin/appointments" element={<AppointmentManagement />} />
         <Route path="/admin/thong-ke" element={<Statistics />} />
+        <Route path="/admin/statistics" element={<Statistics />} />
       </Route>
     </Route>
 

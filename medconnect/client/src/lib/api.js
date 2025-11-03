@@ -1051,8 +1051,14 @@ export async function getAdminStatistics(params = {}) {
   return r.json();
 }
 
-export async function getAdminDashboardActivities() {
-  const r = await fetch(`${BASE}/api/admin/dashboard/activities`, {
+export async function getAdminDashboardActivities(params = {}) {
+  const { limit = 50, offset = 0 } = params;
+  const queryParams = new URLSearchParams();
+  if (limit) queryParams.append("limit", limit);
+  if (offset) queryParams.append("offset", offset);
+  
+  const url = `${BASE}/api/admin/dashboard/activities${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+  const r = await fetch(url, {
     credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());

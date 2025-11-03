@@ -43,10 +43,18 @@ const Statistics = () => {
       }
       
       const response = await getAdminStatistics(params);
-      setStatistics(response.data || response);
+      const data = response.data || response;
+      
+      // Validate data structure
+      if (!data || typeof data !== 'object') {
+        throw new Error("Dữ liệu thống kê không hợp lệ");
+      }
+      
+      setStatistics(data);
     } catch (err) {
       console.error("Error fetching statistics:", err);
-      setError("Không thể tải dữ liệu thống kê");
+      setError(err.message || "Không thể tải dữ liệu thống kê");
+      setStatistics(null);
     } finally {
       setLoading(false);
     }
@@ -65,28 +73,32 @@ const Statistics = () => {
     return dayjs(date).format("DD/MM/YYYY");
   };
 
-  const statCards = statistics
+  const statCards = statistics && 
+    statistics.totalDoctors && 
+    statistics.totalPatients && 
+    statistics.todayAppointments && 
+    statistics.monthRevenue
     ? [
         {
           title: "Tổng Bác Sĩ",
-          value: statistics.totalDoctors.value.toLocaleString(),
-          change: statistics.totalDoctors.changeLabel,
+          value: (statistics.totalDoctors.value || 0).toLocaleString(),
+          change: statistics.totalDoctors.changeLabel || "0 so với tháng trước",
           icon: <UserOutlined />,
           cardClass: "stat-card-blue",
           textColor: "text-blue",
         },
         {
           title: "Tổng Bệnh Nhân",
-          value: statistics.totalPatients.value.toLocaleString(),
-          change: statistics.totalPatients.changeLabel,
+          value: (statistics.totalPatients.value || 0).toLocaleString(),
+          change: statistics.totalPatients.changeLabel || "0 so với tuần trước",
           icon: <TeamOutlined />,
           cardClass: "stat-card-cyan",
           textColor: "text-cyan",
         },
         {
           title: "Khám Hôm Nay",
-          value: statistics.todayAppointments.value.toLocaleString(),
-          change: statistics.todayAppointments.changeLabel,
+          value: (statistics.todayAppointments.value || 0).toLocaleString(),
+          change: statistics.todayAppointments.changeLabel || "0 so với hôm qua",
           icon: <CalendarOutlined />,
           cardClass: "stat-card-emerald",
           textColor: "text-emerald",
@@ -102,8 +114,8 @@ const Statistics = () => {
             };
             return periodLabels[selectedPeriod] || "Doanh Thu (Tháng)";
           })(),
-          value: formatCurrency(statistics.monthRevenue.value),
-          change: statistics.monthRevenue.changeLabel,
+          value: formatCurrency(statistics.monthRevenue.value || 0),
+          change: statistics.monthRevenue.changeLabel || "0% so với tháng trước",
           icon: <DollarOutlined />,
           cardClass: "stat-card-violet",
           textColor: "text-violet",
@@ -156,18 +168,17 @@ const Statistics = () => {
   if (loading && !statistics) {
     return (
       <div className="statistics">
+        <div className="statistics-header">
+          <div className="header-content">
+            <div>
+              <h1>Thống kê</h1>
+            </div>
+          </div>
+        </div>
         <div style={{ textAlign: "center", padding: "50px" }}>
           <Spin size="large" />
           <p style={{ marginTop: "16px" }}>Đang tải dữ liệu...</p>
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="statistics">
-        <Alert message="Lỗi" description={error} type="error" showIcon />
       </div>
     );
   }
@@ -179,6 +190,17 @@ const Statistics = () => {
         <div className="header-content">
           <div>
             <h1>Thống kê</h1>
+            {error && (
+              <Alert 
+                message="Lỗi" 
+                description={error} 
+                type="error" 
+                showIcon 
+                style={{ marginTop: "16px" }}
+                closable
+                onClose={() => setError(null)}
+              />
+            )}
           </div>
           <div className="filter-buttons">
             <Space size="small">

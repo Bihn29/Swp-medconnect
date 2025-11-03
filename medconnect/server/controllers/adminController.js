@@ -72,18 +72,37 @@ export const getDashboardStats = async (req, res) => {
       createdAt: { $gte: currentMonth },
     });
     
-    // Revenue calculation based on successful payments - get actual revenue from Payment collection
+    // Revenue calculation using MongoDB aggregation for accurate and efficient calculation
     // Calculate total revenue from all successful payments (captured or authorized status)
-    const successfulPayments = await Payment.find({
-      status: { $in: ['captured', 'authorized'] }
-    });
+    // Total revenue = sum of (payment.total - refundAmount) for all successful payments
+    const revenueResult = await Payment.aggregate([
+      {
+        $match: {
+          status: { $in: ['captured', 'authorized'] }
+        }
+      },
+      {
+        $project: {
+          netRevenue: {
+            $subtract: [
+              { $ifNull: ['$total', 0] },
+              { $ifNull: ['$refundAmount', 0] }
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$netRevenue' }
+        }
+      }
+    ]);
     
-    // Calculate total revenue: sum of all successful payments minus refunds
-    const revenue = successfulPayments.reduce((total, payment) => {
-      // Total revenue = payment.total - refundAmount (if any)
-      const netRevenue = payment.total - (payment.refundAmount || 0);
-      return total + netRevenue;
-    }, 0);
+    // Extract revenue from aggregation result, default to 0 if no payments found
+    const revenue = revenueResult.length > 0 && revenueResult[0].totalRevenue 
+      ? revenueResult[0].totalRevenue 
+      : 0;
 
     const stats = {
       totalUsers,
@@ -109,47 +128,164 @@ export const getDashboardStats = async (req, res) => {
 // Dashboard activities
 export const getDashboardActivities = async (req, res) => {
   try {
-    // Get recent activities from database
-    const recentUsers = await User.find()
-      .sort({ createdAt: -1 })
-      .limit(3)
-      .select("fullName role createdAt");
-
-    const recentDoctors = await Doctor.find()
-      .populate("userId", "fullName")
-      .sort({ createdAt: -1 })
-      .limit(2)
-      .select("userId isVerified createdAt");
+    const { limit = 50, offset = 0 } = req.query; // Support pagination
+    const limitNum = Math.min(parseInt(limit) || 50, 100); // Max 100
+    const offsetNum = parseInt(offset) || 0;
 
     const activities = [];
 
-    // Add user registrations
-    recentUsers.forEach((user) => {
-      const roleText = user.role === "doctor" ? "bác sĩ" : "bệnh nhân";
-      activities.push({
-        title: `${
-          user.fullName || "Người dùng"
-        } đã đăng ký tài khoản ${roleText}`,
-        time: getTimeAgo(user.createdAt),
-      });
-    });
+    // Get user registrations
+    const recentUsers = await User.find()
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .select("fullName role createdAt")
+      .lean();
 
-    // Add doctor verifications
-    recentDoctors.forEach((doctor) => {
-      if (doctor.isVerified) {
+    recentUsers.forEach((user) => {
+      try {
+        const roleText = user.role === "doctor" ? "bác sĩ" : "bệnh nhân";
         activities.push({
-          title: `BS. ${doctor.userId.fullName} đã được xác minh`,
-          time: getTimeAgo(doctor.createdAt),
+          type: "user_registration",
+          title: `${
+            user.fullName || "Người dùng"
+          } đã đăng ký tài khoản ${roleText}`,
+          time: getTimeAgo(user.createdAt),
+          createdAt: user.createdAt,
         });
+      } catch (err) {
+        console.error("Error processing user activity:", err);
       }
     });
 
-    // Sort by time (most recent first)
-    activities.sort((a, b) => new Date(b.time) - new Date(a.time));
+    // Get doctor verifications - check updatedAt for when they were verified
+    const recentDoctors = await Doctor.find()
+      .populate("userId", "fullName")
+      .sort({ updatedAt: -1 })
+      .limit(20)
+      .select("userId fullName isVerified createdAt updatedAt")
+      .lean();
+
+    recentDoctors.forEach((doctor) => {
+      try {
+        if (doctor.isVerified && doctor.userId) {
+          const doctorName = doctor.userId?.fullName || doctor.fullName || "Bác sĩ";
+          // Use updatedAt if available, otherwise createdAt
+          const verifiedDate = doctor.updatedAt || doctor.createdAt;
+          activities.push({
+            type: "doctor_verification",
+            title: `BS. ${doctorName} đã được xác minh`,
+            time: getTimeAgo(verifiedDate),
+            createdAt: verifiedDate,
+          });
+        }
+      } catch (err) {
+        console.error("Error processing doctor activity:", err);
+      }
+    });
+
+    // Get appointments (lịch hẹn)
+    const recentAppointments = await Appointment.find()
+      .populate("patientId", "fullName userId")
+      .populate({
+        path: "patientId",
+        populate: { path: "userId", select: "fullName" }
+      })
+      .populate("doctorId", "fullName userId")
+      .populate({
+        path: "doctorId",
+        populate: { path: "userId", select: "fullName" }
+      })
+      .sort({ createdAt: -1 })
+      .limit(30)
+      .select("patientId doctorId mode status createdAt scheduledStart")
+      .lean();
+
+    recentAppointments.forEach((appointment) => {
+      try {
+        const patientName = appointment.patientId?.fullName || 
+                           appointment.patientId?.userId?.fullName || 
+                           "Bệnh nhân";
+        const doctorName = appointment.doctorId?.fullName || 
+                          appointment.doctorId?.userId?.fullName || 
+                          "Bác sĩ";
+        const modeText = appointment.mode === "online" ? "trực tuyến" : "trực tiếp";
+        
+        activities.push({
+          type: "appointment_created",
+          title: `${patientName} đã đặt lịch hẹn khám ${modeText} với BS. ${doctorName}`,
+          time: getTimeAgo(appointment.createdAt),
+          createdAt: appointment.createdAt,
+          appointmentId: appointment._id,
+        });
+      } catch (err) {
+        console.error("Error processing appointment activity:", err);
+      }
+    });
+
+    // Get payments (thanh toán)
+    const recentPayments = await Payment.find({
+      status: { $in: ["captured", "authorized"] } // Only successful payments
+    })
+      .populate("appointmentId", "patientId doctorId")
+      .populate({
+        path: "appointmentId",
+        populate: [
+          { path: "patientId", select: "fullName userId", populate: { path: "userId", select: "fullName" } },
+          { path: "doctorId", select: "fullName userId", populate: { path: "userId", select: "fullName" } }
+        ]
+      })
+      .sort({ capturedAt: -1, createdAt: -1 })
+      .limit(30)
+      .select("appointmentId total status capturedAt createdAt paidAt")
+      .lean();
+
+    recentPayments.forEach((payment) => {
+      try {
+        if (payment.appointmentId) {
+          const appointment = payment.appointmentId;
+          const patientName = appointment.patientId?.fullName || 
+                             appointment.patientId?.userId?.fullName || 
+                             "Bệnh nhân";
+          const paymentDate = payment.capturedAt || payment.paidAt || payment.createdAt;
+          const amount = payment.total?.toLocaleString("vi-VN") || "0";
+          
+          activities.push({
+            type: "payment_completed",
+            title: `${patientName} đã thanh toán ${amount} VNĐ cho lịch hẹn`,
+            time: getTimeAgo(paymentDate),
+            createdAt: paymentDate,
+            paymentId: payment._id,
+            amount: payment.total,
+          });
+        }
+      } catch (err) {
+        console.error("Error processing payment activity:", err);
+      }
+    });
+
+    // Sort all activities by createdAt (most recent first)
+    activities.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+      return dateB - dateA;
+    });
+
+    // Apply pagination
+    const total = activities.length;
+    const paginatedActivities = activities.slice(offsetNum, offsetNum + limitNum);
+    
+    // Remove createdAt from final output
+    const finalActivities = paginatedActivities.map(({ createdAt, ...rest }) => rest);
 
     res.json({
       success: true,
-      data: activities.slice(0, 4), // Return top 4 activities
+      data: finalActivities,
+      pagination: {
+        total,
+        limit: limitNum,
+        offset: offsetNum,
+        hasMore: offsetNum + limitNum < total,
+      },
     });
   } catch (error) {
     console.error("Error fetching dashboard activities:", error);
