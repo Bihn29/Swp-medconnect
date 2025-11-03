@@ -818,6 +818,21 @@ export async function cancelAppointment(appointmentId) {
 }
 
 // Manager functions
+export async function getManagerPatients(params = {}) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      searchParams.append(key, value);
+    }
+  });
+
+  const r = await fetch(`${BASE}/api/managers/patients?${searchParams}`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export async function rescheduleAppointmentByManager(
   appointmentId,
   newDateTime,

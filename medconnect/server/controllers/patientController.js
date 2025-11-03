@@ -554,6 +554,7 @@ export async function getDoctorsBySpecialization(req, res) {
     const doctors = await Doctor.find({
       specializationIds: specializationId,
       isVerified: true,
+      isActive: true, // Only show active doctors
     })
       .populate("specializationIds", "name")
       .select(

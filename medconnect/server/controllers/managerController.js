@@ -7,9 +7,62 @@ import User from "../models/user.model.js";
 import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
 import DoctorRate from "../models/doctor_rates.model.js";
 import Clinic from "../models/clinic.model.js";
-import { createAppointmentNotification } from "../services/notificationService.js";
+import {
+  createAppointmentNotification,
+  createBookingNotification,
+} from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
+
+/**
+ * Check if doctor has all required information to be active
+ * Required fields: yearsExperience > 0, bio (non-empty), and at least one DoctorRate
+ */
+async function checkDoctorCanBeActive(doctorId) {
+  try {
+    const doctor = await Doctor.findById(doctorId).lean();
+    if (!doctor) {
+      return { canBeActive: false, reason: "Doctor not found" };
+    }
+
+    // Check yearsExperience
+    if (!doctor.yearsExperience || doctor.yearsExperience <= 0) {
+      return {
+        canBeActive: false,
+        reason: "Số năm kinh nghiệm chưa được điền hoặc bằng 0",
+      };
+    }
+
+    // Check bio
+    if (!doctor.bio || doctor.bio.trim().length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Lời giới thiệu chưa được điền",
+      };
+    }
+
+    // Check if doctor has at least one active DoctorRate
+    const doctorRates = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    }).lean();
+
+    if (!doctorRates || doctorRates.length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+      };
+    }
+
+    return { canBeActive: true };
+  } catch (error) {
+    console.error("Error checking doctor can be active:", error);
+    return {
+      canBeActive: false,
+      reason: "Lỗi khi kiểm tra thông tin bác sĩ",
+    };
+  }
+}
 
 /**
  * Get all doctors for manager to select
@@ -316,6 +369,83 @@ export async function getAppointmentDetailForManager(req, res) {
 }
 
 /**
+ * Get all patients for manager to select when booking appointments
+ */
+export async function getAllPatientsForManager(req, res) {
+  try {
+    const { search, page = 1, limit = 50 } = req.query;
+
+    // Build query
+    let query = {};
+    if (search) {
+      query.$or = [
+        { fullName: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get patients with populated user info, filter only users with role='patient'
+    const patients = await Patient.find(query)
+      .populate({
+        path: "userId",
+        select: "email status role createdAt",
+        match: { role: "patient" },
+      })
+      .select("fullName phone email dob gender avatarUrl createdAt updatedAt")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    // Filter out patients where userId is null (due to role filter)
+    const validPatients = patients.filter(
+      (p) => p.userId && p.userId.role === "patient"
+    );
+
+    // Get total count - need to count only patients with role='patient'
+    const patientUserIds = await User.find({ role: "patient" })
+      .select("_id")
+      .lean();
+    const patientIds = patientUserIds.map((u) => u._id);
+    const countQuery = { ...query, userId: { $in: patientIds } };
+    const total = await Patient.countDocuments(countQuery);
+
+    // Format response
+    const formattedPatients = validPatients.map((patient) => ({
+      _id: patient._id,
+      id: patient._id,
+      userId: patient.userId?._id,
+      fullName: patient.fullName,
+      phone: patient.phone,
+      email: patient.email || patient.userId?.email,
+      dob: patient.dob,
+      gender: patient.gender,
+      avatarUrl: patient.avatarUrl,
+      status: patient.userId?.status || "active",
+      createdAt: patient.createdAt,
+      updatedAt: patient.updatedAt,
+    }));
+
+    return ok(res, {
+      patients: formattedPatients,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching patients for manager:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
  * Create appointment by manager (for any doctor)
  */
 export async function createAppointmentByManager(req, res) {
@@ -323,23 +453,22 @@ export async function createAppointmentByManager(req, res) {
     const {
       doctorId,
       slotId,
-      patientName,
-      patientPhone,
+      patientId, // New: patient ID if selecting from existing patients
+      patientName, // For new patient
+      patientPhone, // For new patient
+      dob, // Date of birth for new patient
+      gender, // Gender for new patient
+      citizenId, // Citizen ID for new patient
+      address, // Address for new patient
+      allergyNotes, // Allergy notes for new patient
       reason,
       mode,
+      clinicId, // Clinic ID for offline mode
       scheduledStart,
       scheduledEnd,
     } = req.body;
 
-    if (
-      !doctorId ||
-      !patientName ||
-      !patientPhone ||
-      !reason ||
-      !mode ||
-      !scheduledStart ||
-      !scheduledEnd
-    ) {
+    if (!doctorId || !reason || !mode || !scheduledStart || !scheduledEnd) {
       return fail(
         res,
         400,
@@ -354,47 +483,288 @@ export async function createAppointmentByManager(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
     }
 
-    // Find or create patient
-    let patient = await Patient.findOne({ phone: patientPhone });
-    if (!patient) {
-      // Create a basic patient profile
-      const user = await User.findOne({ phone: patientPhone });
-      let userId = user?._id;
+    // Find patient - prioritize patientId, fallback to patientName/patientPhone
+    let patient = null;
 
-      if (!userId) {
-        // Create a basic user account
-        const newUser = new User({
-          phone: patientPhone,
-          fullName: patientName,
-          role: "patient",
-          status: "active",
+    if (patientId) {
+      // Use existing patient by ID
+      patient = await Patient.findById(patientId);
+      if (!patient) {
+        return fail(res, 404, ERROR_CODES.NOT_FOUND, "Patient not found");
+      }
+    } else if (patientPhone && patientName) {
+      // Create new patient with full information
+      console.log("🔍 [Manager] Creating new patient with data:", {
+        patientName,
+        patientPhone,
+        dob,
+        gender,
+        citizenId,
+        address,
+        hasAllergyNotes: !!allergyNotes,
+      });
+
+      // Validate required fields for new patient
+      if (!dob || !gender || !citizenId || !address) {
+        console.error("❌ [Manager] Missing required patient information:", {
+          hasDob: !!dob,
+          hasGender: !!gender,
+          hasCitizenId: !!citizenId,
+          hasAddress: !!address,
         });
-        await newUser.save();
-        userId = newUser._id;
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Missing required patient information: dob, gender, citizenId, address are required for new patients"
+        );
       }
 
+      // Find existing User by phone, or create minimal User if not found
+      let user = await User.findOne({ phone: patientPhone });
+      let userId;
+
+      if (!user) {
+        // Create minimal User for the patient (required by Patient model)
+        console.log(
+          "🔍 [Manager] User not found, creating minimal User for patient"
+        );
+        try {
+          // Generate a unique email
+          const baseEmail = `${patientPhone}@patient.medconnect.local`;
+          let finalEmail = baseEmail;
+          let emailExists = await User.findOne({ email: finalEmail });
+          let counter = 1;
+          while (emailExists) {
+            finalEmail = `${patientPhone}_${Date.now()}_${counter}@patient.medconnect.local`;
+            emailExists = await User.findOne({ email: finalEmail });
+            counter++;
+          }
+
+          // Create minimal User (no password required for phone auth)
+          user = new User({
+            phone: patientPhone,
+            email: finalEmail,
+            fullName: patientName,
+            role: "patient",
+            status: "active",
+            authProvider: "phone", // Set to "phone" so passwordHash is not required
+          });
+          await user.save();
+          userId = user._id;
+          console.log("✅ [Manager] Created minimal User:", userId);
+        } catch (userError) {
+          // Handle duplicate key error (race condition)
+          if (userError.code === 11000) {
+            console.log(
+              "⚠️ [Manager] Duplicate key error, finding existing user"
+            );
+            user = await User.findOne({ phone: patientPhone });
+            if (user) {
+              userId = user._id;
+              console.log(
+                "✅ [Manager] Found existing User after error:",
+                userId
+              );
+            } else {
+              console.error("❌ [Manager] Error creating User:", userError);
+              throw userError;
+            }
+          } else {
+            console.error("❌ [Manager] Error creating User:", userError);
+            throw userError;
+          }
+        }
+      } else {
+        userId = user._id;
+        console.log("✅ [Manager] Found existing User:", userId);
+      }
+
+      // Validate DOB format
+      let dobDate;
+      try {
+        dobDate = new Date(dob);
+        if (isNaN(dobDate.getTime())) {
+          console.error("❌ [Manager] Invalid DOB format:", dob);
+          return fail(
+            res,
+            400,
+            ERROR_CODES.INVALID_INPUT,
+            "Invalid date of birth format"
+          );
+        }
+      } catch (error) {
+        console.error("❌ [Manager] Error parsing DOB:", error, dob);
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Invalid date of birth format"
+        );
+      }
+
+      // Always create new patient (even if one exists with same phone)
+      console.log("🔍 [Manager] Creating new Patient");
       patient = new Patient({
         userId,
         fullName: patientName,
         phone: patientPhone,
-        isProfileComplete: false,
+        dob: dobDate,
+        gender: gender,
+        citizenId: citizenId,
+        address: address,
+        allergyNotes: allergyNotes || "",
+        isProfileComplete: true, // Mark as complete since we have all required fields
       });
       await patient.save();
+      console.log("✅ [Manager] Created new Patient:", patient._id);
+    } else {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Either patientId or patientName+patientPhone with full information must be provided"
+      );
     }
 
     // Create appointment (similar to doctor's createAppointmentByDoctor)
+    console.log("🔍 [Manager] Creating appointment with data:", {
+      patientId: patient._id,
+      doctorId: doctor._id,
+      slotId: slotId || null,
+      mode,
+      scheduledStart,
+      scheduledEnd,
+      reason,
+      clinicId: mode === "offline" ? clinicId : null,
+    });
+
+    // Validate scheduled dates
+    let scheduledStartDate, scheduledEndDate;
+    try {
+      if (!scheduledStart || !scheduledEnd) {
+        console.error("❌ [Manager] Missing scheduled dates:", {
+          scheduledStart,
+          scheduledEnd,
+        });
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Missing scheduledStart or scheduledEnd"
+        );
+      }
+
+      scheduledStartDate = new Date(scheduledStart);
+      scheduledEndDate = new Date(scheduledEnd);
+
+      if (
+        isNaN(scheduledStartDate.getTime()) ||
+        isNaN(scheduledEndDate.getTime())
+      ) {
+        console.error("❌ [Manager] Invalid scheduled dates:", {
+          scheduledStart,
+          scheduledEnd,
+          parsedStart: scheduledStartDate,
+          parsedEnd: scheduledEndDate,
+        });
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Invalid scheduled start or end date"
+        );
+      }
+    } catch (error) {
+      console.error("❌ [Manager] Error parsing scheduled dates:", error);
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Invalid scheduled start or end date format"
+      );
+    }
+
+    // Ensure dates are properly set and in future
+    console.log("🔍 [Manager] Validating scheduled dates:", {
+      scheduledStartDate: scheduledStartDate.toISOString(),
+      scheduledEndDate: scheduledEndDate.toISOString(),
+      now: new Date().toISOString(),
+      isFuture: scheduledStartDate > new Date(),
+    });
+
+    if (scheduledStartDate <= new Date()) {
+      console.error("❌ [Manager] scheduledStart is not in the future:", {
+        scheduledStart: scheduledStartDate.toISOString(),
+        now: new Date().toISOString(),
+      });
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Scheduled start time must be in the future"
+      );
+    }
+
     const appointmentData = {
       patientId: patient._id,
       doctorId: doctor._id,
       slotId: slotId || null,
       mode,
-      scheduledStart: new Date(scheduledStart),
-      scheduledEnd: new Date(scheduledEnd),
+      scheduledStart: scheduledStartDate,
+      scheduledEnd: scheduledEndDate,
       reason,
       status: "pending_doctor",
     };
 
+    // Add clinicId if mode is offline
+    if (mode === "offline") {
+      if (!clinicId) {
+        console.error(
+          "❌ [Manager] Clinic ID is required for offline appointments"
+        );
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Clinic ID is required for offline appointments"
+        );
+      }
+      // Verify clinic exists
+      const clinic = await Clinic.findById(clinicId);
+      if (!clinic) {
+        console.error("❌ [Manager] Clinic not found:", clinicId);
+        return fail(res, 404, ERROR_CODES.NOT_FOUND, "Clinic not found");
+      }
+      appointmentData.clinicId = clinicId;
+      console.log("✅ [Manager] Added clinicId to appointment:", clinicId);
+    }
+
+    // Double check that scheduledStartDate is set correctly
+    if (!appointmentData.scheduledStart || !appointmentData.scheduledEnd) {
+      console.error(
+        "❌ [Manager] scheduledStart or scheduledEnd is missing in appointmentData:",
+        appointmentData
+      );
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "scheduledStart and scheduledEnd must be set"
+      );
+    }
+
+    console.log("🔍 [Manager] Final appointmentData before save:", {
+      ...appointmentData,
+      scheduledStart: appointmentData.scheduledStart?.toISOString(),
+      scheduledEnd: appointmentData.scheduledEnd?.toISOString(),
+      scheduledStartType: typeof appointmentData.scheduledStart,
+      scheduledEndType: typeof appointmentData.scheduledEnd,
+    });
+
+    console.log("🔍 [Manager] Saving appointment...");
     const appointment = await Appointment.create(appointmentData);
+    console.log("✅ [Manager] Created appointment:", appointment._id);
 
     // Update slot status if slotId provided
     if (slotId) {
@@ -404,10 +774,39 @@ export async function createAppointmentByManager(req, res) {
       });
     }
 
+    // Send notification to doctor about new appointment created by manager
+    try {
+      await createBookingNotification(appointment._id, {
+        createdByManager: true,
+      });
+      console.log(
+        `✅ [Manager] Sent booking notification to doctor for appointment ${appointment._id}`
+      );
+    } catch (notificationError) {
+      // Log error but don't fail the request if notification fails
+      console.error(
+        "⚠️ [Manager] Error sending notification to doctor:",
+        notificationError
+      );
+    }
+
     return ok(res, { appointment });
   } catch (error) {
-    console.error("Error creating appointment by manager:", error);
-    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+    console.error("❌ [Manager] Error creating appointment by manager:", error);
+    console.error("❌ [Manager] Error stack:", error.stack);
+    console.error(
+      "❌ [Manager] Request body:",
+      JSON.stringify(req.body, null, 2)
+    );
+
+    // Return more detailed error message
+    const errorMessage = error.message || "Internal server error";
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      `Error creating appointment: ${errorMessage}`
+    );
   }
 }
 
@@ -1484,6 +1883,19 @@ export async function setDoctorPricingForManager(req, res) {
         isActive: isActive !== undefined ? isActive : true,
       });
       console.log(`✅ Created new pricing for doctor ${doctor.fullName}`);
+    }
+
+    // If doctor is verified but not active, check if they can now be active
+    // (they might have just set their pricing)
+    if (doctor.isVerified && !doctor.isActive) {
+      const activeCheck = await checkDoctorCanBeActive(doctor._id);
+      if (activeCheck.canBeActive) {
+        doctor.isActive = true;
+        await doctor.save();
+        console.log(
+          `✅ Doctor ${doctor.fullName} (ID: ${doctor._id}) is now active after setting pricing`
+        );
+      }
     }
 
     return ok(res, {

@@ -14,6 +14,7 @@ import {
   getDoctorPricingForManager,
   setDoctorPricingForManager,
   deleteDoctorPricingForManager,
+  getAllPatientsForManager,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
@@ -27,6 +28,7 @@ const router = express.Router();
 // Manager role check should be done in middleware if needed
 
 router.get("/doctors", authGuard, getAllDoctorsForManager);
+router.get("/patients", authGuard, getAllPatientsForManager);
 router.get(
   "/doctors/:doctorId/time-slots",
   authGuard,
