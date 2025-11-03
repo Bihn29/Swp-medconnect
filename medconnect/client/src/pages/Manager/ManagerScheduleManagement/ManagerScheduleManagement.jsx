@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Clock,
@@ -8,6 +8,7 @@ import {
   User,
   Search,
   Trash2,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
@@ -24,7 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../components/ui/Select";
-import { api, rescheduleAppointmentByManager } from "../../../lib/api";
+import {
+  api,
+  rescheduleAppointmentByManager,
+  getManagerPatients,
+} from "../../../lib/api";
 import { RescheduleModal } from "../../../components/RescheduleModal/RescheduleModal";
 import "./ManagerScheduleManagement.scss";
 
@@ -57,11 +62,34 @@ export default function ManagerScheduleManagement() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [bookingData, setBookingData] = useState({
-    patientName: "",
-    patientPhone: "",
+    patientId: null, // Selected patient ID
+    patientName: "", // For new patient
+    patientPhone: "", // For new patient
+    dob: "", // Date of birth for new patient (YYYY-MM-DD format)
+    dobDay: "", // Day of birth
+    dobMonth: "", // Month of birth
+    dobYear: "", // Year of birth
+    gender: "", // Gender for new patient (male, female, other)
+    citizenId: "", // Citizen ID for new patient (12 digits)
+    address: "", // Address for new patient
+    allergyNotes: "", // Allergy notes for new patient
     reason: "",
     mode: "online",
+    clinicId: null, // Clinic ID for offline mode
   });
+
+  // Clinic states
+  const [clinics, setClinics] = useState([]);
+  const [loadingClinics, setLoadingClinics] = useState(false);
+
+  // Patient search states
+  const [patients, setPatients] = useState([]);
+  const [loadingPatients, setLoadingPatients] = useState(false);
+  const [patientSearchTerm, setPatientSearchTerm] = useState("");
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+
+  // Validation errors
+  const [validationErrors, setValidationErrors] = useState({});
 
   // Appointment detail modal states
   const [showAppointmentDetail, setShowAppointmentDetail] = useState(false);
@@ -73,10 +101,84 @@ export default function ManagerScheduleManagement() {
   // Reschedule modal states
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
+  // Pricing management states
+  const [showPricingDialog, setShowPricingDialog] = useState(false);
+  const [pricingData, setPricingData] = useState({
+    online: { weekday: 5000, weekend: 250000 },
+    offline: { weekday: 6000, weekend: 350000 },
+  });
+  const [loadingPricing, setLoadingPricing] = useState(false);
+
   // Load specializations on mount
   useEffect(() => {
     loadSpecializations();
   }, []);
+
+  // Load pricing when doctor is selected
+  useEffect(() => {
+    if (selectedDoctorId) {
+      loadDoctorPricing();
+    }
+  }, [selectedDoctorId]);
+
+  // Load clinics when dialog opens and mode is offline
+  useEffect(() => {
+    if (showBookSlot && bookingData.mode === "offline") {
+      loadClinics();
+    }
+  }, [showBookSlot, bookingData.mode]);
+
+  const loadClinics = async () => {
+    try {
+      setLoadingClinics(true);
+      const response = await api.get("/api/clinics?limit=100");
+      if (response.success) {
+        setClinics(response.data.clinics || []);
+      } else {
+        setClinics([]);
+      }
+    } catch (error) {
+      console.error("Error loading clinics:", error);
+      setClinics([]);
+    } finally {
+      setLoadingClinics(false);
+    }
+  };
+
+  // Load patients when search term changes (with debounce)
+  useEffect(() => {
+    if (!showBookSlot) {
+      setPatients([]);
+      setPatientSearchTerm("");
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      if (patientSearchTerm.trim().length > 0) {
+        try {
+          setLoadingPatients(true);
+          const response = await getManagerPatients({
+            search: patientSearchTerm.trim(),
+            limit: 20,
+          });
+          if (response.success) {
+            setPatients(response.data.patients || []);
+          } else {
+            setPatients([]);
+          }
+        } catch (error) {
+          console.error("Error loading patients:", error);
+          setPatients([]);
+        } finally {
+          setLoadingPatients(false);
+        }
+      } else {
+        setPatients([]);
+      }
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timer);
+  }, [patientSearchTerm, showBookSlot]);
 
   const loadDoctors = useCallback(async () => {
     // Only load if at least one filter is applied
@@ -285,13 +387,13 @@ export default function ManagerScheduleManagement() {
 
         // Different messages based on response
         if (createdCount === 0) {
-          // No slots created (already have >= 100)
+          // No slots created (already have enough slots for current month)
           alert(
-            `ℹ️ Hiện tại bác sĩ đã có ${existingSlots} slot trong tương lai.\n\nKhông cần tạo thêm slot lúc này.\nChỉ tạo slot mới khi số lượng slot < 100.`
+            `ℹ️ Hiện tại bác sĩ đã có ${existingSlots} slot trong tháng này.\n\nKhông cần tạo thêm slot lúc này.`
           );
         } else {
           // Slots created successfully
-          let message = `✅ Đã tạo ${createdCount} slot mới trong 1 tháng tới (bao gồm cả cuối tuần)`;
+          let message = `✅ Đã tạo ${createdCount} slot mới cho phần còn lại của tháng hiện tại (bao gồm cả cuối tuần)`;
           message += `\n\n📊 Tổng slot tương lai: ${totalSlots} slot`;
 
           // Warning if slots are running low
@@ -312,6 +414,100 @@ export default function ManagerScheduleManagement() {
       alert("❌ Lỗi khi tạo slots: " + error.message);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const loadDoctorPricing = async () => {
+    if (!selectedDoctorId) return;
+
+    try {
+      const response = await api.get(
+        `/api/managers/doctors/${selectedDoctorId}/pricing`
+      );
+
+      if (response.success && response.data.pricing) {
+        const pricing = response.data.pricing;
+        const onlinePricing = pricing.find((p) => p.mode === "online");
+        const offlinePricing = pricing.find((p) => p.mode === "offline");
+
+        setPricingData({
+          online: {
+            weekday: onlinePricing?.weekdayPrice || 5000,
+            weekend: onlinePricing?.weekendPrice || 6000,
+          },
+          offline: {
+            weekday: offlinePricing?.weekdayPrice || 300000,
+            weekend: offlinePricing?.weekendPrice || 350000,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error loading pricing:", error);
+      // Keep default pricing
+    }
+  };
+
+  const saveDoctorPricing = async () => {
+    if (!selectedDoctorId) return;
+
+    // Validation: Check if all prices are filled and > 0
+    if (
+      !pricingData.online.weekday ||
+      pricingData.online.weekday <= 0 ||
+      !pricingData.online.weekend ||
+      pricingData.online.weekend <= 0 ||
+      !pricingData.offline.weekday ||
+      pricingData.offline.weekday <= 0 ||
+      !pricingData.offline.weekend ||
+      pricingData.offline.weekend <= 0
+    ) {
+      alert("❌ Vui lòng điền đầy đủ tất cả các giá và giá phải lớn hơn 0!");
+      return;
+    }
+
+    // Get selected doctor to access clinicDefaultId
+    const doctor = doctors.find((d) => d._id === selectedDoctorId);
+    if (!doctor) {
+      alert("❌ Không tìm thấy thông tin bác sĩ");
+      return;
+    }
+
+    // Get clinic ID for offline pricing
+    const clinicId = doctor.clinicDefaultId?._id || doctor.clinicDefaultId;
+    if (!clinicId) {
+      alert(
+        "❌ Bác sĩ chưa có phòng khám mặc định. Vui lòng cập nhật thông tin bác sĩ trước."
+      );
+      return;
+    }
+
+    try {
+      setLoadingPricing(true);
+
+      // Save online pricing
+      await api.post(`/api/managers/doctors/${selectedDoctorId}/pricing`, {
+        mode: "online",
+        weekdayPrice: pricingData.online.weekday,
+        weekendPrice: pricingData.online.weekend,
+        isActive: true,
+      });
+
+      // Save offline pricing with clinicId
+      await api.post(`/api/managers/doctors/${selectedDoctorId}/pricing`, {
+        mode: "offline",
+        clinicId: clinicId,
+        weekdayPrice: pricingData.offline.weekday,
+        weekendPrice: pricingData.offline.weekend,
+        isActive: true,
+      });
+
+      alert("✅ Đã lưu bảng giá thành công!");
+      setShowPricingDialog(false);
+    } catch (error) {
+      console.error("Error saving pricing:", error);
+      alert("❌ Lỗi khi lưu bảng giá: " + error.message);
+    } finally {
+      setLoadingPricing(false);
     }
   };
 
@@ -540,10 +736,39 @@ export default function ManagerScheduleManagement() {
       return;
     }
 
-    // Manager chỉ có thể xem appointment detail, không thể đăng ký nghỉ
-    // Slot available không có hành động gì ở manager
-    if (slot.status === "available") {
-      return; // Không làm gì cả
+    // Slot available: Mở dialog đặt lịch
+    if (slot.status === "available" && !slot.hasPendingLeaveRequest) {
+      setSelectedSlot(slot);
+      setSelectedDate(new Date(slot.startAt).toISOString().split("T")[0]);
+      setSelectedTime(
+        new Date(slot.startAt).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })
+      );
+      setBookingData({
+        patientId: null,
+        patientName: "",
+        patientPhone: "",
+        dob: "",
+        dobDay: "",
+        dobMonth: "",
+        dobYear: "",
+        gender: "",
+        citizenId: "",
+        address: "",
+        allergyNotes: "",
+        reason: "",
+        mode: "online",
+        clinicId: null,
+      });
+      setPatientSearchTerm("");
+      setPatients([]);
+      setShowPatientDropdown(false);
+      setValidationErrors({});
+      setShowBookSlot(true);
+      return;
     }
 
     if (slot.appointmentId) {
@@ -571,13 +796,241 @@ export default function ManagerScheduleManagement() {
     }
   };
 
-  const handleBookSlot = async () => {
+  // Validation functions
+  const validatePatientName = (name) => {
+    if (!name || name.trim().length === 0) {
+      return "Họ và tên không được để trống";
+    }
+    if (name.trim().length < 2) {
+      return "Họ và tên phải có ít nhất 2 ký tự";
+    }
+    if (name.trim().length > 100) {
+      return "Họ và tên không được vượt quá 100 ký tự";
+    }
+    // Chỉ cho phép chữ cái, khoảng trắng, dấu tiếng Việt
+    const nameRegex = /^[a-zA-ZÀ-ỹ\s]+$/;
+    if (!nameRegex.test(name.trim())) {
+      return "Họ và tên chỉ được chứa chữ cái và khoảng trắng";
+    }
+    return "";
+  };
+
+  const validatePhone = (phone) => {
+    if (!phone || phone.trim().length === 0) {
+      return "Số điện thoại không được để trống";
+    }
+    // Loại bỏ khoảng trắng và ký tự đặc biệt
+    const cleanedPhone = phone.replace(/\s+/g, "").replace(/[-\+\(\)]/g, "");
+    // Kiểm tra format số điện thoại Việt Nam: 10 số, bắt đầu bằng 0
+    const phoneRegex = /^0[3-9]\d{8}$/;
+    if (!phoneRegex.test(cleanedPhone)) {
+      return "Số điện thoại không hợp lệ. Vui lòng nhập 10 số, bắt đầu bằng 0 (VD: 0912345678)";
+    }
+    return "";
+  };
+
+  const validateDOB = (dobDay, dobMonth, dobYear) => {
+    if (!dobDay || !dobMonth || !dobYear) {
+      return "Vui lòng chọn đầy đủ ngày, tháng, năm sinh";
+    }
+
+    const day = parseInt(dobDay);
+    const month = parseInt(dobMonth);
+    const year = parseInt(dobYear);
+
+    // Validate year
+    const currentYear = new Date().getFullYear();
+    if (year < currentYear - 150 || year > currentYear) {
+      return `Năm sinh phải từ ${currentYear - 150} đến ${currentYear}`;
+    }
+
+    // Validate month
+    if (month < 1 || month > 12) {
+      return "Tháng không hợp lệ";
+    }
+
+    // Validate day based on month and year
+    const daysInMonth = new Date(year, month, 0).getDate();
+    if (day < 1 || day > daysInMonth) {
+      return `Ngày không hợp lệ (tháng ${month} có tối đa ${daysInMonth} ngày)`;
+    }
+
+    // Check if date is in the future
+    const birthDate = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (birthDate > today) {
+      return "Ngày sinh không được là ngày trong tương lai";
+    }
+
+    // Calculate age
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
     if (
-      !bookingData.patientName ||
-      !bookingData.patientPhone ||
-      !bookingData.reason
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
     ) {
-      alert("Vui lòng điền đầy đủ thông tin!");
+      age--;
+    }
+
+    if (age < 0) {
+      return "Ngày sinh không hợp lệ";
+    }
+
+    return "";
+  };
+
+  // Helper function to convert dobDay, dobMonth, dobYear to YYYY-MM-DD format
+  const formatDOB = (day, month, year) => {
+    if (!day || !month || !year) return "";
+    const dayStr = String(day).padStart(2, "0");
+    const monthStr = String(month).padStart(2, "0");
+    return `${year}-${monthStr}-${dayStr}`;
+  };
+
+  // Generate years list (from 150 years ago to current year)
+  const getYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear; i >= currentYear - 150; i--) {
+      years.push(i);
+    }
+    return years;
+  };
+
+  // Generate days list based on selected month and year
+  const getDays = (month, year) => {
+    if (!month || !year) return [];
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const days = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i);
+    }
+    return days;
+  };
+
+  // Get month display name
+  const getMonthDisplayName = (monthValue) => {
+    if (!monthValue) return "";
+    const monthNames = {
+      1: "Tháng 1",
+      2: "Tháng 2",
+      3: "Tháng 3",
+      4: "Tháng 4",
+      5: "Tháng 5",
+      6: "Tháng 6",
+      7: "Tháng 7",
+      8: "Tháng 8",
+      9: "Tháng 9",
+      10: "Tháng 10",
+      11: "Tháng 11",
+      12: "Tháng 12",
+    };
+    return monthNames[monthValue] || "";
+  };
+
+  const validateGender = (gender) => {
+    if (!gender) {
+      return "Vui lòng chọn giới tính";
+    }
+    if (!["male", "female", "other"].includes(gender)) {
+      return "Giới tính không hợp lệ";
+    }
+    return "";
+  };
+
+  const validateCitizenId = (citizenId) => {
+    if (!citizenId || citizenId.trim().length === 0) {
+      return "Căn cước công dân không được để trống";
+    }
+    // Loại bỏ khoảng trắng và dấu gạch ngang
+    const cleanedId = citizenId.replace(/\s+/g, "").replace(/-/g, "");
+    // Kiểm tra CCCD (bắt buộc 12 số)
+    const citizenIdRegex = /^\d{12}$/;
+    if (!citizenIdRegex.test(cleanedId)) {
+      return "Căn cước công dân phải đúng 12 số";
+    }
+    return "";
+  };
+
+  const validateAddress = (address) => {
+    if (!address || address.trim().length === 0) {
+      return "Địa chỉ không được để trống";
+    }
+    if (address.trim().length < 5) {
+      return "Địa chỉ phải có ít nhất 5 ký tự";
+    }
+    if (address.trim().length > 500) {
+      return "Địa chỉ không được vượt quá 500 ký tự";
+    }
+    return "";
+  };
+
+  const validateReason = (reason) => {
+    if (!reason || reason.trim().length === 0) {
+      return "Lý do khám không được để trống";
+    }
+    if (reason.trim().length < 5) {
+      return "Lý do khám phải có ít nhất 5 ký tự";
+    }
+    if (reason.trim().length > 500) {
+      return "Lý do khám không được vượt quá 500 ký tự";
+    }
+    return "";
+  };
+
+  const handleBookSlot = async () => {
+    // Validate all fields and get errors
+    const errors = {};
+
+    // Validate patient info if new patient
+    if (!bookingData.patientId) {
+      errors.patientName = validatePatientName(bookingData.patientName);
+      errors.patientPhone = validatePhone(bookingData.patientPhone);
+      errors.dob = validateDOB(
+        bookingData.dobDay,
+        bookingData.dobMonth,
+        bookingData.dobYear
+      );
+      errors.gender = validateGender(bookingData.gender);
+      errors.citizenId = validateCitizenId(bookingData.citizenId);
+      errors.address = validateAddress(bookingData.address);
+    }
+
+    // Always validate reason
+    errors.reason = validateReason(bookingData.reason);
+
+    // Validate clinic if offline
+    if (bookingData.mode === "offline" && !bookingData.clinicId) {
+      errors.clinicId = "Vui lòng chọn phòng khám";
+    }
+
+    // Set errors
+    setValidationErrors(errors);
+
+    // Check if there are any errors
+    const hasErrors = Object.values(errors).some((error) => error !== "");
+    if (hasErrors) {
+      // Scroll to first error field
+      const firstErrorField = Object.keys(errors).find((key) => errors[key]);
+      if (firstErrorField) {
+        setTimeout(() => {
+          const element = document.querySelector(
+            `[data-field="${firstErrorField}"]`
+          );
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+            // Try to focus input inside if element is a container
+            const input =
+              element.querySelector("input") ||
+              element.querySelector("select") ||
+              element;
+            if (input && input.focus) {
+              input.focus();
+            }
+          }
+        }, 100);
+      }
       return;
     }
 
@@ -591,8 +1044,18 @@ export default function ManagerScheduleManagement() {
       let slotId = null;
 
       if (selectedSlot) {
-        scheduledStart = selectedSlot.startAt;
-        scheduledEnd = selectedSlot.endAt;
+        // Ensure startAt and endAt are properly formatted as ISO strings
+        const startDate =
+          selectedSlot.startAt instanceof Date
+            ? selectedSlot.startAt
+            : new Date(selectedSlot.startAt);
+        const endDate =
+          selectedSlot.endAt instanceof Date
+            ? selectedSlot.endAt
+            : new Date(selectedSlot.endAt);
+
+        scheduledStart = startDate.toISOString();
+        scheduledEnd = endDate.toISOString();
         slotId = selectedSlot.id || selectedSlot._id;
       } else if (selectedDate && selectedTime) {
         const [hour, minute] = selectedTime.split(":").map(Number);
@@ -627,13 +1090,42 @@ export default function ManagerScheduleManagement() {
       const appointmentData = {
         doctorId: selectedDoctorId,
         slotId: slotId,
-        patientName: bookingData.patientName,
-        patientPhone: bookingData.patientPhone,
         reason: bookingData.reason,
         mode: bookingData.mode,
         scheduledStart: scheduledStart,
         scheduledEnd: scheduledEnd,
       };
+
+      // Add patientId if selected, otherwise use new patient data
+      if (bookingData.patientId) {
+        appointmentData.patientId = bookingData.patientId;
+      } else {
+        // New patient - send all required fields
+        appointmentData.patientName = bookingData.patientName;
+        appointmentData.patientPhone = bookingData.patientPhone;
+        // Format DOB from day, month, year to YYYY-MM-DD
+        appointmentData.dob = formatDOB(
+          bookingData.dobDay,
+          bookingData.dobMonth,
+          bookingData.dobYear
+        );
+        appointmentData.gender = bookingData.gender;
+        appointmentData.citizenId = bookingData.citizenId;
+        appointmentData.address = bookingData.address;
+        appointmentData.allergyNotes = bookingData.allergyNotes || "";
+      }
+
+      // Add clinicId if mode is offline
+      if (bookingData.mode === "offline" && bookingData.clinicId) {
+        appointmentData.clinicId = bookingData.clinicId;
+      }
+
+      console.log("📤 [Frontend] Sending appointment data:", {
+        ...appointmentData,
+        dob: appointmentData.dob || "N/A",
+        scheduledStart: appointmentData.scheduledStart,
+        scheduledEnd: appointmentData.scheduledEnd,
+      });
 
       const response = await api.post(
         "/api/managers/appointments",
@@ -644,22 +1136,59 @@ export default function ManagerScheduleManagement() {
         alert("Đặt lịch thành công!");
         setShowBookSlot(false);
         setBookingData({
+          patientId: null,
           patientName: "",
           patientPhone: "",
+          dob: "",
+          dobDay: "",
+          dobMonth: "",
+          dobYear: "",
+          gender: "",
+          citizenId: "",
+          address: "",
+          allergyNotes: "",
           reason: "",
           mode: "online",
+          clinicId: null,
         });
         setSelectedSlot(null);
         setSelectedDate(null);
         setSelectedTime(null);
+        setPatientSearchTerm("");
+        setPatients([]);
+        setValidationErrors({});
         await loadTimeSlots();
       } else {
-        alert("Lỗi khi đặt lịch: " + (response.message || "Unknown error"));
+        const errorMsg =
+          response.message || response.error?.message || "Unknown error";
+        console.error("❌ Error response:", response);
+        alert("Lỗi khi đặt lịch: " + errorMsg);
       }
     } catch (error) {
-      console.error("Error booking slot:", error);
-      alert("Có lỗi xảy ra khi đặt lịch: " + error.message);
+      console.error("❌ Error booking slot:", error);
+      console.error("❌ Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        stack: error.stack,
+      });
+      const errorMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Có lỗi xảy ra khi đặt lịch";
+      alert("Có lỗi xảy ra khi đặt lịch: " + errorMsg);
     }
+  };
+
+  const handleSelectPatient = (patient) => {
+    setBookingData({
+      ...bookingData,
+      patientId: patient._id || patient.id,
+      patientName: patient.fullName,
+      patientPhone: patient.phone,
+    });
+    setPatientSearchTerm(patient.fullName);
+    setShowPatientDropdown(false);
+    setPatients([]);
   };
 
   const handleDeleteSlot = async (slot) => {
@@ -721,7 +1250,13 @@ export default function ManagerScheduleManagement() {
               onValueChange={(value) => setSelectedSpecializationId(value)}
             >
               <SelectTrigger className="specialization-select">
-                <SelectValue placeholder="Tìm theo chuyên khoa" />
+                <SelectValue placeholder="Tìm theo chuyên khoa">
+                  {selectedSpecializationId
+                    ? specializations.find(
+                        (s) => s._id === selectedSpecializationId
+                      )?.name || ""
+                    : ""}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {specializations.map((spec) => (
@@ -914,6 +1449,14 @@ export default function ManagerScheduleManagement() {
             <div className="header-right">
               <div className="action-buttons">
                 <Button
+                  onClick={() => setShowPricingDialog(true)}
+                  className="pricing-btn"
+                  variant="outline"
+                >
+                  <DollarSign size={16} />
+                  Quản lý giá
+                </Button>
+                <Button
                   onClick={handleGenerateSlots}
                   className="auto-generate-btn"
                   disabled={generating}
@@ -947,8 +1490,8 @@ export default function ManagerScheduleManagement() {
                   <Calendar size={64} className="empty-icon" />
                   <h3>Chưa có slot nào trong tuần này</h3>
                   <p>
-                    Bấm nút "Tạo slot tự động" để tạo lịch làm việc cho 1 tháng
-                    tới (bao gồm cả cuối tuần)
+                    Bấm nút "Tạo slot tự động" để tạo lịch làm việc cho phần còn
+                    lại của tháng hiện tại (bao gồm cả cuối tuần)
                   </p>
                   <Button
                     onClick={handleGenerateSlots}
@@ -1047,11 +1590,15 @@ export default function ManagerScheduleManagement() {
                                     setSelectedTime(time);
                                     setSelectedSlot(null);
                                     setBookingData({
+                                      patientId: null,
                                       patientName: "",
                                       patientPhone: "",
                                       reason: "",
                                       mode: "online",
                                     });
+                                    setPatientSearchTerm("");
+                                    setPatients([]);
+                                    setShowPatientDropdown(false);
                                     setShowBookSlot(true);
                                   }}
                                   style={{ cursor: "pointer" }}
@@ -1147,6 +1694,139 @@ export default function ManagerScheduleManagement() {
         </>
       )}
 
+      {/* Pricing Management Dialog */}
+      <Dialog open={showPricingDialog} onOpenChange={setShowPricingDialog}>
+        <DialogContent className="pricing-dialog" style={{ maxWidth: "600px" }}>
+          <DialogHeader>
+            <DialogTitle>💰 Quản lý bảng giá</DialogTitle>
+          </DialogHeader>
+          <div className="pricing-content">
+            <p style={{ marginBottom: "24px", color: "#666" }}>
+              Thiết lập giá khám cho bác sĩ:{" "}
+              <strong>{selectedDoctor?.fullName}</strong>
+            </p>
+
+            {/* Online Pricing */}
+            <div className="pricing-section">
+              <h3
+                style={{
+                  marginBottom: "16px",
+                  fontSize: "16px",
+                  fontWeight: 600,
+                }}
+              >
+                Khám online
+              </h3>
+              <div className="pricing-row">
+                <div className="pricing-field">
+                  <label>Thứ 2-6 (VND):</label>
+                  <Input
+                    type="number"
+                    value={pricingData.online.weekday || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPricingData({
+                        ...pricingData,
+                        online: {
+                          ...pricingData.online,
+                          weekday: value === "" ? 0 : parseInt(value),
+                        },
+                      });
+                    }}
+                    placeholder="200000"
+                  />
+                </div>
+                <div className="pricing-field">
+                  <label>Thứ 7-CN (VND):</label>
+                  <Input
+                    type="number"
+                    value={pricingData.online.weekend || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPricingData({
+                        ...pricingData,
+                        online: {
+                          ...pricingData.online,
+                          weekend: value === "" ? 0 : parseInt(value),
+                        },
+                      });
+                    }}
+                    placeholder="250000"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Offline Pricing */}
+            <div className="pricing-section">
+              <h3
+                style={{
+                  marginBottom: "16px",
+                  fontSize: "16px",
+                  fontWeight: 600,
+                }}
+              >
+                Khám tại phòng khám
+              </h3>
+              <div className="pricing-row">
+                <div className="pricing-field">
+                  <label>Thứ 2-6 (VND):</label>
+                  <Input
+                    type="number"
+                    value={pricingData.offline.weekday || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPricingData({
+                        ...pricingData,
+                        offline: {
+                          ...pricingData.offline,
+                          weekday: value === "" ? 0 : parseInt(value),
+                        },
+                      });
+                    }}
+                    placeholder="300000"
+                  />
+                </div>
+                <div className="pricing-field">
+                  <label>Thứ 7-CN (VND):</label>
+                  <Input
+                    type="number"
+                    value={pricingData.offline.weekend || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPricingData({
+                        ...pricingData,
+                        offline: {
+                          ...pricingData.offline,
+                          weekend: value === "" ? 0 : parseInt(value),
+                        },
+                      });
+                    }}
+                    placeholder="350000"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="dialog-actions" style={{ marginTop: "24px" }}>
+              <Button
+                variant="outline"
+                onClick={() => setShowPricingDialog(false)}
+              >
+                Hủy
+              </Button>
+              <Button
+                variant="primary"
+                onClick={saveDoctorPricing}
+                disabled={loadingPricing}
+              >
+                {loadingPricing ? "Đang lưu..." : "Lưu bảng giá"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Block Detail Dialog - Hiển thị lý do nghỉ (chỉ xem, không đăng ký) */}
       <Dialog
         open={showBlockDetailDialog}
@@ -1195,35 +1875,709 @@ export default function ManagerScheduleManagement() {
           <DialogHeader>
             <DialogTitle>Đặt lịch khám</DialogTitle>
           </DialogHeader>
-          <div className="form-group">
-            <label>Tên bệnh nhân:</label>
+          <div className="form-group" style={{ position: "relative" }}>
+            <label>Chọn bệnh nhân:</label>
+            <div className="patient-search-wrapper">
             <Input
+                value={patientSearchTerm}
+                onChange={(e) => {
+                  setPatientSearchTerm(e.target.value);
+                  setShowPatientDropdown(true);
+                }}
+                onFocus={() => {
+                  if (
+                    patientSearchTerm.trim().length > 0 &&
+                    patients.length > 0
+                  ) {
+                    setShowPatientDropdown(true);
+                  }
+                }}
+                onBlur={(e) => {
+                  // Delay closing to allow click on dropdown item
+                  setTimeout(() => {
+                    if (!e.currentTarget.contains(document.activeElement)) {
+                      setShowPatientDropdown(false);
+                    }
+                  }, 200);
+                }}
+                placeholder="Tìm kiếm theo tên hoặc số điện thoại..."
+                style={{ width: "100%" }}
+              />
+              {showPatientDropdown &&
+                patientSearchTerm.trim().length > 0 &&
+                !loadingPatients && (
+                  <div
+                    className="patient-dropdown"
+                    onMouseDown={(e) => e.preventDefault()} // Prevent blur when clicking dropdown
+                  >
+                    {patients.length > 0 ? (
+                      patients.map((patient) => (
+                        <div
+                          key={patient._id || patient.id}
+                          className="patient-dropdown-item"
+                          onClick={() => handleSelectPatient(patient)}
+                        >
+                          <div className="patient-info">
+                            <strong>{patient.fullName}</strong>
+                            <span className="patient-phone">
+                              {patient.phone}
+                            </span>
+                            {patient.email && (
+                              <span className="patient-email">
+                                {patient.email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="patient-dropdown-empty">
+                        Không tìm thấy bệnh nhân nào
+                      </div>
+                    )}
+                  </div>
+                )}
+              {loadingPatients && patientSearchTerm.trim().length > 0 && (
+                <div className="patient-dropdown">
+                  <div className="patient-dropdown-loading">
+                    <div className="loading-spinner"></div>
+                    <span>Đang tải...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            {bookingData.patientId && (
+              <div className="selected-patient-info">
+                <span>
+                  Đã chọn: <strong>{bookingData.patientName}</strong> -{" "}
+                  {bookingData.patientPhone}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setBookingData({
+                      ...bookingData,
+                      patientId: null,
+                      patientName: "",
+                      patientPhone: "",
+                      dob: "",
+                      gender: "",
+                      citizenId: "",
+                      address: "",
+                      allergyNotes: "",
+                    });
+                    setPatientSearchTerm("");
+                    setShowPatientDropdown(false);
+                  }}
+                  style={{ marginLeft: "8px" }}
+                >
+                  Xóa
+                </Button>
+              </div>
+            )}
+            {!bookingData.patientId && (
+              <div
+                className="patient-manual-input"
+                style={{ marginTop: "12px" }}
+              >
+                <p
+                  style={{
+                    fontSize: "14px",
+                    color: "#374151",
+                    marginBottom: "16px",
+                    fontWeight: 500,
+                  }}
+                >
+                  Thông tin bệnh nhân mới (bắt buộc):
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: "4px",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Họ và tên <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <Input
+                      data-field="patientName"
               value={bookingData.patientName}
-              onChange={(e) =>
-                setBookingData({ ...bookingData, patientName: e.target.value })
-              }
-              placeholder="Nhập tên bệnh nhân..."
-            />
+                      onChange={(e) => {
+                        setBookingData({
+                          ...bookingData,
+                          patientName: e.target.value,
+                        });
+                        // Clear error when user starts typing
+                        if (validationErrors.patientName) {
+                          setValidationErrors({
+                            ...validationErrors,
+                            patientName: "",
+                          });
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const error = validatePatientName(e.target.value);
+                        setValidationErrors({
+                          ...validationErrors,
+                          patientName: error,
+                        });
+                      }}
+                      placeholder="Nhập họ và tên đầy đủ"
+                      style={{
+                        borderColor: validationErrors.patientName
+                          ? "#ef4444"
+                          : undefined,
+                      }}
+                    />
+                    {validationErrors.patientName && (
+                      <span
+                        style={{
+                          color: "#ef4444",
+                          fontSize: "12px",
+                          marginTop: "4px",
+                          display: "block",
+                        }}
+                      >
+                        {validationErrors.patientName}
+                      </span>
+                    )}
           </div>
-          <div className="form-group">
-            <label>Số điện thoại:</label>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: "4px",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Số điện thoại <span style={{ color: "red" }}>*</span>
+                    </label>
             <Input
+                      data-field="patientPhone"
+                      type="tel"
               value={bookingData.patientPhone}
+                      onChange={(e) => {
+                        // Chỉ cho phép số
+                        const value = e.target.value.replace(/\D/g, "");
+                        setBookingData({
+                          ...bookingData,
+                          patientPhone: value,
+                        });
+                        if (validationErrors.patientPhone) {
+                          setValidationErrors({
+                            ...validationErrors,
+                            patientPhone: "",
+                          });
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const error = validatePhone(e.target.value);
+                        setValidationErrors({
+                          ...validationErrors,
+                          patientPhone: error,
+                        });
+                      }}
+                      placeholder="Nhập số điện thoại (VD: 0912345678)"
+                      maxLength={11}
+                      style={{
+                        borderColor: validationErrors.patientPhone
+                          ? "#ef4444"
+                          : undefined,
+                      }}
+                    />
+                    {validationErrors.patientPhone && (
+                      <span
+                        style={{
+                          color: "#ef4444",
+                          fontSize: "12px",
+                          marginTop: "4px",
+                          display: "block",
+                        }}
+                      >
+                        {validationErrors.patientPhone}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: "4px",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Ngày sinh <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <div
+                      data-field="dob"
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <Select
+                          value={bookingData.dobDay || ""}
+                          onValueChange={(value) => {
+                            setBookingData({
+                              ...bookingData,
+                              dobDay: value,
+                            });
+                            if (validationErrors.dob) {
+                              setValidationErrors({
+                                ...validationErrors,
+                                dob: "",
+                              });
+                            }
+                          }}
+                        >
+                          <SelectTrigger
+                            style={{
+                              borderColor: validationErrors.dob
+                                ? "#ef4444"
+                                : undefined,
+                            }}
+                          >
+                            <SelectValue placeholder="Ngày" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(() => {
+                              // If month and year are selected, show actual days for that month
+                              if (bookingData.dobMonth && bookingData.dobYear) {
+                                const days = getDays(
+                                  parseInt(bookingData.dobMonth),
+                                  parseInt(bookingData.dobYear)
+                                );
+                                return days.map((day) => (
+                                  <SelectItem key={day} value={String(day)}>
+                                    {day}
+                                  </SelectItem>
+                                ));
+                              } else {
+                                // If month/year not selected yet, show all days 1-31
+                                // User can select any day, will be validated later
+                                return Array.from(
+                                  { length: 31 },
+                                  (_, i) => i + 1
+                                ).map((day) => (
+                                  <SelectItem key={day} value={String(day)}>
+                                    {day}
+                                  </SelectItem>
+                                ));
+                              }
+                            })()}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <Select
+                          value={getMonthDisplayName(bookingData.dobMonth)}
+                          onValueChange={(displayValue) => {
+                            // Extract numeric month from display value (e.g., "Tháng 1" -> "1")
+                            const numericMonth = displayValue.replace(
+                              "Tháng ",
+                              ""
+                            );
+                            const newMonth = parseInt(numericMonth);
+                            const currentYear = bookingData.dobYear
+                              ? parseInt(bookingData.dobYear)
+                              : null;
+                            const currentDay = bookingData.dobDay
+                              ? parseInt(bookingData.dobDay)
+                              : null;
+
+                            // If year is selected, validate day against new month
+                            let newDay = bookingData.dobDay;
+                            if (currentYear && currentDay !== null) {
+                              const daysInNewMonth = new Date(
+                                currentYear,
+                                newMonth,
+                                0
+                              ).getDate();
+                              // If current day is invalid for new month, reset it
+                              if (currentDay > daysInNewMonth) {
+                                newDay = ""; // Reset if day exceeds max days in new month
+                              }
+                            }
+
+                            setBookingData({
+                              ...bookingData,
+                              dobMonth: numericMonth,
+                              dobDay: newDay,
+                            });
+                            if (validationErrors.dob) {
+                              setValidationErrors({
+                                ...validationErrors,
+                                dob: "",
+                              });
+                            }
+                          }}
+                        >
+                          <SelectTrigger
+                            style={{
+                              borderColor: validationErrors.dob
+                                ? "#ef4444"
+                                : undefined,
+                            }}
+                          >
+                            <SelectValue placeholder="Tháng" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[
+                              { value: "Tháng 1", numeric: "1" },
+                              { value: "Tháng 2", numeric: "2" },
+                              { value: "Tháng 3", numeric: "3" },
+                              { value: "Tháng 4", numeric: "4" },
+                              { value: "Tháng 5", numeric: "5" },
+                              { value: "Tháng 6", numeric: "6" },
+                              { value: "Tháng 7", numeric: "7" },
+                              { value: "Tháng 8", numeric: "8" },
+                              { value: "Tháng 9", numeric: "9" },
+                              { value: "Tháng 10", numeric: "10" },
+                              { value: "Tháng 11", numeric: "11" },
+                              { value: "Tháng 12", numeric: "12" },
+                            ].map((month) => (
+                              <SelectItem
+                                key={month.numeric}
+                                value={month.value}
+                              >
+                                {month.value}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <Select
+                          value={bookingData.dobYear || ""}
+                          onValueChange={(value) => {
+                            const newYear = parseInt(value);
+                            const currentMonth = bookingData.dobMonth
+                              ? parseInt(bookingData.dobMonth)
+                              : null;
+                            const currentDay = bookingData.dobDay
+                              ? parseInt(bookingData.dobDay)
+                              : null;
+
+                            // If month is selected, validate day against new year (handles leap year)
+                            let newDay = bookingData.dobDay;
+                            if (currentMonth && currentDay !== null) {
+                              const daysInMonth = new Date(
+                                newYear,
+                                currentMonth,
+                                0
+                              ).getDate();
+                              // If current day is invalid for new year (e.g., Feb 29 in non-leap year), reset it
+                              if (currentDay > daysInMonth) {
+                                newDay = ""; // Reset if day exceeds max days (e.g., Feb 29 → Feb 28 in non-leap year)
+                              }
+                            }
+
+                            setBookingData({
+                              ...bookingData,
+                              dobYear: value,
+                              dobDay: newDay,
+                            });
+                            if (validationErrors.dob) {
+                              setValidationErrors({
+                                ...validationErrors,
+                                dob: "",
+                              });
+                            }
+                          }}
+                        >
+                          <SelectTrigger
+                            style={{
+                              borderColor: validationErrors.dob
+                                ? "#ef4444"
+                                : undefined,
+                            }}
+                          >
+                            <SelectValue placeholder="Năm" />
+                          </SelectTrigger>
+                          <SelectContent style={{ maxHeight: "200px" }}>
+                            {getYears().map((year) => (
+                              <SelectItem key={year} value={String(year)}>
+                                {year}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {validationErrors.dob && (
+                      <span
+                        style={{
+                          color: "#ef4444",
+                          fontSize: "12px",
+                          marginTop: "4px",
+                          display: "block",
+                        }}
+                      >
+                        {validationErrors.dob}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: "4px",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Giới tính <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <div data-field="gender">
+                      <Select
+                        value={bookingData.gender}
+                        onValueChange={(value) => {
+                          setBookingData({
+                            ...bookingData,
+                            gender: value,
+                          });
+                          if (validationErrors.gender) {
+                            setValidationErrors({
+                              ...validationErrors,
+                              gender: "",
+                            });
+                          }
+                        }}
+                      >
+                        <SelectTrigger
+                          style={{
+                            borderColor: validationErrors.gender
+                              ? "#ef4444"
+                              : undefined,
+                          }}
+                        >
+                          <SelectValue placeholder="Chọn giới tính">
+                            {bookingData.gender === "male"
+                              ? "Nam"
+                              : bookingData.gender === "female"
+                              ? "Nữ"
+                              : bookingData.gender === "other"
+                              ? "Khác"
+                              : "Chọn giới tính"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Nam</SelectItem>
+                          <SelectItem value="female">Nữ</SelectItem>
+                          <SelectItem value="other">Khác</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {validationErrors.gender && (
+                      <span
+                        style={{
+                          color: "#ef4444",
+                          fontSize: "12px",
+                          marginTop: "4px",
+                          display: "block",
+                        }}
+                      >
+                        {validationErrors.gender}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: "4px",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Căn cước công dân <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <Input
+                      data-field="citizenId"
+                      value={bookingData.citizenId}
+                      onChange={(e) => {
+                        // Chỉ cho phép số
+                        const value = e.target.value.replace(/\D/g, "");
+                        setBookingData({
+                          ...bookingData,
+                          citizenId: value,
+                        });
+                        if (validationErrors.citizenId) {
+                          setValidationErrors({
+                            ...validationErrors,
+                            citizenId: "",
+                          });
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const error = validateCitizenId(e.target.value);
+                        setValidationErrors({
+                          ...validationErrors,
+                          citizenId: error,
+                        });
+                      }}
+                      placeholder="Nhập số căn cước công dân (12 số)"
+                      maxLength={12}
+                      style={{
+                        borderColor: validationErrors.citizenId
+                          ? "#ef4444"
+                          : undefined,
+                      }}
+                    />
+                    {validationErrors.citizenId && (
+                      <span
+                        style={{
+                          color: "#ef4444",
+                          fontSize: "12px",
+                          marginTop: "4px",
+                          display: "block",
+                        }}
+                      >
+                        {validationErrors.citizenId}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: "4px",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Địa chỉ <span style={{ color: "red" }}>*</span>
+                    </label>
+                    <Input
+                      data-field="address"
+                      value={bookingData.address}
+                      onChange={(e) => {
+                        setBookingData({
+                          ...bookingData,
+                          address: e.target.value,
+                        });
+                        if (validationErrors.address) {
+                          setValidationErrors({
+                            ...validationErrors,
+                            address: "",
+                          });
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const error = validateAddress(e.target.value);
+                        setValidationErrors({
+                          ...validationErrors,
+                          address: error,
+                        });
+                      }}
+                      placeholder="Nhập địa chỉ nơi ở"
+                      style={{
+                        borderColor: validationErrors.address
+                          ? "#ef4444"
+                          : undefined,
+                      }}
+                    />
+                    {validationErrors.address && (
+                      <span
+                        style={{
+                          color: "#ef4444",
+                          fontSize: "12px",
+                          marginTop: "4px",
+                          display: "block",
+                        }}
+                      >
+                        {validationErrors.address}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: "4px",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Dị ứng / Ghi chú y tế
+                    </label>
+                    <textarea
+                      value={bookingData.allergyNotes}
               onChange={(e) =>
-                setBookingData({ ...bookingData, patientPhone: e.target.value })
-              }
-              placeholder="Nhập số điện thoại..."
-            />
+                        setBookingData({
+                          ...bookingData,
+                          allergyNotes: e.target.value,
+                        })
+                      }
+                      placeholder="Nhập thông tin dị ứng hoặc ghi chú y tế (nếu có)"
+                      style={{
+                        width: "100%",
+                        minHeight: "80px",
+                        padding: "8px 12px",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "6px",
+                        fontSize: "14px",
+                        fontFamily: "inherit",
+                        resize: "vertical",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label>Lý do khám:</label>
             <Input
+              data-field="reason"
               value={bookingData.reason}
-              onChange={(e) =>
-                setBookingData({ ...bookingData, reason: e.target.value })
-              }
+              onChange={(e) => {
+                setBookingData({ ...bookingData, reason: e.target.value });
+                if (validationErrors.reason) {
+                  setValidationErrors({
+                    ...validationErrors,
+                    reason: "",
+                  });
+                }
+              }}
+              onBlur={(e) => {
+                const error = validateReason(e.target.value);
+                setValidationErrors({
+                  ...validationErrors,
+                  reason: error,
+                });
+              }}
               placeholder="Nhập lý do khám..."
+              style={{
+                borderColor: validationErrors.reason ? "#ef4444" : undefined,
+              }}
             />
+            {validationErrors.reason && (
+              <span
+                style={{
+                  color: "#ef4444",
+                  fontSize: "12px",
+                  marginTop: "4px",
+                  display: "block",
+                }}
+              >
+                {validationErrors.reason}
+              </span>
+            )}
           </div>
           <div className="form-group">
             <label>Hình thức khám:</label>
@@ -1235,10 +2589,14 @@ export default function ManagerScheduleManagement() {
                   value="online"
                   checked={bookingData.mode === "online"}
                   onChange={(e) =>
-                    setBookingData({ ...bookingData, mode: e.target.value })
+                    setBookingData({
+                      ...bookingData,
+                      mode: e.target.value,
+                      clinicId: null, // Clear clinicId when switching to online
+                    })
                   }
                 />
-                <span>Online</span>
+                <span>Tư vấn online</span>
               </label>
               <label className="checkbox-option">
                 <input
@@ -1246,27 +2604,132 @@ export default function ManagerScheduleManagement() {
                   name="mode"
                   value="offline"
                   checked={bookingData.mode === "offline"}
-                  onChange={(e) =>
-                    setBookingData({ ...bookingData, mode: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setBookingData({
+                      ...bookingData,
+                      mode: e.target.value,
+                    });
+                    // Load clinics when switching to offline
+                    if (!clinics.length && !loadingClinics) {
+                      loadClinics();
+                    }
+                  }}
                 />
-                <span>Offline</span>
+                <span>Khám tại phòng khám</span>
               </label>
             </div>
+            {bookingData.mode === "offline" && (
+              <div style={{ marginTop: "12px" }} data-field="clinicId">
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                  }}
+                >
+                  Chọn phòng khám <span style={{ color: "red" }}>*</span>
+                </label>
+                {loadingClinics ? (
+                  <div style={{ padding: "12px", color: "#6b7280" }}>
+                    Đang tải danh sách phòng khám...
+                  </div>
+                ) : clinics.length > 0 ? (
+                  (() => {
+                    const selectedClinic = bookingData.clinicId
+                      ? clinics.find(
+                          (c) =>
+                            String(c.id || c._id) ===
+                            String(bookingData.clinicId)
+                        )
+                      : null;
+                    const selectedClinicName = selectedClinic
+                      ? `${selectedClinic.name}${
+                          selectedClinic.address
+                            ? ` - ${selectedClinic.address}`
+                            : ""
+                        }`
+                      : "";
+
+                    return (
+                      <Select
+                        value={bookingData.clinicId || ""}
+                        onValueChange={(value) => {
+                          setBookingData({
+                            ...bookingData,
+                            clinicId: value,
+                          });
+                          if (validationErrors.clinicId) {
+                            setValidationErrors({
+                              ...validationErrors,
+                              clinicId: "",
+                            });
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn phòng khám">
+                            {selectedClinicName || ""}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clinics.map((clinic) => (
+                            <SelectItem
+                              key={clinic.id || clinic._id}
+                              value={String(clinic.id || clinic._id)}
+                            >
+                              {clinic.name}
+                              {clinic.address && ` - ${clinic.address}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()
+                ) : (
+                  <div style={{ padding: "12px", color: "#ef4444" }}>
+                    Không có phòng khám nào. Vui lòng liên hệ quản trị viên.
+                  </div>
+                )}
+                {validationErrors.clinicId && (
+                  <span
+                    style={{
+                      color: "#ef4444",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                      display: "block",
+                    }}
+                  >
+                    {validationErrors.clinicId}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="dialog-actions">
             <Button
               onClick={() => {
                 setShowBookSlot(false);
                 setBookingData({
+                  patientId: null,
                   patientName: "",
                   patientPhone: "",
+                  dob: "",
+                  gender: "",
+                  citizenId: "",
+                  address: "",
+                  allergyNotes: "",
                   reason: "",
                   mode: "online",
+                  clinicId: null,
                 });
                 setSelectedSlot(null);
                 setSelectedDate(null);
                 setSelectedTime(null);
+                setPatientSearchTerm("");
+                setPatients([]);
+                setShowPatientDropdown(false);
+                setValidationErrors({});
               }}
               variant="outline"
             >

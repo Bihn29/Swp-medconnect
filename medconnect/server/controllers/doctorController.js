@@ -19,6 +19,56 @@ import { ERROR_CODES } from "../constants/index.js";
 import { sendMail } from "../utils/email.js";
 
 /**
+ * Check if doctor has all required information to be active
+ * Required fields: yearsExperience > 0, bio (non-empty), and at least one DoctorRate
+ */
+async function checkDoctorCanBeActive(doctorId) {
+  try {
+    const doctor = await Doctor.findById(doctorId).lean();
+    if (!doctor) {
+      return { canBeActive: false, reason: "Doctor not found" };
+    }
+
+    // Check yearsExperience
+    if (!doctor.yearsExperience || doctor.yearsExperience <= 0) {
+      return {
+        canBeActive: false,
+        reason: "Số năm kinh nghiệm chưa được điền hoặc bằng 0",
+      };
+    }
+
+    // Check bio
+    if (!doctor.bio || doctor.bio.trim().length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Lời giới thiệu chưa được điền",
+      };
+    }
+
+    // Check if doctor has at least one active DoctorRate
+    const doctorRates = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    }).lean();
+
+    if (!doctorRates || doctorRates.length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+      };
+    }
+
+    return { canBeActive: true };
+  } catch (error) {
+    console.error("Error checking doctor can be active:", error);
+    return {
+      canBeActive: false,
+      reason: "Lỗi khi kiểm tra thông tin bác sĩ",
+    };
+  }
+}
+
+/**
  * Get doctor profile by ID
  */
 export async function getDoctorProfile(req, res) {
@@ -165,6 +215,10 @@ export async function updateDoctorProfile(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
 
+    // Note: Doctors cannot update their profile themselves.
+    // Only manager/admin can update doctor information via updateUser endpoint.
+    // No automatic activation check here.
+
     return ok(res, { doctor });
   } catch (e) {
     console.error("updateDoctorProfile error:", e);
@@ -242,6 +296,48 @@ export async function getDoctorAppointments(req, res) {
       .limit(parseInt(limit))
       .lean();
 
+    // Debug: Log appointments with patientId issues
+    console.log(`🔍 Found ${appointments.length} appointments for doctor ${doctor._id}`);
+    const appointmentsWithMissingPatients = appointments.filter(
+      apt => !apt.patientId || (typeof apt.patientId === 'object' && !apt.patientId.fullName)
+    );
+    if (appointmentsWithMissingPatients.length > 0) {
+      console.warn(`⚠️ Found ${appointmentsWithMissingPatients.length} appointments with missing or invalid patientId`);
+      
+      // Try to manually populate patientId for these appointments
+      for (const apt of appointmentsWithMissingPatients) {
+        const originalPatientId = apt.patientId;
+        let patientIdValue = null;
+        
+        if (originalPatientId) {
+          // Get patientId value (could be ObjectId or string)
+          patientIdValue = typeof originalPatientId === 'string' 
+            ? originalPatientId 
+            : (originalPatientId._id?.toString() || originalPatientId.toString());
+          
+          try {
+            // Try to fetch patient manually
+            const patient = await Patient.findById(patientIdValue)
+              .select("fullName dob gender phone email relationshipToOwner representativeName representativeRelation representativePhone representativeCitizenId userId")
+              .populate("userId", "fullName email phone")
+              .lean();
+            
+            if (patient) {
+              // Successfully fetched patient - replace the invalid patientId
+              apt.patientId = patient;
+              console.log(`✅ Manually populated patientId for appointment ${apt._id}: ${patient.fullName}`);
+            } else {
+              console.warn(`  - Appointment ${apt._id}: Patient document not found for patientId: ${patientIdValue}`);
+            }
+          } catch (error) {
+            console.error(`  - Error fetching patient for appointment ${apt._id}:`, error.message);
+          }
+        } else {
+          console.warn(`  - Appointment ${apt._id}: patientId is null`);
+        }
+      }
+    }
+
     // Check which appointments have consultation records
     const appointmentIds = appointments.map((apt) => apt._id);
     const consultationSummaries = await ConsultationSummary.find({
@@ -260,15 +356,70 @@ export async function getDoctorAppointments(req, res) {
     );
 
     // Add hasConsultationRecord flag to each appointment
+    // Also ensure new fields (services, totalPay, amountPaid) have default values
+    // Ensure patientId is properly populated
     const appointmentsWithFlags = appointments.map((apt) => {
       const aptIdStr = apt._id.toString();
       const hasConsultationRecord = 
         summaryAppointmentIds.has(aptIdStr) || 
         adviceAppointmentIds.has(aptIdStr);
       
+      // Ensure patientId is properly populated - if null, try to manually populate
+      let patientId = apt.patientId;
+      
+      // Check if patientId is properly populated
+      if (!patientId) {
+        // patientId is null - this should not happen but handle it
+        console.warn(`⚠️ Appointment ${aptIdStr} has null patientId`);
+        patientId = {
+          _id: null,
+          fullName: "Không có thông tin",
+          phone: null,
+          dob: null,
+          gender: null,
+          userId: null,
+        };
+      } else if (typeof patientId === 'string' || (patientId._id && !patientId.fullName)) {
+        // patientId is an ObjectId string or ObjectId - not populated properly
+        console.warn(`⚠️ Appointment ${aptIdStr} patientId not populated:`, patientId);
+        // Try to fetch patient manually
+        const patientIdValue = typeof patientId === 'string' ? patientId : (patientId._id?.toString() || patientId.toString());
+        patientId = {
+          _id: patientIdValue,
+          fullName: "Đang tải...",
+          phone: null,
+          dob: null,
+          gender: null,
+          userId: null,
+        };
+      } else if (typeof patientId === 'object' && (!patientId.fullName || typeof patientId.fullName !== 'string')) {
+        // patientId is an object but missing fullName or fullName is invalid
+        console.warn(`⚠️ Appointment ${aptIdStr} patientId missing fullName:`, patientId);
+        patientId = {
+          _id: patientId._id || patientId,
+          fullName: patientId.fullName || "Không có thông tin",
+          phone: patientId.phone || null,
+          dob: patientId.dob || null,
+          gender: patientId.gender || null,
+          email: patientId.email || null,
+          userId: patientId.userId || null,
+          relationshipToOwner: patientId.relationshipToOwner || null,
+          representativeName: patientId.representativeName || null,
+          representativeRelation: patientId.representativeRelation || null,
+          representativePhone: patientId.representativePhone || null,
+          representativeCitizenId: patientId.representativeCitizenId || null,
+        };
+      }
+      
+      // Ensure new fields have default values for backward compatibility
       return {
         ...apt,
+        patientId, // Use properly populated patientId
         hasConsultationRecord,
+        services: apt.services || [],
+        totalPay: apt.totalPay !== undefined && apt.totalPay !== null ? apt.totalPay : 0,
+        amountPaid: apt.amountPaid !== undefined && apt.amountPaid !== null ? apt.amountPaid : 0,
+        paymentStatus: apt.paymentStatus || 'unpaid',
       };
     });
 
@@ -457,14 +608,42 @@ export async function getDoctorAppointmentDetail(req, res) {
       );
     }
 
+    // Ensure patientId is properly populated
+    let patientId = appointment.patientId;
+    if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
+      console.warn(`⚠️ Appointment ${appointment._id} has invalid patientId:`, patientId);
+      patientId = {
+        _id: appointment.patientId?._id || appointment.patientId || null,
+        fullName: appointment.patientId?.fullName || "Không có thông tin",
+        dob: appointment.patientId?.dob || null,
+        gender: appointment.patientId?.gender || null,
+        phone: appointment.patientId?.phone || null,
+        relationshipToOwner: appointment.patientId?.relationshipToOwner || null,
+        representativeName: appointment.patientId?.representativeName || null,
+        representativeRelation: appointment.patientId?.representativeRelation || null,
+        representativePhone: appointment.patientId?.representativePhone || null,
+        representativeCitizenId: appointment.patientId?.representativeCitizenId || null,
+      };
+    }
+
     console.log("✅ Doctor appointment detail fetched:", {
       appointmentId: appointment._id,
       status: appointment.status,
-      hasPatient: !!appointment.patientId,
-      patientName: appointment.patientId?.fullName,
+      hasPatient: !!patientId,
+      patientName: patientId?.fullName,
     });
 
-    return ok(res, appointment);
+    // Ensure new fields have default values for backward compatibility
+    const appointmentWithDefaults = {
+      ...appointment,
+      patientId, // Use properly populated patientId
+      services: appointment.services || [],
+      totalPay: appointment.totalPay !== undefined && appointment.totalPay !== null ? appointment.totalPay : 0,
+      amountPaid: appointment.amountPaid !== undefined && appointment.amountPaid !== null ? appointment.amountPaid : 0,
+      paymentStatus: appointment.paymentStatus || 'unpaid',
+    };
+
+    return ok(res, appointmentWithDefaults);
   } catch (e) {
     console.error("getDoctorAppointmentDetail error:", e);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, e.message || String(e));
@@ -1249,9 +1428,9 @@ export async function getAllDoctors(req, res) {
     const skip = (page - 1) * limit;
     const filter = {};
 
-    // Default filter: Only show verified doctors for public API
+    // Default filter: Only show verified and active doctors for public API
     // Note: isActive may not exist for old doctors (default is true in schema)
-    // So we filter by isVerified only, or isActive=true OR isActive doesn't exist
+    // So we filter by isVerified=true AND (isActive=true OR isActive doesn't exist)
     filter.isVerified = true;
     filter.$or = [
       { isActive: true },
@@ -3922,9 +4101,37 @@ export async function getAllAppointments(req, res) {
 
     const total = await Appointment.countDocuments({});
 
-    console.log("✅ getAllAppointments - found:", appointments.length);
+    // Ensure new fields have default values for backward compatibility
+    // Also ensure patientId is properly populated
+    const appointmentsWithDefaults = appointments.map((apt) => {
+      // Ensure patientId is properly populated
+      let patientId = apt.patientId;
+      if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
+        console.warn(`⚠️ Appointment ${apt._id} has invalid patientId:`, patientId);
+        patientId = {
+          _id: apt.patientId?._id || apt.patientId || null,
+          fullName: apt.patientId?.fullName || "Không có thông tin",
+          dob: apt.patientId?.dob || null,
+          gender: apt.patientId?.gender || null,
+          phone: apt.patientId?.phone || null,
+          email: apt.patientId?.email || null,
+          userId: apt.patientId?.userId || null,
+        };
+      }
+      
+      return {
+        ...apt,
+        patientId, // Use properly populated patientId
+        services: apt.services || [],
+        totalPay: apt.totalPay !== undefined && apt.totalPay !== null ? apt.totalPay : 0,
+        amountPaid: apt.amountPaid !== undefined && apt.amountPaid !== null ? apt.amountPaid : 0,
+        paymentStatus: apt.paymentStatus || 'unpaid',
+      };
+    });
+
+    console.log("✅ getAllAppointments - found:", appointmentsWithDefaults.length);
     return ok(res, {
-      appointments,
+      appointments: appointmentsWithDefaults,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -3958,12 +4165,25 @@ export async function getSearchDoctors(req, res) {
 
     let filter = {};
 
+    // Add filters for verified and active doctors (must be first)
+    filter.isVerified = true;
+    filter.$and = [
+      {
+        $or: [
+          { isActive: true },
+          { isActive: { $exists: false } }, // Old doctors without isActive field
+        ],
+      },
+    ];
+
     // Search by name or specialty
     if (search) {
-      filter.$or = [
-        { fullName: { $regex: search, $options: "i" } },
-        { bio: { $regex: search, $options: "i" } },
-      ];
+      filter.$and.push({
+        $or: [
+          { fullName: { $regex: search, $options: "i" } },
+          { bio: { $regex: search, $options: "i" } },
+        ],
+      });
     }
 
     // Filter by specialization

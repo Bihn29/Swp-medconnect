@@ -8,6 +8,7 @@ import ConsultationSummary from "../models/consultationSummary.model.js";
 import ConsultationAdvice from "../models/consultationAdvice.model.js";
 import Notification from "../models/notification.model.js";
 import PatientFavorite from "../models/patientFavorite.model.js";
+import DoctorRate from "../models/doctor_rates.model.js";
 import {
   createBookingNotification,
   createAppointmentNotification,
@@ -15,6 +16,82 @@ import {
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 import { sendMail } from "../utils/email.js";
+
+/**
+ * Get all patients (for admin/manager)
+ */
+export async function getAllPatients(req, res) {
+  try {
+    const { search, page = 1, limit = 50 } = req.query;
+
+    // Build query
+    let query = {};
+    if (search) {
+      query.$or = [
+        { fullName: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get patients with populated user info, filter only users with role='patient'
+    const patients = await Patient.find(query)
+      .populate({
+        path: "userId",
+        select: "email status role createdAt",
+        match: { role: "patient" },
+      })
+      .select("fullName phone email dob gender avatarUrl createdAt updatedAt")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    // Filter out patients where userId is null (due to role filter)
+    const validPatients = patients.filter(
+      (p) => p.userId && p.userId.role === "patient"
+    );
+
+    // Get total count - need to count only patients with role='patient'
+    const patientUserIds = await User.find({ role: "patient" })
+      .select("_id")
+      .lean();
+    const patientIds = patientUserIds.map((u) => u._id);
+    const countQuery = { ...query, userId: { $in: patientIds } };
+    const total = await Patient.countDocuments(countQuery);
+
+    // Format response
+    const formattedPatients = validPatients.map((patient) => ({
+      id: patient._id,
+      userId: patient.userId?._id,
+      fullName: patient.fullName,
+      phone: patient.phone,
+      email: patient.email || patient.userId?.email,
+      dob: patient.dob,
+      gender: patient.gender,
+      avatarUrl: patient.avatarUrl,
+      status: patient.userId?.status || "active",
+      createdAt: patient.createdAt,
+      updatedAt: patient.updatedAt,
+    }));
+
+    return ok(res, {
+      patients: formattedPatients,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching all patients:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
 
 /**
  * Cancel appointment by patient
@@ -477,6 +554,7 @@ export async function getDoctorsBySpecialization(req, res) {
     const doctors = await Doctor.find({
       specializationIds: specializationId,
       isVerified: true,
+      isActive: true, // Only show active doctors
     })
       .populate("specializationIds", "name")
       .select(
@@ -581,6 +659,43 @@ export async function getDoctorTimeSlots(req, res) {
     return ok(res, { timeSlots: formattedSlots });
   } catch (error) {
     console.error("Error fetching doctor time slots:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Get doctor pricing (public endpoint for patients)
+ */
+export async function getDoctorPricing(req, res) {
+  try {
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Get pricing for this doctor
+    const pricing = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    })
+      .select("mode weekdayPrice weekendPrice clinicId")
+      .populate("clinicId", "name")
+      .lean();
+
+    // If no pricing found, return null (frontend can use default pricing)
+    return ok(res, {
+      doctorId: doctor._id,
+      pricing: pricing.length > 0 ? pricing : null,
+    });
+  } catch (error) {
+    console.error("Error fetching doctor pricing:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }
@@ -904,10 +1019,37 @@ export async function getPatientAppointments(req, res) {
       }))
     );
 
+    // Ensure new fields have default values for backward compatibility
+    // Also ensure patientId is properly populated
+    const appointmentsWithDefaults = appointments.map((apt) => {
+      // Ensure patientId is properly populated
+      let patientId = apt.patientId;
+      if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
+        console.warn(`⚠️ Appointment ${apt._id} has invalid patientId:`, patientId);
+        patientId = {
+          _id: apt.patientId?._id || apt.patientId || null,
+          fullName: apt.patientId?.fullName || "Không có thông tin",
+          dob: apt.patientId?.dob || null,
+          gender: apt.patientId?.gender || null,
+          phone: apt.patientId?.phone || null,
+          relationshipToOwner: apt.patientId?.relationshipToOwner || null,
+        };
+      }
+      
+      return {
+        ...apt,
+        patientId, // Use properly populated patientId
+        services: apt.services || [],
+        totalPay: apt.totalPay !== undefined && apt.totalPay !== null ? apt.totalPay : 0,
+        amountPaid: apt.amountPaid !== undefined && apt.amountPaid !== null ? apt.amountPaid : 0,
+        paymentStatus: apt.paymentStatus || 'unpaid',
+      };
+    });
+
     const total = await Appointment.countDocuments(query);
 
     return ok(res, {
-      appointments,
+      appointments: appointmentsWithDefaults,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -1121,16 +1263,41 @@ export async function getAppointmentDetails(req, res) {
       appointment.doctorId.phone = appointment.doctorId.userId.phone;
     }
 
+    // Ensure patientId is properly populated
+    let patientId = appointment.patientId;
+    if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
+      console.warn(`⚠️ Appointment ${appointment._id} has invalid patientId:`, patientId);
+      patientId = {
+        _id: appointment.patientId?._id || appointment.patientId || null,
+        fullName: appointment.patientId?.fullName || "Không có thông tin",
+        dob: appointment.patientId?.dob || null,
+        gender: appointment.patientId?.gender || null,
+        phone: appointment.patientId?.phone || null,
+        relationshipToOwner: appointment.patientId?.relationshipToOwner || null,
+        userId: appointment.patientId?.userId || null,
+      };
+    }
+
+    // Ensure new fields have default values for backward compatibility
+    const appointmentWithDefaults = {
+      ...appointment,
+      patientId, // Use properly populated patientId
+      services: appointment.services || [],
+      totalPay: appointment.totalPay !== undefined && appointment.totalPay !== null ? appointment.totalPay : 0,
+      amountPaid: appointment.amountPaid !== undefined && appointment.amountPaid !== null ? appointment.amountPaid : 0,
+      paymentStatus: appointment.paymentStatus || 'unpaid',
+    };
+
     console.log("✅ Patient appointment detail fetched:", {
-      appointmentId: appointment._id.toString(),
-      status: appointment.status,
-      hasDoctor: !!appointment.doctorId,
-      doctorName: appointment.doctorId?.fullName || appointment.doctorId?.name,
-      doctorIdValue: appointment.doctorId,
-      appointmentData: JSON.stringify(appointment, null, 2),
+      appointmentId: appointmentWithDefaults._id.toString(),
+      status: appointmentWithDefaults.status,
+      hasDoctor: !!appointmentWithDefaults.doctorId,
+      doctorName: appointmentWithDefaults.doctorId?.fullName || appointmentWithDefaults.doctorId?.name,
+      hasPatient: !!appointmentWithDefaults.patientId,
+      patientName: appointmentWithDefaults.patientId?.fullName,
     });
 
-    return ok(res, appointment);
+    return ok(res, appointmentWithDefaults);
   } catch (error) {
     console.error("Error fetching appointment details:", error);
     console.error("Error stack:", error.stack);

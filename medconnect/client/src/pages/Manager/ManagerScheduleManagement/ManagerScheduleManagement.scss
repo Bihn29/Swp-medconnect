@@ -455,7 +455,12 @@
               background: #ffffff;
               // Giữ border thông thường (đường chia slot) - không override border
               height: 80px; // Fixed height giống các ô khác
-              cursor: default;
+              cursor: pointer;
+              transition: background-color 0.2s;
+
+              &:hover {
+                background-color: #f0f9ff;
+              }
               // Không có dấu + và không có dashed border
             }
 
@@ -485,6 +490,13 @@
               min-width: 50px;
               background: linear-gradient(135deg, #e5e7eb, #d1d5db);
               border: 1px solid #d1d5db;
+              cursor: pointer;
+              transition: all 0.2s;
+
+              &:hover {
+                background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+                border-color: #93c5fd;
+              }
             }
 
             .delete-slot-btn {
@@ -730,6 +742,113 @@
         font-weight: 500;
         color: #374151;
         font-size: 14px;
+      }
+
+      // Patient search dropdown styles
+      .patient-search-wrapper {
+        position: relative;
+        width: 100%;
+      }
+
+      .patient-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-top: 4px;
+        max-height: 300px;
+        overflow-y: auto;
+
+        .patient-dropdown-loading {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px;
+          color: #6b7280;
+          font-size: 14px;
+
+          .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e5e7eb;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+          }
+        }
+
+        .patient-dropdown-item {
+          padding: 12px;
+          cursor: pointer;
+          border-bottom: 1px solid #f3f4f6;
+          transition: background-color 0.2s;
+
+          &:last-child {
+            border-bottom: none;
+          }
+
+          &:hover {
+            background-color: #f9fafb;
+          }
+
+          .patient-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+
+            strong {
+              font-size: 14px;
+              color: #111827;
+              font-weight: 600;
+            }
+
+            .patient-phone {
+              font-size: 13px;
+              color: #6b7280;
+            }
+
+            .patient-email {
+              font-size: 12px;
+              color: #9ca3af;
+            }
+          }
+        }
+
+        .patient-dropdown-empty {
+          padding: 12px;
+          text-align: center;
+          color: #6b7280;
+          font-size: 14px;
+        }
+      }
+
+      .selected-patient-info {
+        margin-top: 12px;
+        padding: 12px;
+        background-color: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 14px;
+
+        strong {
+          color: #0c4a6e;
+        }
+      }
+
+      .patient-manual-input {
+        padding: 12px;
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
       }
 
       .mode-checkboxes {
@@ -1177,6 +1296,45 @@
         .grid-body .time-row {
           grid-template-columns: 60px repeat(7, 120px);
         }
+      }
+    }
+  }
+
+  // Pricing Dialog
+  .pricing-dialog {
+    .pricing-content {
+      .pricing-section {
+        margin-bottom: 24px;
+
+        h3 {
+          color: #1f2937;
+        }
+
+        .pricing-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+
+        .pricing-field {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+
+          label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+          }
+        }
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        border-top: 1px solid #e5e7eb;
+        padding-top: 16px;
       }
     }
   }

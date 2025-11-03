@@ -13,6 +13,10 @@ import {
   rescheduleAppointmentByManager,
   getManagerInvoices,
   deleteManagerInvoice,
+  getDoctorPricingForManager,
+  setDoctorPricingForManager,
+  deleteDoctorPricingForManager,
+  getAllPatientsForManager,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
@@ -33,6 +37,7 @@ const router = express.Router();
 // Manager role check should be done in middleware if needed
 
 router.get("/doctors", authGuard, getAllDoctorsForManager);
+router.get("/patients", authGuard, getAllPatientsForManager);
 router.get(
   "/doctors/:doctorId/time-slots",
   authGuard,
@@ -98,5 +103,17 @@ router.delete("/service-prices/:id", authGuard, deleteServicePrice);
 // Invoice management routes (only for manager)
 router.get("/invoices", authGuard, getManagerInvoices);
 router.delete("/invoices/:invoiceId", authGuard, deleteManagerInvoice);
+// Pricing routes
+router.get("/doctors/:doctorId/pricing", authGuard, getDoctorPricingForManager);
+router.post(
+  "/doctors/:doctorId/pricing",
+  authGuard,
+  setDoctorPricingForManager
+);
+router.delete(
+  "/doctors/:doctorId/pricing/:pricingId",
+  authGuard,
+  deleteDoctorPricingForManager
+);
 
 export default router;

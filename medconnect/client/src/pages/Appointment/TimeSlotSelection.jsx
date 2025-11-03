@@ -65,9 +65,36 @@ const TimeSlotSelection = () => {
   const [currentTime, setCurrentTime] = useState(dayjs()); // Track current time for real-time filtering
   const [pendingAppointmentId, setPendingAppointmentId] = useState(null); // Track appointment chưa thanh toán
   const [pendingOrderCode, setPendingOrderCode] = useState(null); // Track orderCode để cleanup
+  const [doctorPricing, setDoctorPricing] = useState(null); // Doctor pricing from API
 
   // Get user profile to validate required fields
   const { userProfile } = useUserProfile();
+
+  // Helper function to get price for display (weekday or weekend)
+  const getPriceForDisplay = (mode, isWeekend = false) => {
+    if (!mode) return 0;
+
+    // If doctor has custom pricing from API, use it
+    if (doctorPricing && doctorPricing.length > 0) {
+      const modePricing = doctorPricing.find((p) => p.mode === mode);
+      if (modePricing) {
+        return isWeekend ? modePricing.weekendPrice : modePricing.weekdayPrice;
+      }
+    }
+
+    // No pricing found - return 0 instead of default values
+    return 0;
+  };
+
+  // Helper function to calculate price based on mode and date
+  const calculatePrice = (mode, date) => {
+    if (!mode || !date) return 0;
+
+    const dayOfWeek = date.day(); // 0 = Sunday, 6 = Saturday
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday or Saturday
+
+    return getPriceForDisplay(mode, isWeekend);
+  };
 
   useEffect(() => {
     if (location.state?.doctor) {
@@ -91,6 +118,7 @@ const TimeSlotSelection = () => {
   useEffect(() => {
     if (doctor) {
       fetchDefaultClinic();
+      fetchDoctorPricing();
     }
   }, [doctor]);
 
@@ -130,14 +158,16 @@ const TimeSlotSelection = () => {
           appointmentId: pendingAppointmentId,
           orderCode: pendingOrderCode,
         };
-        
+
         // Gửi cleanup request (sử dụng navigator.sendBeacon nếu có thể)
         if (navigator.sendBeacon) {
           const blob = new Blob([JSON.stringify(cleanupData)], {
             type: "application/json",
           });
           navigator.sendBeacon(
-            `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/payments/payos/cancel/${pendingOrderCode}`,
+            `${
+              import.meta.env.VITE_API_URL || "http://localhost:5000"
+            }/api/payments/payos/cancel/${pendingOrderCode}`,
             blob
           );
         }
@@ -149,7 +179,7 @@ const TimeSlotSelection = () => {
     // Cleanup khi component unmount
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      
+
       // Cleanup unpaid appointment nếu user rời trang
       if (pendingAppointmentId && pendingOrderCode) {
         cleanupUnpaidAppointment(pendingAppointmentId, pendingOrderCode);
@@ -161,11 +191,11 @@ const TimeSlotSelection = () => {
   const cleanupUnpaidAppointment = async (appointmentId, orderCode) => {
     try {
       const { cancelPayOSPayment } = await import("../../services/payService");
-      
+
       // Cancel payment link (này sẽ tự động xóa appointment nếu chưa thanh toán)
       await cancelPayOSPayment(orderCode);
       console.log("✅ Cleaned up unpaid appointment:", appointmentId);
-      
+
       // Clear state và localStorage sau khi cleanup thành công
       setPendingAppointmentId(null);
       setPendingOrderCode(null);
@@ -179,7 +209,7 @@ const TimeSlotSelection = () => {
           cancelReason: "Người dùng thoát trang trước khi thanh toán",
         });
         console.log("✅ Fallback: Cancelled appointment directly");
-        
+
         // Clear state và localStorage sau khi cleanup thành công
         setPendingAppointmentId(null);
         setPendingOrderCode(null);
@@ -195,21 +225,29 @@ const TimeSlotSelection = () => {
   useEffect(() => {
     const checkPendingAppointment = async () => {
       // Nếu có pending appointment từ localStorage (từ session trước)
-      const savedPendingAppointment = localStorage.getItem("pendingAppointmentId");
+      const savedPendingAppointment = localStorage.getItem(
+        "pendingAppointmentId"
+      );
       const savedPendingOrderCode = localStorage.getItem("pendingOrderCode");
-      
+
       if (savedPendingAppointment && savedPendingOrderCode) {
         // Kiểm tra xem appointment đã thanh toán chưa
         try {
           const appointmentResponse = await api.get(
             `/api/patients/me/appointments/${savedPendingAppointment}`
           );
-          
+
           if (appointmentResponse.success) {
             const appointment = appointmentResponse.data;
             // Nếu chưa thanh toán, cleanup
-            if (appointment.paymentStatus === "unpaid" && !appointment.paymentId) {
-              await cleanupUnpaidAppointment(savedPendingAppointment, savedPendingOrderCode);
+            if (
+              appointment.paymentStatus === "unpaid" &&
+              !appointment.paymentId
+            ) {
+              await cleanupUnpaidAppointment(
+                savedPendingAppointment,
+                savedPendingOrderCode
+              );
             } else {
               // Đã thanh toán rồi, clear localStorage
               localStorage.removeItem("pendingAppointmentId");
@@ -227,14 +265,16 @@ const TimeSlotSelection = () => {
       // Kiểm tra tất cả appointments chưa thanh toán của user
       // Nếu có appointment nào chưa thanh toán với slotId hiện tại → cleanup
       try {
-        const allAppointmentsResponse = await api.get("/api/patients/me/appointments?limit=100");
+        const allAppointmentsResponse = await api.get(
+          "/api/patients/me/appointments?limit=100"
+        );
         if (allAppointmentsResponse.success) {
           const appointments = allAppointmentsResponse.data.appointments || [];
-          
+
           // Tìm appointments chưa thanh toán (unpaid và không có paymentId)
           const unpaidAppointments = appointments.filter(
-            (apt) => 
-              apt.paymentStatus === "unpaid" && 
+            (apt) =>
+              apt.paymentStatus === "unpaid" &&
               !apt.paymentId &&
               apt.status !== "cancelled" &&
               apt.pendingOrderCode // Chỉ cleanup những appointment đã tạo payment link
@@ -252,19 +292,21 @@ const TimeSlotSelection = () => {
 
           // Nếu đã cleanup appointments, refresh time slots và reset form để user có thể đặt lịch mới
           if (cleanedCount > 0) {
-            console.log(`🔄 Refreshing time slots after cleaning up ${cleanedCount} unpaid appointment(s)`);
-            
+            console.log(
+              `🔄 Refreshing time slots after cleaning up ${cleanedCount} unpaid appointment(s)`
+            );
+
             // Thông báo cho user
             message.info(
               `Đã tự động hủy ${cleanedCount} lịch hẹn chưa thanh toán. Bạn có thể đặt lịch mới.`,
               4
             );
-            
+
             // Reset form state
             setSelectedTimeSlot(null);
             setShowBookingForm(false);
             form.resetFields();
-            
+
             // Refresh time slots nếu có selectedDate
             if (selectedDate && doctor) {
               // Delay một chút để đảm bảo database đã cập nhật
@@ -329,6 +371,25 @@ const TimeSlotSelection = () => {
       setDefaultClinic(null);
     } finally {
       setClinicLoading(false);
+    }
+  };
+
+  const fetchDoctorPricing = async () => {
+    try {
+      const response = await api.get(
+        `/api/patients/doctors/${doctor._id}/pricing`
+      );
+
+      if (response.success) {
+        setDoctorPricing(response.data.pricing);
+        console.log("💰 Fetched doctor pricing:", response.data.pricing);
+      } else {
+        console.log("No custom pricing, using default");
+        setDoctorPricing(null);
+      }
+    } catch (error) {
+      console.error("Error fetching doctor pricing:", error);
+      setDoctorPricing(null); // Fallback to default pricing
     }
   };
 
@@ -528,7 +589,8 @@ const TimeSlotSelection = () => {
             "../../services/payService"
           );
 
-          const consultationFee = 10000; //  (có thể thay đổi số tiền ở đây)
+          // Calculate consultation fee based on mode and date
+          const consultationFee = calculatePrice(selectedMode, selectedDate);
 
           const paymentResponse = await createPayOSPayment({
             appointmentId: appointment._id,
@@ -541,10 +603,13 @@ const TimeSlotSelection = () => {
             if (paymentResponse.data.orderCode) {
               setPendingAppointmentId(appointment._id);
               setPendingOrderCode(paymentResponse.data.orderCode);
-              
+
               // Lưu vào localStorage để có thể cleanup nếu user đóng tab và mở lại
               localStorage.setItem("pendingAppointmentId", appointment._id);
-              localStorage.setItem("pendingOrderCode", paymentResponse.data.orderCode.toString());
+              localStorage.setItem(
+                "pendingOrderCode",
+                paymentResponse.data.orderCode.toString()
+              );
             }
 
             message.success("Đang chuyển đến trang thanh toán...");
@@ -1155,6 +1220,160 @@ const TimeSlotSelection = () => {
                       </Form.Item>
                     )}
 
+                    {/* Price Table */}
+                    {selectedMode && selectedDate && (
+                      <div style={{ marginTop: 16, marginBottom: 16 }}>
+                        <Text
+                          strong
+                          style={{ display: "block", marginBottom: 12 }}
+                        >
+                          Bảng giá
+                        </Text>
+                        <div
+                          style={{
+                            border: "1px solid #d9d9d9",
+                            borderRadius: "4px",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <table
+                            style={{
+                              width: "100%",
+                              borderCollapse: "collapse",
+                            }}
+                          >
+                            <thead>
+                              <tr style={{ background: "#fafafa" }}>
+                                <th
+                                  style={{
+                                    padding: "12px",
+                                    textAlign: "left",
+                                    borderBottom: "1px solid #d9d9d9",
+                                  }}
+                                >
+                                  Hình thức
+                                </th>
+                                <th
+                                  style={{
+                                    padding: "12px",
+                                    textAlign: "center",
+                                    borderBottom: "1px solid #d9d9d9",
+                                  }}
+                                >
+                                  Thứ 2-6
+                                </th>
+                                <th
+                                  style={{
+                                    padding: "12px",
+                                    textAlign: "center",
+                                    borderBottom: "1px solid #d9d9d9",
+                                  }}
+                                >
+                                  Thứ 7-CN
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr
+                                style={{
+                                  background:
+                                    selectedMode === "online"
+                                      ? "#e6f7ff"
+                                      : "#fff",
+                                }}
+                              >
+                                <td
+                                  style={{ padding: "12px", fontWeight: 600 }}
+                                >
+                                  Khám online
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "12px",
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  {getPriceForDisplay(
+                                    "online",
+                                    false
+                                  ).toLocaleString("vi-VN")}
+                                  đ
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "12px",
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  {getPriceForDisplay(
+                                    "online",
+                                    true
+                                  ).toLocaleString("vi-VN")}
+                                  đ
+                                </td>
+                              </tr>
+                              <tr
+                                style={{
+                                  background:
+                                    selectedMode === "offline"
+                                      ? "#e6f7ff"
+                                      : "#fff",
+                                }}
+                              >
+                                <td
+                                  style={{ padding: "12px", fontWeight: 600 }}
+                                >
+                                  Khám tại phòng khám
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "12px",
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  {getPriceForDisplay(
+                                    "offline",
+                                    false
+                                  ).toLocaleString("vi-VN")}
+                                  đ
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "12px",
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  {getPriceForDisplay(
+                                    "offline",
+                                    true
+                                  ).toLocaleString("vi-VN")}
+                                  đ
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div
+                          style={{
+                            marginTop: 12,
+                            padding: "12px",
+                            background: "#f6ffed",
+                            border: "1px solid #b7eb8f",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          <Text strong>
+                            💰 Tổng thanh toán:{" "}
+                            {calculatePrice(
+                              selectedMode,
+                              selectedDate
+                            ).toLocaleString("vi-VN")}
+                            đ
+                          </Text>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Reason */}
                     <Form.Item name="reason" label="Lý do khám">
                       <TextArea
@@ -1260,23 +1479,27 @@ const TimeSlotSelection = () => {
                   </div>
                 )}
 
-                {/* TODO: Comment out payment info for now */}
-                {/* <Divider />
-                <div className="payment-info">
-                  <div className="summary-item">
-                    <Text strong>Phí khám:</Text>
-                    <Text>350.000đ</Text>
-                  </div>
-                  <div className="summary-item">
-                    <Text strong>Phí đặt lịch:</Text>
-                    <Text>0đ</Text>
-                  </div>
-                  <Divider />
-                  <div className="summary-item">
-                    <Text strong>Tổng cộng:</Text>
-                    <Text strong>350.000đ</Text>
-                  </div>
-                </div> */}
+                {/* Payment info */}
+                {selectedMode && selectedDate && (
+                  <>
+                    <Divider />
+                    <div className="payment-info">
+                      <div className="summary-item">
+                        <Text strong>Phí khám:</Text>
+                        <Text
+                          strong
+                          style={{ fontSize: "16px", color: "#1890ff" }}
+                        >
+                          {calculatePrice(
+                            selectedMode,
+                            selectedDate
+                          ).toLocaleString("vi-VN")}
+                          đ
+                        </Text>
+                      </div>
+                    </div>
+                  </>
+                )}
               </Card>
 
               {/* Help Text */}

@@ -14,14 +14,20 @@ const AppointmentServiceItemSchema = new Schema(
       type: Number,
       required: true,
       min: 0,
-      validate: Number.isInteger,
+      validate: {
+        validator: Number.isInteger,
+        message: 'unitPrice must be an integer'
+      },
     },
     quantity: { type: Number, required: true, min: 1, default: 1 },
     lineTotal: { // unitPrice * quantity
       type: Number,
       required: true,
       min: 0,
-      validate: Number.isInteger,
+      validate: {
+        validator: Number.isInteger,
+        message: 'lineTotal must be an integer'
+      },
     },
   },
   { _id: false }
@@ -88,7 +94,10 @@ const AppointmentSchema = new Schema(
       required: true,
       min: 0,
       default: 0,
-      validate: Number.isInteger,
+      validate: {
+        validator: Number.isInteger,
+        message: 'totalPay must be an integer'
+      },
     },
 
     // Tổng tiền đã thanh toán (VND)
@@ -97,7 +106,10 @@ const AppointmentSchema = new Schema(
       required: true,
       min: 0,
       default: 0,
-      validate: Number.isInteger,
+      validate: {
+        validator: Number.isInteger,
+        message: 'amountPaid must be an integer'
+      },
     },
 
     // Giữ nguyên các trường Payment hiện có
@@ -132,15 +144,38 @@ AppointmentSchema.pre("validate", function (next) {
 
 // Tự tính lineTotal và totalPay trước khi save
 AppointmentSchema.pre("save", function (next) {
-  if (Array.isArray(this.services)) {
+  // Đảm bảo services là array
+  if (!Array.isArray(this.services)) {
+    this.services = [];
+  }
+
+  // Đảm bảo totalPay và amountPaid có giá trị mặc định
+  if (this.totalPay === undefined || this.totalPay === null) {
+    this.totalPay = 0;
+  }
+  if (this.amountPaid === undefined || this.amountPaid === null) {
+    this.amountPaid = 0;
+  }
+
+  // Đảm bảo là số nguyên
+  this.totalPay = Math.round(this.totalPay);
+  this.amountPaid = Math.round(this.amountPaid);
+
+  // Tính toán totalPay từ services
+  if (Array.isArray(this.services) && this.services.length > 0) {
     let sum = 0;
     this.services.forEach((it) => {
       const qty = Math.max(1, it.quantity || 1);
       it.quantity = qty;
-      it.lineTotal = (it.unitPrice || 0) * qty;
+      const unitPrice = Math.round(it.unitPrice || 0);
+      it.unitPrice = unitPrice;
+      it.lineTotal = Math.round(unitPrice * qty);
       sum += it.lineTotal;
     });
-    this.totalPay = sum;
+    this.totalPay = Math.round(sum);
+  } else {
+    // Nếu không có services, đảm bảo totalPay = 0
+    this.totalPay = 0;
   }
 
   // Không cho amountPaid vượt quá totalPay (tránh lỗi nhập liệu)
@@ -152,7 +187,7 @@ AppointmentSchema.pre("save", function (next) {
   if (this.totalPay === 0) {
     // Không có dịch vụ, coi như unpaid nhưng không yêu cầu thanh toán
     if (this.amountPaid !== 0) this.amountPaid = 0;
-    this.paymentStatus = "unpaid";
+    this.paymentStatus = this.paymentStatus || "unpaid";
   } else {
     this.paymentStatus = (this.amountPaid >= this.totalPay) ? "paid" : "unpaid";
   }

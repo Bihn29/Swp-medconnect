@@ -5,9 +5,70 @@ import Appointment from "../models/appointment.model.js";
 import Patient from "../models/patient.model.js";
 import Clinic from "../models/clinic.model.js";
 import Payment from "../models/payment.model.js";
+import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
+import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
+import DoctorRate from "../models/doctor_rates.model.js";
+import Review from "../models/review.model.js";
+import Prescription from "../models/prescription.model.js";
+import ConsultationAdvice from "../models/consultationAdvice.model.js";
+import ConsultationSummary from "../models/consultationSummary.model.js";
+import VideoCall from "../models/videoCall.model.js";
+import PatientFavorite from "../models/patientFavorite.model.js";
+import RescheduleRequest from "../models/rescheduleRequest.model.js";
+import Notification from "../models/notification.model.js";
 import { runCleanupNow } from "../services/appointmentCleanupService.js";
 
 // ================== HELPER FUNCTIONS ==================
+
+/**
+ * Check if doctor has all required information to be active
+ * Required fields: yearsExperience > 0, bio (non-empty), and at least one DoctorRate
+ */
+async function checkDoctorCanBeActive(doctorId) {
+  try {
+    const doctor = await Doctor.findById(doctorId).lean();
+    if (!doctor) {
+      return { canBeActive: false, reason: "Doctor not found" };
+    }
+
+    // Check yearsExperience
+    if (!doctor.yearsExperience || doctor.yearsExperience <= 0) {
+      return {
+        canBeActive: false,
+        reason: "Số năm kinh nghiệm chưa được điền hoặc bằng 0",
+      };
+    }
+
+    // Check bio
+    if (!doctor.bio || doctor.bio.trim().length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Lời giới thiệu chưa được điền",
+      };
+    }
+
+    // Check if doctor has at least one active DoctorRate
+    const doctorRates = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    }).lean();
+
+    if (!doctorRates || doctorRates.length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+      };
+    }
+
+    return { canBeActive: true };
+  } catch (error) {
+    console.error("Error checking doctor can be active:", error);
+    return {
+      canBeActive: false,
+      reason: "Lỗi khi kiểm tra thông tin bác sĩ",
+    };
+  }
+}
 
 // Helper function to get time ago
 function getTimeAgo(date) {
@@ -298,18 +359,6 @@ export const getPendingDoctors = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean(); // Use lean() to convert to plain objects
 
-    // Debug: log first doctor to check populate
-    if (pendingDoctors.length > 0) {
-      console.log(
-        "📋 Sample doctor specializationIds:",
-        JSON.stringify(pendingDoctors[0].specializationIds)
-      );
-      console.log(
-        "📋 Sample doctor userId:",
-        pendingDoctors[0].userId ? "exists" : "null"
-      );
-    }
-
     // Format doctors data - license image comes from licenseNo field
     const formattedDoctors = pendingDoctors.map((doctor) => {
       try {
@@ -399,7 +448,6 @@ export const getPendingDoctors = async (req, res) => {
 // Get verified doctors
 export const getVerifiedDoctors = async (req, res) => {
   try {
-    console.log(`🔍 Fetching verified doctors...`);
     const verifiedDoctors = await Doctor.find({ isVerified: true })
       .populate("userId", "fullName email phone")
       .populate("specializationIds", "name")
@@ -408,28 +456,6 @@ export const getVerifiedDoctors = async (req, res) => {
         "userId fullName licenseNo yearsExperience bio avatarUrl specializationIds clinicDefaultId updatedAt isVerified isActive"
       )
       .sort({ updatedAt: -1 });
-
-    console.log(`✅ Found ${verifiedDoctors.length} verified doctors`);
-
-    // Debug: log all doctors to check
-    verifiedDoctors.forEach((doctor, index) => {
-      console.log(`📋 Verified doctor ${index + 1}:`, {
-        doctorId: doctor._id,
-        doctorName: doctor.fullName,
-        userId: doctor.userId?._id || doctor.userId,
-        userEmail: doctor.userId?.email,
-        isVerified: doctor.isVerified,
-        isActive: doctor.isActive,
-      });
-    });
-
-    // Debug: log first doctor to check populate
-    if (verifiedDoctors.length > 0) {
-      console.log(
-        "📋 Sample verified doctor specializationIds:",
-        JSON.stringify(verifiedDoctors[0].specializationIds)
-      );
-    }
 
     const formattedDoctors = verifiedDoctors.map((doctor) => {
       // Build license image URL - if licenseNo exists, it's a filename in uploads/doctors/
@@ -608,9 +634,6 @@ MedConnect - Đội ngũ quản trị
       text: textContent,
       html: htmlContent,
     });
-
-    console.log(`✅ Approval email sent successfully to ${user.email}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId });
   } catch (error) {
     console.error("❌ Error sending doctor approval email:", error);
     // Không throw error để không ảnh hưởng đến flow chính
@@ -723,9 +746,6 @@ MedConnect - Đội ngũ quản trị
       text: textContent,
       html: htmlContent,
     });
-
-    console.log(`✅ Rejection email sent successfully to ${user.email}`);
-    console.log(`📧 Email result:`, { messageId: emailResult?.messageId });
   } catch (error) {
     console.error("❌ Error sending doctor rejection email:", error);
     // Không throw error để không ảnh hưởng đến flow chính
@@ -738,8 +758,6 @@ export const approveDoctor = async (req, res) => {
     const { id } = req.params;
     const { adminNotes } = req.body;
 
-    console.log(`🔍 Approving doctor with ID: ${id}`);
-
     // Find the doctor first and populate userId
     const doctor = await Doctor.findById(id).populate(
       "userId",
@@ -747,22 +765,11 @@ export const approveDoctor = async (req, res) => {
     );
 
     if (!doctor) {
-      console.error(`❌ Doctor not found with ID: ${id}`);
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy bác sĩ",
       });
     }
-
-    console.log(`✅ Found doctor:`, {
-      doctorId: doctor._id,
-      doctorName: doctor.fullName,
-      userId: doctor.userId?._id,
-      userEmail: doctor.userId?.email,
-      userFullName: doctor.userId?.fullName,
-      isVerified: doctor.isVerified,
-      isActive: doctor.isActive,
-    });
 
     // Get reviewer User if available
     let reviewer = null;
@@ -770,9 +777,14 @@ export const approveDoctor = async (req, res) => {
       reviewer = await User.findOne({ email: req.user.email });
     }
 
+    // Check if doctor can be active (has all required fields)
+    const activeCheck = await checkDoctorCanBeActive(doctor._id);
+    const canBeActive = activeCheck.canBeActive;
+
     // Update doctor verification status with approval info
     doctor.isVerified = true;
-    doctor.isActive = true;
+    // Only set isActive = true if doctor has all required information
+    doctor.isActive = canBeActive;
     doctor.approvedBy = reviewer ? reviewer._id : null;
     doctor.approvedAt = new Date();
     // Clear rejection info if exists
@@ -791,7 +803,7 @@ export const approveDoctor = async (req, res) => {
         { _id: id },
         {
           isVerified: true,
-          isActive: true,
+          isActive: canBeActive,
           approvedBy: reviewer ? reviewer._id : null,
           approvedAt: new Date(),
           $unset: { rejectedBy: "", rejectedAt: "", rejectionReason: "" },
@@ -799,11 +811,17 @@ export const approveDoctor = async (req, res) => {
       );
     }
 
+    // Log the status for admin information
+    if (!canBeActive) {
+      console.warn(
+        `⚠️ Doctor ${doctor.fullName} (ID: ${doctor._id}) has been verified but is set to inactive due to: ${activeCheck.reason}`
+      );
+    }
+
     // Update User status to 'active' and verify email/phone so doctor can login
     if (doctor.userId) {
       // Handle both ObjectId and populated object
       const userId = doctor.userId._id || doctor.userId;
-      console.log(`🔍 Updating User with ID: ${userId}`);
 
       const user = await User.findByIdAndUpdate(
         userId,
@@ -840,36 +858,12 @@ export const approveDoctor = async (req, res) => {
           }
         );
         // Reload user to verify
-        const reloadedUser = await User.findById(userId);
-        console.log(`✅ Re-updated User verification fields:`, {
-          emailVerified: reloadedUser?.emailVerified,
-          phoneVerified: reloadedUser?.phoneVerified,
-        });
+        await User.findById(userId);
       }
-
-      console.log(`✅ Updated User ${userId} status to 'active':`, {
-        userId: user._id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-        status: user.status,
-        emailVerified: user.emailVerified,
-        phoneVerified: user.phoneVerified,
-      });
 
       // Send approval email (don't block on error)
       try {
-        console.log(
-          `📧 Attempting to send approval email to: ${
-            user.email || doctor.userId?.email
-          }`
-        );
         await sendDoctorApprovalEmail(doctor, user || doctor.userId);
-        console.log(
-          `✅ Approval email sent successfully to ${
-            user.email || doctor.userId?.email
-          }`
-        );
       } catch (emailError) {
         console.error("❌ Failed to send approval email:", emailError);
         console.error("❌ Error details:", {
@@ -906,16 +900,6 @@ export const approveDoctor = async (req, res) => {
       console.error(`   Requested ID: ${id}`);
       console.error(`   Found by userId: ${doctorByUserId._id}`);
     }
-
-    console.log(`✅ Final check - Doctor verified:`, {
-      doctorId: finalCheck._id,
-      doctorName: finalCheck.fullName,
-      userId: finalCheck.userId,
-      userIdType: typeof finalCheck.userId,
-      isVerified: finalCheck.isVerified,
-      isActive: finalCheck.isActive,
-      doctorByUserId: doctorByUserId ? doctorByUserId._id : null,
-    });
 
     res.json({
       success: true,
@@ -982,12 +966,11 @@ export const rejectDoctor = async (req, res) => {
 
     // Update User status to 'rejected' (allows re-registration)
     if (doctor.userId) {
-      const user = await User.findByIdAndUpdate(
+      await User.findByIdAndUpdate(
         doctor.userId,
         { status: "rejected" },
         { new: true }
       );
-      console.log(`✅ Updated User ${doctor.userId} status to 'rejected'`);
 
       // Send rejection email (don't block on error)
       try {
@@ -1037,13 +1020,44 @@ export const getAllUsers = async (req, res) => {
       ];
     }
 
+    // Get verified doctors' userIds if we need to filter doctors
+    let verifiedDoctorUserIds = null;
+    let verifiedDoctorUserIdsForQuery = [];
+    if (role === "doctor" || role === "all" || !role) {
+      const verifiedDoctors = await Doctor.find({ isVerified: true })
+        .select("userId")
+        .lean();
+      verifiedDoctorUserIdsForQuery = verifiedDoctors.map((doc) => doc.userId);
+      verifiedDoctorUserIds = new Set(
+        verifiedDoctorUserIdsForQuery.map((id) => id.toString())
+      );
+
+      // If filtering by doctor, only show verified doctors in query
+      if (role === "doctor") {
+        query._id = { $in: verifiedDoctorUserIdsForQuery };
+      }
+    }
+
     const users = await User.find(query)
       .select("fullName email role status createdAt updatedAt")
       .sort({ createdAt: -1 });
 
+    // Filter out unverified doctors if role is "all" or not specified
+    let filteredUsers = users;
+    if ((role === "all" || !role) && verifiedDoctorUserIds) {
+      filteredUsers = users.filter((user) => {
+        // If user is a doctor, only include if verified
+        if (user.role === "doctor") {
+          return verifiedDoctorUserIds.has(user._id.toString());
+        }
+        // Include all non-doctor users
+        return true;
+      });
+    }
+
     // Fetch avatars for all users in parallel
     const formattedUsers = await Promise.all(
-      users.map(async (user) => {
+      filteredUsers.map(async (user) => {
         let avatarUrl = null;
 
         // Fetch avatar based on role
@@ -1053,12 +1067,6 @@ export const getAllUsers = async (req, res) => {
               .select("avatarUrl")
               .lean();
             avatarUrl = patient?.avatarUrl || null;
-            if (avatarUrl) {
-              console.log(
-                `✅ Found patient avatar for user ${user._id}:`,
-                avatarUrl.substring(0, 50) + "..."
-              );
-            }
           } catch (error) {
             console.error(
               `Error fetching patient avatar for user ${user._id}:`,
@@ -1068,14 +1076,23 @@ export const getAllUsers = async (req, res) => {
         } else if (user.role === "doctor") {
           try {
             const doctor = await Doctor.findOne({ userId: user._id })
-              .select("avatarUrl")
+              .select("avatarUrl isActive yearsExperience bio")
               .lean();
             avatarUrl = doctor?.avatarUrl || null;
-            if (avatarUrl) {
-              console.log(
-                `✅ Found doctor avatar for user ${user._id}:`,
-                avatarUrl.substring(0, 50) + "..."
-              );
+            // For doctors, check if they can be active (even if isActive = true)
+            // This ensures old doctors without required fields are marked as suspended
+            if (doctor) {
+              const canBeActiveCheck = await checkDoctorCanBeActive(doctor._id);
+              if (!canBeActiveCheck.canBeActive) {
+                user._canBeActive = false; // Flag to indicate doctor cannot be active
+                // Also update the doctor's isActive status in database
+                if (doctor.isActive) {
+                  await Doctor.updateOne(
+                    { _id: doctor._id },
+                    { isActive: false }
+                  );
+                }
+              }
             }
           } catch (error) {
             console.error(
@@ -1085,17 +1102,25 @@ export const getAllUsers = async (req, res) => {
           }
         }
 
+        // Determine status
+        let userStatus;
+        if (user.role === "doctor" && user._canBeActive === false) {
+          // Doctor cannot be active (missing required fields) → show as "suspended" (Tạm khóa)
+          userStatus = "suspended";
+        } else if (user.status === "active") {
+          userStatus = "active";
+        } else if (user.status === "blocked") {
+          userStatus = "suspended";
+        } else {
+          userStatus = "inactive";
+        }
+
         return {
           id: user._id,
           name: user.fullName || "Chưa có tên",
           email: user.email,
           role: user.role,
-          status:
-            user.status === "active"
-              ? "active"
-              : user.status === "blocked"
-              ? "suspended"
-              : "inactive",
+          status: userStatus,
           joinDate: formatDate(user.createdAt),
           lastActive: formatDate(user.updatedAt),
           avatar: avatarUrl,
@@ -1220,6 +1245,18 @@ export const getUserDetails = async (req, res) => {
         if (doctor) {
           roleSpecificData = doctor;
           avatarUrl = doctor.avatarUrl || null;
+
+          // Check if doctor can actually be active (even if isActive = true)
+          // This ensures old doctors without required fields are marked as suspended
+          const canBeActiveCheck = await checkDoctorCanBeActive(doctor._id);
+          if (!canBeActiveCheck.canBeActive) {
+            // Update isActive in database if it's still true
+            if (doctor.isActive) {
+              await Doctor.updateOne({ _id: doctor._id }, { isActive: false });
+              // Update the roleSpecificData to reflect the change
+              roleSpecificData.isActive = false;
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching doctor data:", error);
@@ -1230,9 +1267,28 @@ export const getUserDetails = async (req, res) => {
       roleSpecificData = null;
     }
 
+    // Determine final status for response
+    let finalStatus = user.status;
+    if (user.role === "doctor" && roleSpecificData) {
+      // Check if doctor can be active
+      const canBeActiveCheck = await checkDoctorCanBeActive(
+        roleSpecificData._id
+      );
+      if (!canBeActiveCheck.canBeActive || !roleSpecificData.isActive) {
+        finalStatus = "suspended"; // Show as "Tạm khóa" for inactive doctors
+      } else {
+        finalStatus = "active";
+      }
+    } else if (user.status === "active") {
+      finalStatus = "active";
+    } else if (user.status === "blocked") {
+      finalStatus = "suspended";
+    }
+
     // Combine user data with role-specific data and avatar
     const userDetails = {
       ...user.toObject(),
+      status: finalStatus, // Use the determined status
       avatar: avatarUrl,
       roleSpecificData: roleSpecificData,
     };
@@ -1260,7 +1316,7 @@ export const updateUser = async (req, res) => {
     delete updateData.password;
 
     // Extract doctor-specific fields
-    const { specializationIds, yearsExperience, bio, clinicDefaultId } =
+    const { specializationIds, yearsExperience, bio, clinicDefaultId, status } =
       updateData;
 
     // Remove doctor-specific fields from user update data
@@ -1269,6 +1325,21 @@ export const updateUser = async (req, res) => {
     delete userUpdateData.yearsExperience;
     delete userUpdateData.bio;
     delete userUpdateData.clinicDefaultId;
+
+    // Handle status field: "suspended" is only for display (doctor isActive = false)
+    // User model only accepts: "active", "blocked", "pending", "rejected"
+    if (status === "suspended") {
+      // For doctors, "suspended" means isActive = false in Doctor model
+      // User status should remain "active" but Doctor.isActive controls visibility
+      // So we don't update User.status if it's "suspended"
+      delete userUpdateData.status;
+    } else if (
+      status &&
+      !["active", "blocked", "pending", "rejected"].includes(status)
+    ) {
+      // Invalid status value, remove it
+      delete userUpdateData.status;
+    }
 
     const user = await User.findByIdAndUpdate(id, userUpdateData, {
       new: true,
@@ -1287,30 +1358,72 @@ export const updateUser = async (req, res) => {
       const doctorUpdateData = {};
 
       if (specializationIds !== undefined) {
-        doctorUpdateData.specializationIds = Array.isArray(specializationIds)
-          ? specializationIds
-          : [];
+        // Handle both array and single value, filter out invalid values
+        if (Array.isArray(specializationIds)) {
+          doctorUpdateData.specializationIds = specializationIds.filter(
+            (id) => id != null && id !== ""
+          );
+        } else if (specializationIds != null && specializationIds !== "") {
+          doctorUpdateData.specializationIds = [specializationIds];
+        } else {
+          doctorUpdateData.specializationIds = [];
+        }
       }
-      if (yearsExperience !== undefined) {
-        doctorUpdateData.yearsExperience = parseInt(yearsExperience) || 0;
+      if (yearsExperience !== undefined && yearsExperience !== null) {
+        const parsed = parseInt(yearsExperience);
+        doctorUpdateData.yearsExperience = isNaN(parsed) ? 0 : parsed;
       }
       if (bio !== undefined) {
-        doctorUpdateData.bio = bio;
+        doctorUpdateData.bio = bio || "";
       }
       if (clinicDefaultId !== undefined) {
-        doctorUpdateData.clinicDefaultId = clinicDefaultId || null;
+        doctorUpdateData.clinicDefaultId =
+          clinicDefaultId && clinicDefaultId !== "" ? clinicDefaultId : null;
       }
 
       if (Object.keys(doctorUpdateData).length > 0) {
-        const doctor = await Doctor.findOneAndUpdate(
-          { userId: id },
-          doctorUpdateData,
-          { new: true, runValidators: true }
-        );
+        try {
+          const doctor = await Doctor.findOneAndUpdate(
+            { userId: id },
+            doctorUpdateData,
+            { new: true, runValidators: true }
+          );
 
-        if (!doctor) {
-          console.warn(
-            `Doctor profile not found for user ${id}, but user update succeeded`
+          if (!doctor) {
+            console.warn(
+              `Doctor profile not found for user ${id}, but user update succeeded`
+            );
+          } else {
+            // If doctor is verified but not active, check if they can now be active
+            // (manager might have just filled in required fields: yearsExperience, bio)
+            if (doctor.isVerified && !doctor.isActive) {
+              try {
+                const activeCheck = await checkDoctorCanBeActive(doctor._id);
+                if (activeCheck.canBeActive) {
+                  doctor.isActive = true;
+                  await doctor.save();
+                }
+              } catch (activeCheckError) {
+                console.error(
+                  "Error checking if doctor can be active:",
+                  activeCheckError
+                );
+                // Don't fail the update if active check fails, just log it
+              }
+            }
+          }
+        } catch (doctorUpdateError) {
+          console.error("Error updating doctor profile:", doctorUpdateError);
+          console.error("Doctor update error details:", {
+            message: doctorUpdateError.message,
+            name: doctorUpdateError.name,
+            code: doctorUpdateError.code,
+            errors: doctorUpdateError.errors,
+          });
+          // If doctor update fails, still allow user update to succeed
+          // But log the error for debugging
+          throw new Error(
+            `Không thể cập nhật thông tin bác sĩ: ${doctorUpdateError.message}`
           );
         }
       }
@@ -1323,9 +1436,16 @@ export const updateUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating user:", error);
+    console.error("Error stack:", error.stack);
+    console.error("Error details:", {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+    });
     res.status(500).json({
       success: false,
       message: "Lỗi khi cập nhật thông tin người dùng",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -1377,8 +1497,8 @@ export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findByIdAndDelete(id);
-
+    // Find user first to check role before deleting
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -1386,9 +1506,105 @@ export const deleteUser = async (req, res) => {
       });
     }
 
+    // Cascade delete based on role
+    if (user.role === "doctor") {
+      // Find doctor record
+      const doctor = await Doctor.findOne({ userId: id });
+
+      if (doctor) {
+        const doctorId = doctor._id;
+
+        // Step 1: Get all appointments for this doctor first
+        const appointments = await Appointment.find({ doctorId });
+        const appointmentIds = appointments.map((a) => a._id);
+
+        // Step 2: Delete records linked to appointments
+        if (appointmentIds.length > 0) {
+          await Promise.all([
+            Prescription.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            ConsultationAdvice.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            ConsultationSummary.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            VideoCall.deleteMany({ appointmentId: { $in: appointmentIds } }),
+          ]);
+        }
+
+        // Step 3: Delete doctor-specific records and appointments
+        await Promise.all([
+          // Delete doctor-specific records
+          DoctorRate.deleteMany({ doctorId }),
+          DoctorScheduleRule.deleteMany({ doctorId }),
+          DoctorTimeSlot.deleteMany({ doctorId }),
+
+          // Delete reviews
+          Review.deleteMany({ doctorId }),
+
+          // Delete all appointments
+          Appointment.deleteMany({ doctorId }),
+
+          // Finally, delete doctor record
+          Doctor.findByIdAndDelete(doctorId),
+        ]);
+      }
+    } else if (user.role === "patient") {
+      // Find patient record
+      const patient = await Patient.findOne({ userId: id });
+
+      if (patient) {
+        const patientId = patient._id;
+
+        // Step 1: Get all appointments for this patient first
+        const appointments = await Appointment.find({ patientId });
+        const appointmentIds = appointments.map((a) => a._id);
+
+        // Step 2: Delete records linked to appointments
+        if (appointmentIds.length > 0) {
+          await Promise.all([
+            Prescription.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            ConsultationAdvice.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            ConsultationSummary.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            VideoCall.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            Payment.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            RescheduleRequest.deleteMany({
+              originalAppointmentId: { $in: appointmentIds },
+            }),
+          ]);
+        }
+
+        // Step 3: Delete patient-specific records
+        await Promise.all([
+          // Delete patient-specific records
+          PatientFavorite.deleteMany({ patientId }),
+          Review.deleteMany({ patientId }),
+
+          // Delete all appointments
+          Appointment.deleteMany({ patientId }),
+
+          // Delete notifications for this user
+          Notification.deleteMany({ userId: id }),
+
+          // Finally, delete patient record
+          Patient.findByIdAndDelete(patientId),
+        ]);
+      } else {
+        // If no patient record found, just delete notifications
+        await Notification.deleteMany({ userId: id });
+      }
+    }
+
+    // Finally, delete user
+    await User.findByIdAndDelete(id);
+
     res.json({
       success: true,
-      message: "Đã xóa người dùng",
+      message: "Đã xóa người dùng và tất cả dữ liệu liên quan",
     });
   } catch (error) {
     console.error("Error deleting user:", error);
@@ -1763,11 +1979,39 @@ export const getAllAppointments = async (req, res) => {
       })
       .populate("clinicId", "name")
       .select(
-        "patientId doctorId clinicId scheduledStart scheduledEnd status mode reason createdAt cancelledAt cancelledBy cancelReason"
+        "patientId doctorId clinicId scheduledStart scheduledEnd status mode reason createdAt cancelledAt cancelledBy cancelReason services totalPay amountPaid paymentStatus"
       )
       .sort({ scheduledStart: -1 });
 
-    const formattedAppointments = appointments.map((appointment, index) => {
+    // Ensure new fields have default values for backward compatibility
+    // Also ensure patientId is properly populated
+    const appointmentsWithDefaults = appointments.map((apt) => {
+      const aptObj = apt.toObject();
+      
+      // Ensure patientId is properly populated
+      let patientId = aptObj.patientId;
+      if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
+        console.warn(`⚠️ Appointment ${aptObj._id} has invalid patientId:`, patientId);
+        patientId = {
+          _id: aptObj.patientId?._id || aptObj.patientId || null,
+          fullName: aptObj.patientId?.fullName || "Không có thông tin",
+          phone: aptObj.patientId?.phone || null,
+          address: aptObj.patientId?.address || null,
+          userId: aptObj.patientId?.userId || null,
+        };
+      }
+      
+      return {
+        ...aptObj,
+        patientId, // Use properly populated patientId
+        services: aptObj.services || [],
+        totalPay: aptObj.totalPay !== undefined && aptObj.totalPay !== null ? aptObj.totalPay : 0,
+        amountPaid: aptObj.amountPaid !== undefined && aptObj.amountPaid !== null ? aptObj.amountPaid : 0,
+        paymentStatus: aptObj.paymentStatus || 'unpaid',
+      };
+    });
+
+    const formattedAppointments = appointmentsWithDefaults.map((appointment, index) => {
       const patient = appointment.patientId;
       const doctor = appointment.doctorId;
       const specializations = appointment.doctorId?.specializationIds;
@@ -1804,6 +2048,12 @@ export const getAllAppointments = async (req, res) => {
         status: appointment.status,
         mode: appointment.mode,
         reason: appointment.reason || "Không có lý do",
+        
+        // Thông tin thanh toán mới
+        services: appointment.services || [],
+        totalPay: appointment.totalPay || 0,
+        amountPaid: appointment.amountPaid || 0,
+        paymentStatus: appointment.paymentStatus || 'unpaid',
 
         // Thông tin hủy lịch
         cancelledAt: appointment.cancelledAt,
@@ -1896,7 +2146,6 @@ export const deleteAppointment = async (req, res) => {
  */
 export const cleanupUnpaidAppointments = async (req, res) => {
   try {
-    console.log("🔄 Manual cleanup triggered by admin");
     const result = await runCleanupNow();
 
     res.json({
