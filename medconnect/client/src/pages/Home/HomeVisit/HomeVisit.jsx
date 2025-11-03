@@ -451,14 +451,6 @@ const HomeVisit = () => {
                         <div style={{ marginBottom: "8px" }}>
                           <Text>Kinh nghiệm: {doctor.experience}</Text>
                         </div>
-                        <div>
-                          <Text
-                            strong
-                            style={{ color: "#45c3d2", fontSize: "16px" }}
-                          >
-                            {doctor.price}
-                          </Text>
-                        </div>
                       </div>
                     }
                   />

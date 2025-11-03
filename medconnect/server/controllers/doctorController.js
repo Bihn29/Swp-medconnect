@@ -19,6 +19,56 @@ import { ERROR_CODES } from "../constants/index.js";
 import { sendMail } from "../utils/email.js";
 
 /**
+ * Check if doctor has all required information to be active
+ * Required fields: yearsExperience > 0, bio (non-empty), and at least one DoctorRate
+ */
+async function checkDoctorCanBeActive(doctorId) {
+  try {
+    const doctor = await Doctor.findById(doctorId).lean();
+    if (!doctor) {
+      return { canBeActive: false, reason: "Doctor not found" };
+    }
+
+    // Check yearsExperience
+    if (!doctor.yearsExperience || doctor.yearsExperience <= 0) {
+      return {
+        canBeActive: false,
+        reason: "Số năm kinh nghiệm chưa được điền hoặc bằng 0",
+      };
+    }
+
+    // Check bio
+    if (!doctor.bio || doctor.bio.trim().length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Lời giới thiệu chưa được điền",
+      };
+    }
+
+    // Check if doctor has at least one active DoctorRate
+    const doctorRates = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    }).lean();
+
+    if (!doctorRates || doctorRates.length === 0) {
+      return {
+        canBeActive: false,
+        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+      };
+    }
+
+    return { canBeActive: true };
+  } catch (error) {
+    console.error("Error checking doctor can be active:", error);
+    return {
+      canBeActive: false,
+      reason: "Lỗi khi kiểm tra thông tin bác sĩ",
+    };
+  }
+}
+
+/**
  * Get doctor profile by ID
  */
 export async function getDoctorProfile(req, res) {
@@ -164,6 +214,10 @@ export async function updateDoctorProfile(req, res) {
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
     }
+
+    // Note: Doctors cannot update their profile themselves.
+    // Only manager/admin can update doctor information via updateUser endpoint.
+    // No automatic activation check here.
 
     return ok(res, { doctor });
   } catch (e) {
@@ -1219,9 +1273,9 @@ export async function getAllDoctors(req, res) {
     const skip = (page - 1) * limit;
     const filter = {};
 
-    // Default filter: Only show verified doctors for public API
+    // Default filter: Only show verified and active doctors for public API
     // Note: isActive may not exist for old doctors (default is true in schema)
-    // So we filter by isVerified only, or isActive=true OR isActive doesn't exist
+    // So we filter by isVerified=true AND (isActive=true OR isActive doesn't exist)
     filter.isVerified = true;
     filter.$or = [
       { isActive: true },
@@ -3928,12 +3982,25 @@ export async function getSearchDoctors(req, res) {
 
     let filter = {};
 
+    // Add filters for verified and active doctors (must be first)
+    filter.isVerified = true;
+    filter.$and = [
+      {
+        $or: [
+          { isActive: true },
+          { isActive: { $exists: false } }, // Old doctors without isActive field
+        ],
+      },
+    ];
+
     // Search by name or specialty
     if (search) {
-      filter.$or = [
-        { fullName: { $regex: search, $options: "i" } },
-        { bio: { $regex: search, $options: "i" } },
-      ];
+      filter.$and.push({
+        $or: [
+          { fullName: { $regex: search, $options: "i" } },
+          { bio: { $regex: search, $options: "i" } },
+        ],
+      });
     }
 
     // Filter by specialization

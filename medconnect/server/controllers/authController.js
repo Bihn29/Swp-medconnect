@@ -617,6 +617,8 @@ export async function register(req, res) {
       status: "active",
       fullName: fullName.trim(),
       phone: normalizedPhone,
+      emailVerified: true, // Set to true for local registration
+      phoneVerified: true, // Set to true for local registration
     });
 
     if (!userDoc) {
@@ -630,10 +632,15 @@ export async function register(req, res) {
 
     // Create patient document when role is patient
     if ((role || "patient").toLowerCase() === "patient") {
-      await Patient.create({
+      const patientDoc = await Patient.create({
         userId: userDoc._id,
         fullName: fullName.trim(),
         phone: normalizedPhone,
+      });
+      console.log("✅ Patient record created successfully:", {
+        patientId: patientDoc._id,
+        userId: patientDoc.userId,
+        fullName: patientDoc.fullName,
       });
     }
 

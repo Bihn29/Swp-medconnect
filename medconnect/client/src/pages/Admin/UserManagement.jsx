@@ -125,7 +125,6 @@ const UserManagement = () => {
         });
         if (clinicsResponse.ok) {
           const clinicsData = await clinicsResponse.json();
-          console.log("🔍 Clinics API response:", clinicsData);
 
           // API returns { success: true, data: { clinics: [...], pagination: {...} } }
           let clinicsArray = [];
@@ -138,7 +137,6 @@ const UserManagement = () => {
             }
           }
 
-          console.log("🔍 Setting clinics:", clinicsArray.length, "clinics");
           setClinics(clinicsArray);
         } else {
           console.error("❌ Failed to load clinics:", clinicsResponse.status);
@@ -215,9 +213,7 @@ const UserManagement = () => {
   // Handle view details
   const handleViewDetails = async (userId) => {
     try {
-      console.log("Fetching details for user ID:", userId);
       const response = await getUserDetails(userId);
-      console.log("User details response:", response);
       setUserDetails(response.data || response);
       setSelectedUser(users.find((user) => user.id === userId));
       setDetailModalVisible(true);
