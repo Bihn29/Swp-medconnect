@@ -1364,7 +1364,7 @@ export async function getManagerInvoices(req, res) {
     
     const payments = await Payment.find(query)
       .populate("appointmentId", "scheduledStart status mode")
-      .populate("billTo.patientId", "fullName phone")
+      .populate("billTo.patientId", "fullName phone dob gender")
       .populate("billFrom.doctorId", "fullName")
       .populate("billFrom.clinicId", "name")
       .sort({ createdAt: -1 })
@@ -1379,13 +1379,15 @@ export async function getManagerInvoices(req, res) {
       _id: payment._id,
       invoiceNumber: payment.invoiceNumber,
       invoiceType: payment.invoiceType,
-      orderCode: payment.orderCode,
+      orderCode: payment.orderCode || payment.pendingOrderCode || null,
       appointmentId: payment.appointmentId?._id,
       appointmentDate: payment.appointmentId?.scheduledStart,
       appointmentStatus: payment.appointmentId?.status,
       appointmentMode: payment.appointmentId?.mode,
       patientName: payment.billTo?.name || payment.billTo?.patientId?.fullName || "N/A",
       patientPhone: payment.billTo?.phone || payment.billTo?.patientId?.phone || null,
+      patientDateOfBirth: payment.billTo?.patientId?.dob || null,
+      patientGender: payment.billTo?.patientId?.gender || null,
       doctorName: payment.billFrom?.doctorName || payment.billFrom?.doctorId?.fullName || "N/A",
       clinicName: payment.billFrom?.clinicName || payment.billFrom?.clinicId?.name || null,
       items: payment.items || [],
@@ -1417,6 +1419,60 @@ export async function getManagerInvoices(req, res) {
     return res.status(500).json({
       success: false,
       message: "Lỗi khi tải danh sách hóa đơn",
+      error: error.message,
+    });
+  }
+}
+
+/**
+ * Delete an invoice (payment) for manager
+ * DELETE /api/managers/invoices/:invoiceId
+ */
+export async function deleteManagerInvoice(req, res) {
+  try {
+    const { invoiceId } = req.params;
+
+    if (!invoiceId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice ID không được trống",
+      });
+    }
+
+    // Get payment model
+    const Payment = (await import("../models/payment.model.js")).default;
+
+    // Find the payment
+    const payment = await Payment.findById(invoiceId);
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Hóa đơn không tồn tại",
+      });
+    }
+
+    // Check if payment is already captured/paid - should not delete
+    if (payment.status === "captured" || payment.status === "authorized") {
+      return res.status(400).json({
+        success: false,
+        message: "Không thể xóa hóa đơn đã thanh toán. Chỉ có thể xóa hóa đơn chưa thanh toán hoặc đã hủy.",
+      });
+    }
+
+    // Delete the payment
+    await Payment.findByIdAndDelete(invoiceId);
+
+    return res.json({
+      success: true,
+      message: "Xóa hóa đơn thành công",
+      deletedInvoiceId: invoiceId,
+    });
+  } catch (error) {
+    console.error("Error deleting manager invoice:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi khi xóa hóa đơn",
       error: error.message,
     });
   }

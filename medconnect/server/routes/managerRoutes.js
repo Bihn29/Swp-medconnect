@@ -12,6 +12,7 @@ import {
   unblockSlotsByDateRangeForManager,
   rescheduleAppointmentByManager,
   getManagerInvoices,
+  deleteManagerInvoice,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
@@ -96,5 +97,6 @@ router.delete("/service-prices/:id", authGuard, deleteServicePrice);
 
 // Invoice management routes (only for manager)
 router.get("/invoices", authGuard, getManagerInvoices);
+router.delete("/invoices/:invoiceId", authGuard, deleteManagerInvoice);
 
 export default router;
