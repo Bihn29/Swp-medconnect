@@ -120,7 +120,7 @@ const Statistics = () => {
           clickable: true,
         },
         {
-          title: "Khám Hôm Nay",
+          title: "Lịch Hẹn",
           value: (statistics.todayAppointments.value || 0).toLocaleString(),
           change: statistics.todayAppointments.changeLabel || "0 so với hôm qua",
           icon: <CalendarOutlined />,
@@ -167,7 +167,7 @@ const Statistics = () => {
           clickable: true,
         },
         {
-          title: "Khám Hôm Nay",
+          title: "Lịch Hẹn",
           value: "0",
           change: "+0 so với hôm qua",
           icon: <CalendarOutlined />,
@@ -344,6 +344,201 @@ const Statistics = () => {
         </Row>
 
         {/* Charts Section */}
+        {/* Row 1: User Distribution, Appointment Ratio, Top Patients */}
+        <Row gutter={[16, 16]} className="charts-row">
+          {/* User Distribution */}
+          <Col xs={24} lg={8}>
+            <Card 
+              className="chart-card"
+              title={
+                <div>
+                  <div className="chart-card-title">Phân Bố Người Dùng</div>
+                  <div className="chart-card-subtitle">Tỷ lệ theo vai trò</div>
+                </div>
+              }
+            >
+              <div className="pie-chart-placeholder">
+                <div className="chart-container" style={{ height: "250px" }}>
+                  {statistics?.userDistribution ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Bệnh Nhân", value: statistics.userDistribution.patient || 0 },
+                            { name: "Bác Sĩ", value: statistics.userDistribution.doctor || 0 },
+                            { name: "Admin", value: statistics.userDistribution.admin || 0 },
+                            { name: "Quản Lý", value: statistics.userDistribution.manager || 0 }
+                          ].filter(item => item.value > 0)}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={false}
+                          outerRadius={90}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          <Cell fill="#1890ff" />
+                          <Cell fill="#52c41a" />
+                          <Cell fill="#fa8c16" />
+                          <Cell fill="#722ed1" />
+                        </Pie>
+                        <Tooltip formatter={(value, name) => [`${value} người`, name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="chart-empty">Chưa có dữ liệu</div>
+                  )}
+                </div>
+                <div className="pie-legend">
+                  {statistics?.userDistribution && (
+                    <>
+                      <div className="legend-item-center">
+                        <span className="legend-dot legend-dot-blue"></span>
+                        <span className="legend-label">Bệnh Nhân</span>
+                        <span className="legend-percentage">
+                          {statistics.userDistribution.patientPercent || 0}% ({statistics.userDistribution.patient || 0} người)
+                        </span>
+                      </div>
+                      <div className="legend-item-center">
+                        <span className="legend-dot" style={{ backgroundColor: "#52c41a" }}></span>
+                        <span className="legend-label">Bác Sĩ</span>
+                        <span className="legend-percentage">
+                          {statistics.userDistribution.doctorPercent || 0}% ({statistics.userDistribution.doctor || 0} người)
+                        </span>
+                      </div>
+                      {statistics.userDistribution.admin > 0 && (
+                        <div className="legend-item-center">
+                          <span className="legend-dot" style={{ backgroundColor: "#fa8c16" }}></span>
+                          <span className="legend-label">Admin</span>
+                          <span className="legend-percentage">
+                            {statistics.userDistribution.adminPercent || 0}% ({statistics.userDistribution.admin || 0} người)
+                          </span>
+                        </div>
+                      )}
+                      {statistics.userDistribution.manager > 0 && (
+                        <div className="legend-item-center">
+                          <span className="legend-dot" style={{ backgroundColor: "#722ed1" }}></span>
+                          <span className="legend-label">Quản Lý</span>
+                          <span className="legend-percentage">
+                            {statistics.userDistribution.managerPercent || 0}% ({statistics.userDistribution.manager || 0} người)
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </Col>
+
+          {/* Appointment Type Ratio */}
+          <Col xs={24} lg={8}>
+            <Card 
+              className="chart-card"
+              title={
+                <div>
+                  <div className="chart-card-title">Tỷ Lệ Loại Khám</div>
+                  <div className="chart-card-subtitle">Phân bố online vs offline</div>
+                </div>
+              }
+            >
+              <div className="pie-chart-placeholder">
+                <div className="chart-container" style={{ height: "200px" }}>
+                  {statistics?.appointmentRatio ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Online", value: statistics.appointmentRatio.online || 0 },
+                            { name: "Offline", value: statistics.appointmentRatio.offline || 0 }
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={false}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          <Cell fill="#1890ff" />
+                          <Cell fill="#13c2c2" />
+                        </Pie>
+                        <Tooltip formatter={(value, name) => [`${value}%`, name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="chart-empty">Chưa có dữ liệu</div>
+                  )}
+                </div>
+                <div className="pie-legend">
+                  <div className="legend-item-center">
+                    <span className="legend-dot legend-dot-blue"></span>
+                    <span className="legend-label">Online</span>
+                    <span className="legend-percentage">
+                      {statistics?.appointmentRatio?.online || 0}% ({statistics?.appointmentRatio?.onlineCount || 0} cuộc)
+                    </span>
+                  </div>
+                  <div className="legend-item-center">
+                    <span className="legend-dot legend-dot-cyan"></span>
+                    <span className="legend-label">Offline</span>
+                    <span className="legend-percentage">
+                      {statistics?.appointmentRatio?.offline || 0}% ({statistics?.appointmentRatio?.offlineCount || 0} cuộc)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </Col>
+
+          {/* Top Patients */}
+          <Col xs={24} lg={8}>
+            <Card 
+              className="chart-card"
+              title={
+                <div>
+                  <div className="chart-card-title">Bệnh Nhân Đến Khám Nhiều Nhất</div>
+                  <div className="chart-card-subtitle">Top 3 bệnh nhân có lần khám nhiều nhất</div>
+                </div>
+              }
+            >
+              <div className="patient-list">
+                {statistics?.topPatients?.length > 0
+                  ? statistics.topPatients.map((patient) => (
+                      <div key={patient.rank} className="patient-item">
+                        <div className="patient-info">
+                          <div className="patient-name">
+                            {patient.rank}. {patient.name}
+                          </div>
+                          <div className="patient-detail">
+                            Khám: {patient.visitCount} lần | Lần cuối: {formatDate(patient.lastVisit)}
+                          </div>
+                        </div>
+                        <div className="patient-spending">
+                          <div className="spending-amount">
+                            {formatCurrency(patient.totalSpending)}
+                          </div>
+                          <div className="spending-label">Chi tiêu</div>
+                        </div>
+                      </div>
+                    ))
+                  : [1, 2, 3].map((index) => (
+                      <div key={index} className="patient-item">
+                        <div className="patient-info">
+                          <div className="patient-name">{index}. --</div>
+                          <div className="patient-detail">Khám: 0 lần | Lần cuối: --</div>
+                        </div>
+                        <div className="patient-spending">
+                          <div className="spending-amount">₫0</div>
+                          <div className="spending-label">Chi tiêu</div>
+                        </div>
+                      </div>
+                    ))}
+              </div>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Row 2: Top Doctors Online and Offline */}
         <Row gutter={[16, 16]} className="charts-row">
           {/* Top Doctors Online */}
           <Col xs={24} lg={12}>
@@ -448,112 +643,6 @@ const Statistics = () => {
                           <span className="legend-value">0 cuộc</span>
                         </div>
                       ))}
-                </div>
-              </div>
-            </Card>
-          </Col>
-
-          {/* Top Patients */}
-          <Col xs={24} lg={12}>
-            <Card 
-              className="chart-card"
-              title={
-                <div>
-                  <div className="chart-card-title">Bệnh Nhân Đến Khám Nhiều Nhất</div>
-                  <div className="chart-card-subtitle">Top 3 bệnh nhân có lần khám nhiều nhất</div>
-                </div>
-              }
-            >
-              <div className="patient-list">
-                {statistics?.topPatients?.length > 0
-                  ? statistics.topPatients.map((patient) => (
-                      <div key={patient.rank} className="patient-item">
-                        <div className="patient-info">
-                          <div className="patient-name">
-                            {patient.rank}. {patient.name}
-                          </div>
-                          <div className="patient-detail">
-                            Khám: {patient.visitCount} lần | Lần cuối: {formatDate(patient.lastVisit)}
-                          </div>
-                        </div>
-                        <div className="patient-spending">
-                          <div className="spending-amount">
-                            {formatCurrency(patient.totalSpending)}
-                          </div>
-                          <div className="spending-label">Chi tiêu</div>
-                        </div>
-                      </div>
-                    ))
-                  : [1, 2, 3].map((index) => (
-                      <div key={index} className="patient-item">
-                        <div className="patient-info">
-                          <div className="patient-name">{index}. --</div>
-                          <div className="patient-detail">Khám: 0 lần | Lần cuối: --</div>
-                        </div>
-                        <div className="patient-spending">
-                          <div className="spending-amount">₫0</div>
-                          <div className="spending-label">Chi tiêu</div>
-                        </div>
-                      </div>
-                    ))}
-              </div>
-            </Card>
-          </Col>
-
-          {/* Appointment Type Ratio */}
-          <Col xs={24} lg={12}>
-            <Card 
-              className="chart-card"
-              title={
-                <div>
-                  <div className="chart-card-title">Tỷ Lệ Loại Khám</div>
-                  <div className="chart-card-subtitle">Phân bố online vs offline</div>
-                </div>
-              }
-            >
-              <div className="pie-chart-placeholder">
-                <div className="chart-container" style={{ height: "200px" }}>
-                  {statistics?.appointmentRatio ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={[
-                            { name: "Online", value: statistics.appointmentRatio.online || 0 },
-                            { name: "Offline", value: statistics.appointmentRatio.offline || 0 }
-                          ]}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={false}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          <Cell fill="#1890ff" />
-                          <Cell fill="#13c2c2" />
-                        </Pie>
-                        <Tooltip formatter={(value, name) => [`${value}%`, name]} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="chart-empty">Chưa có dữ liệu</div>
-                  )}
-                </div>
-                <div className="pie-legend">
-                  <div className="legend-item-center">
-                    <span className="legend-dot legend-dot-blue"></span>
-                    <span className="legend-label">Online</span>
-                    <span className="legend-percentage">
-                      {statistics?.appointmentRatio?.online || 0}%
-                    </span>
-                  </div>
-                  <div className="legend-item-center">
-                    <span className="legend-dot legend-dot-cyan"></span>
-                    <span className="legend-label">Offline</span>
-                    <span className="legend-percentage">
-                      {statistics?.appointmentRatio?.offline || 0}%
-                    </span>
-                  </div>
                 </div>
               </div>
             </Card>

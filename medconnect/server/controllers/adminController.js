@@ -124,14 +124,8 @@ export const getDashboardStats = async (req, res) => {
     const verifiedDoctors = await Doctor.countDocuments({ isVerified: true });
     const pendingDoctors = await Doctor.countDocuments({ isVerified: false });
 
-    // Get current month appointments
-    const currentMonth = new Date();
-    currentMonth.setDate(1);
-    currentMonth.setHours(0, 0, 0, 0);
-
-    const monthlyAppointments = await Appointment.countDocuments({
-      createdAt: { $gte: currentMonth },
-    });
+    // Get total appointments (all time)
+    const totalAppointments = await Appointment.countDocuments({});
     
     // Revenue calculation using MongoDB aggregation for accurate and efficient calculation
     // Calculate total revenue from all successful payments (captured or authorized status)
@@ -169,7 +163,7 @@ export const getDashboardStats = async (req, res) => {
       totalUsers,
       verifiedDoctors,
       pendingDoctors,
-      monthlyAppointments,
+      monthlyAppointments: totalAppointments, // Using totalAppointments for "Tổng số lịch hẹn"
       revenue,
     };
 
@@ -2708,6 +2702,13 @@ export const getStatistics = async (req, res) => {
     // 2. Tổng Bệnh Nhân - So với tuần trước
     const totalPatients = await User.countDocuments({ role: 'patient' });
     
+    // User Distribution by Role
+    const totalUsers = await User.countDocuments({});
+    const adminCount = await User.countDocuments({ role: 'admin' });
+    const doctorUserCount = await User.countDocuments({ role: 'doctor' });
+    const patientUserCount = await User.countDocuments({ role: 'patient' });
+    const managerCount = await User.countDocuments({ role: 'manager' });
+    
     // Count patients created before this week
     const currentWeekStart = new Date(todayStart);
     currentWeekStart.setDate(todayStart.getDate() - todayStart.getDay()); // Start of this week
@@ -2720,25 +2721,76 @@ export const getStatistics = async (req, res) => {
     });
     const patientsChange = totalPatients - previousTotalPatients;
 
-    // 3. Khám Hôm Nay (appointments today)
-    const startOfToday = new Date(todayStart);
-    const endOfToday = new Date(startOfToday);
-    endOfToday.setDate(endOfToday.getDate() + 1);
+    // 3. Lịch Hẹn - Appointments based on selected period (count all appointments regardless of status)
+    // For year period, include appointments scheduled in the current year (even if in future)
+    let appointmentQuery = {};
+    if (originalPeriod === 'year') {
+      // For year, count all appointments scheduled in the current year (including future dates)
+      const yearStart = new Date(today.getFullYear(), 0, 1, 0, 0, 0, 0);
+      const yearEnd = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
+      appointmentQuery = {
+        scheduledStart: { $gte: yearStart, $lte: yearEnd }
+      };
+    } else {
+      // For other periods, use the calculated startDate and endDate
+      appointmentQuery = {
+        scheduledStart: { $gte: startDate, $lte: endDate }
+      };
+    }
     
-    const todayAppointments = await Appointment.countDocuments({
-      scheduledStart: { $gte: startOfToday, $lt: endOfToday },
-      status: { $in: ['pending_doctor', 'accepted', 'in_progress', 'done'] }
-    });
+    const periodAppointments = await Appointment.countDocuments(appointmentQuery);
 
-    const yesterday = new Date(startOfToday);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayAppointments = await Appointment.countDocuments({
-      scheduledStart: { $gte: yesterday, $lt: startOfToday },
-      status: { $in: ['pending_doctor', 'accepted', 'in_progress', 'done'] }
+    // Calculate previous period appointments for comparison
+    let previousPeriodAppointmentsStart, previousPeriodAppointmentsEnd;
+    const periodDurationMs = endDate - startDate;
+    
+    if (originalPeriod === 'year') {
+      // Compare with previous year
+      previousPeriodAppointmentsStart = new Date(today.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
+      previousPeriodAppointmentsEnd = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    } else if (originalPeriod === 'month') {
+      // Compare with previous month
+      previousPeriodAppointmentsStart = new Date(today.getFullYear(), today.getMonth() - 1, 1, 0, 0, 0, 0);
+      previousPeriodAppointmentsEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
+    } else if (originalPeriod === 'week') {
+      // Compare with previous week
+      const weekStart = new Date(startDate);
+      previousPeriodAppointmentsEnd = new Date(weekStart);
+      previousPeriodAppointmentsEnd.setDate(previousPeriodAppointmentsEnd.getDate() - 1);
+      previousPeriodAppointmentsEnd.setHours(23, 59, 59, 999);
+      previousPeriodAppointmentsStart = new Date(previousPeriodAppointmentsEnd);
+      previousPeriodAppointmentsStart.setDate(previousPeriodAppointmentsStart.getDate() - 6);
+      previousPeriodAppointmentsStart.setHours(0, 0, 0, 0);
+    } else if (originalPeriod === 'today') {
+      // Compare with yesterday
+      previousPeriodAppointmentsStart = new Date(startDate);
+      previousPeriodAppointmentsStart.setDate(previousPeriodAppointmentsStart.getDate() - 1);
+      previousPeriodAppointmentsEnd = new Date(previousPeriodAppointmentsStart);
+      previousPeriodAppointmentsEnd.setHours(23, 59, 59, 999);
+      previousPeriodAppointmentsStart.setHours(0, 0, 0, 0);
+    } else if (originalPeriod === 'custom') {
+      // Compare with same duration before the custom period
+      previousPeriodAppointmentsEnd = new Date(startDate);
+      previousPeriodAppointmentsEnd.setDate(previousPeriodAppointmentsEnd.getDate() - 1);
+      previousPeriodAppointmentsEnd.setHours(23, 59, 59, 999);
+      previousPeriodAppointmentsStart = new Date(previousPeriodAppointmentsEnd.getTime() - periodDurationMs);
+      previousPeriodAppointmentsStart.setHours(0, 0, 0, 0);
+    } else {
+      // Default: compare with yesterday
+      previousPeriodAppointmentsStart = new Date(startDate);
+      previousPeriodAppointmentsStart.setDate(previousPeriodAppointmentsStart.getDate() - 1);
+      previousPeriodAppointmentsEnd = new Date(previousPeriodAppointmentsStart);
+      previousPeriodAppointmentsEnd.setHours(23, 59, 59, 999);
+      previousPeriodAppointmentsStart.setHours(0, 0, 0, 0);
+    }
+    
+    const previousPeriodAppointments = await Appointment.countDocuments({
+      scheduledStart: { $gte: previousPeriodAppointmentsStart, $lte: previousPeriodAppointmentsEnd }
     });
-    const todayAppointmentsChange = yesterdayAppointments > 0 
-      ? todayAppointments - yesterdayAppointments 
-      : todayAppointments;
+    
+    const appointmentsChange = previousPeriodAppointments > 0 
+      ? periodAppointments - previousPeriodAppointments 
+      : periodAppointments;
 
     // 4. Doanh Thu - Revenue based on selected period
     // Calculate revenue for the selected period (startDate to endDate)
@@ -2985,20 +3037,29 @@ export const getStatistics = async (req, res) => {
         totalSpending: item.totalSpending || 0
       }));
 
-    // 8. Tỷ Lệ Loại Khám (Online vs Offline)
-    const totalAppointmentsInPeriod = await Appointment.countDocuments({
-      scheduledStart: { $gte: startDate, $lte: endDate },
-      status: { $in: ['accepted', 'in_progress', 'done'] }
-    });
+    // 8. Tỷ Lệ Loại Khám (Online vs Offline) - Use same query as periodAppointments for consistency
+    let appointmentRatioQuery = {};
+    if (originalPeriod === 'year') {
+      // For year, use same logic as periodAppointments
+      const yearStart = new Date(today.getFullYear(), 0, 1, 0, 0, 0, 0);
+      const yearEnd = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
+      appointmentRatioQuery = {
+        scheduledStart: { $gte: yearStart, $lte: yearEnd }
+      };
+    } else {
+      appointmentRatioQuery = {
+        scheduledStart: { $gte: startDate, $lte: endDate }
+      };
+    }
+    
+    const totalAppointmentsInPeriod = await Appointment.countDocuments(appointmentRatioQuery);
     const onlineCount = await Appointment.countDocuments({
-      mode: 'online',
-      scheduledStart: { $gte: startDate, $lte: endDate },
-      status: { $in: ['accepted', 'in_progress', 'done'] }
+      ...appointmentRatioQuery,
+      mode: 'online'
     });
     const offlineCount = await Appointment.countDocuments({
-      mode: 'offline',
-      scheduledStart: { $gte: startDate, $lte: endDate },
-      status: { $in: ['accepted', 'in_progress', 'done'] }
+      ...appointmentRatioQuery,
+      mode: 'offline'
     });
     
     const onlinePercent = totalAppointmentsInPeriod > 0 
@@ -3010,7 +3071,6 @@ export const getStatistics = async (req, res) => {
 
     // 9. Revenue Trend (Daily for week/month/year, hourly for today)
     const revenueTrend = [];
-    const periodDurationMs = endDate - startDate;
     const daysDiff = Math.ceil(periodDurationMs / (1000 * 60 * 60 * 24));
     
     if (originalPeriod === 'today') {
@@ -3132,11 +3192,20 @@ export const getStatistics = async (req, res) => {
           : `${patientsChange} so với tuần trước`
       },
       todayAppointments: {
-        value: todayAppointments,
-        change: todayAppointmentsChange,
-        changeLabel: todayAppointmentsChange >= 0 
-          ? `+${todayAppointmentsChange} so với hôm qua`
-          : `${todayAppointmentsChange} so với hôm qua`
+        value: periodAppointments,
+        change: appointmentsChange,
+        changeLabel: (() => {
+          let periodLabel = 'hôm qua';
+          if (originalPeriod === 'year') periodLabel = 'năm trước';
+          else if (originalPeriod === 'month') periodLabel = 'tháng trước';
+          else if (originalPeriod === 'week') periodLabel = 'tuần trước';
+          else if (originalPeriod === 'today') periodLabel = 'hôm qua';
+          else if (originalPeriod === 'custom') periodLabel = 'kỳ trước';
+          
+          return appointmentsChange >= 0 
+            ? `+${appointmentsChange} so với ${periodLabel}`
+            : `${appointmentsChange} so với ${periodLabel}`;
+        })()
       },
       monthRevenue: {
         value: periodRevenue,
@@ -3168,7 +3237,20 @@ export const getStatistics = async (req, res) => {
       appointmentRatio: {
         online: onlinePercent,
         offline: offlinePercent,
+        onlineCount: onlineCount,
+        offlineCount: offlineCount,
         total: totalAppointmentsInPeriod
+      },
+      userDistribution: {
+        total: totalUsers,
+        admin: adminCount,
+        doctor: doctorUserCount,
+        patient: patientUserCount,
+        manager: managerCount || 0,
+        adminPercent: totalUsers > 0 ? Math.round((adminCount / totalUsers) * 100) : 0,
+        doctorPercent: totalUsers > 0 ? Math.round((doctorUserCount / totalUsers) * 100) : 0,
+        patientPercent: totalUsers > 0 ? Math.round((patientUserCount / totalUsers) * 100) : 0,
+        managerPercent: totalUsers > 0 ? Math.round(((managerCount || 0) / totalUsers) * 100) : 0
       },
       revenueTrend: revenueTrend
     };

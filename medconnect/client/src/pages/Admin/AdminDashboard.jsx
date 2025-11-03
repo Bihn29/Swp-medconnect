@@ -135,9 +135,8 @@ const AdminDashboard = () => {
       path: "/admin/verify-doctors",
     },
     {
-      title: "Lịch hẹn tháng này",
+      title: "Tổng số lịch hẹn",
       value: statsData.monthlyAppointments,
-      change: "Tổng số lịch hẹn trong tháng",
       changeValue: "",
       icon: <CalendarOutlined />,
       color: "#45c3d2",
@@ -147,7 +146,6 @@ const AdminDashboard = () => {
     {
       title: "Tổng doanh thu",
       value: `${statsData.revenue.toLocaleString()} VNĐ`,
-      change: "Tổng số doanh thu từ thanh toán thành công",
       changeValue: "",
       icon: <DollarOutlined />,
       color: "#fa8c16",
