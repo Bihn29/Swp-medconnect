@@ -1,11 +1,13 @@
 import express from "express";
 import { authGuard } from "../middleware/auth.js";
 import {
+  getAllPatients,
   getCurrentPatientProfile,
   updatePatientProfile,
   getSpecializations,
   getDoctorsBySpecialization,
   getDoctorTimeSlots,
+  getDoctorPricing,
   bookAppointment,
   getPatientAppointments,
   cancelAppointment,
@@ -28,6 +30,9 @@ import Appointment from "../models/appointment.model.js";
 
 const router = express.Router();
 
+// Get all patients (public, no auth required for now - can add admin/manager check later)
+router.get("/", getAllPatients);
+
 // Get current patient profile
 router.get("/me/profile", authGuard, getCurrentPatientProfile);
 
@@ -44,6 +49,9 @@ router.get(
 
 // Get available time slots for a doctor
 router.get("/doctors/:doctorId/time-slots", getDoctorTimeSlots);
+
+// Get doctor pricing (public)
+router.get("/doctors/:doctorId/pricing", getDoctorPricing);
 
 // Book an appointment
 router.post("/appointments", authGuard, bookAppointment);

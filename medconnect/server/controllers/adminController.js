@@ -5,6 +5,17 @@ import Appointment from "../models/appointment.model.js";
 import Patient from "../models/patient.model.js";
 import Clinic from "../models/clinic.model.js";
 import Payment from "../models/payment.model.js";
+import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
+import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
+import DoctorRate from "../models/doctor_rates.model.js";
+import Review from "../models/review.model.js";
+import Prescription from "../models/prescription.model.js";
+import ConsultationAdvice from "../models/consultationAdvice.model.js";
+import ConsultationSummary from "../models/consultationSummary.model.js";
+import VideoCall from "../models/videoCall.model.js";
+import PatientFavorite from "../models/patientFavorite.model.js";
+import RescheduleRequest from "../models/rescheduleRequest.model.js";
+import Notification from "../models/notification.model.js";
 import { runCleanupNow } from "../services/appointmentCleanupService.js";
 
 // ================== HELPER FUNCTIONS ==================
@@ -1377,8 +1388,8 @@ export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findByIdAndDelete(id);
-
+    // Find user first to check role before deleting
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -1386,9 +1397,113 @@ export const deleteUser = async (req, res) => {
       });
     }
 
+    // Cascade delete based on role
+    if (user.role === "doctor") {
+      // Find doctor record
+      const doctor = await Doctor.findOne({ userId: id });
+
+      if (doctor) {
+        const doctorId = doctor._id;
+
+        // Step 1: Get all appointments for this doctor first
+        const appointments = await Appointment.find({ doctorId });
+        const appointmentIds = appointments.map((a) => a._id);
+
+        // Step 2: Delete records linked to appointments
+        if (appointmentIds.length > 0) {
+          await Promise.all([
+            Prescription.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            ConsultationAdvice.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            ConsultationSummary.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            VideoCall.deleteMany({ appointmentId: { $in: appointmentIds } }),
+          ]);
+        }
+
+        // Step 3: Delete doctor-specific records and appointments
+        await Promise.all([
+          // Delete doctor-specific records
+          DoctorRate.deleteMany({ doctorId }),
+          DoctorScheduleRule.deleteMany({ doctorId }),
+          DoctorTimeSlot.deleteMany({ doctorId }),
+
+          // Delete reviews
+          Review.deleteMany({ doctorId }),
+
+          // Delete all appointments
+          Appointment.deleteMany({ doctorId }),
+
+          // Finally, delete doctor record
+          Doctor.findByIdAndDelete(doctorId),
+        ]);
+
+        console.log(
+          `✅ Cascade deleted all doctor-related records for doctor ${doctorId}`
+        );
+      }
+    } else if (user.role === "patient") {
+      // Find patient record
+      const patient = await Patient.findOne({ userId: id });
+
+      if (patient) {
+        const patientId = patient._id;
+
+        // Step 1: Get all appointments for this patient first
+        const appointments = await Appointment.find({ patientId });
+        const appointmentIds = appointments.map((a) => a._id);
+
+        // Step 2: Delete records linked to appointments
+        if (appointmentIds.length > 0) {
+          await Promise.all([
+            Prescription.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            ConsultationAdvice.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            ConsultationSummary.deleteMany({
+              appointmentId: { $in: appointmentIds },
+            }),
+            VideoCall.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            Payment.deleteMany({ appointmentId: { $in: appointmentIds } }),
+            RescheduleRequest.deleteMany({
+              originalAppointmentId: { $in: appointmentIds },
+            }),
+          ]);
+        }
+
+        // Step 3: Delete patient-specific records
+        await Promise.all([
+          // Delete patient-specific records
+          PatientFavorite.deleteMany({ patientId }),
+          Review.deleteMany({ patientId }),
+
+          // Delete all appointments
+          Appointment.deleteMany({ patientId }),
+
+          // Delete notifications for this user
+          Notification.deleteMany({ userId: id }),
+
+          // Finally, delete patient record
+          Patient.findByIdAndDelete(patientId),
+        ]);
+
+        console.log(
+          `✅ Cascade deleted all patient-related records for patient ${patientId}`
+        );
+      } else {
+        // If no patient record found, just delete notifications
+        await Notification.deleteMany({ userId: id });
+      }
+    }
+
+    // Finally, delete user
+    await User.findByIdAndDelete(id);
+
     res.json({
       success: true,
-      message: "Đã xóa người dùng",
+      message: "Đã xóa người dùng và tất cả dữ liệu liên quan",
     });
   } catch (error) {
     console.error("Error deleting user:", error);

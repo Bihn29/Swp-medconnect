@@ -5,6 +5,8 @@ import Appointment from "../models/appointment.model.js";
 import Patient from "../models/patient.model.js";
 import User from "../models/user.model.js";
 import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
+import DoctorRate from "../models/doctor_rates.model.js";
+import Clinic from "../models/clinic.model.js";
 import { createAppointmentNotification } from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
@@ -42,8 +44,9 @@ export async function getAllDoctorsForManager(req, res) {
     const doctors = await Doctor.find(filter)
       .populate("userId", "fullName email phone")
       .populate("specializationIds", "name")
+      .populate("clinicDefaultId", "name address phone")
       .select(
-        "fullName avatarUrl specializationIds ratingAvg ratingCount isVerified"
+        "fullName avatarUrl specializationIds ratingAvg ratingCount isVerified clinicDefaultId"
       )
       .sort({ fullName: 1 })
       .lean();
@@ -514,48 +517,73 @@ export async function generateSlotsForManager(req, res) {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const endDate = new Date(today);
-    endDate.setMonth(today.getMonth() + 1); // 1 month instead of 14 days
-    endDate.setHours(23, 59, 59, 999);
+
+    // Calculate end of current month (không tạo sang tháng mới)
+    const endDate = new Date(
+      today.getFullYear(),
+      today.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999
+    );
 
     console.log("🔍 Creating slots from:", today.toISOString().split("T")[0]);
     console.log(
-      "🔍 Creating slots until:",
+      "🔍 Creating slots until end of current month:",
       endDate.toISOString().split("T")[0]
     );
 
-    // Check how many future slots already exist
+    // Check how many future slots already exist in the current month
     const existingFutureSlots = await DoctorTimeSlot.countDocuments({
       doctorId: doctor._id,
-      startAt: { $gte: today },
+      startAt: {
+        $gte: today,
+        $lte: endDate,
+      },
     });
 
-    console.log(`📊 Existing future slots: ${existingFutureSlots}`);
+    console.log(
+      `📊 Existing future slots in current month: ${existingFutureSlots}`
+    );
 
-    // Only create slots if we have less than 100 future slots
-    // This prevents creating slots too frequently
-    if (existingFutureSlots >= 100) {
+    // Check if we already have slots for remaining days in the current month
+    // Estimate: if we have more than 80% of needed slots (assuming average 30 slots per day)
+    // Calculate days remaining from today to end of month
+    const daysRemaining = Math.ceil(
+      (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const estimatedSlotsNeeded = daysRemaining * 30; // Rough estimate: 30 slots per day
+
+    if (existingFutureSlots >= estimatedSlotsNeeded * 0.8) {
       console.log(
-        `⏭️ Skipping slot generation - already have ${existingFutureSlots} future slots (>= 100)`
+        `⏭️ Skipping slot generation - already have ${existingFutureSlots} slots in current month (>= ${Math.floor(
+          estimatedSlotsNeeded * 0.8
+        )})`
       );
       return ok(res, {
-        message: `No new slots created. Doctor already has ${existingFutureSlots} future slots.`,
+        message: `No new slots created. Doctor already has enough slots for the remaining days of current month.`,
         createdSlots: 0,
         skippedSlots: 0,
         existingSlots: existingFutureSlots,
-        note: "Slots are only auto-generated when doctor has less than 100 future slots.",
+        note: "Slots are only auto-generated when remaining days of current month have insufficient slots.",
       });
     }
 
     const createdSlots = [];
     const skippedSlots = [];
 
-    // Calculate number of days in the month
-    const daysInMonth = Math.ceil(
+    // Calculate number of days from today to end of current month
+    const daysFromTodayToEndOfMonth = Math.ceil(
       (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    for (let dayOffset = 0; dayOffset < daysInMonth; dayOffset++) {
+    for (
+      let dayOffset = 0;
+      dayOffset < daysFromTodayToEndOfMonth;
+      dayOffset++
+    ) {
       const currentDate = new Date(today);
       currentDate.setDate(today.getDate() + dayOffset);
       const weekday = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
@@ -657,7 +685,7 @@ export async function generateSlotsForManager(req, res) {
     });
 
     return ok(res, {
-      message: `Generated ${createdSlots.length} new time slots for doctor ${doctor.fullName} based on schedule rules (next month)`,
+      message: `Generated ${createdSlots.length} new time slots for doctor ${doctor.fullName} for remaining days of current month`,
       createdSlots: createdSlots.length,
       skippedSlots: skippedSlots.length,
       totalFutureSlots: totalFutureSlots, // Total future slots after creation
@@ -1318,6 +1346,209 @@ export async function unblockSlotsByDateRangeForManager(req, res) {
     });
   } catch (error) {
     console.error("❌ unblockSlotsByDateRangeForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Get doctor pricing for a specific doctor
+ * Manager can view pricing for any doctor
+ */
+export async function getDoctorPricingForManager(req, res) {
+  try {
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Get all pricing for this doctor
+    const pricingList = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    })
+      .populate("clinicId", "name address")
+      .sort({ mode: 1, createdAt: -1 })
+      .lean();
+
+    return ok(res, {
+      doctor: {
+        _id: doctor._id,
+        fullName: doctor.fullName,
+      },
+      pricing: pricingList,
+    });
+  } catch (error) {
+    console.error("❌ getDoctorPricingForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Create or update doctor pricing
+ * Manager can set pricing for any doctor
+ */
+export async function setDoctorPricingForManager(req, res) {
+  try {
+    const { doctorId } = req.params;
+    const { mode, clinicId, weekdayPrice, weekendPrice, isActive } = req.body;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    if (!mode || !weekdayPrice || !weekendPrice) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Mode, weekdayPrice, and weekendPrice are required"
+      );
+    }
+
+    if (mode !== "online" && mode !== "offline") {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Mode must be 'online' or 'offline'"
+      );
+    }
+
+    if (mode === "offline" && !clinicId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Clinic ID is required for offline mode"
+      );
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Verify clinic exists if offline mode
+    if (mode === "offline") {
+      const clinic = await Clinic.findById(clinicId);
+      if (!clinic) {
+        return fail(res, 404, ERROR_CODES.NOT_FOUND, "Clinic not found");
+      }
+    }
+
+    // Check if pricing already exists
+    const existingPricing = await DoctorRate.findOne({
+      doctorId: doctor._id,
+      mode: mode,
+      ...(mode === "offline" && { clinicId: clinicId }),
+      ...(mode === "online" && { clinicId: { $exists: false } }),
+    });
+
+    let pricing;
+    if (existingPricing) {
+      // Update existing pricing
+      existingPricing.weekdayPrice = weekdayPrice;
+      existingPricing.weekendPrice = weekendPrice;
+      if (isActive !== undefined) {
+        existingPricing.isActive = isActive;
+      }
+      await existingPricing.save();
+      pricing = existingPricing;
+      console.log(`✅ Updated pricing for doctor ${doctor.fullName}`);
+    } else {
+      // Create new pricing
+      pricing = await DoctorRate.create({
+        doctorId: doctor._id,
+        mode: mode,
+        ...(mode === "offline" && { clinicId: clinicId }),
+        weekdayPrice: weekdayPrice,
+        weekendPrice: weekendPrice,
+        isActive: isActive !== undefined ? isActive : true,
+      });
+      console.log(`✅ Created new pricing for doctor ${doctor.fullName}`);
+    }
+
+    return ok(res, {
+      message: existingPricing
+        ? "Pricing updated successfully"
+        : "Pricing created successfully",
+      pricing: pricing,
+    });
+  } catch (error) {
+    console.error("❌ setDoctorPricingForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Delete doctor pricing
+ * Manager can delete pricing for any doctor
+ */
+export async function deleteDoctorPricingForManager(req, res) {
+  try {
+    const { doctorId, pricingId } = req.params;
+
+    if (!doctorId || !pricingId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Doctor ID and Pricing ID are required"
+      );
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Find and delete pricing
+    const pricing = await DoctorRate.findOneAndDelete({
+      _id: pricingId,
+      doctorId: doctor._id,
+    });
+
+    if (!pricing) {
+      return fail(
+        res,
+        404,
+        ERROR_CODES.NOT_FOUND,
+        "Pricing not found or does not belong to this doctor"
+      );
+    }
+
+    console.log(`✅ Deleted pricing for doctor ${doctor.fullName}`);
+
+    return ok(res, {
+      message: "Pricing deleted successfully",
+      deletedPricingId: pricingId,
+    });
+  } catch (error) {
+    console.error("❌ deleteDoctorPricingForManager error:", error);
     return fail(
       res,
       500,

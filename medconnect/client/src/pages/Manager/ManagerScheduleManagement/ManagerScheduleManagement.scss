@@ -1180,4 +1180,43 @@
       }
     }
   }
+
+  // Pricing Dialog
+  .pricing-dialog {
+    .pricing-content {
+      .pricing-section {
+        margin-bottom: 24px;
+
+        h3 {
+          color: #1f2937;
+        }
+
+        .pricing-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+
+        .pricing-field {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+
+          label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+          }
+        }
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        border-top: 1px solid #e5e7eb;
+        padding-top: 16px;
+      }
+    }
+  }
 }

@@ -8,6 +8,7 @@ import ConsultationSummary from "../models/consultationSummary.model.js";
 import ConsultationAdvice from "../models/consultationAdvice.model.js";
 import Notification from "../models/notification.model.js";
 import PatientFavorite from "../models/patientFavorite.model.js";
+import DoctorRate from "../models/doctor_rates.model.js";
 import {
   createBookingNotification,
   createAppointmentNotification,
@@ -15,6 +16,82 @@ import {
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 import { sendMail } from "../utils/email.js";
+
+/**
+ * Get all patients (for admin/manager)
+ */
+export async function getAllPatients(req, res) {
+  try {
+    const { search, page = 1, limit = 50 } = req.query;
+
+    // Build query
+    let query = {};
+    if (search) {
+      query.$or = [
+        { fullName: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get patients with populated user info, filter only users with role='patient'
+    const patients = await Patient.find(query)
+      .populate({
+        path: "userId",
+        select: "email status role createdAt",
+        match: { role: "patient" },
+      })
+      .select("fullName phone email dob gender avatarUrl createdAt updatedAt")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    // Filter out patients where userId is null (due to role filter)
+    const validPatients = patients.filter(
+      (p) => p.userId && p.userId.role === "patient"
+    );
+
+    // Get total count - need to count only patients with role='patient'
+    const patientUserIds = await User.find({ role: "patient" })
+      .select("_id")
+      .lean();
+    const patientIds = patientUserIds.map((u) => u._id);
+    const countQuery = { ...query, userId: { $in: patientIds } };
+    const total = await Patient.countDocuments(countQuery);
+
+    // Format response
+    const formattedPatients = validPatients.map((patient) => ({
+      id: patient._id,
+      userId: patient.userId?._id,
+      fullName: patient.fullName,
+      phone: patient.phone,
+      email: patient.email || patient.userId?.email,
+      dob: patient.dob,
+      gender: patient.gender,
+      avatarUrl: patient.avatarUrl,
+      status: patient.userId?.status || "active",
+      createdAt: patient.createdAt,
+      updatedAt: patient.updatedAt,
+    }));
+
+    return ok(res, {
+      patients: formattedPatients,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching all patients:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
 
 /**
  * Cancel appointment by patient
@@ -581,6 +658,43 @@ export async function getDoctorTimeSlots(req, res) {
     return ok(res, { timeSlots: formattedSlots });
   } catch (error) {
     console.error("Error fetching doctor time slots:", error);
+    return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
+  }
+}
+
+/**
+ * Get doctor pricing (public endpoint for patients)
+ */
+export async function getDoctorPricing(req, res) {
+  try {
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Doctor ID is required");
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Get pricing for this doctor
+    const pricing = await DoctorRate.find({
+      doctorId: doctor._id,
+      isActive: true,
+    })
+      .select("mode weekdayPrice weekendPrice clinicId")
+      .populate("clinicId", "name")
+      .lean();
+
+    // If no pricing found, return null (frontend can use default pricing)
+    return ok(res, {
+      doctorId: doctor._id,
+      pricing: pricing.length > 0 ? pricing : null,
+    });
+  } catch (error) {
+    console.error("Error fetching doctor pricing:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
   }
 }

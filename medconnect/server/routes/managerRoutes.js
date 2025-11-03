@@ -11,6 +11,9 @@ import {
   blockSlotsByDateRangeForManager,
   unblockSlotsByDateRangeForManager,
   rescheduleAppointmentByManager,
+  getDoctorPricingForManager,
+  setDoctorPricingForManager,
+  deleteDoctorPricingForManager,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
@@ -77,6 +80,19 @@ router.post(
   "/leave-requests/:leaveRequestId/reject",
   authGuard,
   rejectLeaveRequest
+);
+
+// Pricing routes
+router.get("/doctors/:doctorId/pricing", authGuard, getDoctorPricingForManager);
+router.post(
+  "/doctors/:doctorId/pricing",
+  authGuard,
+  setDoctorPricingForManager
+);
+router.delete(
+  "/doctors/:doctorId/pricing/:pricingId",
+  authGuard,
+  deleteDoctorPricingForManager
 );
 
 export default router;

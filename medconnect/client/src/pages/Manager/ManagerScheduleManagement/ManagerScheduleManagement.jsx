@@ -8,6 +8,7 @@ import {
   User,
   Search,
   Trash2,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
@@ -73,10 +74,25 @@ export default function ManagerScheduleManagement() {
   // Reschedule modal states
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
+  // Pricing management states
+  const [showPricingDialog, setShowPricingDialog] = useState(false);
+  const [pricingData, setPricingData] = useState({
+    online: { weekday: 200000, weekend: 250000 },
+    offline: { weekday: 300000, weekend: 350000 },
+  });
+  const [loadingPricing, setLoadingPricing] = useState(false);
+
   // Load specializations on mount
   useEffect(() => {
     loadSpecializations();
   }, []);
+
+  // Load pricing when doctor is selected
+  useEffect(() => {
+    if (selectedDoctorId) {
+      loadDoctorPricing();
+    }
+  }, [selectedDoctorId]);
 
   const loadDoctors = useCallback(async () => {
     // Only load if at least one filter is applied
@@ -285,13 +301,13 @@ export default function ManagerScheduleManagement() {
 
         // Different messages based on response
         if (createdCount === 0) {
-          // No slots created (already have >= 100)
+          // No slots created (already have enough slots for current month)
           alert(
-            `ℹ️ Hiện tại bác sĩ đã có ${existingSlots} slot trong tương lai.\n\nKhông cần tạo thêm slot lúc này.\nChỉ tạo slot mới khi số lượng slot < 100.`
+            `ℹ️ Hiện tại bác sĩ đã có ${existingSlots} slot trong tháng này.\n\nKhông cần tạo thêm slot lúc này.`
           );
         } else {
           // Slots created successfully
-          let message = `✅ Đã tạo ${createdCount} slot mới trong 1 tháng tới (bao gồm cả cuối tuần)`;
+          let message = `✅ Đã tạo ${createdCount} slot mới cho phần còn lại của tháng hiện tại (bao gồm cả cuối tuần)`;
           message += `\n\n📊 Tổng slot tương lai: ${totalSlots} slot`;
 
           // Warning if slots are running low
@@ -312,6 +328,100 @@ export default function ManagerScheduleManagement() {
       alert("❌ Lỗi khi tạo slots: " + error.message);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const loadDoctorPricing = async () => {
+    if (!selectedDoctorId) return;
+
+    try {
+      const response = await api.get(
+        `/api/managers/doctors/${selectedDoctorId}/pricing`
+      );
+
+      if (response.success && response.data.pricing) {
+        const pricing = response.data.pricing;
+        const onlinePricing = pricing.find((p) => p.mode === "online");
+        const offlinePricing = pricing.find((p) => p.mode === "offline");
+
+        setPricingData({
+          online: {
+            weekday: onlinePricing?.weekdayPrice || 200000,
+            weekend: onlinePricing?.weekendPrice || 250000,
+          },
+          offline: {
+            weekday: offlinePricing?.weekdayPrice || 300000,
+            weekend: offlinePricing?.weekendPrice || 350000,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error loading pricing:", error);
+      // Keep default pricing
+    }
+  };
+
+  const saveDoctorPricing = async () => {
+    if (!selectedDoctorId) return;
+
+    // Validation: Check if all prices are filled and > 0
+    if (
+      !pricingData.online.weekday ||
+      pricingData.online.weekday <= 0 ||
+      !pricingData.online.weekend ||
+      pricingData.online.weekend <= 0 ||
+      !pricingData.offline.weekday ||
+      pricingData.offline.weekday <= 0 ||
+      !pricingData.offline.weekend ||
+      pricingData.offline.weekend <= 0
+    ) {
+      alert("❌ Vui lòng điền đầy đủ tất cả các giá và giá phải lớn hơn 0!");
+      return;
+    }
+
+    // Get selected doctor to access clinicDefaultId
+    const doctor = doctors.find((d) => d._id === selectedDoctorId);
+    if (!doctor) {
+      alert("❌ Không tìm thấy thông tin bác sĩ");
+      return;
+    }
+
+    // Get clinic ID for offline pricing
+    const clinicId = doctor.clinicDefaultId?._id || doctor.clinicDefaultId;
+    if (!clinicId) {
+      alert(
+        "❌ Bác sĩ chưa có phòng khám mặc định. Vui lòng cập nhật thông tin bác sĩ trước."
+      );
+      return;
+    }
+
+    try {
+      setLoadingPricing(true);
+
+      // Save online pricing
+      await api.post(`/api/managers/doctors/${selectedDoctorId}/pricing`, {
+        mode: "online",
+        weekdayPrice: pricingData.online.weekday,
+        weekendPrice: pricingData.online.weekend,
+        isActive: true,
+      });
+
+      // Save offline pricing with clinicId
+      await api.post(`/api/managers/doctors/${selectedDoctorId}/pricing`, {
+        mode: "offline",
+        clinicId: clinicId,
+        weekdayPrice: pricingData.offline.weekday,
+        weekendPrice: pricingData.offline.weekend,
+        isActive: true,
+      });
+
+      alert("✅ Đã lưu bảng giá thành công!");
+      setShowPricingDialog(false);
+    } catch (error) {
+      console.error("Error saving pricing:", error);
+      alert("❌ Lỗi khi lưu bảng giá: " + error.message);
+    } finally {
+      setLoadingPricing(false);
     }
   };
 
@@ -914,6 +1024,14 @@ export default function ManagerScheduleManagement() {
             <div className="header-right">
               <div className="action-buttons">
                 <Button
+                  onClick={() => setShowPricingDialog(true)}
+                  className="pricing-btn"
+                  variant="outline"
+                >
+                  <DollarSign size={16} />
+                  Quản lý giá
+                </Button>
+                <Button
                   onClick={handleGenerateSlots}
                   className="auto-generate-btn"
                   disabled={generating}
@@ -947,8 +1065,8 @@ export default function ManagerScheduleManagement() {
                   <Calendar size={64} className="empty-icon" />
                   <h3>Chưa có slot nào trong tuần này</h3>
                   <p>
-                    Bấm nút "Tạo slot tự động" để tạo lịch làm việc cho 1 tháng
-                    tới (bao gồm cả cuối tuần)
+                    Bấm nút "Tạo slot tự động" để tạo lịch làm việc cho phần còn
+                    lại của tháng hiện tại (bao gồm cả cuối tuần)
                   </p>
                   <Button
                     onClick={handleGenerateSlots}
@@ -1146,6 +1264,139 @@ export default function ManagerScheduleManagement() {
           </div>
         </>
       )}
+
+      {/* Pricing Management Dialog */}
+      <Dialog open={showPricingDialog} onOpenChange={setShowPricingDialog}>
+        <DialogContent className="pricing-dialog" style={{ maxWidth: "600px" }}>
+          <DialogHeader>
+            <DialogTitle>💰 Quản lý bảng giá</DialogTitle>
+          </DialogHeader>
+          <div className="pricing-content">
+            <p style={{ marginBottom: "24px", color: "#666" }}>
+              Thiết lập giá khám cho bác sĩ:{" "}
+              <strong>{selectedDoctor?.fullName}</strong>
+            </p>
+
+            {/* Online Pricing */}
+            <div className="pricing-section">
+              <h3
+                style={{
+                  marginBottom: "16px",
+                  fontSize: "16px",
+                  fontWeight: 600,
+                }}
+              >
+                Khám online
+              </h3>
+              <div className="pricing-row">
+                <div className="pricing-field">
+                  <label>Thứ 2-6 (VND):</label>
+                  <Input
+                    type="number"
+                    value={pricingData.online.weekday || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPricingData({
+                        ...pricingData,
+                        online: {
+                          ...pricingData.online,
+                          weekday: value === "" ? 0 : parseInt(value),
+                        },
+                      });
+                    }}
+                    placeholder="200000"
+                  />
+                </div>
+                <div className="pricing-field">
+                  <label>Thứ 7-CN (VND):</label>
+                  <Input
+                    type="number"
+                    value={pricingData.online.weekend || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPricingData({
+                        ...pricingData,
+                        online: {
+                          ...pricingData.online,
+                          weekend: value === "" ? 0 : parseInt(value),
+                        },
+                      });
+                    }}
+                    placeholder="250000"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Offline Pricing */}
+            <div className="pricing-section">
+              <h3
+                style={{
+                  marginBottom: "16px",
+                  fontSize: "16px",
+                  fontWeight: 600,
+                }}
+              >
+                Khám tại phòng khám
+              </h3>
+              <div className="pricing-row">
+                <div className="pricing-field">
+                  <label>Thứ 2-6 (VND):</label>
+                  <Input
+                    type="number"
+                    value={pricingData.offline.weekday || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPricingData({
+                        ...pricingData,
+                        offline: {
+                          ...pricingData.offline,
+                          weekday: value === "" ? 0 : parseInt(value),
+                        },
+                      });
+                    }}
+                    placeholder="300000"
+                  />
+                </div>
+                <div className="pricing-field">
+                  <label>Thứ 7-CN (VND):</label>
+                  <Input
+                    type="number"
+                    value={pricingData.offline.weekend || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPricingData({
+                        ...pricingData,
+                        offline: {
+                          ...pricingData.offline,
+                          weekend: value === "" ? 0 : parseInt(value),
+                        },
+                      });
+                    }}
+                    placeholder="350000"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="dialog-actions" style={{ marginTop: "24px" }}>
+              <Button
+                variant="outline"
+                onClick={() => setShowPricingDialog(false)}
+              >
+                Hủy
+              </Button>
+              <Button
+                variant="primary"
+                onClick={saveDoctorPricing}
+                disabled={loadingPricing}
+              >
+                {loadingPricing ? "Đang lưu..." : "Lưu bảng giá"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Block Detail Dialog - Hiển thị lý do nghỉ (chỉ xem, không đăng ký) */}
       <Dialog
