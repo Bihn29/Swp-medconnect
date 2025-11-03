@@ -115,7 +115,10 @@ const ServicePaymentResult = () => {
   }, [searchParams]);
 
   const handleViewAppointments = () => {
-    navigate("/bac-si/lich-hen");
+    // Navigate với state để trigger reload appointments
+    navigate("/bac-si/lich-hen", { 
+      state: { shouldReload: true, timestamp: Date.now() } 
+    });
   };
 
   const handleBackToHome = () => {

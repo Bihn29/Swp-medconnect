@@ -104,16 +104,33 @@ export const createPayosPaymentLink = async (userId, paymentData) => {
  */
 export const handlePayosWebhook = async (webhookBody, skipVerification = false) => {
   try {
+    console.log(`🔔 Webhook received from PayOS`);
+    
     // Verify chữ ký - throws nếu sai (trừ khi skipVerification = true)
     const verified = skipVerification ? webhookBody : await payos.webhooks.verify(webhookBody);
     const { data } = verified || {};
     const { orderCode, description, code, amount } = data || {};
 
+    console.log(`🔔 Webhook data:`, {
+      orderCode,
+      description,
+      code,
+      amount,
+      hasData: !!data
+    });
+
     if (!orderCode) throw new Error("Missing orderCode in webhook data");
 
     // Chỉ xử lý payment cho appointment (check cả "MedConnect" và "MC" cho service payment)
     const desc = String(description || "");
+    console.log(`🔔 Webhook description check:`, {
+      description: desc,
+      includesMedConnect: desc.includes("MedConnect"),
+      includesMCService: desc.includes("MC Service")
+    });
+    
     if (!desc.includes("MedConnect") && !desc.includes("MC Service")) {
+      console.log(`⚠️ Webhook ignored: Not an appointment payment`);
       return { ignored: true, message: "Not an appointment payment" };
     }
 
@@ -121,12 +138,19 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
     // Booking payment: orderCode lưu trong appointment.pendingOrderCode, description: "MedConnect ..."
     // Service payment: orderCode lưu trong payment.pendingOrderCode, description: "MC Service ..." hoặc "MedConnect Service ..."
     const isServicePayment = desc.includes("Service") || desc.includes("MC Service");
+    console.log(`🔔 Payment type detected:`, {
+      isServicePayment,
+      orderCode,
+      description: desc
+    });
 
     let appointment = null;
     let existingPayment = null;
     let invoiceType = "booking";
 
     if (isServicePayment) {
+      console.log(`🔔 Processing service payment webhook for orderCode: ${orderCode}`);
+      
       // Service payment: tìm payment bằng pendingOrderCode
       existingPayment = await Payment.findOne({
         pendingOrderCode: orderCode,
@@ -134,6 +158,14 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
       })
         .populate("appointmentId")
         .lean();
+
+      console.log(`🔔 Service payment lookup:`, {
+        orderCode,
+        found: !!existingPayment,
+        paymentId: existingPayment?._id?.toString() || "NOT FOUND",
+        paymentStatus: existingPayment?.status || "NOT FOUND",
+        appointmentId: existingPayment?.appointmentId?._id?.toString() || existingPayment?.appointmentId?.toString() || "NOT FOUND"
+      });
 
       if (!existingPayment) {
         console.log(
@@ -147,6 +179,18 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
         console.log(
           `ℹ️ Service payment already captured: ${existingPayment._id}`
         );
+        // Nếu đã captured nhưng appointment status chưa là "done", cập nhật lại
+        const Appointment = (await import("../models/appointment.model.js")).default;
+        const appointmentId = existingPayment.appointmentId?._id || existingPayment.appointmentId;
+        if (appointmentId) {
+          const appointmentToCheck = await Appointment.findById(appointmentId);
+          if (appointmentToCheck && appointmentToCheck.status !== "done") {
+            console.log(`🔔 Updating appointment status for already-captured payment: ${appointmentToCheck._id}`);
+            appointmentToCheck.status = "done";
+            await appointmentToCheck.save();
+            console.log(`✅ Appointment status updated to "done" for already-captured payment: ${appointmentToCheck._id}`);
+          }
+        }
         return { already: true, orderCode, paymentId: existingPayment._id };
       }
 
@@ -206,7 +250,11 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
 
       if (isServicePayment) {
         // Service payment: update existing payment record
-        payment = await Payment.findById(existingPayment._id);
+        payment = await Payment.findById(existingPayment._id)
+          .populate("billTo.patientId", "fullName userId")
+          .populate("billFrom.doctorId", "fullName userId specializationIds")
+          .populate("billFrom.clinicId", "name address");
+        
         if (!payment) {
           return { already: true, orderCode };
         }
@@ -220,45 +268,83 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
         payment.pendingOrderCode = undefined; // Clear pendingOrderCode
         await payment.save();
 
-        // Populate appointment đầy đủ cho email và notification
+        // Populate appointment và lấy patient, doctor - giống booking payment flow
         appointment = await Appointment.findById(payment.appointmentId)
-          .populate("patientId", "fullName userId")
-          .populate("doctorId", "fullName userId specializationIds")
-          .populate("clinicId", "name address")
-          .populate("doctorId.userId", "email phone")
-          .populate("patientId.userId", "email phone");
-
-        // Get patient and doctor
-        const patientId = payment.billTo?.patientId?._id || payment.billTo?.patientId || payment.billTo.patientId;
-        const doctorId = payment.billFrom?.doctorId?._id || payment.billFrom?.doctorId || payment.billFrom.doctorId;
+          .populate("patientId")
+          .populate("doctorId")
+          .populate("clinicId");
         
-        patient = await Patient.findById(patientId).populate("userId");
-        doctor = await Doctor.findById(doctorId);
+        if (!appointment) {
+          console.error(`❌ Appointment not found for payment ${payment._id}`);
+          return { already: true, orderCode };
+        }
+
+        // Lấy patient và doctor - giống booking payment (đơn giản hóa)
+        // Patient: giống booking payment - populate userId
+        if (appointment.patientId) {
+          const patientIdToQuery = appointment.patientId._id || appointment.patientId;
+          patient = await Patient.findById(patientIdToQuery).populate("userId");
+          console.log(`🔍 DEBUG - Patient populated:`, {
+            patientId: patient?._id?.toString(),
+            hasUserId: !!patient?.userId,
+            userIdEmail: patient?.userId?.email || "NOT FOUND",
+            userIdType: patient?.userId ? (typeof patient.userId === 'object' ? 'object' : typeof patient.userId) : 'null'
+          });
+        }
+        
+        // Doctor: giống booking payment
+        if (appointment.doctorId) {
+          const doctorIdToQuery = appointment.doctorId._id || appointment.doctorId;
+          doctor = await Doctor.findById(doctorIdToQuery);
+        }
+        
+        // Debug log chi tiết - giống booking payment
+        const patientEmailCheck = patient?.userId?.email || null;
+        console.log(`🔍 Service payment email data:`, {
+          appointmentId: appointment?._id?.toString(),
+          patientId: patient?._id?.toString() || appointment?.patientId?._id?.toString() || "NOT FOUND",
+          doctorId: doctor?._id?.toString() || appointment?.doctorId?._id?.toString() || "NOT FOUND",
+          patientFound: !!patient,
+          doctorFound: !!doctor,
+          appointmentFound: !!appointment,
+          patientEmail: patientEmailCheck || "NOT FOUND",
+          patientHasUserId: !!patient?.userId,
+          patientUserIdEmail: patient?.userId?.email || 'NOT FOUND',
+          patientUserIdType: patient?.userId ? (typeof patient.userId === 'object' && patient.userId.email ? 'populated' : 'not-populated') : 'null'
+        });
         
         if (!patient || !doctor || !appointment) {
           console.error(`❌ Patient, Doctor or Appointment not found for payment ${payment._id}`, {
-            patientId,
-            doctorId,
-            appointmentId: payment.appointmentId,
-            billTo: payment.billTo,
-            billFrom: payment.billFrom
+            appointmentId: payment.appointmentId?.toString(),
+            patientFound: !!patient,
+            doctorFound: !!doctor,
+            appointmentFound: !!appointment,
+            appointmentPatientId: appointment?.patientId?._id?.toString() || appointment?.patientId?.toString() || "NOT FOUND",
+            appointmentDoctorId: appointment?.doctorId?._id?.toString() || appointment?.doctorId?.toString() || "NOT FOUND"
           });
         }
         
         // Import notification service
         const { createServicePaymentNotification } = await import("./notificationService.js");
 
-        // Gửi email cho bệnh nhân
-        if (patient && appointment && doctor) {
-          try {
-            await sendServicePaymentConfirmationEmail(appointment, payment, patient, doctor);
-            console.log(`📧 Service payment confirmation email sent for appointment ${appointment._id}`);
-          } catch (emailError) {
-            console.error("❌ Error sending service payment confirmation email:", emailError);
-            console.error("Email error details:", emailError.stack);
-          }
-        } else {
-          console.error("⚠️ Cannot send email: missing patient, appointment or doctor data");
+        // Gửi email cho bệnh nhân - giống booking payment flow (đơn giản hóa)
+        // Debug trước khi gửi email
+        console.log(`📧 DEBUG - Service payment email check:`, {
+          hasPatient: !!patient,
+          hasDoctor: !!doctor,
+          hasAppointment: !!appointment,
+          patientUserId: patient?.userId ? (typeof patient.userId === 'object' ? 'populated' : 'not-populated') : 'null',
+          patientEmail: patient?.userId?.email || "NOT FOUND",
+          appointmentId: appointment?._id?.toString()
+        });
+        
+        try {
+          await sendServicePaymentConfirmationEmail(appointment, payment, patient, doctor);
+          console.log(`✅ Service payment confirmation email sent successfully for appointment ${appointment._id}`);
+        } catch (emailError) {
+          console.error("❌ Error sending service payment confirmation email:", emailError);
+          console.error("Email error message:", emailError.message);
+          console.error("Email error stack:", emailError.stack);
         }
 
         // Gửi notification cho bác sĩ
@@ -275,14 +361,75 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
         }
 
         // Cập nhật appointment status thành "done" sau khi thanh toán dịch vụ thành công
+        // Lấy appointmentId trực tiếp từ payment (không populate) để đảm bảo chính xác
         try {
-          if (appointment.status !== "done") {
-            appointment.status = "done";
-            await appointment.save();
-            console.log(`✅ Appointment status updated to "done" after service payment: ${appointment._id}`);
+          // Lấy appointmentId từ payment - payment.appointmentId có thể là ObjectId hoặc đã populate
+          // Query lại payment để lấy appointmentId chính xác (không populate)
+          const Payment = (await import("../models/payment.model.js")).default;
+          const paymentForId = await Payment.findById(payment._id).select("appointmentId").lean();
+          
+          if (!paymentForId || !paymentForId.appointmentId) {
+            console.error(`❌ Cannot get appointmentId from payment ${payment._id}`);
+          } else {
+            const appointmentIdToUpdate = paymentForId.appointmentId;
+            
+            console.log(`🔍 DEBUG - Updating appointment status:`, {
+              paymentId: payment._id?.toString(),
+              appointmentId: appointmentIdToUpdate?.toString(),
+              appointmentIdType: appointmentIdToUpdate?.constructor?.name || typeof appointmentIdToUpdate,
+              currentAppointmentStatus: appointment?.status
+            });
+            
+            const Appointment = (await import("../models/appointment.model.js")).default;
+            const appointmentToUpdate = await Appointment.findById(appointmentIdToUpdate);
+            
+            if (appointmentToUpdate) {
+              console.log(`🔍 DEBUG - Appointment found:`, {
+                appointmentId: appointmentToUpdate._id?.toString(),
+                currentStatus: appointmentToUpdate.status,
+                willUpdateToDone: appointmentToUpdate.status !== "done"
+              });
+              
+              if (appointmentToUpdate.status !== "done") {
+                const oldStatus = appointmentToUpdate.status;
+                appointmentToUpdate.status = "done";
+                await appointmentToUpdate.save();
+                console.log(`✅ Appointment status updated from "${oldStatus}" to "done" after service payment: ${appointmentToUpdate._id}`);
+                
+                // Verify sau khi save
+                const verifyAppointment = await Appointment.findById(appointmentIdToUpdate);
+                if (verifyAppointment) {
+                  console.log(`🔍 DEBUG - Verify appointment status after save:`, {
+                    appointmentId: verifyAppointment._id?.toString(),
+                    status: verifyAppointment.status,
+                    verified: verifyAppointment.status === "done" ? "✅ YES" : "❌ NO"
+                  });
+                  
+                  if (verifyAppointment.status !== "done") {
+                    console.error(`❌ ERROR: Appointment status was NOT saved correctly! Expected "done", got "${verifyAppointment.status}"`);
+                  }
+                } else {
+                  console.error(`❌ ERROR: Cannot verify appointment after save - appointment not found!`);
+                }
+                
+                // Cập nhật appointment object trong memory để đồng bộ
+                appointment.status = "done";
+              } else {
+                console.log(`ℹ️ Appointment ${appointmentToUpdate._id} already has status "done"`);
+              }
+            } else {
+              console.error(`❌ Cannot find appointment ${appointmentIdToUpdate} to update status`);
+              console.error(`❌ AppointmentId details:`, {
+                appointmentId: appointmentIdToUpdate?.toString(),
+                appointmentIdType: appointmentIdToUpdate?.constructor?.name || typeof appointmentIdToUpdate,
+                isValidObjectId: appointmentIdToUpdate && mongoose.Types.ObjectId.isValid(appointmentIdToUpdate)
+              });
+            }
           }
         } catch (appointmentUpdateError) {
           console.error("❌ Error updating appointment status:", appointmentUpdateError);
+          console.error("Appointment update error details:", appointmentUpdateError.message);
+          console.error("Appointment update error stack:", appointmentUpdateError.stack);
           // Không throw error vì payment đã thành công
         }
 
@@ -802,11 +949,32 @@ async function sendServicePaymentConfirmationEmail(
   doctor
 ) {
   try {
-    const patientEmail = patient.userId?.email || patient.email;
+    console.log(`📧 DEBUG - sendServicePaymentConfirmationEmail called`);
+    console.log(`📧 DEBUG - Patient data:`, {
+      hasPatient: !!patient,
+      patientId: patient?._id?.toString(),
+      hasUserId: !!patient?.userId,
+      userIdType: patient?.userId ? (typeof patient.userId === 'object' ? 'object' : typeof patient.userId) : 'null',
+      userIdIsPopulated: patient?.userId && typeof patient.userId === 'object' && patient.userId.email ? 'yes' : 'no',
+      userIdEmail: patient?.userId?.email || "NOT FOUND",
+      patientEmailField: patient?.email || "NOT FOUND"
+    });
+    
+    // Đơn giản hóa logic - giống sendPaymentConfirmationEmail
+    const patientEmail = patient.userId?.email;
     if (!patientEmail) {
-      console.log("⚠️ No email address found for patient, skipping email");
+      console.error("❌ No email address found for patient, skipping email");
+      console.error("Patient debug:", {
+        hasPatient: !!patient,
+        hasUserId: !!patient?.userId,
+        userIdType: patient?.userId ? typeof patient.userId : 'null',
+        userIdEmail: patient?.userId?.email || "NOT FOUND",
+        patientEmailField: patient?.email || "NOT FOUND"
+      });
       return;
     }
+    
+    console.log(`📧 Sending service payment email to: ${patientEmail}`);
 
     // Lấy thông tin specialization
     const Specialization = (await import("../models/specialization.model.js"))
@@ -1118,6 +1286,12 @@ async function sendServicePaymentConfirmationEmail(
       </html>
     `;
 
+    console.log(`📧 DEBUG - About to call sendMail with:`, {
+      to: patientEmail,
+      subject: `Xác nhận thanh toán dịch vụ - ${payment.invoiceNumber}`,
+      htmlLength: emailHtml.length
+    });
+    
     await sendMail({
       to: patientEmail,
       subject: `Xác nhận thanh toán dịch vụ - ${payment.invoiceNumber}`,
@@ -1125,7 +1299,7 @@ async function sendServicePaymentConfirmationEmail(
     });
 
     console.log(
-      `📧 Service payment confirmation email sent successfully to ${patientEmail}`
+      `✅ Service payment confirmation email sent successfully to ${patientEmail}`
     );
   } catch (error) {
     console.error("❌ Error in sendServicePaymentConfirmationEmail:", error);

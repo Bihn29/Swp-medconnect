@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -30,6 +30,7 @@ import "./AppointmentList.scss";
 
 export default function AppointmentList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -61,35 +62,44 @@ export default function AppointmentList() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch appointments from API
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        // Fetch all appointments without pagination limit
-        const response = await getDoctorAppointmentsWithFallback({
-          limit: 1000,
-        });
+  const fetchAppointments = async () => {
+    try {
+      // Fetch all appointments without pagination limit
+      const response = await getDoctorAppointmentsWithFallback({
+        limit: 1000,
+      });
 
-        if (response.success && response.data?.appointments) {
-          console.log("📋 Appointments data:", response.data.appointments);
-          console.log(
-            "📋 First appointment mode:",
-            response.data.appointments[0]?.mode
-          );
-          setAppointments(response.data.appointments);
-        } else {
-          console.log("❌ No appointments found");
-          setAppointments([]);
-        }
-      } catch (error) {
-        console.error("Error fetching appointments:", error);
+      if (response.success && response.data?.appointments) {
+        console.log("📋 Appointments data:", response.data.appointments);
+        console.log(
+          "📋 First appointment mode:",
+          response.data.appointments[0]?.mode
+        );
+        setAppointments(response.data.appointments);
+      } else {
+        console.log("❌ No appointments found");
         setAppointments([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Fetch appointments on mount and when location changes (e.g., returning from payment result page)
+  useEffect(() => {
     fetchAppointments();
-  }, []);
+  }, [location.pathname, location.state?.timestamp]);
+  
+  // Reload appointments when coming back from payment result page
+  useEffect(() => {
+    if (location.state?.shouldReload) {
+      console.log("🔄 Reloading appointments after payment...");
+      fetchAppointments();
+    }
+  }, [location.state?.shouldReload]);
 
   const handleViewRepresentativeInfo = (appointment) => {
     console.log("🔍 Viewing representative info for appointment:", appointment);
@@ -1083,7 +1093,8 @@ export default function AppointmentList() {
                           apt.status === "no_show") && (
                           <span className="appointment-list-no-action">-</span>
                         )}
-                        {apt.status === "done" && apt.mode === "online" && (
+                        {/* Không hiển thị nút khi status là "done" (cho cả online và offline) */}
+                        {apt.status === "done" && (
                           <span className="appointment-list-no-action">-</span>
                         )}
                       </div>
