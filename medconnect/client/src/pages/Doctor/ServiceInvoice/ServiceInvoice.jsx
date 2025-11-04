@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api } from "../../../lib/api";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
-import { X, Check, FileText } from "lucide-react";
+import { X, Check, FileText, Search } from "lucide-react";
 import "./ServiceInvoice.scss";
 
 export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
@@ -11,6 +11,7 @@ export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [servicePaymentStatus, setServicePaymentStatus] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (appointment) {
@@ -173,34 +174,54 @@ export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
                 Chưa có dịch vụ nào. Vui lòng liên hệ manager để thêm dịch vụ.
               </div>
             ) : (
-              <div className="services-list">
-                {services.map((service) => {
-                  const isSelected = selectedServices.some(
-                    (s) => s._id === service._id
-                  );
-                  return (
-                    <div
-                      key={service._id}
-                      className={`service-item ${isSelected ? "selected" : ""}`}
-                      onClick={() => handleServiceToggle(service)}
-                    >
-                      <div className="service-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleServiceToggle(service)}
-                        />
-                      </div>
-                      <div className="service-details">
-                        <div className="service-name">{service.serviceName}</div>
-                        <div className="service-price">
-                          {formatPrice(service.price)}
+              <>
+                <div className="service-search">
+                  <div className="search-input-wrapper">
+                    <Search className="search-icon" />
+                    <Input
+                      type="text"
+                      placeholder="Tìm kiếm dịch vụ..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="search-input"
+                    />
+                  </div>
+                </div>
+                <div className="services-list">
+                  {services
+                    .filter((service) =>
+                      service.serviceName
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase())
+                    )
+                    .map((service) => {
+                      const isSelected = selectedServices.some(
+                        (s) => s._id === service._id
+                      );
+                      return (
+                        <div
+                          key={service._id}
+                          className={`service-item ${isSelected ? "selected" : ""}`}
+                          onClick={() => handleServiceToggle(service)}
+                        >
+                          <div className="service-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleServiceToggle(service)}
+                            />
+                          </div>
+                          <div className="service-details">
+                            <div className="service-name">{service.serviceName}</div>
+                            <div className="service-price">
+                              {formatPrice(service.price)}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                </div>
+              </>
             )}
           </div>
 
