@@ -818,6 +818,38 @@ export async function cancelAppointment(appointmentId) {
 }
 
 // Manager functions
+// Education Level Price Management (Manager)
+export async function getEducationLevelPrices() {
+  const r = await fetch(`${BASE}/api/managers/education-level-prices`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function setEducationLevelPrice(priceData) {
+  const r = await fetch(`${BASE}/api/managers/education-level-prices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(priceData),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function deleteEducationLevelPrice(priceId) {
+  const r = await fetch(
+    `${BASE}/api/managers/education-level-prices/${priceId}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    }
+  );
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export async function getManagerPatients(params = {}) {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -1116,6 +1148,15 @@ export async function getAdminUsers(params = {}) {
   if (params.role) queryParams.append("role", params.role);
 
   const r = await fetch(`${BASE}/api/admin/users?${queryParams}`, {
+    credentials: "include",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function banUser(userId) {
+  const r = await fetch(`${BASE}/api/admin/users/${userId}/ban`, {
+    method: "POST",
     credentials: "include",
   });
   if (!r.ok) throw new Error(await r.text());

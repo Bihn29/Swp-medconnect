@@ -9,6 +9,7 @@ import {
   UserOutlined,
   DownOutlined,
   FileTextOutlined,
+  DollarOutlined,
 } from "@ant-design/icons";
 import { clearUserData } from "../../utils/clearUserData";
 import "./ManagerLayout.scss";
@@ -53,6 +54,11 @@ const ManagerLayout = () => {
       key: "/manager/quan-ly-lich",
       icon: <CalendarOutlined />,
       label: "Quản lý lịch bác sĩ",
+    },
+    {
+      key: "/manager/quan-ly-gia",
+      icon: <DollarOutlined />,
+      label: "Quản lý giá theo trình độ",
     },
     {
       key: "/manager/yeu-cau-nghi-phep",

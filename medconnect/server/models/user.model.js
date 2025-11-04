@@ -31,7 +31,7 @@ const UserSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["active", "blocked", "pending", "rejected"],
+      enum: ["active", "blocked", "pending", "rejected", "banned", "suspended"],
       default: "active",
     },
     fullName: { type: String, trim: true },

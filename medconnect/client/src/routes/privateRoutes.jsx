@@ -54,6 +54,7 @@ import ManagerDashboard from "../pages/Manager/ManagerDashboard/ManagerDashboard
 import ManagerScheduleManagement from "../pages/Manager/ManagerScheduleManagement/ManagerScheduleManagement";
 import LeaveRequestManagement from "../pages/Manager/LeaveRequestManagement/LeaveRequestManagement";
 import { Notifications as ManagerNotifications } from "../pages/Manager/Notifications/Notifications";
+import EducationLevelPriceManagement from "../pages/Manager/EducationLevelPriceManagement/EducationLevelPriceManagement";
 import ManagerLayout from "../layouts/ManagerLayout/ManagerLayout";
 
 /**
@@ -226,6 +227,10 @@ export const privateRoutes = (
         <Route
           path="/manager/quan-ly-lich"
           element={<ManagerScheduleManagement />}
+        />
+        <Route
+          path="/manager/quan-ly-gia"
+          element={<EducationLevelPriceManagement />}
         />
         <Route
           path="/manager/yeu-cau-nghi-phep"

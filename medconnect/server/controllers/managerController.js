@@ -7,6 +7,7 @@ import User from "../models/user.model.js";
 import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
 import DoctorRate from "../models/doctor_rates.model.js";
 import Clinic from "../models/clinic.model.js";
+import EducationLevelPrice from "../models/educationLevelPrice.model.js";
 import {
   createAppointmentNotification,
   createBookingNotification,
@@ -41,16 +42,11 @@ async function checkDoctorCanBeActive(doctorId) {
       };
     }
 
-    // Check if doctor has at least one active DoctorRate
-    const doctorRates = await DoctorRate.find({
-      doctorId: doctor._id,
-      isActive: true,
-    }).lean();
-
-    if (!doctorRates || doctorRates.length === 0) {
+    // Check educationLevel
+    if (!doctor.educationLevel || !doctor.educationLevel.trim()) {
       return {
         canBeActive: false,
-        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+        reason: "Trình độ học vấn chưa được chọn",
       };
     }
 
@@ -1961,6 +1957,208 @@ export async function deleteDoctorPricingForManager(req, res) {
     });
   } catch (error) {
     console.error("❌ deleteDoctorPricingForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+// ================== EDUCATION LEVEL PRICE MANAGEMENT ==================
+
+/**
+ * Get all education level prices
+ * GET /api/manager/education-level-prices
+ */
+export async function getEducationLevelPrices(req, res) {
+  try {
+    const prices = await EducationLevelPrice.find({ isActive: true })
+      .populate("updatedBy", "fullName")
+      .sort({ educationLevel: 1, mode: 1 })
+      .lean();
+
+    // Format response by education level
+    const formattedPrices = {};
+    const educationLevels = [
+      "Bác sĩ",
+      "Thạc sĩ",
+      "Tiến sĩ",
+      "Phó Giáo Sư",
+      "Giáo Sư",
+    ];
+
+    educationLevels.forEach((level) => {
+      formattedPrices[level] = {
+        online: null,
+        offline: null,
+      };
+    });
+
+    prices.forEach((price) => {
+      if (formattedPrices[price.educationLevel]) {
+        formattedPrices[price.educationLevel][price.mode] = {
+          id: price._id,
+          weekdayPrice: price.weekdayPrice,
+          weekendPrice: price.weekendPrice,
+          currency: price.currency,
+          updatedBy: price.updatedBy?.fullName || "System",
+          updatedAt: price.updatedAt,
+        };
+      }
+    });
+
+    return ok(res, {
+      prices: formattedPrices,
+      allPrices: prices,
+    });
+  } catch (error) {
+    console.error("Error fetching education level prices:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Set/Update education level price
+ * POST /api/manager/education-level-prices
+ */
+export async function setEducationLevelPrice(req, res) {
+  try {
+    const {
+      educationLevel,
+      mode,
+      weekdayPrice,
+      weekendPrice,
+      currency = "VND",
+    } = req.body;
+
+    // Validate required fields
+    if (
+      !educationLevel ||
+      !mode ||
+      weekdayPrice === undefined ||
+      weekendPrice === undefined
+    ) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Vui lòng điền đầy đủ thông tin: educationLevel, mode, weekdayPrice, weekendPrice"
+      );
+    }
+
+    // Validate educationLevel enum
+    const validLevels = [
+      "Bác sĩ",
+      "Thạc sĩ",
+      "Tiến sĩ",
+      "Phó Giáo Sư",
+      "Giáo Sư",
+    ];
+    if (!validLevels.includes(educationLevel)) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Trình độ học vấn không hợp lệ"
+      );
+    }
+
+    // Validate mode
+    if (!["online", "offline"].includes(mode)) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Mode phải là 'online' hoặc 'offline'"
+      );
+    }
+
+    // Validate prices
+    if (weekdayPrice < 0 || weekendPrice < 0) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Giá tiền phải lớn hơn hoặc bằng 0"
+      );
+    }
+
+    // Get current user
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found");
+    }
+
+    // Upsert education level price
+    const price = await EducationLevelPrice.findOneAndUpdate(
+      { educationLevel, mode },
+      {
+        educationLevel,
+        mode,
+        weekdayPrice,
+        weekendPrice,
+        currency,
+        isActive: true,
+        updatedBy: user._id,
+      },
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    return ok(res, {
+      message: "Đã cập nhật giá theo trình độ học vấn thành công",
+      price,
+    });
+  } catch (error) {
+    console.error("Error setting education level price:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Delete education level price
+ * DELETE /api/manager/education-level-prices/:id
+ */
+export async function deleteEducationLevelPrice(req, res) {
+  try {
+    const { id } = req.params;
+
+    const price = await EducationLevelPrice.findByIdAndUpdate(
+      id,
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!price) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Không tìm thấy giá");
+    }
+
+    return ok(res, {
+      message: "Đã xóa giá theo trình độ học vấn thành công",
+    });
+  } catch (error) {
+    console.error("Error deleting education level price:", error);
     return fail(
       res,
       500,

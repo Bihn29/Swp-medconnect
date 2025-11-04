@@ -32,6 +32,7 @@ import {
 } from "@ant-design/icons";
 import {
   getAdminUsers,
+  banUser,
   suspendUser,
   activateUser,
   deleteUser,
@@ -183,7 +184,8 @@ const UserManagement = () => {
     const statusConfig = {
       active: { color: "green", text: "Hoạt động" },
       inactive: { color: "orange", text: "Không hoạt động" },
-      suspended: { color: "red", text: "Tạm khóa" },
+      suspended: { color: "orange", text: "Tạm khóa" },
+      banned: { color: "red", text: "Cấm" },
     };
     return statusConfig[status] || { color: "default", text: status };
   };
@@ -191,14 +193,21 @@ const UserManagement = () => {
   const handleUserAction = async (action, userId) => {
     try {
       switch (action) {
+        case "ban":
+          await banUser(userId);
+          message.success("Đã cấm người dùng");
+          break;
         case "suspend":
           await suspendUser(userId);
+          message.success("Đã tạm khóa người dùng");
           break;
         case "activate":
           await activateUser(userId);
+          message.success("Đã kích hoạt người dùng");
           break;
         case "delete":
           await deleteUser(userId);
+          message.success("Đã xóa người dùng");
           break;
         default:
           return;
@@ -207,6 +216,7 @@ const UserManagement = () => {
       fetchUsers();
     } catch (err) {
       console.error(`Error ${action} user:`, err);
+      message.error(`Không thể thực hiện thao tác: ${err.message}`);
     }
   };
 
@@ -248,6 +258,8 @@ const UserManagement = () => {
           ) || [];
         formValues.yearsExperience =
           userData.roleSpecificData.yearsExperience || 0;
+        formValues.educationLevel =
+          userData.roleSpecificData.educationLevel || "";
         formValues.bio = userData.roleSpecificData.bio || "";
 
         // Set clinicAddress to clinic ID for the Select component
@@ -290,37 +302,61 @@ const UserManagement = () => {
     }
   };
 
-  const userMenuItems = (userId, userStatus) => [
-    {
-      key: "view",
-      label: "Xem chi tiết",
-      icon: <EyeOutlined />,
-      onClick: () => handleViewDetails(userId),
-    },
-    {
-      key: "edit",
-      label: "Chỉnh sửa",
-      icon: <EditOutlined />,
-      onClick: () => handleEditUser(userId),
-    },
-    {
-      key: userStatus === "active" ? "suspend" : "activate",
-      label: userStatus === "active" ? "Tạm khóa" : "Kích hoạt",
-      icon: <LockOutlined />,
-      onClick: () =>
-        handleUserAction(
-          userStatus === "active" ? "suspend" : "activate",
-          userId
-        ),
-    },
-    {
+  const userMenuItems = (userId, userStatus) => {
+    const items = [
+      {
+        key: "view",
+        label: "Xem chi tiết",
+        icon: <EyeOutlined />,
+        onClick: () => handleViewDetails(userId),
+      },
+      {
+        key: "edit",
+        label: "Chỉnh sửa",
+        icon: <EditOutlined />,
+        onClick: () => handleEditUser(userId),
+      },
+    ];
+
+    // Add Ban button (only if not already banned)
+    if (userStatus !== "banned") {
+      items.push({
+        key: "ban",
+        label: "Cấm",
+        icon: <LockOutlined />,
+        danger: true,
+        onClick: () => handleUserAction("ban", userId),
+      });
+    }
+
+    // Add Suspend/Activate button
+    if (userStatus === "active") {
+      items.push({
+        key: "suspend",
+        label: "Tạm khóa",
+        icon: <LockOutlined />,
+        onClick: () => handleUserAction("suspend", userId),
+      });
+    } else if (userStatus === "suspended") {
+      items.push({
+        key: "activate",
+        label: "Kích hoạt",
+        icon: <LockOutlined />,
+        onClick: () => handleUserAction("activate", userId),
+      });
+    }
+
+    // Add Delete button
+    items.push({
       key: "delete",
       label: "Xóa",
       icon: <MoreOutlined />,
       danger: true,
       onClick: () => handleUserAction("delete", userId),
-    },
-  ];
+    });
+
+    return items;
+  };
 
   if (loading) {
     return (
@@ -574,6 +610,10 @@ const UserManagement = () => {
                   <Descriptions.Item label="Số năm kinh nghiệm">
                     {userDetails.roleSpecificData.yearsExperience || 0} năm
                   </Descriptions.Item>
+                  <Descriptions.Item label="Trình độ học vấn">
+                    {userDetails.roleSpecificData.educationLevel ||
+                      "Chưa cập nhật"}
+                  </Descriptions.Item>
                   <Descriptions.Item label="Chuyên khoa" span={2}>
                     {userDetails.roleSpecificData.specializationIds &&
                     userDetails.roleSpecificData.specializationIds.length > 0
@@ -689,6 +729,7 @@ const UserManagement = () => {
               <Select.Option value="active">Hoạt động</Select.Option>
               <Select.Option value="inactive">Không hoạt động</Select.Option>
               <Select.Option value="suspended">Tạm khóa</Select.Option>
+              <Select.Option value="banned">Cấm</Select.Option>
             </Select>
           </Form.Item>
 
@@ -736,6 +777,18 @@ const UserManagement = () => {
                       placeholder="Nhập số năm kinh nghiệm"
                       min={0}
                     />
+                  </Form.Item>
+
+                  <Form.Item label="Trình độ học vấn" name="educationLevel">
+                    <Select placeholder="Chọn trình độ học vấn">
+                      <Select.Option value="Bác sĩ">Bác sĩ</Select.Option>
+                      <Select.Option value="Thạc sĩ">Thạc sĩ</Select.Option>
+                      <Select.Option value="Tiến sĩ">Tiến sĩ</Select.Option>
+                      <Select.Option value="Phó Giáo Sư">
+                        Phó Giáo Sư
+                      </Select.Option>
+                      <Select.Option value="Giáo Sư">Giáo Sư</Select.Option>
+                    </Select>
                   </Form.Item>
 
                   <Form.Item label="Giới thiệu" name="bio">
@@ -916,7 +969,8 @@ const UserManagement = () => {
             <Select placeholder="Chọn trạng thái">
               <Select.Option value="active">Hoạt động</Select.Option>
               <Select.Option value="inactive">Không hoạt động</Select.Option>
-              <Select.Option value="blocked">Tạm khóa</Select.Option>
+              <Select.Option value="suspended">Tạm khóa</Select.Option>
+              <Select.Option value="banned">Cấm</Select.Option>
             </Select>
           </Form.Item>
 
