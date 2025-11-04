@@ -110,11 +110,11 @@ export async function createServicePayment(req, res) {
       );
     }
 
-    // Check if service payment already exists
+    // Check if service payment already exists (chưa thanh toán hoặc đã thanh toán)
     const existingServicePayment = await Payment.findOne({
       appointmentId: appointment._id,
       invoiceType: "service",
-      status: { $in: ["captured", "authorized"] },
+      status: { $in: ["captured", "authorized", "pending_manager", "initiated"] },
     });
 
     if (existingServicePayment) {
@@ -122,7 +122,7 @@ export async function createServicePayment(req, res) {
         res,
         400,
         ERROR_CODES.INVALID_INPUT,
-        "Service payment already exists for this appointment"
+        "Yêu cầu thanh toán dịch vụ đã tồn tại cho cuộc hẹn này"
       );
     }
 
@@ -207,10 +207,10 @@ export async function createServicePayment(req, res) {
       subtotal: calculatedTotal,
       discount: 0,
       total: calculatedTotal,
-      gateway: "payos",
-      method: "qr",
-      status: "initiated",
-      pendingOrderCode: orderCode, // Lưu tạm orderCode để webhook lookup
+      // Không set gateway và method khi pending_manager
+      // gateway và method sẽ được set khi manager xử lý
+      status: "pending_manager", // Chờ manager xử lý
+      amountPaid: 0,
     });
 
     // Save payment with error handling for duplicate key
@@ -229,10 +229,10 @@ export async function createServicePayment(req, res) {
         });
         
         if (existingServicePayment) {
-          // If existing payment is failed/initiated, delete and retry
-          if (existingServicePayment.status === "initiated" || existingServicePayment.status === "failed") {
+          // If existing payment is failed/cancelled/voided, delete and retry
+          if (["failed", "cancelled", "voided"].includes(existingServicePayment.status)) {
             await Payment.findByIdAndDelete(existingServicePayment._id);
-            console.log("✅ Deleted existing failed/initiated service payment, retrying...");
+            console.log("✅ Deleted existing failed/cancelled/voided service payment, retrying...");
             
             // Retry saving
             await payment.save();
@@ -242,13 +242,16 @@ export async function createServicePayment(req, res) {
               res,
               400,
               ERROR_CODES.INVALID_INPUT,
-              "Service payment already exists and has been paid for this appointment"
+              "Yêu cầu thanh toán dịch vụ đã tồn tại và đã được thanh toán cho cuộc hẹn này"
             );
           } else {
-            // Other status - delete and retry
-            await Payment.findByIdAndDelete(existingServicePayment._id);
-            console.log("✅ Deleted existing service payment with status:", existingServicePayment.status);
-            await payment.save();
+            // Other status (pending_manager, initiated, etc.) - return error
+            return fail(
+              res,
+              400,
+              ERROR_CODES.INVALID_INPUT,
+              "Yêu cầu thanh toán dịch vụ đã tồn tại cho cuộc hẹn này"
+            );
           }
         } else {
           // Could be booking payment or index issue
@@ -260,11 +263,11 @@ export async function createServicePayment(req, res) {
           
           if (existingBookingPayment) {
             // Booking payment exists - this is OK, but index might be unique
-            // Try to delete any failed/initiated service payment that might exist
+            // Try to delete any failed/cancelled service payment that might exist
             const failedServicePayment = await Payment.findOne({
               appointmentId: appointment._id,
               invoiceType: "service",
-              status: { $in: ["initiated", "failed"] },
+              status: { $in: ["failed", "cancelled", "voided"] },
             });
             
             if (failedServicePayment) {
@@ -294,64 +297,18 @@ export async function createServicePayment(req, res) {
       }
     }
 
-    // Create PayOS payment link
-    try {
-      // Create payment link using PayOS
-      const { PayOS } = await import("@payos/node");
-      const payos = new PayOS(
-        process.env.PAYOS_CLIENT_ID,
-        process.env.PAYOS_API_KEY,
-        process.env.PAYOS_CHECKSUM_KEY
-      );
-
-      // Validate FRONTEND_URL
-      if (!process.env.FRONTEND_URL) {
-        console.error("❌ FRONTEND_URL not set in environment variables");
-        await Payment.findByIdAndDelete(payment._id);
-        return fail(
-          res,
-          500,
-          ERROR_CODES.SERVER_ERROR,
-          "FRONTEND_URL not configured"
-        );
-      }
-
-      const payosPaymentData = {
-        orderCode,
-        amount: parseInt(amount),
-        description: `MC Service ${String(orderCode).slice(-7)}`, // Max 25 chars: "MC Service " (11) + 7 digits = 18 chars
-        returnUrl: `${process.env.FRONTEND_URL}/bac-si/lich-hen/service-payment-result?status=success&orderCode=${orderCode}`,
-        cancelUrl: `${process.env.FRONTEND_URL}/bac-si/lich-hen/service-payment-result?status=failed&orderCode=${orderCode}`,
-      };
-
-      const link = await payos.paymentRequests.create(payosPaymentData);
-
-      // Update payment with payUrl
-      payment.payUrl = link.checkoutUrl;
-      await payment.save();
-
-      return ok(res, {
-        payment: {
-          _id: payment._id,
-          invoiceNumber: payment.invoiceNumber,
-          total: payment.total,
-          items: payment.items,
-          payUrl: payment.payUrl,
-          orderCode: payment.pendingOrderCode,
-        },
-        message: "Service payment link created successfully",
-      });
-    } catch (payosError) {
-      console.error("Error creating PayOS payment link:", payosError);
-      // Clean up payment record if PayOS fails
-      await Payment.findByIdAndDelete(payment._id);
-      return fail(
-        res,
-        500,
-        ERROR_CODES.SERVER_ERROR,
-        `Failed to create payment link: ${payosError.message}`
-      );
-    }
+    // Không tạo PayOS link nữa - chỉ tạo payment record và chờ manager xử lý
+    // Manager sẽ tạo PayOS link hoặc xử lý thanh toán tiền mặt
+    return ok(res, {
+      payment: {
+        _id: payment._id,
+        invoiceNumber: payment.invoiceNumber,
+        total: payment.total,
+        items: payment.items,
+        status: payment.status,
+      },
+      message: "Yêu cầu thanh toán đã được gửi đến manager",
+    });
   } catch (error) {
     console.error("❌ Error creating service payment:", error);
     console.error("❌ Error stack:", error.stack);

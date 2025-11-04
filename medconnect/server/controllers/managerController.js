@@ -7,12 +7,15 @@ import User from "../models/user.model.js";
 import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
 import DoctorRate from "../models/doctor_rates.model.js";
 import Clinic from "../models/clinic.model.js";
+import EducationLevelPrice from "../models/educationLevelPrice.model.js";
+import Payment from "../models/payment.model.js";
 import {
   createAppointmentNotification,
   createBookingNotification,
 } from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
+import { sendMail } from "../utils/email.js";
 
 /**
  * Check if doctor has all required information to be active
@@ -41,16 +44,11 @@ async function checkDoctorCanBeActive(doctorId) {
       };
     }
 
-    // Check if doctor has at least one active DoctorRate
-    const doctorRates = await DoctorRate.find({
-      doctorId: doctor._id,
-      isActive: true,
-    }).lean();
-
-    if (!doctorRates || doctorRates.length === 0) {
+    // Check educationLevel
+    if (!doctor.educationLevel || !doctor.educationLevel.trim()) {
       return {
         canBeActive: false,
-        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+        reason: "Trình độ học vấn chưa được chọn",
       };
     }
 
@@ -358,8 +356,11 @@ export async function getAppointmentDetailForManager(req, res) {
 
     // Ensure patientId is properly populated
     let patientId = appointment.patientId;
-    if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
-      console.warn(`⚠️ Appointment ${appointment._id} has invalid patientId:`, patientId);
+    if (!patientId || (typeof patientId === "object" && !patientId.fullName)) {
+      console.warn(
+        `⚠️ Appointment ${appointment._id} has invalid patientId:`,
+        patientId
+      );
       patientId = {
         _id: appointment.patientId?._id || appointment.patientId || null,
         fullName: appointment.patientId?.fullName || "Không có thông tin",
@@ -368,9 +369,11 @@ export async function getAppointmentDetailForManager(req, res) {
         phone: appointment.patientId?.phone || null,
         relationshipToOwner: appointment.patientId?.relationshipToOwner || null,
         representativeName: appointment.patientId?.representativeName || null,
-        representativeRelation: appointment.patientId?.representativeRelation || null,
+        representativeRelation:
+          appointment.patientId?.representativeRelation || null,
         representativePhone: appointment.patientId?.representativePhone || null,
-        representativeCitizenId: appointment.patientId?.representativeCitizenId || null,
+        representativeCitizenId:
+          appointment.patientId?.representativeCitizenId || null,
       };
     }
 
@@ -379,9 +382,15 @@ export async function getAppointmentDetailForManager(req, res) {
       ...appointment,
       patientId, // Use properly populated patientId
       services: appointment.services || [],
-      totalPay: appointment.totalPay !== undefined && appointment.totalPay !== null ? appointment.totalPay : 0,
-      amountPaid: appointment.amountPaid !== undefined && appointment.amountPaid !== null ? appointment.amountPaid : 0,
-      paymentStatus: appointment.paymentStatus || 'unpaid',
+      totalPay:
+        appointment.totalPay !== undefined && appointment.totalPay !== null
+          ? appointment.totalPay
+          : 0,
+      amountPaid:
+        appointment.amountPaid !== undefined && appointment.amountPaid !== null
+          ? appointment.amountPaid
+          : 0,
+      paymentStatus: appointment.paymentStatus || "unpaid",
     };
 
     return ok(res, appointmentWithDefaults);
@@ -1790,7 +1799,14 @@ export async function unblockSlotsByDateRangeForManager(req, res) {
  */
 export async function getManagerInvoices(req, res) {
   try {
-    const { invoiceType, page = 1, limit = 20, status, startDate, endDate } = req.query;
+    const {
+      invoiceType,
+      page = 1,
+      limit = 20,
+      status,
+      startDate,
+      endDate,
+    } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Build query
@@ -1816,7 +1832,7 @@ export async function getManagerInvoices(req, res) {
 
     // Get payments with populated data
     const Payment = (await import("../models/payment.model.js")).default;
-    
+
     const payments = await Payment.find(query)
       .populate("appointmentId", "scheduledStart status mode")
       .populate("billTo.patientId", "fullName phone dob gender")
@@ -1839,12 +1855,20 @@ export async function getManagerInvoices(req, res) {
       appointmentDate: payment.appointmentId?.scheduledStart,
       appointmentStatus: payment.appointmentId?.status,
       appointmentMode: payment.appointmentId?.mode,
-      patientName: payment.billTo?.name || payment.billTo?.patientId?.fullName || "N/A",
-      patientPhone: payment.billTo?.phone || payment.billTo?.patientId?.phone || null,
+      patientName:
+        payment.billTo?.name || payment.billTo?.patientId?.fullName || "N/A",
+      patientPhone:
+        payment.billTo?.phone || payment.billTo?.patientId?.phone || null,
       patientDateOfBirth: payment.billTo?.patientId?.dob || null,
       patientGender: payment.billTo?.patientId?.gender || null,
-      doctorName: payment.billFrom?.doctorName || payment.billFrom?.doctorId?.fullName || "N/A",
-      clinicName: payment.billFrom?.clinicName || payment.billFrom?.clinicId?.name || null,
+      doctorName:
+        payment.billFrom?.doctorName ||
+        payment.billFrom?.doctorId?.fullName ||
+        "N/A",
+      clinicName:
+        payment.billFrom?.clinicName ||
+        payment.billFrom?.clinicId?.name ||
+        null,
       items: payment.items || [],
       subtotal: payment.subtotal,
       discount: payment.discount || 0,
@@ -1898,7 +1922,7 @@ export async function deleteManagerInvoice(req, res) {
     }
 
     const Payment = (await import("../models/payment.model.js")).default;
-    
+
     // Find the payment/invoice
     const payment = await Payment.findById(invoiceId);
 
@@ -2149,6 +2173,655 @@ export async function deleteDoctorPricingForManager(req, res) {
       500,
       ERROR_CODES.SERVER_ERROR,
       error.message || String(error)
+    );
+  }
+}
+
+// ================== EDUCATION LEVEL PRICE MANAGEMENT ==================
+
+/**
+ * Get all education level prices
+ * GET /api/manager/education-level-prices
+ */
+export async function getEducationLevelPrices(req, res) {
+  try {
+    const prices = await EducationLevelPrice.find({ isActive: true })
+      .populate("updatedBy", "fullName")
+      .sort({ educationLevel: 1, mode: 1 })
+      .lean();
+
+    // Format response by education level
+    const formattedPrices = {};
+    const educationLevels = [
+      "Bác sĩ",
+      "Thạc sĩ",
+      "Tiến sĩ",
+      "Phó Giáo Sư",
+      "Giáo Sư",
+    ];
+
+    educationLevels.forEach((level) => {
+      formattedPrices[level] = {
+        online: null,
+        offline: null,
+      };
+    });
+
+    prices.forEach((price) => {
+      if (formattedPrices[price.educationLevel]) {
+        formattedPrices[price.educationLevel][price.mode] = {
+          id: price._id,
+          weekdayPrice: price.weekdayPrice,
+          weekendPrice: price.weekendPrice,
+          currency: price.currency,
+          updatedBy: price.updatedBy?.fullName || "System",
+          updatedAt: price.updatedAt,
+        };
+      }
+    });
+
+    return ok(res, {
+      prices: formattedPrices,
+      allPrices: prices,
+    });
+  } catch (error) {
+    console.error("Error fetching education level prices:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Set/Update education level price
+ * POST /api/manager/education-level-prices
+ */
+export async function setEducationLevelPrice(req, res) {
+  try {
+    const {
+      educationLevel,
+      mode,
+      weekdayPrice,
+      weekendPrice,
+      currency = "VND",
+    } = req.body;
+
+    // Validate required fields
+    if (
+      !educationLevel ||
+      !mode ||
+      weekdayPrice === undefined ||
+      weekendPrice === undefined
+    ) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Vui lòng điền đầy đủ thông tin: educationLevel, mode, weekdayPrice, weekendPrice"
+      );
+    }
+
+    // Validate educationLevel enum
+    const validLevels = [
+      "Bác sĩ",
+      "Thạc sĩ",
+      "Tiến sĩ",
+      "Phó Giáo Sư",
+      "Giáo Sư",
+    ];
+    if (!validLevels.includes(educationLevel)) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Trình độ học vấn không hợp lệ"
+      );
+    }
+
+    // Validate mode
+    if (!["online", "offline"].includes(mode)) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Mode phải là 'online' hoặc 'offline'"
+      );
+    }
+
+    // Validate prices
+    if (weekdayPrice < 0 || weekendPrice < 0) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Giá tiền phải lớn hơn hoặc bằng 0"
+      );
+    }
+
+    // Get current user
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "User email not found in token"
+      );
+    }
+
+    const user = await User.findOne({ email: userEmail }).lean();
+    if (!user) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "User not found");
+    }
+
+    // Upsert education level price
+    const price = await EducationLevelPrice.findOneAndUpdate(
+      { educationLevel, mode },
+      {
+        educationLevel,
+        mode,
+        weekdayPrice,
+        weekendPrice,
+        currency,
+        isActive: true,
+        updatedBy: user._id,
+      },
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    return ok(res, {
+      message: "Đã cập nhật giá theo trình độ học vấn thành công",
+      price,
+    });
+  } catch (error) {
+    console.error("Error setting education level price:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+// ================== SERVICE PAYMENT MANAGEMENT CONTROLLERS ==================
+
+/**
+ * Get pending service payments (chờ manager xử lý)
+ * GET /api/managers/service-payments/pending
+ */
+export async function getPendingServicePayments(req, res) {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Lấy danh sách payment chờ xử lý (pending_manager hoặc initiated - đang chờ thanh toán PayOS)
+    const payments = await Payment.find({
+      invoiceType: "service",
+      status: { $in: ["pending_manager", "initiated"] },
+    })
+      .populate("appointmentId", "scheduledStart status mode")
+      .populate("billTo.patientId", "fullName phone dob gender")
+      .populate("billFrom.doctorId", "fullName")
+      .populate("billFrom.clinicId", "name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Payment.countDocuments({
+      invoiceType: "service",
+      status: { $in: ["pending_manager", "initiated"] },
+    });
+
+    // Format payments for response
+    const formattedPayments = payments.map((payment) => ({
+      _id: payment._id,
+      invoiceNumber: payment.invoiceNumber,
+      appointmentId: payment.appointmentId?._id,
+      appointmentDate: payment.appointmentId?.scheduledStart,
+      appointmentStatus: payment.appointmentId?.status,
+      appointmentMode: payment.appointmentId?.mode,
+      patientName:
+        payment.billTo?.name || payment.billTo?.patientId?.fullName || "N/A",
+      patientPhone:
+        payment.billTo?.phone || payment.billTo?.patientId?.phone || null,
+      doctorName:
+        payment.billFrom?.doctorName ||
+        payment.billFrom?.doctorId?.fullName ||
+        "N/A",
+      clinicName:
+        payment.billFrom?.clinicName ||
+        payment.billFrom?.clinicId?.name ||
+        null,
+      items: payment.items || [],
+      subtotal: payment.subtotal,
+      discount: payment.discount || 0,
+      total: payment.total,
+      amountPaid: payment.amountPaid || 0,
+      status: payment.status,
+      payUrl: payment.payUrl || null, // Thêm payUrl để hiển thị nút thanh toán
+      pendingOrderCode: payment.pendingOrderCode || null,
+      createdAt: payment.createdAt,
+    }));
+
+    return ok(res, {
+      payments: formattedPayments,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching pending service payments:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      "Lỗi khi tải danh sách yêu cầu thanh toán"
+    );
+  }
+}
+
+/**
+ * Delete education level price
+ * DELETE /api/manager/education-level-prices/:id
+ */
+export async function deleteEducationLevelPrice(req, res) {
+  try {
+    const { id } = req.params;
+
+    const price = await EducationLevelPrice.findByIdAndUpdate(
+      id,
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!price) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Không tìm thấy giá");
+    }
+
+    return ok(res, {
+      message: "Đã xóa giá theo trình độ học vấn thành công",
+    });
+  } catch (error) {
+    console.error("Error deleting education level price:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+/**
+ * Process cash payment
+ * POST /api/managers/service-payments/:paymentId/cash
+ * body: { amountPaid: number }
+ */
+export async function processCashPayment(req, res) {
+  try {
+    const { paymentId } = req.params;
+    const { amountPaid } = req.body;
+
+    if (!paymentId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Payment ID is required"
+      );
+    }
+
+    if (
+      !amountPaid ||
+      amountPaid <= 0 ||
+      !Number.isInteger(Number(amountPaid))
+    ) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Số tiền thanh toán phải là số nguyên dương"
+      );
+    }
+
+    // Find payment
+    const payment = await Payment.findById(paymentId).populate("appointmentId");
+
+    if (!payment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Payment not found");
+    }
+
+    // Validate payment status - chỉ cho phép pending_manager hoặc initiated
+    if (
+      payment.status !== "pending_manager" &&
+      payment.status !== "initiated"
+    ) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        `Payment is not available for processing. Current status: ${payment.status}`
+      );
+    }
+
+    // Nếu đã captured thì không cho thanh toán lại
+    if (payment.status === "captured") {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Payment has already been completed. Cannot process again."
+      );
+    }
+
+    // Validate amountPaid <= total
+    if (Number(amountPaid) > payment.total) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Số tiền thanh toán không được vượt quá tổng tiền"
+      );
+    }
+
+    // Update payment
+    payment.amountPaid = Number(amountPaid);
+    payment.gateway = "cash";
+    payment.method = "cash";
+    payment.status =
+      Number(amountPaid) >= payment.total ? "captured" : "pending_manager";
+    payment.paidAt = new Date();
+    payment.capturedAt = new Date();
+    await payment.save();
+
+    // Update Appointment
+    if (payment.appointmentId) {
+      const appointment = await Appointment.findById(
+        payment.appointmentId._id || payment.appointmentId
+      );
+      if (appointment) {
+        // Tính tổng amountPaid từ tất cả service payments của appointment này
+        const allServicePayments = await Payment.find({
+          appointmentId: appointment._id,
+          invoiceType: "service",
+        });
+
+        const totalAmountPaid = allServicePayments.reduce(
+          (sum, p) => sum + (p.amountPaid || 0),
+          0
+        );
+
+        // Cập nhật totalPay từ services nếu chưa có
+        if (!appointment.totalPay || appointment.totalPay === 0) {
+          const totalPay = allServicePayments.reduce(
+            (sum, p) => sum + (p.total || 0),
+            0
+          );
+          appointment.totalPay = totalPay;
+        }
+
+        appointment.amountPaid = totalAmountPaid;
+
+        // Cập nhật paymentStatus
+        if (totalAmountPaid >= appointment.totalPay) {
+          appointment.paymentStatus = "paid";
+          // Khi đã thanh toán đủ, chuyển trạng thái lịch hẹn thành hoàn thành (done)
+          if (appointment.status !== "done") {
+            const prevStatus = appointment.status;
+            appointment.status = "done";
+            console.log(
+              `✅ Appointment status updated from "${prevStatus}" to "done" after cash payment: ${appointment._id}`
+            );
+          }
+        } else {
+          appointment.paymentStatus = "unpaid";
+        }
+
+        await appointment.save();
+
+        // Gửi email xác nhận cho bệnh nhân nếu đã thanh toán đủ (giống chuyển khoản)
+        if (appointment.paymentStatus === "paid") {
+          try {
+            const patient = await Patient.findById(
+              appointment.patientId
+            ).populate("userId");
+            const doctor = await Doctor.findById(appointment.doctorId);
+            const patientEmail = patient?.userId?.email;
+
+            if (patientEmail) {
+              const appointmentDate = new Date(appointment.scheduledStart);
+              const formattedDate = appointmentDate.toLocaleDateString(
+                "vi-VN",
+                {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                }
+              );
+              const formattedTime = appointmentDate.toLocaleTimeString(
+                "vi-VN",
+                {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }
+              );
+              const formattedAmount = new Intl.NumberFormat("vi-VN", {
+                style: "currency",
+                currency: "VND",
+              }).format(payment.total);
+
+              const html = `
+                <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:16px;background:#f6f7f9">
+                  <div style="background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #eef1f5">
+                    <div style="background:#2563eb;color:#fff;padding:16px 20px">
+                      <h2 style="margin:0;font-size:20px">Xác nhận thanh toán tiền mặt</h2>
+                      <div style="opacity:.9;margin-top:4px">MedConnect</div>
+                    </div>
+                    <div style="padding:20px">
+                      <p>Xin chào <strong>${
+                        patient.fullName || "Khách hàng"
+                      }</strong>,</p>
+                      <p>Chúng tôi xác nhận bạn đã <strong>thanh toán tiền mặt</strong> thành công cho lịch hẹn sau:</p>
+                      <div style="background:#f9fafb;border-left:4px solid #2563eb;padding:12px 16px;border-radius:4px;margin:12px 0">
+                        <div><strong>Ngày hẹn:</strong> ${formattedDate}</div>
+                        <div><strong>Giờ hẹn:</strong> ${formattedTime}</div>
+                        <div><strong>Bác sĩ:</strong> ${
+                          doctor?.fullName || "Bác sĩ"
+                        }</div>
+                        <div><strong>Hình thức khám:</strong> ${
+                          appointment.mode === "online"
+                            ? "Khám trực tuyến"
+                            : "Khám tại phòng khám"
+                        }</div>
+                      </div>
+                      <div style="background:#fff7ed;border:1px solid #fed7aa;padding:12px 16px;border-radius:4px;margin:12px 0">
+                        <div><strong>Mã hóa đơn:</strong> ${
+                          payment.invoiceNumber
+                        }</div>
+                        <div><strong>Phương thức:</strong> Tiền mặt</div>
+                        <div><strong>Tổng tiền:</strong> ${formattedAmount}</div>
+                      </div>
+                      <p>Nếu cần hỗ trợ, vui lòng phản hồi email này hoặc liên hệ hotline.</p>
+                      <p>Trân trọng,<br/>MedConnect</p>
+                    </div>
+                  </div>
+                </div>`;
+
+              await sendMail({
+                to: patientEmail,
+                subject: `Xác nhận thanh toán tiền mặt - ${payment.invoiceNumber}`,
+                html,
+              });
+              console.log(
+                `📧 Cash payment confirmation email sent to ${patientEmail}`
+              );
+            } else {
+              console.log(
+                "⚠️ No patient email found; skipping cash payment email"
+              );
+            }
+          } catch (emailErr) {
+            console.error("❌ Error sending cash payment email:", emailErr);
+          }
+        }
+      }
+    }
+
+    console.log(
+      `✅ Manager processed cash payment ${paymentId}, amount: ${amountPaid}`
+    );
+
+    return ok(res, {
+      message: "Thanh toán tiền mặt thành công",
+      payment: {
+        _id: payment._id,
+        invoiceNumber: payment.invoiceNumber,
+        total: payment.total,
+        amountPaid: payment.amountPaid,
+        status: payment.status,
+      },
+    });
+  } catch (error) {
+    console.error("Error processing cash payment:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      "Lỗi khi xử lý thanh toán tiền mặt"
+    );
+  }
+}
+
+/**
+ * Create bank transfer payment link (PayOS)
+ * POST /api/managers/service-payments/:paymentId/bank-transfer
+ */
+export async function createBankTransferPayment(req, res) {
+  try {
+    const { paymentId } = req.params;
+
+    if (!paymentId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Payment ID is required"
+      );
+    }
+
+    // Find payment
+    const payment = await Payment.findById(paymentId).populate("appointmentId");
+
+    if (!payment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Payment not found");
+    }
+
+    // Validate payment status - chỉ cho phép pending_manager
+    if (payment.status !== "pending_manager") {
+      if (payment.status === "captured") {
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Payment has already been completed. Cannot create payment link again."
+        );
+      }
+      if (payment.status === "initiated" && payment.payUrl) {
+        // Nếu đã có link PayOS, trả về link hiện có
+        return ok(res, {
+          message: "Link thanh toán đã được tạo trước đó",
+          payment: {
+            _id: payment._id,
+            invoiceNumber: payment.invoiceNumber,
+            total: payment.total,
+            payUrl: payment.payUrl,
+            orderCode: payment.pendingOrderCode,
+          },
+        });
+      }
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        `Payment is not pending for manager processing. Current status: ${payment.status}`
+      );
+    }
+
+    // Create PayOS payment link
+    try {
+      const { PayOS } = await import("@payos/node");
+      const payos = new PayOS(
+        process.env.PAYOS_CLIENT_ID,
+        process.env.PAYOS_API_KEY,
+        process.env.PAYOS_CHECKSUM_KEY
+      );
+
+      // Validate FRONTEND_URL
+      if (!process.env.FRONTEND_URL) {
+        return fail(
+          res,
+          500,
+          ERROR_CODES.SERVER_ERROR,
+          "FRONTEND_URL not configured"
+        );
+      }
+
+      const orderCode = Number(String(Date.now()).slice(-10));
+      const payosPaymentData = {
+        orderCode,
+        amount: payment.total,
+        description: `MC Service ${String(orderCode).slice(-7)}`,
+        returnUrl: `${process.env.FRONTEND_URL}/manager/thanh-toan-dich-vu?status=success&orderCode=${orderCode}`,
+        cancelUrl: `${process.env.FRONTEND_URL}/manager/thanh-toan-dich-vu?status=failed&orderCode=${orderCode}`,
+      };
+
+      const link = await payos.paymentRequests.create(payosPaymentData);
+
+      // Update payment with PayOS info
+      payment.payUrl = link.checkoutUrl;
+      payment.pendingOrderCode = orderCode;
+      payment.gateway = "payos";
+      payment.method = "qr";
+      payment.status = "initiated"; // Chờ thanh toán qua PayOS
+      await payment.save();
+
+      console.log(`✅ Manager created PayOS link for payment ${paymentId}`);
+
+      return ok(res, {
+        message: "Link thanh toán chuyển khoản đã được tạo",
+        payment: {
+          _id: payment._id,
+          invoiceNumber: payment.invoiceNumber,
+          total: payment.total,
+          payUrl: payment.payUrl,
+          orderCode: payment.pendingOrderCode,
+        },
+      });
+    } catch (payosError) {
+      console.error("Error creating PayOS payment link:", payosError);
+      return fail(
+        res,
+        500,
+        ERROR_CODES.SERVER_ERROR,
+        `Failed to create payment link: ${payosError.message}`
+      );
+    }
+  } catch (error) {
+    console.error("Error creating bank transfer payment:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      "Lỗi khi tạo link thanh toán chuyển khoản"
     );
   }
 }

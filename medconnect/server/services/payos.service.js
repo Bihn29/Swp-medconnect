@@ -174,10 +174,10 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
         return { already: true, orderCode };
       }
 
-      // Check if already captured
+      // Check if already captured - CHẶN thanh toán lại (idempotent)
       if (existingPayment.status === "captured") {
         console.log(
-          `ℹ️ Service payment already captured: ${existingPayment._id}`
+          `ℹ️ Service payment already captured: ${existingPayment._id} - BLOCKING duplicate payment attempt`
         );
         // Nếu đã captured nhưng appointment status chưa là "done", cập nhật lại
         const Appointment = (await import("../models/appointment.model.js")).default;
@@ -191,7 +191,8 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
             console.log(`✅ Appointment status updated to "done" for already-captured payment: ${appointmentToCheck._id}`);
           }
         }
-        return { already: true, orderCode, paymentId: existingPayment._id };
+        // Return already=true để webhook KHÔNG xử lý lại (idempotent)
+        return { already: true, orderCode, paymentId: existingPayment._id, message: "Payment already processed - duplicate webhook blocked" };
       }
 
       // Get appointment from payment
@@ -263,6 +264,7 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
         payment.status = "captured";
         payment.orderCode = orderCode;
         payment.providerTxnId = String(orderCode);
+        payment.amountPaid = payment.total; // Cập nhật amountPaid = total khi thanh toán qua PayOS
         payment.paidAt = new Date();
         payment.capturedAt = new Date();
         payment.pendingOrderCode = undefined; // Clear pendingOrderCode
@@ -360,11 +362,9 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
           console.error("⚠️ Cannot create notification: missing appointment or payment data");
         }
 
-        // Cập nhật appointment status thành "done" sau khi thanh toán dịch vụ thành công
+        // Cập nhật appointment: amountPaid, paymentStatus và status
         // Lấy appointmentId trực tiếp từ payment (không populate) để đảm bảo chính xác
         try {
-          // Lấy appointmentId từ payment - payment.appointmentId có thể là ObjectId hoặc đã populate
-          // Query lại payment để lấy appointmentId chính xác (không populate)
           const Payment = (await import("../models/payment.model.js")).default;
           const paymentForId = await Payment.findById(payment._id).select("appointmentId").lean();
           
@@ -372,64 +372,60 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
             console.error(`❌ Cannot get appointmentId from payment ${payment._id}`);
           } else {
             const appointmentIdToUpdate = paymentForId.appointmentId;
-            
-            console.log(`🔍 DEBUG - Updating appointment status:`, {
-              paymentId: payment._id?.toString(),
-              appointmentId: appointmentIdToUpdate?.toString(),
-              appointmentIdType: appointmentIdToUpdate?.constructor?.name || typeof appointmentIdToUpdate,
-              currentAppointmentStatus: appointment?.status
-            });
-            
             const Appointment = (await import("../models/appointment.model.js")).default;
             const appointmentToUpdate = await Appointment.findById(appointmentIdToUpdate);
             
             if (appointmentToUpdate) {
-              console.log(`🔍 DEBUG - Appointment found:`, {
-                appointmentId: appointmentToUpdate._id?.toString(),
-                currentStatus: appointmentToUpdate.status,
-                willUpdateToDone: appointmentToUpdate.status !== "done"
+              // Tính tổng amountPaid từ tất cả service payments của appointment này
+              const allServicePayments = await Payment.find({
+                appointmentId: appointmentToUpdate._id,
+                invoiceType: "service",
               });
               
+              const totalAmountPaid = allServicePayments.reduce(
+                (sum, p) => sum + (p.amountPaid || 0),
+                0
+              );
+
+              // Cập nhật totalPay từ services nếu chưa có
+              if (!appointmentToUpdate.totalPay || appointmentToUpdate.totalPay === 0) {
+                const totalPay = allServicePayments.reduce(
+                  (sum, p) => sum + (p.total || 0),
+                  0
+                );
+                appointmentToUpdate.totalPay = totalPay;
+              }
+
+              appointmentToUpdate.amountPaid = totalAmountPaid;
+              
+              // Cập nhật paymentStatus
+              if (totalAmountPaid >= appointmentToUpdate.totalPay) {
+                appointmentToUpdate.paymentStatus = "paid";
+              } else {
+                appointmentToUpdate.paymentStatus = "unpaid";
+              }
+
+              // Cập nhật status thành "done" nếu chưa phải
               if (appointmentToUpdate.status !== "done") {
                 const oldStatus = appointmentToUpdate.status;
                 appointmentToUpdate.status = "done";
-                await appointmentToUpdate.save();
                 console.log(`✅ Appointment status updated from "${oldStatus}" to "done" after service payment: ${appointmentToUpdate._id}`);
-                
-                // Verify sau khi save
-                const verifyAppointment = await Appointment.findById(appointmentIdToUpdate);
-                if (verifyAppointment) {
-                  console.log(`🔍 DEBUG - Verify appointment status after save:`, {
-                    appointmentId: verifyAppointment._id?.toString(),
-                    status: verifyAppointment.status,
-                    verified: verifyAppointment.status === "done" ? "✅ YES" : "❌ NO"
-                  });
-                  
-                  if (verifyAppointment.status !== "done") {
-                    console.error(`❌ ERROR: Appointment status was NOT saved correctly! Expected "done", got "${verifyAppointment.status}"`);
-                  }
-                } else {
-                  console.error(`❌ ERROR: Cannot verify appointment after save - appointment not found!`);
-                }
-                
-                // Cập nhật appointment object trong memory để đồng bộ
-                appointment.status = "done";
-              } else {
-                console.log(`ℹ️ Appointment ${appointmentToUpdate._id} already has status "done"`);
               }
+              
+              await appointmentToUpdate.save();
+              console.log(`✅ Appointment synced: amountPaid=${totalAmountPaid}, paymentStatus=${appointmentToUpdate.paymentStatus}, totalPay=${appointmentToUpdate.totalPay}`);
+              
+              // Cập nhật appointment object trong memory để đồng bộ
+              appointment.amountPaid = totalAmountPaid;
+              appointment.paymentStatus = appointmentToUpdate.paymentStatus;
+              appointment.status = appointmentToUpdate.status;
             } else {
-              console.error(`❌ Cannot find appointment ${appointmentIdToUpdate} to update status`);
-              console.error(`❌ AppointmentId details:`, {
-                appointmentId: appointmentIdToUpdate?.toString(),
-                appointmentIdType: appointmentIdToUpdate?.constructor?.name || typeof appointmentIdToUpdate,
-                isValidObjectId: appointmentIdToUpdate && mongoose.Types.ObjectId.isValid(appointmentIdToUpdate)
-              });
+              console.error(`❌ Cannot find appointment ${appointmentIdToUpdate} to update`);
             }
           }
         } catch (appointmentUpdateError) {
-          console.error("❌ Error updating appointment status:", appointmentUpdateError);
+          console.error("❌ Error updating appointment:", appointmentUpdateError);
           console.error("Appointment update error details:", appointmentUpdateError.message);
-          console.error("Appointment update error stack:", appointmentUpdateError.stack);
           // Không throw error vì payment đã thành công
         }
 

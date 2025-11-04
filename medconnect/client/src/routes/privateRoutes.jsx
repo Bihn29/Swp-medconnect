@@ -57,7 +57,9 @@ import ManagerScheduleManagement from "../pages/Manager/ManagerScheduleManagemen
 import LeaveRequestManagement from "../pages/Manager/LeaveRequestManagement/LeaveRequestManagement";
 import ServicePriceManagement from "../pages/Manager/ServicePriceManagement/ServicePriceManagement";
 import InvoiceManagement from "../pages/Manager/InvoiceManagement/InvoiceManagement";
+import ServicePaymentManagement from "../pages/Manager/ServicePaymentManagement/ServicePaymentManagement";
 import { Notifications as ManagerNotifications } from "../pages/Manager/Notifications/Notifications";
+import EducationLevelPriceManagement from "../pages/Manager/EducationLevelPriceManagement/EducationLevelPriceManagement";
 import ManagerLayout from "../layouts/ManagerLayout/ManagerLayout";
 
 /**
@@ -241,6 +243,10 @@ export const privateRoutes = (
           element={<ManagerScheduleManagement />}
         />
         <Route
+          path="/manager/quan-ly-gia"
+          element={<EducationLevelPriceManagement />}
+        />
+        <Route
           path="/manager/yeu-cau-nghi-phep"
           element={<LeaveRequestManagement />}
         />
@@ -251,6 +257,10 @@ export const privateRoutes = (
         <Route
           path="/manager/quan-ly-hoa-don"
           element={<InvoiceManagement />}
+        />
+        <Route
+          path="/manager/thanh-toan-dich-vu"
+          element={<ServicePaymentManagement />}
         />
         <Route path="/manager/thong-bao" element={<ManagerNotifications />} />
       </Route>

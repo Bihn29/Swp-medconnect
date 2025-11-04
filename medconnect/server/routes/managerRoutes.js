@@ -17,6 +17,12 @@ import {
   setDoctorPricingForManager,
   deleteDoctorPricingForManager,
   getAllPatientsForManager,
+  getEducationLevelPrices,
+  setEducationLevelPrice,
+  deleteEducationLevelPrice,
+  getPendingServicePayments,
+  processCashPayment,
+  createBankTransferPayment,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
@@ -103,6 +109,12 @@ router.delete("/service-prices/:id", authGuard, deleteServicePrice);
 // Invoice management routes (only for manager)
 router.get("/invoices", authGuard, getManagerInvoices);
 router.delete("/invoices/:invoiceId", authGuard, deleteManagerInvoice);
+
+// Service payment management routes (only for manager)
+router.get("/service-payments/pending", authGuard, getPendingServicePayments);
+router.post("/service-payments/:paymentId/cash", authGuard, processCashPayment);
+router.post("/service-payments/:paymentId/bank-transfer", authGuard, createBankTransferPayment);
+
 // Pricing routes
 router.get("/doctors/:doctorId/pricing", authGuard, getDoctorPricingForManager);
 router.post(
@@ -114,6 +126,15 @@ router.delete(
   "/doctors/:doctorId/pricing/:pricingId",
   authGuard,
   deleteDoctorPricingForManager
+);
+
+// Education level price routes
+router.get("/education-level-prices", authGuard, getEducationLevelPrices);
+router.post("/education-level-prices", authGuard, setEducationLevelPrice);
+router.delete(
+  "/education-level-prices/:id",
+  authGuard,
+  deleteEducationLevelPrice
 );
 
 export default router;

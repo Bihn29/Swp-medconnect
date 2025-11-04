@@ -10,6 +10,7 @@ import {
   DownOutlined,
   FileTextOutlined,
   DollarOutlined,
+  CreditCardOutlined,
 } from "@ant-design/icons";
 import { clearUserData } from "../../utils/clearUserData";
 import "./ManagerLayout.scss";
@@ -56,6 +57,11 @@ const ManagerLayout = () => {
       label: "Quản lý lịch bác sĩ",
     },
     {
+      key: "/manager/quan-ly-gia",
+      icon: <DollarOutlined />,
+      label: "Quản lý giá theo trình độ",
+    },
+    {
       key: "/manager/yeu-cau-nghi-phep",
       icon: <FileTextOutlined />,
       label: "Yêu cầu nghỉ phép",
@@ -70,6 +76,11 @@ const ManagerLayout = () => {
       key: "/manager/quan-ly-hoa-don",
       icon: <FileTextOutlined />,
       label: "Quản lý hóa đơn",
+    },
+    {
+      key: "/manager/thanh-toan-dich-vu",
+      icon: <CreditCardOutlined />,
+      label: "Thanh toán hóa đơn",
     },
     {
       key: "/manager/thong-bao",
