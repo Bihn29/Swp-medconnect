@@ -113,22 +113,87 @@ export const checkPaymentStatusController = async (req, res) => {
     // 2. Nếu thanh toán thành công, tự động xử lý (fallback cho webhook)
     if (paymentInfo && (paymentInfo.status === "PAID" || paymentInfo.status === "paid")) {
       try {
-        // Gọi webhook handler để xử lý payment
+        // Xác định loại payment từ database để có description đúng
+        const Payment = (await import("../models/payment.model.js")).default;
+        const Appointment = (await import("../models/appointment.model.js")).default;
+        
+        // Tìm payment bằng orderCode hoặc pendingOrderCode
+        let paymentRecord = await Payment.findOne({
+          $or: [
+            { orderCode: Number(orderCode) },
+            { pendingOrderCode: Number(orderCode) }
+          ]
+        });
+        
+        // Nếu không tìm thấy payment, tìm appointment
+        let isServicePayment = false;
+        let description = paymentInfo.description || `MedConnect ${orderCode}`;
+        
+        if (paymentRecord) {
+          // Tìm thấy payment - kiểm tra invoiceType
+          isServicePayment = paymentRecord.invoiceType === "service";
+          if (isServicePayment) {
+            description = `MC Service ${String(orderCode).slice(-7)}`;
+          } else {
+            description = `MedConnect ${String(orderCode).slice(-8)}`;
+          }
+          console.log(`📋 Payment record found:`, {
+            paymentId: paymentRecord._id?.toString(),
+            invoiceType: paymentRecord.invoiceType,
+            isServicePayment,
+            description
+          });
+        } else {
+          // Tìm appointment bằng pendingOrderCode
+          const appointment = await Appointment.findOne({
+            pendingOrderCode: Number(orderCode)
+          });
+          
+          if (appointment) {
+            // Booking payment
+            isServicePayment = false;
+            description = `MedConnect ${String(orderCode).slice(-8)}`;
+            console.log(`📋 Appointment found for booking payment:`, {
+              appointmentId: appointment._id?.toString(),
+              isServicePayment: false
+            });
+          } else {
+            // Không tìm thấy, thử kiểm tra payment bằng description
+            const desc = String(paymentInfo.description || "");
+            isServicePayment = desc.includes("Service") || desc.includes("MC Service");
+            description = paymentInfo.description || (isServicePayment ? `MC Service ${String(orderCode).slice(-7)}` : `MedConnect ${String(orderCode).slice(-8)}`);
+            console.log(`📋 No payment/appointment found, using description:`, {
+              originalDescription: paymentInfo.description,
+              isServicePayment,
+              finalDescription: description
+            });
+          }
+        }
+        
         const webhookData = {
           data: {
             orderCode: Number(orderCode),
-            description: paymentInfo.description || `MedConnect ${orderCode}`,
+            description: description,
             code: "00",
             amount: paymentInfo.amount,
           },
           success: true
         };
         
+        console.log(`📋 Calling webhook handler with:`, {
+          orderCode,
+          description,
+          isServicePayment,
+          amount: paymentInfo.amount
+        });
+        
         const result = await handlePayosWebhook(webhookData, true); // skipVerification = true for fallback
         console.log(`✅ Auto-processed payment via check-status: ${orderCode}`, result);
       } catch (webhookError) {
-        // Nếu webhook handler lỗi (có thể đã xử lý rồi), ignore
-        console.log(`ℹ️ Webhook handler result for ${orderCode}:`, webhookError.message);
+        // Nếu webhook handler lỗi (có thể đã xử lý rồi), log chi tiết
+        console.error(`❌ Webhook handler error for ${orderCode}:`, webhookError);
+        console.error("Webhook error details:", webhookError.message);
+        console.error("Webhook error stack:", webhookError.stack);
       }
     }
 

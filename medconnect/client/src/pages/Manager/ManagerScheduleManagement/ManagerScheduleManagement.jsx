@@ -104,8 +104,8 @@ export default function ManagerScheduleManagement() {
   // Pricing management states
   const [showPricingDialog, setShowPricingDialog] = useState(false);
   const [pricingData, setPricingData] = useState({
-    online: { weekday: 200000, weekend: 250000 },
-    offline: { weekday: 300000, weekend: 350000 },
+    online: { weekday: 5000, weekend: 250000 },
+    offline: { weekday: 6000, weekend: 350000 },
   });
   const [loadingPricing, setLoadingPricing] = useState(false);
 
@@ -432,8 +432,8 @@ export default function ManagerScheduleManagement() {
 
         setPricingData({
           online: {
-            weekday: onlinePricing?.weekdayPrice || 200000,
-            weekend: onlinePricing?.weekendPrice || 250000,
+            weekday: onlinePricing?.weekdayPrice || 5000,
+            weekend: onlinePricing?.weekendPrice || 6000,
           },
           offline: {
             weekday: offlinePricing?.weekdayPrice || 300000,
