@@ -17,6 +17,9 @@ import {
   setDoctorPricingForManager,
   deleteDoctorPricingForManager,
   getAllPatientsForManager,
+  getEducationLevelPrices,
+  setEducationLevelPrice,
+  deleteEducationLevelPrice,
   getPendingServicePayments,
   processCashPayment,
   createBankTransferPayment,
@@ -123,6 +126,15 @@ router.delete(
   "/doctors/:doctorId/pricing/:pricingId",
   authGuard,
   deleteDoctorPricingForManager
+);
+
+// Education level price routes
+router.get("/education-level-prices", authGuard, getEducationLevelPrices);
+router.post("/education-level-prices", authGuard, setEducationLevelPrice);
+router.delete(
+  "/education-level-prices/:id",
+  authGuard,
+  deleteEducationLevelPrice
 );
 
 export default router;

@@ -37,8 +37,8 @@ const corsOptions = {
 
 // Parse JSON and urlencoded request bodies FIRST
 // Increased limit to 10MB to handle base64 avatar images
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // CORS must be after body parsers
 app.use(cors(corsOptions));
@@ -102,8 +102,10 @@ mongoose
     
     // Tắt cron job tự động hủy appointments - không giới hạn thời gian thanh toán
     // startAppointmentCleanupJob();
-    console.log("ℹ️  Auto-cancel appointments is disabled - no payment deadline");
-    
+    console.log(
+      "ℹ️  Auto-cancel appointments is disabled - no payment deadline"
+    );
+
     // Khởi động cron job gửi email nhắc nhở video call 10 phút trước
     startVideoCallReminderJob();
   })

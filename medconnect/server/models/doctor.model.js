@@ -20,6 +20,11 @@ const DoctorSchema = new Schema(
     yearsExperience: { type: Number, min: 0, default: 0 },
     bio: { type: String, trim: true },
     avatarUrl: { type: String },
+    educationLevel: {
+      type: String,
+      enum: ["Bác sĩ", "Thạc sĩ", "Tiến sĩ", "Phó Giáo Sư", "Giáo Sư"],
+      trim: true,
+    }, // Trình độ học vấn
 
     // Chuyên khoa
     specializationIds: [
@@ -46,7 +51,7 @@ const DoctorSchema = new Schema(
     // Thông tin phê duyệt/từ chối
     approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
     approvedAt: { type: Date },
-    rejectedBy: { type: Schema.Types.ObjectId, ref: "User" }, 
+    rejectedBy: { type: Schema.Types.ObjectId, ref: "User" },
     rejectedAt: { type: Date },
     rejectionReason: { type: String, trim: true },
   },

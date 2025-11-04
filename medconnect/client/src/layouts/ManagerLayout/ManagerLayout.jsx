@@ -57,6 +57,11 @@ const ManagerLayout = () => {
       label: "Quản lý lịch bác sĩ",
     },
     {
+      key: "/manager/quan-ly-gia",
+      icon: <DollarOutlined />,
+      label: "Quản lý giá theo trình độ",
+    },
+    {
       key: "/manager/yeu-cau-nghi-phep",
       icon: <FileTextOutlined />,
       label: "Yêu cầu nghỉ phép",
