@@ -445,10 +445,15 @@ export default function InvoiceManagement() {
   return (
     <div className="invoice-management">
       <div className="invoice-management-header">
-        <h1>
-          <FileText className="w-6 h-6" />
-          Quản lý hóa đơn
-        </h1>
+        <div className="header-left">
+          <h1>
+            <FileText className="icon" />
+            Quản lý hóa đơn
+          </h1>
+        </div>
+        <div className="header-right">
+          {/* Add action buttons here if needed */}
+        </div>
       </div>
 
       {/* Filters */}

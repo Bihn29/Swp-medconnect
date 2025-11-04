@@ -14,11 +14,18 @@ import { ERROR_CODES } from "../constants/index.js";
  */
 export async function getAllServicePrices(req, res) {
   try {
-    const { isActive } = req.query;
+    const { isActive, search } = req.query;
     
     const filter = {};
     if (isActive !== undefined) {
       filter.isActive = isActive === "true";
+    }
+
+    // Add search filter
+    if (search && search.trim()) {
+      // Escape special regex characters to prevent regex injection
+      const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.serviceName = { $regex: escapedSearch, $options: "i" };
     }
 
     const servicePrices = await ServicePrice.find(filter)
@@ -98,7 +105,7 @@ export async function createServicePrice(req, res) {
         res,
         400,
         ERROR_CODES.INVALID_INPUT,
-        "Service name already exists"
+        "Dịch vụ này đã tồn tại trong hệ thống. Vui lòng chọn dịch vụ khác."
       );
     }
 
@@ -134,7 +141,7 @@ export async function createServicePrice(req, res) {
         res,
         400,
         ERROR_CODES.INVALID_INPUT,
-        "Service name already exists"
+        "Dịch vụ này đã tồn tại trong hệ thống. Vui lòng chọn dịch vụ khác."
       );
     }
 
@@ -179,7 +186,7 @@ export async function updateServicePrice(req, res) {
           res,
           400,
           ERROR_CODES.INVALID_INPUT,
-          "Service name already exists"
+          "Dịch vụ này đã tồn tại trong hệ thống. Vui lòng chọn dịch vụ khác."
         );
       }
 
@@ -221,7 +228,7 @@ export async function updateServicePrice(req, res) {
         res,
         400,
         ERROR_CODES.INVALID_INPUT,
-        "Service name already exists"
+        "Dịch vụ này đã tồn tại trong hệ thống. Vui lòng chọn dịch vụ khác."
       );
     }
 
