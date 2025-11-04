@@ -17,6 +17,9 @@ import {
   setDoctorPricingForManager,
   deleteDoctorPricingForManager,
   getAllPatientsForManager,
+  getPendingServicePayments,
+  processCashPayment,
+  createBankTransferPayment,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
@@ -103,6 +106,12 @@ router.delete("/service-prices/:id", authGuard, deleteServicePrice);
 // Invoice management routes (only for manager)
 router.get("/invoices", authGuard, getManagerInvoices);
 router.delete("/invoices/:invoiceId", authGuard, deleteManagerInvoice);
+
+// Service payment management routes (only for manager)
+router.get("/service-payments/pending", authGuard, getPendingServicePayments);
+router.post("/service-payments/:paymentId/cash", authGuard, processCashPayment);
+router.post("/service-payments/:paymentId/bank-transfer", authGuard, createBankTransferPayment);
+
 // Pricing routes
 router.get("/doctors/:doctorId/pricing", authGuard, getDoctorPricingForManager);
 router.post(

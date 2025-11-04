@@ -14,6 +14,8 @@ import "./ServicePriceManagement.scss";
 export default function ServicePriceManagement() {
   const [servicePrices, setServicePrices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -27,7 +29,7 @@ export default function ServicePriceManagement() {
 
   useEffect(() => {
     loadServicePrices();
-  }, [filterActive, searchTerm]);
+  }, [filterActive, searchTerm, page]);
 
   const loadServicePrices = async () => {
     try {
@@ -39,6 +41,8 @@ export default function ServicePriceManagement() {
       if (searchTerm.trim()) {
         params.append("search", searchTerm.trim());
       }
+      params.append("page", page.toString());
+      params.append("limit", "20");
 
       const response = await api.get(
         `/api/managers/service-prices?${params.toString()}`
@@ -46,6 +50,7 @@ export default function ServicePriceManagement() {
 
       if (response.success) {
         setServicePrices(response.data.servicePrices || []);
+        setTotalPages(response.data.pagination?.pages || 1);
       } else {
         alert("Không thể tải danh sách giá dịch vụ");
       }
@@ -283,26 +288,38 @@ export default function ServicePriceManagement() {
                 type="text"
                 placeholder="Tìm kiếm dịch vụ..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
                 className="search-input"
               />
             </div>
             <div className="filter-buttons">
               <Button
                 variant={filterActive === "all" ? "primary" : "outline"}
-                onClick={() => setFilterActive("all")}
+                onClick={() => {
+                  setFilterActive("all");
+                  setPage(1);
+                }}
               >
                 Tất cả
               </Button>
               <Button
                 variant={filterActive === "active" ? "primary" : "outline"}
-                onClick={() => setFilterActive("active")}
+                onClick={() => {
+                  setFilterActive("active");
+                  setPage(1);
+                }}
               >
                 Đang hoạt động
               </Button>
               <Button
                 variant={filterActive === "inactive" ? "primary" : "outline"}
-                onClick={() => setFilterActive("inactive")}
+                onClick={() => {
+                  setFilterActive("inactive");
+                  setPage(1);
+                }}
               >
                 Đã tắt
               </Button>
@@ -332,7 +349,7 @@ export default function ServicePriceManagement() {
             <tbody>
               {servicePrices.map((service, index) => (
                 <tr key={service._id}>
-                  <td>{index + 1}</td>
+                  <td>{(page - 1) * 20 + index + 1}</td>
                   <td>{service.serviceName}</td>
                   <td>{formatPrice(service.price)}</td>
                   <td>
@@ -378,6 +395,29 @@ export default function ServicePriceManagement() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="pagination">
+          <Button
+            variant="outline"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            Trước
+          </Button>
+          <span>
+            Trang {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            Sau
+          </Button>
         </div>
       )}
 
@@ -482,7 +522,6 @@ export default function ServicePriceManagement() {
           </DialogHeader>
           <p>
             Bạn có chắc chắn muốn xóa dịch vụ "{selectedService?.serviceName}"?
-            (Dịch vụ sẽ được ẩn khỏi danh sách)
           </p>
           <div className="form-actions">
             <Button

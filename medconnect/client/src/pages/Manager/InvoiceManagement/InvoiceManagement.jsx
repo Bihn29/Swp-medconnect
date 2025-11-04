@@ -734,8 +734,22 @@ function InvoiceDetailModal({ invoice }) {
                   </span>
                 </div>
                 <div className="detail-row">
-                  <span>Mã đơn hàng:</span>
-                  <span>{invoice.orderCode || "N/A"}</span>
+                  <span>Phương thức:</span>
+                  <span>
+                    {invoice.method === "cash"
+                      ? "Tiền mặt"
+                      : invoice.gateway === "payos"
+                      ? "Chuyển khoản (PayOS)"
+                      : invoice.method || invoice.gateway || "N/A"}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <span>Mã đơn hàng (PayOS):</span>
+                  <span>
+                    {invoice.method === "cash" || invoice.gateway === "cash"
+                      ? "Không áp dụng"
+                      : invoice.orderCode || "N/A"}
+                  </span>
                 </div>
                 <div className="detail-row">
                   <span>Trạng thái:</span>

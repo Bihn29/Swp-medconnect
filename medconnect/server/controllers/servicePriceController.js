@@ -9,12 +9,15 @@ import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 
 /**
- * Get all service prices (active and inactive)
- * GET /api/managers/service-prices
+ * Get all service prices (active and inactive) with pagination
+ * GET /api/managers/service-prices?isActive=true&search=abc&page=1&limit=20
  */
 export async function getAllServicePrices(req, res) {
   try {
-    const { isActive, search } = req.query;
+    const { isActive, search, page = 1, limit = 20 } = req.query;
+    const numericPage = Math.max(1, parseInt(page));
+    const numericLimit = Math.max(1, parseInt(limit));
+    const skip = (numericPage - 1) * numericLimit;
     
     const filter = {};
     if (isActive !== undefined) {
@@ -24,16 +27,31 @@ export async function getAllServicePrices(req, res) {
     // Add search filter
     if (search && search.trim()) {
       // Escape special regex characters to prevent regex injection
-      const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const escapedSearch = search
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       filter.serviceName = { $regex: escapedSearch, $options: "i" };
     }
 
-    const servicePrices = await ServicePrice.find(filter)
-      .populate("createdBy", "fullName email")
-      .sort({ createdAt: -1 })
-      .lean();
+    const [servicePrices, total] = await Promise.all([
+      ServicePrice.find(filter)
+        .populate("createdBy", "fullName email")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(numericLimit)
+        .lean(),
+      ServicePrice.countDocuments(filter),
+    ]);
 
-    return ok(res, { servicePrices });
+    return ok(res, {
+      servicePrices,
+      pagination: {
+        page: numericPage,
+        limit: numericLimit,
+        total,
+        pages: Math.ceil(total / numericLimit),
+      },
+    });
   } catch (error) {
     console.error("Error fetching service prices:", error);
     return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Internal server error");
@@ -237,22 +255,18 @@ export async function updateServicePrice(req, res) {
 }
 
 /**
- * Delete service price (soft delete by setting isActive = false)
+ * Delete service price (hard delete - remove document)
  * DELETE /api/managers/service-prices/:id
  */
 export async function deleteServicePrice(req, res) {
   try {
     const { id } = req.params;
 
-    const servicePrice = await ServicePrice.findById(id);
+    const deleted = await ServicePrice.findByIdAndDelete(id);
 
-    if (!servicePrice) {
+    if (!deleted) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Service price not found");
     }
-
-    // Soft delete - set isActive to false
-    servicePrice.isActive = false;
-    await servicePrice.save();
 
     return ok(res, {
       message: "Service price deleted successfully",
