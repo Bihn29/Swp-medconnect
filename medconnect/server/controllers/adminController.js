@@ -9,6 +9,7 @@ import DoctorTimeSlot from "../models/doctorTimeSlot.model.js";
 import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
 import DoctorRate from "../models/doctor_rates.model.js";
 import Review from "../models/review.model.js";
+import EducationLevelPrice from "../models/educationLevelPrice.model.js";
 import Prescription from "../models/prescription.model.js";
 import ConsultationAdvice from "../models/consultationAdvice.model.js";
 import ConsultationSummary from "../models/consultationSummary.model.js";
@@ -21,8 +22,76 @@ import { runCleanupNow } from "../services/appointmentCleanupService.js";
 // ================== HELPER FUNCTIONS ==================
 
 /**
+ * Helper function to create/update DoctorRate based on educationLevel
+ * This will create rates for both online and offline modes based on EducationLevelPrice
+ */
+async function syncDoctorRatesFromEducationLevel(doctorId, educationLevel) {
+  try {
+    if (!educationLevel || !doctorId) {
+      return { success: false, message: "Missing doctorId or educationLevel" };
+    }
+
+    const doctor = await Doctor.findById(doctorId).lean();
+    if (!doctor) {
+      return { success: false, message: "Doctor not found" };
+    }
+
+    // Get education level prices for both modes
+    const onlinePrice = await EducationLevelPrice.findOne({
+      educationLevel,
+      mode: "online",
+      isActive: true,
+    }).lean();
+
+    const offlinePrice = await EducationLevelPrice.findOne({
+      educationLevel,
+      mode: "offline",
+      isActive: true,
+    }).lean();
+
+    // Create or update online rate
+    if (onlinePrice) {
+      await DoctorRate.findOneAndUpdate(
+        { doctorId, mode: "online", clinicId: { $exists: false } },
+        {
+          doctorId,
+          mode: "online",
+          weekdayPrice: onlinePrice.weekdayPrice,
+          weekendPrice: onlinePrice.weekendPrice,
+          currency: onlinePrice.currency || "VND",
+          isActive: true,
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    // Create or update offline rate (if doctor has clinic)
+    if (offlinePrice && doctor.clinicDefaultId) {
+      await DoctorRate.findOneAndUpdate(
+        { doctorId, mode: "offline", clinicId: doctor.clinicDefaultId },
+        {
+          doctorId,
+          mode: "offline",
+          clinicId: doctor.clinicDefaultId,
+          weekdayPrice: offlinePrice.weekdayPrice,
+          weekendPrice: offlinePrice.weekendPrice,
+          currency: offlinePrice.currency || "VND",
+          isActive: true,
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error syncing doctor rates from education level:", error);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
  * Check if doctor has all required information to be active
- * Required fields: yearsExperience > 0, bio (non-empty), and at least one DoctorRate
+ * Required fields: yearsExperience > 0, bio (non-empty), and educationLevel
  */
 async function checkDoctorCanBeActive(doctorId) {
   try {
@@ -47,16 +116,11 @@ async function checkDoctorCanBeActive(doctorId) {
       };
     }
 
-    // Check if doctor has at least one active DoctorRate
-    const doctorRates = await DoctorRate.find({
-      doctorId: doctor._id,
-      isActive: true,
-    }).lean();
-
-    if (!doctorRates || doctorRates.length === 0) {
+    // Check educationLevel
+    if (!doctor.educationLevel || !doctor.educationLevel.trim()) {
       return {
         canBeActive: false,
-        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+        reason: "Trình độ học vấn chưa được chọn",
       };
     }
 
@@ -174,49 +238,76 @@ export const getDashboardActivities = async (req, res) => {
     const recentUsers = await User.find()
       .sort({ createdAt: -1 })
       .limit(3)
-      .select("fullName role createdAt");
+      .select("fullName role createdAt")
+      .lean();
 
     const recentDoctors = await Doctor.find()
-      .populate("userId", "fullName")
+      .populate({
+        path: "userId",
+        select: "fullName",
+        options: { lean: true },
+      })
       .sort({ createdAt: -1 })
       .limit(2)
-      .select("userId isVerified createdAt");
+      .select("userId isVerified createdAt")
+      .lean();
 
     const activities = [];
 
     // Add user registrations
     recentUsers.forEach((user) => {
-      const roleText = user.role === "doctor" ? "bác sĩ" : "bệnh nhân";
-      activities.push({
-        title: `${
-          user.fullName || "Người dùng"
-        } đã đăng ký tài khoản ${roleText}`,
-        time: getTimeAgo(user.createdAt),
-      });
-    });
-
-    // Add doctor verifications
-    recentDoctors.forEach((doctor) => {
-      if (doctor.isVerified) {
+      if (user && user.createdAt) {
+        const roleText = user.role === "doctor" ? "bác sĩ" : "bệnh nhân";
         activities.push({
-          title: `BS. ${doctor.userId.fullName} đã được xác minh`,
-          time: getTimeAgo(doctor.createdAt),
+          title: `${
+            user.fullName || "Người dùng"
+          } đã đăng ký tài khoản ${roleText}`,
+          time: getTimeAgo(user.createdAt),
+          createdAt: user.createdAt, // Store original date for sorting
         });
       }
     });
 
-    // Sort by time (most recent first)
-    activities.sort((a, b) => new Date(b.time) - new Date(a.time));
+    // Add doctor verifications
+    recentDoctors.forEach((doctor) => {
+      if (
+        doctor &&
+        doctor.isVerified &&
+        doctor.createdAt &&
+        doctor.userId &&
+        doctor.userId.fullName
+      ) {
+        activities.push({
+          title: `BS. ${doctor.userId.fullName} đã được xác minh`,
+          time: getTimeAgo(doctor.createdAt),
+          createdAt: doctor.createdAt, // Store original date for sorting
+        });
+      }
+    });
+
+    // Sort by createdAt (most recent first) before formatting
+    activities.sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      return dateB - dateA;
+    });
+
+    // Remove createdAt before sending response
+    const formattedActivities = activities
+      .slice(0, 4)
+      .map(({ createdAt, ...rest }) => rest);
 
     res.json({
       success: true,
-      data: activities.slice(0, 4), // Return top 4 activities
+      data: formattedActivities,
     });
   } catch (error) {
     console.error("Error fetching dashboard activities:", error);
+    console.error("Error stack:", error.stack);
     res.status(500).json({
       success: false,
       message: "Lỗi khi tải hoạt động gần đây",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -640,6 +731,120 @@ MedConnect - Đội ngũ quản trị
   }
 }
 
+// Helper function: Send suspension email to doctor (after verification but missing info)
+async function sendDoctorSuspensionEmail(doctor, user) {
+  try {
+    if (!user || !user.email) {
+      console.warn("⚠️ Doctor email not found, skipping suspension email");
+      return;
+    }
+
+    const doctorName = doctor.fullName || user.fullName || "Bác sĩ";
+    const verificationDate = new Date().toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #f59e0b; border-bottom: 2px solid #f59e0b; padding-bottom: 10px;">
+          Tài khoản của bạn đã được xác minh - Cần bổ sung thông tin
+        </h2>
+        <p>Xin chào <strong>${doctorName}</strong>,</p>
+        <p>Tài khoản bác sĩ của bạn đã được <strong style="color: #059669;">xác minh thành công</strong> vào ngày <strong>${verificationDate}</strong>.</p>
+        
+        <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #d97706;">⚠️ Thông tin quan trọng:</h3>
+          <p style="margin: 8px 0;">Tài khoản của bạn hiện đang ở trạng thái <strong>tạm khóa</strong> vì chưa điền đầy đủ thông tin cần thiết.</p>
+          <p style="margin: 8px 0;">Để bắt đầu hoạt động, bạn cần điền đầy đủ các thông tin sau:</p>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Số năm kinh nghiệm (phải lớn hơn 0)</li>
+            <li>Lời giới thiệu về bản thân (bio)</li>
+          </ul>
+        </div>
+
+        <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #0284c7;">Hướng dẫn:</h3>
+          <p>1. Đăng nhập vào hệ thống MedConnect bằng email: <strong>${
+            user.email
+          }</strong></p>
+          <p>2. Vào phần <strong>"Cài đặt"</strong> hoặc <strong>"Hồ sơ"</strong> để cập nhật thông tin</p>
+          <p>3. Điền đầy đủ các thông tin còn thiếu</p>
+          <p>4. Sau khi điền đủ thông tin, tài khoản của bạn sẽ tự động được kích hoạt</p>
+          <p style="margin-top: 15px;">
+            <a href="${
+              process.env.CLIENT_URL || "http://localhost:5173"
+            }/auth/login" 
+               style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Đăng nhập ngay
+            </a>
+          </p>
+        </div>
+
+        <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #047857;">Lưu ý:</h3>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Bạn có thể đăng nhập vào hệ thống để cập nhật thông tin cá nhân</li>
+            <li>Tài khoản của bạn sẽ không hiển thị trong danh sách bác sĩ cho bệnh nhân chọn cho đến khi bạn điền đủ thông tin</li>
+            <li>Sau khi điền đủ thông tin, tài khoản sẽ tự động được kích hoạt và bạn có thể nhận lịch hẹn</li>
+          </ul>
+        </div>
+        
+        <p style="margin-top: 30px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
+        
+        <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect - Đội ngũ quản trị</strong></p>
+      </div>
+    `;
+
+    const textContent = `
+Tài khoản của bạn đã được xác minh - Cần bổ sung thông tin
+
+Xin chào ${doctorName},
+
+Tài khoản bác sĩ của bạn đã được xác minh thành công vào ngày ${verificationDate}.
+
+⚠️ Thông tin quan trọng:
+Tài khoản của bạn hiện đang ở trạng thái tạm khóa vì chưa điền đầy đủ thông tin cần thiết.
+
+Để bắt đầu hoạt động, bạn cần điền đầy đủ các thông tin sau:
+- Số năm kinh nghiệm (phải lớn hơn 0)
+- Lời giới thiệu về bản thân (bio)
+
+Hướng dẫn:
+1. Đăng nhập vào hệ thống MedConnect bằng email: ${user.email}
+2. Vào phần "Cài đặt" hoặc "Hồ sơ" để cập nhật thông tin
+3. Điền đầy đủ các thông tin còn thiếu
+4. Sau khi điền đủ thông tin, tài khoản của bạn sẽ tự động được kích hoạt
+
+Link đăng nhập: ${process.env.CLIENT_URL || "http://localhost:5173"}/auth/login
+
+Lưu ý:
+- Bạn có thể đăng nhập vào hệ thống để cập nhật thông tin cá nhân
+- Tài khoản của bạn sẽ không hiển thị trong danh sách bác sĩ cho bệnh nhân chọn cho đến khi bạn điền đủ thông tin
+- Sau khi điền đủ thông tin, tài khoản sẽ tự động được kích hoạt và bạn có thể nhận lịch hẹn
+
+Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.
+
+Trân trọng,
+MedConnect - Đội ngũ quản trị
+    `;
+
+    const { sendMail } = await import("../utils/email.js");
+    const emailResult = await sendMail({
+      to: user.email,
+      subject:
+        "Tài khoản của bạn đã được xác minh - Cần bổ sung thông tin - MedConnect",
+      text: textContent,
+      html: htmlContent,
+    });
+  } catch (error) {
+    console.error("❌ Error sending doctor suspension email:", error);
+    // Không throw error để không ảnh hưởng đến flow chính
+  }
+}
+
 // Helper function: Send rejection email to doctor
 async function sendDoctorRejectionEmail(doctor, user, reason, rejectedBy) {
   try {
@@ -818,15 +1023,18 @@ export const approveDoctor = async (req, res) => {
       );
     }
 
-    // Update User status to 'active' and verify email/phone so doctor can login
+    // Update User status based on whether doctor can be active
     if (doctor.userId) {
       // Handle both ObjectId and populated object
       const userId = doctor.userId._id || doctor.userId;
 
+      // If doctor can be active, set status to "active", otherwise set to "suspended"
+      const userStatus = canBeActive ? "active" : "suspended";
+
       const user = await User.findByIdAndUpdate(
         userId,
         {
-          status: "active",
+          status: userStatus,
           emailVerified: true, // Verify email when doctor is approved
           phoneVerified: true, // Verify phone when doctor is approved
         },
@@ -861,11 +1069,17 @@ export const approveDoctor = async (req, res) => {
         await User.findById(userId);
       }
 
-      // Send approval email (don't block on error)
+      // Send appropriate email based on status
       try {
-        await sendDoctorApprovalEmail(doctor, user || doctor.userId);
+        if (canBeActive) {
+          // Doctor has all required info → send approval email
+          await sendDoctorApprovalEmail(doctor, user || doctor.userId);
+        } else {
+          // Doctor missing required info → send suspension email
+          await sendDoctorSuspensionEmail(doctor, user || doctor.userId);
+        }
       } catch (emailError) {
-        console.error("❌ Failed to send approval email:", emailError);
+        console.error("❌ Failed to send email:", emailError);
         console.error("❌ Error details:", {
           message: emailError?.message,
           cause: emailError?.cause?.message,
@@ -1092,6 +1306,36 @@ export const getAllUsers = async (req, res) => {
                     { isActive: false }
                   );
                 }
+                // If user status is "active" but doctor cannot be active, set to "suspended"
+                if (user.status === "active") {
+                  await User.findByIdAndUpdate(user._id, {
+                    status: "suspended",
+                  });
+                  user.status = "suspended";
+                }
+              } else {
+                // Doctor can be active - set flag and ensure status is correct
+                user._canBeActive = true;
+                // If doctor is verified and can be active, ensure isActive = true
+                const fullDoctor = await Doctor.findById(doctor._id);
+                if (
+                  fullDoctor &&
+                  fullDoctor.isVerified &&
+                  !fullDoctor.isActive
+                ) {
+                  await Doctor.updateOne(
+                    { _id: doctor._id },
+                    { isActive: true }
+                  );
+                }
+                // If user status is "suspended" but doctor can be active, auto-activate
+                if (user.status === "suspended") {
+                  await User.findByIdAndUpdate(user._id, { status: "active" });
+                  user.status = "active";
+                  console.log(
+                    `✅ Auto-activated User ${user._id} status from 'suspended' to 'active' in getAllUsers (doctor can be active)`
+                  );
+                }
               }
             }
           } catch (error) {
@@ -1102,13 +1346,24 @@ export const getAllUsers = async (req, res) => {
           }
         }
 
-        // Determine status
+        // Determine status - prioritize user.status over _canBeActive check
         let userStatus;
-        if (user.role === "doctor" && user._canBeActive === false) {
+        if (user.status === "banned") {
+          userStatus = "banned";
+        } else if (user.status === "active") {
+          // If user status is active, trust it (it may have been auto-updated)
+          userStatus = "active";
+        } else if (user.status === "suspended") {
+          // If suspended, check if doctor can now be active (might have been updated)
+          if (user.role === "doctor" && user._canBeActive === true) {
+            // Doctor can be active now, use active status (already updated above)
+            userStatus = "active";
+          } else {
+            userStatus = "suspended";
+          }
+        } else if (user.role === "doctor" && user._canBeActive === false) {
           // Doctor cannot be active (missing required fields) → show as "suspended" (Tạm khóa)
           userStatus = "suspended";
-        } else if (user.status === "active") {
-          userStatus = "active";
         } else if (user.status === "blocked") {
           userStatus = "suspended";
         } else {
@@ -1141,14 +1396,14 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-// Suspend user
-export const suspendUser = async (req, res) => {
+// Ban user - Account vẫn tồn tại nhưng không thể đăng nhập và đăng ký lại với thông tin cũ
+export const banUser = async (req, res) => {
   try {
     const { id } = req.params;
 
     const user = await User.findByIdAndUpdate(
       id,
-      { status: "blocked" },
+      { status: "banned" },
       { new: true }
     );
 
@@ -1157,6 +1412,47 @@ export const suspendUser = async (req, res) => {
         success: false,
         message: "Không tìm thấy người dùng",
       });
+    }
+
+    // If user is a doctor, also set isActive = false
+    if (user.role === "doctor") {
+      await Doctor.findOneAndUpdate({ userId: id }, { isActive: false });
+    }
+
+    res.json({
+      success: true,
+      message: "Đã cấm người dùng",
+    });
+  } catch (error) {
+    console.error("Error banning user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi cấm người dùng",
+    });
+  }
+};
+
+// Suspend user - Có thể đăng nhập nhưng chỉ sửa thông tin cá nhân, không dùng được chức năng khác
+export const suspendUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      { status: "suspended" },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng",
+      });
+    }
+
+    // If user is a doctor, also set isActive = false so they don't appear in doctor list
+    if (user.role === "doctor") {
+      await Doctor.findOneAndUpdate({ userId: id }, { isActive: false });
     }
 
     res.json({
@@ -1256,6 +1552,26 @@ export const getUserDetails = async (req, res) => {
               // Update the roleSpecificData to reflect the change
               roleSpecificData.isActive = false;
             }
+            // If user status is "active" but doctor cannot be active, set to "suspended"
+            if (user.status === "active") {
+              await User.findByIdAndUpdate(id, { status: "suspended" });
+              user.status = "suspended";
+            }
+          } else {
+            // Doctor can be active - ensure status is correct
+            // If doctor is verified and can be active, ensure isActive = true
+            if (doctor.isVerified && !doctor.isActive) {
+              await Doctor.updateOne({ _id: doctor._id }, { isActive: true });
+              roleSpecificData.isActive = true;
+            }
+            // If user status is "suspended" but doctor can be active, auto-activate
+            if (user.status === "suspended") {
+              await User.findByIdAndUpdate(id, { status: "active" });
+              user.status = "active";
+              console.log(
+                `✅ Auto-activated User ${id} status from 'suspended' to 'active' in getUserDetails (doctor can be active)`
+              );
+            }
           }
         }
       } catch (error) {
@@ -1267,10 +1583,30 @@ export const getUserDetails = async (req, res) => {
       roleSpecificData = null;
     }
 
-    // Determine final status for response
+    // Determine final status for response - prioritize user.status
     let finalStatus = user.status;
-    if (user.role === "doctor" && roleSpecificData) {
-      // Check if doctor can be active
+    if (user.status === "banned") {
+      finalStatus = "banned";
+    } else if (user.status === "active") {
+      // If user status is active, trust it (it may have been auto-updated)
+      finalStatus = "active";
+    } else if (user.status === "suspended") {
+      // If suspended, check if doctor can now be active (might have been updated above)
+      if (user.role === "doctor" && roleSpecificData) {
+        const canBeActiveCheck = await checkDoctorCanBeActive(
+          roleSpecificData._id
+        );
+        if (canBeActiveCheck.canBeActive && roleSpecificData.isActive) {
+          // Doctor can be active now, use active status (already updated above)
+          finalStatus = "active";
+        } else {
+          finalStatus = "suspended";
+        }
+      } else {
+        finalStatus = "suspended";
+      }
+    } else if (user.role === "doctor" && roleSpecificData) {
+      // Check if doctor can be active (for other statuses)
       const canBeActiveCheck = await checkDoctorCanBeActive(
         roleSpecificData._id
       );
@@ -1279,8 +1615,6 @@ export const getUserDetails = async (req, res) => {
       } else {
         finalStatus = "active";
       }
-    } else if (user.status === "active") {
-      finalStatus = "active";
     } else if (user.status === "blocked") {
       finalStatus = "suspended";
     }
@@ -1316,8 +1650,14 @@ export const updateUser = async (req, res) => {
     delete updateData.password;
 
     // Extract doctor-specific fields
-    const { specializationIds, yearsExperience, bio, clinicDefaultId, status } =
-      updateData;
+    const {
+      specializationIds,
+      yearsExperience,
+      bio,
+      clinicDefaultId,
+      status,
+      educationLevel,
+    } = updateData;
 
     // Remove doctor-specific fields from user update data
     const userUpdateData = { ...updateData };
@@ -1325,6 +1665,7 @@ export const updateUser = async (req, res) => {
     delete userUpdateData.yearsExperience;
     delete userUpdateData.bio;
     delete userUpdateData.clinicDefaultId;
+    delete userUpdateData.educationLevel;
 
     // Handle status field: "suspended" is only for display (doctor isActive = false)
     // User model only accepts: "active", "blocked", "pending", "rejected"
@@ -1380,6 +1721,9 @@ export const updateUser = async (req, res) => {
         doctorUpdateData.clinicDefaultId =
           clinicDefaultId && clinicDefaultId !== "" ? clinicDefaultId : null;
       }
+      if (educationLevel !== undefined) {
+        doctorUpdateData.educationLevel = educationLevel || null;
+      }
 
       if (Object.keys(doctorUpdateData).length > 0) {
         try {
@@ -1394,14 +1738,38 @@ export const updateUser = async (req, res) => {
               `Doctor profile not found for user ${id}, but user update succeeded`
             );
           } else {
+            // If educationLevel was updated, sync DoctorRate from EducationLevelPrice
+            if (educationLevel !== undefined && educationLevel) {
+              try {
+                await syncDoctorRatesFromEducationLevel(
+                  doctor._id,
+                  educationLevel
+                );
+                console.log(
+                  `✅ Synced DoctorRate for doctor ${doctor._id} with educationLevel ${educationLevel}`
+                );
+              } catch (rateError) {
+                console.error("Error syncing doctor rates:", rateError);
+                // Don't fail the update if rate sync fails, just log it
+              }
+            }
+
             // If doctor is verified but not active, check if they can now be active
-            // (manager might have just filled in required fields: yearsExperience, bio)
+            // (doctor might have just filled in required fields: yearsExperience, bio, educationLevel)
             if (doctor.isVerified && !doctor.isActive) {
               try {
                 const activeCheck = await checkDoctorCanBeActive(doctor._id);
                 if (activeCheck.canBeActive) {
                   doctor.isActive = true;
                   await doctor.save();
+
+                  // Auto-activate user status from "suspended" to "active" when doctor fills in all required info
+                  if (user.status === "suspended") {
+                    await User.findByIdAndUpdate(id, { status: "active" });
+                    console.log(
+                      `✅ Auto-activated User ${id} status from 'suspended' to 'active' (doctor filled in all required info)`
+                    );
+                  }
                 }
               } catch (activeCheckError) {
                 console.error(
@@ -1898,14 +2266,19 @@ export const deleteSpecialization = async (req, res) => {
     const { id } = req.params;
 
     // Check if any doctors are using this specialization
-    const doctorCount = await Doctor.countDocuments({ specializationIds: id });
+    const doctors = await Doctor.find({ specializationIds: id });
+    const doctorCount = doctors.length;
+
+    // If there are doctors using this specialization, remove it from their specializationIds
     if (doctorCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Không thể xóa chuyên khoa này vì có ${doctorCount} bác sĩ đang sử dụng`,
-      });
+      // Remove this specialization from all doctors' specializationIds array
+      await Doctor.updateMany(
+        { specializationIds: id },
+        { $pull: { specializationIds: id } }
+      );
     }
 
+    // Delete the specialization
     const specialization = await Specialization.findByIdAndDelete(id);
 
     if (!specialization) {
@@ -1915,9 +2288,16 @@ export const deleteSpecialization = async (req, res) => {
       });
     }
 
+    // Return success message with info about doctors affected
+    const message =
+      doctorCount > 0
+        ? `Đã xóa chuyên khoa thành công. Đã tự động xóa chuyên khoa này khỏi ${doctorCount} bác sĩ.`
+        : "Đã xóa chuyên khoa thành công";
+
     res.json({
       success: true,
-      message: "Đã xóa chuyên khoa thành công",
+      message,
+      doctorsAffected: doctorCount,
     });
   } catch (error) {
     console.error("Error deleting specialization:", error);

@@ -39,6 +39,7 @@ const ProfileSettings = () => {
   const [loading, setLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingLicense, setUploadingLicense] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -54,6 +55,7 @@ const ProfileSettings = () => {
     licenseNo: "",
     graduationYear: "",
     yearsExperience: 0,
+    educationLevel: "",
     ratingAvg: 0,
     ratingCount: 0,
   });
@@ -97,6 +99,7 @@ const ProfileSettings = () => {
             licenseNo: doctor.licenseNo || "",
             graduationYear: doctor.education?.[0]?.year || "",
             yearsExperience: doctor.yearsExperience || 0,
+            educationLevel: doctor.educationLevel || "",
             ratingAvg: doctor.ratingAvg || 0,
             ratingCount: doctor.ratingCount || 0,
           });
@@ -120,8 +123,10 @@ const ProfileSettings = () => {
 
   const handleSave = async () => {
     try {
-      console.log("🔄 Sending data to API:", formData);
-      const response = await updateDoctorProfile(formData);
+      // Remove email from formData as it should not be editable by doctor
+      const { email, ...updateData } = formData;
+      console.log("🔄 Sending data to API:", updateData);
+      const response = await updateDoctorProfile(updateData);
       console.log("✅ API Response:", response);
 
       if (response) {
@@ -146,6 +151,7 @@ const ProfileSettings = () => {
             licenseNo: updatedDoctor.licenseNo || "",
             graduationYear: updatedDoctor.education?.[0]?.year || "",
             yearsExperience: updatedDoctor.yearsExperience || 0,
+            educationLevel: updatedDoctor.educationLevel || "",
             ratingAvg: updatedDoctor.ratingAvg || 0,
             ratingCount: updatedDoctor.ratingCount || 0,
           });
@@ -325,7 +331,7 @@ const ProfileSettings = () => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const img = new window.Image()
+        const img = new window.Image();
         img.onload = () => {
           const canvas = document.createElement("canvas");
           let width = img.width;
@@ -394,6 +400,42 @@ const ProfileSettings = () => {
       alert("Có lỗi xảy ra khi cập nhật ảnh đại diện");
     } finally {
       setUploadingAvatar(false);
+      // Reset file input
+      e.target.value = "";
+    }
+  };
+
+  const handleLicenseImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Ảnh quá lớn, vui lòng chọn ảnh nhỏ hơn 5MB");
+      return;
+    }
+
+    setUploadingLicense(true);
+    try {
+      // Resize image
+      const compressedImage = await resizeImage(file, 1200, 1200, 0.8);
+
+      // Update license image via API - need to check what field name is used
+      // Assuming it's licenseImageUrl or licenseImage
+      await updateDoctorProfile({ licenseImageUrl: compressedImage });
+
+      // Refresh doctor info
+      const updatedDoctor = await getDoctorProfileWithFallback();
+      if (updatedDoctor) {
+        setDoctorInfo(updatedDoctor);
+      }
+
+      alert("Cập nhật ảnh chứng chỉ hành nghề thành công!");
+    } catch (error) {
+      console.error("Error updating license image:", error);
+      alert("Có lỗi xảy ra khi cập nhật ảnh chứng chỉ hành nghề");
+    } finally {
+      setUploadingLicense(false);
       // Reset file input
       e.target.value = "";
     }
@@ -476,8 +518,19 @@ const ProfileSettings = () => {
                   icon={Mail}
                   type="email"
                   value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  disabled={true}
+                  onChange={() => {}}
                 />
+                <p
+                  style={{
+                    marginTop: "0.5rem",
+                    fontSize: "0.75rem",
+                    color: "#666",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Nếu muốn thay đổi email vui lòng làm việc với admin
+                </p>
               </div>
               <div className="formGroup">
                 <FormField
@@ -543,16 +596,113 @@ const ProfileSettings = () => {
                 </label>
                 <div
                   style={{
-                    padding: "0.75rem",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border)",
-                    backgroundColor: "#f5f5f5",
-                    fontSize: "0.875rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <div className="inputWrapper" style={{ flex: 1 }}>
+                    <Calendar
+                      size={18}
+                      className="icon"
+                      style={{ color: "#06b6d4" }}
+                    />
+                    <input
+                      type="text"
+                      value={
+                        formData.yearsExperience === 0
+                          ? ""
+                          : formData.yearsExperience || ""
+                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow empty string or numbers only
+                        if (value === "" || /^\d+$/.test(value)) {
+                          if (value === "") {
+                            handleInputChange("yearsExperience", 0);
+                          } else {
+                            const numValue = parseInt(value, 10);
+                            // Allow typing, but cap at 100
+                            if (numValue > 100) {
+                              handleInputChange("yearsExperience", 100);
+                            } else {
+                              handleInputChange("yearsExperience", numValue);
+                            }
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // Ensure value is set to 0 if empty on blur
+                        const value = e.target.value.trim();
+                        if (value === "" || isNaN(parseInt(value, 10))) {
+                          handleInputChange("yearsExperience", 0);
+                        } else {
+                          const numValue = parseInt(value, 10);
+                          // Cap at 100 if exceeds limit
+                          if (numValue > 100) {
+                            handleInputChange("yearsExperience", 100);
+                          } else if (numValue < 0) {
+                            handleInputChange("yearsExperience", 0);
+                          }
+                        }
+                      }}
+                      placeholder="0"
+                      style={{
+                        flex: 1,
+                        border: "none",
+                        outline: "none",
+                        padding: 0,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Education Level Section */}
+              <div
+                style={{
+                  marginTop: "1.5rem",
+                  paddingTop: "1.5rem",
+                  borderTop: "1px solid var(--border)",
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginBottom: "0.5rem",
                     fontWeight: 600,
                     color: "var(--foreground)",
                   }}
                 >
-                  {formData.yearsExperience || 0} năm
+                  Trình độ học vấn *
+                </label>
+                <div className="inputWrapper">
+                  <select
+                    value={formData.educationLevel || ""}
+                    onChange={(e) =>
+                      handleInputChange("educationLevel", e.target.value)
+                    }
+                    required
+                    style={{
+                      flex: 1,
+                      border: "none",
+                      outline: "none",
+                      padding: 0,
+                      fontSize: "0.875rem",
+                      fontFamily: "inherit",
+                      background: "transparent",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <option value="">Chọn trình độ học vấn</option>
+                    <option value="Bác sĩ">Bác sĩ</option>
+                    <option value="Thạc sĩ">Thạc sĩ</option>
+                    <option value="Tiến sĩ">Tiến sĩ</option>
+                    <option value="Phó Giáo Sư">Phó Giáo Sư</option>
+                    <option value="Giáo Sư">Giáo Sư</option>
+                  </select>
                 </div>
               </div>
 
@@ -578,12 +728,11 @@ const ProfileSettings = () => {
                   Giới thiệu
                 </label>
                 <textarea
-                  rows="2"
+                  rows="4"
                   value={formData.bio}
                   onChange={(e) => handleInputChange("bio", e.target.value)}
                   placeholder="Nhập thông tin giới thiệu về bạn..."
                   className="textarea"
-                  disabled={true}
                   style={{
                     width: "100%",
                     padding: "0.75rem",
@@ -592,40 +741,38 @@ const ProfileSettings = () => {
                     fontSize: "0.875rem",
                     fontFamily: "inherit",
                     resize: "vertical",
-                    backgroundColor: "#f5f5f5",
-                    cursor: "not-allowed",
                   }}
                 />
               </div>
 
               {/* License Certificate Image */}
-              {doctorInfo?.licenseImageUrl && (
-                <div
+              <div
+                style={{
+                  marginTop: "1.5rem",
+                  paddingTop: "1.5rem",
+                  borderTop: "1px solid var(--border)",
+                }}
+              >
+                <label
                   style={{
-                    marginTop: "1.5rem",
-                    paddingTop: "1.5rem",
-                    borderTop: "1px solid var(--border)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginBottom: "0.75rem",
+                    fontWeight: 600,
+                    color: "var(--foreground)",
                   }}
                 >
-                  <p
-                    style={{
-                      fontSize: "0.875rem",
-                      fontWeight: 600,
-                      color: "var(--foreground)",
-                      marginBottom: "0.75rem",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    <Award size={16} style={{ color: "#06b6d4" }} />
-                    Chứng chỉ hành nghề:
-                  </p>
+                  <Award size={16} style={{ color: "#06b6d4" }} />
+                  Chứng chỉ hành nghề:
+                </label>
+                {doctorInfo?.licenseImageUrl ? (
                   <div
                     style={{
                       display: "flex",
-                      justifyContent: "center",
+                      flexDirection: "column",
                       alignItems: "center",
+                      gap: "1rem",
                     }}
                   >
                     <Image
@@ -642,9 +789,131 @@ const ProfileSettings = () => {
                         mask: "Xem ảnh",
                       }}
                     />
+                    <input
+                      type="file"
+                      id="license-input"
+                      accept="image/*"
+                      onChange={handleLicenseImageChange}
+                      disabled={uploadingLicense}
+                      style={{ display: "none" }}
+                    />
+                    <label
+                      htmlFor="license-input"
+                      style={{
+                        padding: "0.5rem 1rem",
+                        borderRadius: "6px",
+                        border: "1px solid var(--border)",
+                        backgroundColor: "#fff",
+                        cursor: uploadingLicense ? "not-allowed" : "pointer",
+                        fontSize: "0.875rem",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        opacity: uploadingLicense ? 0.6 : 1,
+                      }}
+                    >
+                      <Upload size={16} />
+                      {uploadingLicense
+                        ? "Đang tải lên..."
+                        : "Thay đổi ảnh chứng chỉ"}
+                    </label>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "1rem",
+                      padding: "2rem",
+                      border: "2px dashed var(--border)",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <Award size={48} style={{ color: "#ccc" }} />
+                    <p
+                      style={{
+                        fontSize: "0.875rem",
+                        color: "#666",
+                        margin: 0,
+                      }}
+                    >
+                      Chưa có ảnh chứng chỉ hành nghề
+                    </p>
+                    <input
+                      type="file"
+                      id="license-input"
+                      accept="image/*"
+                      onChange={handleLicenseImageChange}
+                      disabled={uploadingLicense}
+                      style={{ display: "none" }}
+                    />
+                    <label
+                      htmlFor="license-input"
+                      style={{
+                        padding: "0.5rem 1rem",
+                        borderRadius: "6px",
+                        border: "1px solid var(--border)",
+                        backgroundColor: "#fff",
+                        cursor: uploadingLicense ? "not-allowed" : "pointer",
+                        fontSize: "0.875rem",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        opacity: uploadingLicense ? 0.6 : 1,
+                      }}
+                    >
+                      <Upload size={16} />
+                      {uploadingLicense
+                        ? "Đang tải lên..."
+                        : "Tải ảnh chứng chỉ lên"}
+                    </label>
+                  </div>
+                )}
+                <p
+                  style={{
+                    marginTop: "0.5rem",
+                    fontSize: "0.75rem",
+                    color: "#666",
+                    textAlign: "center",
+                  }}
+                >
+                  JPG, PNG (Tối đa 5MB)
+                </p>
+              </div>
+
+              {/* Save Button */}
+              <div
+                style={{
+                  marginTop: "1.5rem",
+                  paddingTop: "1.5rem",
+                  borderTop: "1px solid var(--border)",
+                }}
+              >
+                <button
+                  onClick={handleSave}
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem 1.5rem",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor: "#06b6d4",
+                    color: "#fff",
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "background-color 0.2s",
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.backgroundColor = "#0891b2";
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.backgroundColor = "#06b6d4";
+                  }}
+                >
+                  Lưu thay đổi
+                </button>
+              </div>
             </div>
 
             {/* Security */}

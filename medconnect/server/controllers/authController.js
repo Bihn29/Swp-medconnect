@@ -11,6 +11,8 @@ import Patient from "../models/patient.model.js";
 import Doctor from "../models/doctor.model.js";
 import AuthProvider from "../models/auth_providers.model.js";
 import PasswordReset from "../models/passwordReset.model.js";
+import DoctorRate from "../models/doctor_rates.model.js";
+import EducationLevelPrice from "../models/educationLevelPrice.model.js";
 import { ok, fail } from "../utils/response.js";
 import {
   COOKIE_NAME,
@@ -101,7 +103,21 @@ export async function loginPassword(req, res) {
       }
     }
 
-    if (user.status !== "active") {
+    // Check banned status - cannot login
+    if (user.status === "banned") {
+      return fail(
+        res,
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "Tài khoản của bạn đã bị cấm. Vui lòng liên hệ quản trị viên."
+      );
+    }
+
+    // Check suspended status - can login but only to edit profile
+    if (user.status === "suspended") {
+      // Allow login for suspended users - they can only edit their profile
+      // We'll handle this in the frontend/middleware to restrict functionality
+    } else if (user.status !== "active") {
       return fail(
         res,
         403,
@@ -309,6 +325,15 @@ export async function registerDoctor(req, res) {
       email: email.toLowerCase(),
     }).lean();
     if (existingUserByEmail) {
+      // If user is banned, don't allow re-registration with same email
+      if (existingUserByEmail.status === "banned") {
+        return fail(
+          res,
+          403,
+          ERROR_CODES.FORBIDDEN,
+          "Email này đã bị cấm. Vui lòng liên hệ quản trị viên."
+        );
+      }
       return fail(
         res,
         409,
@@ -331,6 +356,15 @@ export async function registerDoctor(req, res) {
       phone: normalizedPhone,
     }).lean();
     if (existingUserByPhone) {
+      // If user is banned, don't allow re-registration with same phone
+      if (existingUserByPhone.status === "banned") {
+        return fail(
+          res,
+          403,
+          ERROR_CODES.FORBIDDEN,
+          "Số điện thoại này đã bị cấm. Vui lòng liên hệ quản trị viên."
+        );
+      }
       return fail(
         res,
         409,
@@ -576,6 +610,15 @@ export async function register(req, res) {
       email: email.toLowerCase(),
     }).lean();
     if (existingUserByEmail) {
+      // If user is banned, don't allow re-registration with same email
+      if (existingUserByEmail.status === "banned") {
+        return fail(
+          res,
+          403,
+          ERROR_CODES.FORBIDDEN,
+          "Email này đã bị cấm. Vui lòng liên hệ quản trị viên."
+        );
+      }
       return fail(
         res,
         409,
@@ -598,6 +641,15 @@ export async function register(req, res) {
       phone: normalizedPhone,
     }).lean();
     if (existingUserByPhone) {
+      // If user is banned, don't allow re-registration with same phone
+      if (existingUserByPhone.status === "banned") {
+        return fail(
+          res,
+          403,
+          ERROR_CODES.FORBIDDEN,
+          "Số điện thoại này đã bị cấm. Vui lòng liên hệ quản trị viên."
+        );
+      }
       return fail(
         res,
         409,
