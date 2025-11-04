@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -18,16 +18,19 @@ import {
   SortAsc,
   SortDesc,
   CheckSquare,
+  FileText,
 } from "lucide-react";
 import { Input } from "../../../components/ui/Input";
 import {
   getDoctorAppointmentsWithFallback,
   updateAppointmentStatus,
 } from "../../../lib/api";
+import ServiceInvoice from "../ServiceInvoice/ServiceInvoice";
 import "./AppointmentList.scss";
 
 export default function AppointmentList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -43,6 +46,9 @@ export default function AppointmentList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 1000; // Hiển thị tất cả appointments
+  const [showServiceInvoice, setShowServiceInvoice] = useState(false);
+  const [selectedInvoiceAppointment, setSelectedInvoiceAppointment] =
+    useState(null);
 
   // Filter and sort states
   const [filters, setFilters] = useState({
@@ -56,35 +62,44 @@ export default function AppointmentList() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch appointments from API
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        // Fetch all appointments without pagination limit
-        const response = await getDoctorAppointmentsWithFallback({
-          limit: 1000,
-        });
+  const fetchAppointments = async () => {
+    try {
+      // Fetch all appointments without pagination limit
+      const response = await getDoctorAppointmentsWithFallback({
+        limit: 1000,
+      });
 
-        if (response.success && response.data?.appointments) {
-          console.log("📋 Appointments data:", response.data.appointments);
-          console.log(
-            "📋 First appointment mode:",
-            response.data.appointments[0]?.mode
-          );
-          setAppointments(response.data.appointments);
-        } else {
-          console.log("❌ No appointments found");
-          setAppointments([]);
-        }
-      } catch (error) {
-        console.error("Error fetching appointments:", error);
+      if (response.success && response.data?.appointments) {
+        console.log("📋 Appointments data:", response.data.appointments);
+        console.log(
+          "📋 First appointment mode:",
+          response.data.appointments[0]?.mode
+        );
+        setAppointments(response.data.appointments);
+      } else {
+        console.log("❌ No appointments found");
         setAppointments([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Fetch appointments on mount and when location changes (e.g., returning from payment result page)
+  useEffect(() => {
     fetchAppointments();
-  }, []);
+  }, [location.pathname, location.state?.timestamp]);
+  
+  // Reload appointments when coming back from payment result page
+  useEffect(() => {
+    if (location.state?.shouldReload) {
+      console.log("🔄 Reloading appointments after payment...");
+      fetchAppointments();
+    }
+  }, [location.state?.shouldReload]);
 
   const handleViewRepresentativeInfo = (appointment) => {
     console.log("🔍 Viewing representative info for appointment:", appointment);
@@ -447,7 +462,7 @@ export default function AppointmentList() {
 
     // Thêm thông báo xác nhận
     const confirmed = window.confirm(
-      `Bạn có chắc chắn muốn hoàn thành khám cho ${patientName}?`
+      `Bạn có chắc chắn muốn lưu hồ sơ cho ${patientName}?`
     );
 
     if (!confirmed) {
@@ -489,6 +504,45 @@ export default function AppointmentList() {
       navigate(`/bac-si/tu-van-truc-tuyen/${appointment._id}`);
     } else {
       alert("Lỗi: Không xác định được loại khám (online/offline)");
+    }
+  };
+
+  const handleNoService = async (appointment) => {
+    const patientName =
+      appointment.patientId?.fullName ||
+      appointment.patient?.fullName ||
+      "bệnh nhân";
+
+    // Thêm thông báo xác nhận
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn hoàn thành khám cho ${patientName} mà không có dịch vụ?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setUpdatingAppointments((prev) => new Set(prev).add(appointment._id));
+    try {
+      await updateAppointmentStatus(appointment._id, "done");
+      
+      // Cập nhật trạng thái ngay lập tức trong UI
+      setAppointments((prevAppointments) =>
+        prevAppointments.map((apt) =>
+          apt._id === appointment._id ? { ...apt, status: "done" } : apt
+        )
+      );
+
+      alert(`Đã hoàn thành khám cho ${patientName}`);
+    } catch (error) {
+      console.error("Error updating appointment status:", error);
+      alert("Có lỗi xảy ra khi cập nhật trạng thái: " + error.message);
+    } finally {
+      setUpdatingAppointments((prev) => {
+        const next = new Set(prev);
+        next.delete(appointment._id);
+        return next;
+      });
     }
   };
 
@@ -992,7 +1046,8 @@ export default function AppointmentList() {
                             </Button>
                           </>
                         )}
-                        {apt.status === "in_progress" && (
+                        {/* Nút "Lưu hồ sơ" chỉ hiển thị khi chưa lưu hồ sơ */}
+                        {apt.status === "in_progress" && !apt.hasConsultationRecord && (
                           <Button
                             size="sm"
                             variant="secondary"
@@ -1001,13 +1056,45 @@ export default function AppointmentList() {
                           >
                             {updatingAppointments.has(apt._id)
                               ? "Đang xử lý..."
-                              : "Hoàn thành"}
+                              : "Lưu hồ sơ"}
                           </Button>
                         )}
-                        {(apt.status === "done" ||
-                          apt.status === "rejected" ||
+                        {/* Offline: Chỉ hiển thị 2 nút sau khi đã lưu hồ sơ, nhưng chưa hoàn thành */}
+                        {apt.mode === "offline" && 
+                         apt.hasConsultationRecord &&
+                         apt.status === "in_progress" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                setSelectedInvoiceAppointment(apt);
+                                setShowServiceInvoice(true);
+                              }}
+                            >
+                              <FileText className="w-4 h-4" />
+                              Hóa đơn dịch vụ
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleNoService(apt)}
+                              disabled={updatingAppointments.has(apt._id)}
+                              className="ml-2"
+                            >
+                              {updatingAppointments.has(apt._id)
+                                ? "Đang xử lý..."
+                                : "Không dịch vụ"}
+                            </Button>
+                          </>
+                        )}
+                        {(apt.status === "rejected" ||
                           apt.status === "cancelled" ||
                           apt.status === "no_show") && (
+                          <span className="appointment-list-no-action">-</span>
+                        )}
+                        {/* Không hiển thị nút khi status là "done" (cho cả online và offline) */}
+                        {apt.status === "done" && (
                           <span className="appointment-list-no-action">-</span>
                         )}
                       </div>
@@ -1560,6 +1647,35 @@ export default function AppointmentList() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Service Invoice Modal */}
+      {showServiceInvoice && selectedInvoiceAppointment && (
+        <ServiceInvoice
+          appointment={selectedInvoiceAppointment}
+          onClose={() => {
+            setShowServiceInvoice(false);
+            setSelectedInvoiceAppointment(null);
+          }}
+          onSuccess={() => {
+            // Refresh appointments list
+            const fetchAppointments = async () => {
+              try {
+                const response = await getDoctorAppointmentsWithFallback({
+                  limit: 1000,
+                });
+                if (response.success && response.data?.appointments) {
+                  setAppointments(response.data.appointments);
+                }
+              } catch (error) {
+                console.error("Error refreshing appointments:", error);
+              }
+            };
+            fetchAppointments();
+            setShowServiceInvoice(false);
+            setSelectedInvoiceAppointment(null);
+          }}
+        />
       )}
     </Card>
   );

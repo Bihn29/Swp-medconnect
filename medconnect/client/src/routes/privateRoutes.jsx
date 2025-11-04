@@ -39,6 +39,7 @@ import OnlineConsultationPage from "../pages/Doctor/OnlineConsultationPage/Onlin
 import { RescheduleRequests } from "../pages/Doctor/components/RescheduleRequests/RescheduleRequests";
 import { Notifications } from "../pages/Doctor/components/Notifications/Notifications";
 import DoctorVideoCallPage from "../pages/Doctor/DoctorVideoCallPage/DoctorVideoCallPage";
+import ServicePaymentResult from "../pages/Doctor/ServicePaymentResult/ServicePaymentResult";
 
 // Admin Components
 import AdminDashboard from "../pages/Admin/AdminDashboard";
@@ -53,6 +54,9 @@ import AdminLayout from "../layouts/AdminLayout/AdminLayout";
 import ManagerDashboard from "../pages/Manager/ManagerDashboard/ManagerDashboard";
 import ManagerScheduleManagement from "../pages/Manager/ManagerScheduleManagement/ManagerScheduleManagement";
 import LeaveRequestManagement from "../pages/Manager/LeaveRequestManagement/LeaveRequestManagement";
+import ServicePriceManagement from "../pages/Manager/ServicePriceManagement/ServicePriceManagement";
+import InvoiceManagement from "../pages/Manager/InvoiceManagement/InvoiceManagement";
+import ServicePaymentManagement from "../pages/Manager/ServicePaymentManagement/ServicePaymentManagement";
 import { Notifications as ManagerNotifications } from "../pages/Manager/Notifications/Notifications";
 import EducationLevelPriceManagement from "../pages/Manager/EducationLevelPriceManagement/EducationLevelPriceManagement";
 import ManagerLayout from "../layouts/ManagerLayout/ManagerLayout";
@@ -133,6 +137,10 @@ export const privateRoutes = (
           {/* Doctor appointment management routes */}
           <Route path="/bac-si/lich-hen" element={<AppointmentList />} />
           <Route path="/bac-si/lich-hen/:id" element={<AppointmentDetail />} />
+          <Route
+            path="/bac-si/lich-hen/service-payment-result"
+            element={<ServicePaymentResult />}
+          />
           <Route
             path="/bac-si/kham-truc-tiep/:appointmentId"
             element={<OfflineConsultationPage />}
@@ -235,6 +243,18 @@ export const privateRoutes = (
         <Route
           path="/manager/yeu-cau-nghi-phep"
           element={<LeaveRequestManagement />}
+        />
+        <Route
+          path="/manager/quan-ly-gia-dich-vu"
+          element={<ServicePriceManagement />}
+        />
+        <Route
+          path="/manager/quan-ly-hoa-don"
+          element={<InvoiceManagement />}
+        />
+        <Route
+          path="/manager/thanh-toan-dich-vu"
+          element={<ServicePaymentManagement />}
         />
         <Route path="/manager/thong-bao" element={<ManagerNotifications />} />
       </Route>

@@ -1019,10 +1019,37 @@ export async function getPatientAppointments(req, res) {
       }))
     );
 
+    // Ensure new fields have default values for backward compatibility
+    // Also ensure patientId is properly populated
+    const appointmentsWithDefaults = appointments.map((apt) => {
+      // Ensure patientId is properly populated
+      let patientId = apt.patientId;
+      if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
+        console.warn(`⚠️ Appointment ${apt._id} has invalid patientId:`, patientId);
+        patientId = {
+          _id: apt.patientId?._id || apt.patientId || null,
+          fullName: apt.patientId?.fullName || "Không có thông tin",
+          dob: apt.patientId?.dob || null,
+          gender: apt.patientId?.gender || null,
+          phone: apt.patientId?.phone || null,
+          relationshipToOwner: apt.patientId?.relationshipToOwner || null,
+        };
+      }
+      
+      return {
+        ...apt,
+        patientId, // Use properly populated patientId
+        services: apt.services || [],
+        totalPay: apt.totalPay !== undefined && apt.totalPay !== null ? apt.totalPay : 0,
+        amountPaid: apt.amountPaid !== undefined && apt.amountPaid !== null ? apt.amountPaid : 0,
+        paymentStatus: apt.paymentStatus || 'unpaid',
+      };
+    });
+
     const total = await Appointment.countDocuments(query);
 
     return ok(res, {
-      appointments,
+      appointments: appointmentsWithDefaults,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -1236,16 +1263,41 @@ export async function getAppointmentDetails(req, res) {
       appointment.doctorId.phone = appointment.doctorId.userId.phone;
     }
 
+    // Ensure patientId is properly populated
+    let patientId = appointment.patientId;
+    if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
+      console.warn(`⚠️ Appointment ${appointment._id} has invalid patientId:`, patientId);
+      patientId = {
+        _id: appointment.patientId?._id || appointment.patientId || null,
+        fullName: appointment.patientId?.fullName || "Không có thông tin",
+        dob: appointment.patientId?.dob || null,
+        gender: appointment.patientId?.gender || null,
+        phone: appointment.patientId?.phone || null,
+        relationshipToOwner: appointment.patientId?.relationshipToOwner || null,
+        userId: appointment.patientId?.userId || null,
+      };
+    }
+
+    // Ensure new fields have default values for backward compatibility
+    const appointmentWithDefaults = {
+      ...appointment,
+      patientId, // Use properly populated patientId
+      services: appointment.services || [],
+      totalPay: appointment.totalPay !== undefined && appointment.totalPay !== null ? appointment.totalPay : 0,
+      amountPaid: appointment.amountPaid !== undefined && appointment.amountPaid !== null ? appointment.amountPaid : 0,
+      paymentStatus: appointment.paymentStatus || 'unpaid',
+    };
+
     console.log("✅ Patient appointment detail fetched:", {
-      appointmentId: appointment._id.toString(),
-      status: appointment.status,
-      hasDoctor: !!appointment.doctorId,
-      doctorName: appointment.doctorId?.fullName || appointment.doctorId?.name,
-      doctorIdValue: appointment.doctorId,
-      appointmentData: JSON.stringify(appointment, null, 2),
+      appointmentId: appointmentWithDefaults._id.toString(),
+      status: appointmentWithDefaults.status,
+      hasDoctor: !!appointmentWithDefaults.doctorId,
+      doctorName: appointmentWithDefaults.doctorId?.fullName || appointmentWithDefaults.doctorId?.name,
+      hasPatient: !!appointmentWithDefaults.patientId,
+      patientName: appointmentWithDefaults.patientId?.fullName,
     });
 
-    return ok(res, appointment);
+    return ok(res, appointmentWithDefaults);
   } catch (error) {
     console.error("Error fetching appointment details:", error);
     console.error("Error stack:", error.stack);

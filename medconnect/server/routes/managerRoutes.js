@@ -11,6 +11,8 @@ import {
   blockSlotsByDateRangeForManager,
   unblockSlotsByDateRangeForManager,
   rescheduleAppointmentByManager,
+  getManagerInvoices,
+  deleteManagerInvoice,
   getDoctorPricingForManager,
   setDoctorPricingForManager,
   deleteDoctorPricingForManager,
@@ -18,12 +20,22 @@ import {
   getEducationLevelPrices,
   setEducationLevelPrice,
   deleteEducationLevelPrice,
+  getPendingServicePayments,
+  processCashPayment,
+  createBankTransferPayment,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
   approveLeaveRequest,
   rejectLeaveRequest,
 } from "../controllers/leaveRequestController.js";
+import {
+  getAllServicePrices,
+  getServicePriceById,
+  createServicePrice,
+  updateServicePrice,
+  deleteServicePrice,
+} from "../controllers/servicePriceController.js";
 
 const router = express.Router();
 
@@ -86,6 +98,22 @@ router.post(
   authGuard,
   rejectLeaveRequest
 );
+
+// Service price management routes (only for manager)
+router.get("/service-prices", authGuard, getAllServicePrices);
+router.get("/service-prices/:id", authGuard, getServicePriceById);
+router.post("/service-prices", authGuard, createServicePrice);
+router.put("/service-prices/:id", authGuard, updateServicePrice);
+router.delete("/service-prices/:id", authGuard, deleteServicePrice);
+
+// Invoice management routes (only for manager)
+router.get("/invoices", authGuard, getManagerInvoices);
+router.delete("/invoices/:invoiceId", authGuard, deleteManagerInvoice);
+
+// Service payment management routes (only for manager)
+router.get("/service-payments/pending", authGuard, getPendingServicePayments);
+router.post("/service-payments/:paymentId/cash", authGuard, processCashPayment);
+router.post("/service-payments/:paymentId/bank-transfer", authGuard, createBankTransferPayment);
 
 // Pricing routes
 router.get("/doctors/:doctorId/pricing", authGuard, getDoctorPricingForManager);

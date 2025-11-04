@@ -45,7 +45,14 @@ const PaymentSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Appointment",
       required: true,
-      unique: true,
+      // Bỏ unique để cho phép nhiều payment cho 1 appointment (booking + service)
+    },
+
+    invoiceType: {
+      type: String,
+      enum: ["booking", "service"],
+      required: true,
+      default: "booking",
     },
 
     invoiceNumber: { type: String, required: true, unique: true, trim: true },
@@ -66,15 +73,20 @@ const PaymentSchema = new Schema(
 
     gateway: {
       type: String,
-      enum: ["vnpay", "momo", "vietqr", "payos"],
-      required: true,
+      enum: ["vnpay", "momo", "vietqr", "payos", "cash"],
+      required: false, // Không required khi pending_manager
     },
-    method: { type: String, enum: ["qr", "card", "bank"], required: true },
+    method: { 
+      type: String, 
+      enum: ["qr", "card", "bank", "cash"], 
+      required: false, // Không required khi pending_manager
+    },
 
     status: {
       type: String,
       enum: [
-        "initiated",
+        "pending_manager", // Chờ manager xử lý (bác sĩ đã yêu cầu)
+        "initiated", // Đã tạo link PayOS, chờ thanh toán
         "authorized",
         "captured",
         "failed",
@@ -82,11 +94,22 @@ const PaymentSchema = new Schema(
         "voided",
         "cancelled",
       ],
-      default: "initiated",
+      default: "pending_manager",
+    },
+
+    // Số tiền đã thanh toán (cho thanh toán một phần)
+    amountPaid: { 
+      type: Number, 
+      min: 0, 
+      default: 0, 
+      validate: isInt 
     },
 
     // PayOS orderCode để tracking và webhook lookup
     orderCode: { type: Number, unique: true, sparse: true, index: true },
+    
+    // Lưu tạm orderCode khi tạo payment link (chưa thanh toán) - cho service payment
+    pendingOrderCode: { type: Number, sparse: true, index: true },
     
     providerTxnId: String,
     authorizedAt: Date,
@@ -106,6 +129,12 @@ const PaymentSchema = new Schema(
   },
   { timestamps: true, versionKey: false, collection: "Payments" }
 );
+
+// Index để query nhanh
+// Compound index cho phép nhiều payment cho 1 appointment (booking + service)
+// NOT unique - allows multiple payments per appointment
+PaymentSchema.index({ appointmentId: 1, invoiceType: 1 }, { unique: false });
+PaymentSchema.index({ pendingOrderCode: 1 });
 
 PaymentSchema.pre("validate", function (next) {
   if (this.items?.length) {

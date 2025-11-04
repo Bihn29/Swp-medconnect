@@ -1,112 +1,146 @@
 import express from "express";
 import { authGuard } from "../../middleware/auth.js";
-import { uploadConsultation } from "../../middleware/upload.js";
 import {
-  getDoctorProfile,
+  // Profile
   getCurrentDoctorProfile,
   updateDoctorProfile,
+  getDoctorProfile,
+
+  // Appointments
   getDoctorAppointments,
   getDoctorAppointmentDetail,
-  getDoctorDashboardStats,
   updateAppointmentStatus,
-  getAllDoctors,
+  createAppointmentByDoctor,
+
+  // Dashboard
+  getDoctorDashboardStats,
+
+  // Time Slots
+  getDoctorTimeSlots,
+  deleteTimeSlot,
+  autoGenerateTimeSlots,
+  blockSingleSlot,
+  blockSlotsByDateRange,
+  unblockSlotsByDateRange,
+
+  // Schedule Rules
+  getDoctorScheduleRules,
+  updateDoctorScheduleRules,
+
+  // Consultation
   getConsultationRecords,
   createConsultationSummary,
   createConsultationAdvice,
   getDoctorConsultationSummaries,
   getDoctorConsultationAdvice,
+  uploadConsultationFile,
+
+  // Prescriptions
   createPrescription,
+
+  // Clinics
+  getDoctorClinics,
+
+  // Reviews
   getDoctorReviews,
   getPublicDoctorReviews,
-  createDoctorReview,
   respondToReview,
-  getDoctorClinics,
-  debugAuth,
-  getDoctorTimeSlots,
-  autoGenerateTimeSlots,
-  deleteTimeSlot,
-  blockSingleSlot,
-  blockSlotsByDateRange,
-  unblockSlotsByDateRange,
-  getDoctorScheduleRules,
-  updateDoctorScheduleRules,
-  createTestTimeSlots,
+
+  // Search
+  getAllDoctors,
   getSearchDoctors,
   getSearchSpecializations,
   getSearchClinics,
-  uploadConsultationFile,
-  createAppointmentByDoctor,
 } from "../../controllers/doctorController.js";
-import { createLeaveRequest } from "../../controllers/leaveRequestController.js";
+import {
+  createServicePayment,
+  getServicePaymentStatus,
+} from "../../controllers/servicePaymentController.js";
+import {
+  getLeaveRequests,
+  createLeaveRequest,
+} from "../../controllers/leaveRequestController.js";
 
 const router = express.Router();
 
-// Public routes (no authentication required)
-router.get("/", getAllDoctors); // Get all doctors for search/listing
-router.get("/search", getSearchDoctors); // Search doctors with filters
-router.get("/specializations/search", getSearchSpecializations); // Search specializations
-router.get("/clinics/search", getSearchClinics); // Search clinics
+// ================== PUBLIC ROUTES ==================
+// Get all doctors (public)
+router.get("/", getAllDoctors);
 
-// Protected /me routes (require authentication)
-// CRITICAL: /me/* routes MUST be defined BEFORE /:doctorId routes
-// Express matches routes in order, so literal /me will match before parameterized /:doctorId
-router.get("/me", authGuard, getCurrentDoctorProfile); // Get basic doctor info
-router.get("/me/profile", authGuard, getCurrentDoctorProfile);
-router.put("/me/profile", authGuard, updateDoctorProfile);
-router.get("/me/appointments", authGuard, getDoctorAppointments);
-router.get(
-  "/me/appointments/:appointmentId",
-  authGuard,
-  getDoctorAppointmentDetail
-);
-router.post("/me/appointments/create", authGuard, createAppointmentByDoctor);
-router.get("/me/dashboard/stats", authGuard, getDoctorDashboardStats);
-router.put(
-  "/me/appointments/:appointmentId/status",
-  authGuard,
-  (req, res, next) => {
-    console.log("==========================================");
-    console.log("📞 PUT /me/appointments/:appointmentId/status route hit");
-    console.log("📞 Params:", req.params);
-    console.log("📞 Body:", req.body);
-    console.log("📞 User:", req.user?.email);
-    next();
-  },
-  updateAppointmentStatus
-);
-router.get("/me/consultation-records", authGuard, getConsultationRecords);
-router.get(
-  "/me/consultation-summaries",
-  authGuard,
-  getDoctorConsultationSummaries
-);
-router.get("/me/consultation-advice", authGuard, getDoctorConsultationAdvice);
-router.post("/me/consultation-summaries", authGuard, createConsultationSummary);
-router.post("/me/consultation-advice", authGuard, createConsultationAdvice);
-router.post("/me/prescriptions", authGuard, createPrescription);
+// Search doctors (public)
+router.get("/search", getSearchDoctors);
+
+// Search specializations (public)
+router.get("/specializations/search", getSearchSpecializations);
+
+// Search clinics (public)
+router.get("/clinics/search", getSearchClinics);
+
+// Get doctor profile by ID (public)
+router.get("/:doctorId", getDoctorProfile);
+
+// Get public doctor reviews (public)
+router.get("/:doctorId/reviews", getPublicDoctorReviews);
+
+// Get doctor clinics (public)
+router.get("/:doctorId/clinics", getDoctorClinics);
+
+// ================== AUTHENTICATED DOCTOR ROUTES ==================
+// Apply auth middleware to all routes below
+router.use(authGuard);
+
+// ================== PROFILE ROUTES ==================
+router.get("/me/profile", getCurrentDoctorProfile);
+router.put("/me/profile", updateDoctorProfile);
+
+// ================== DASHBOARD ROUTES ==================
+router.get("/me/dashboard/stats", getDoctorDashboardStats);
+
+// ================== APPOINTMENT ROUTES ==================
+router.get("/me/appointments", getDoctorAppointments);
+router.get("/me/appointments/:appointmentId", getDoctorAppointmentDetail);
+router.put("/me/appointments/:appointmentId/status", updateAppointmentStatus);
+router.post("/me/appointments/create", createAppointmentByDoctor);
+
+// Service Payment Routes
 router.post(
-  "/me/upload-consultation-file",
-  authGuard,
-  uploadConsultation.single("file"),
-  uploadConsultationFile
+  "/me/appointments/:appointmentId/service-payment",
+  createServicePayment
 );
-router.get("/me/time-slots", authGuard, getDoctorTimeSlots);
-router.post("/me/time-slots/auto-generate", authGuard, autoGenerateTimeSlots);
-router.delete("/me/time-slots/:slotId", authGuard, deleteTimeSlot);
-router.post("/me/leave-requests", authGuard, createLeaveRequest);
-// Note: blockSingleSlot, blockSlotsByDateRange, unblockSlotsByDateRange removed - doctors now use leave requests
-router.get("/me/schedule-rules", authGuard, getDoctorScheduleRules);
-router.put("/me/schedule-rules", authGuard, updateDoctorScheduleRules);
-router.get("/me/debug-auth", authGuard, debugAuth);
-router.get("/me/reviews", authGuard, getDoctorReviews);
-router.post("/me/reviews/:reviewId/respond", authGuard, respondToReview);
+router.get(
+  "/me/appointments/:appointmentId/service-payment",
+  getServicePaymentStatus
+);
 
-// Public routes with dynamic params (no authentication required)
-// These must be defined AFTER /me routes so Express matches /me before /:doctorId
-router.get("/:doctorId", getDoctorProfile); // Get specific doctor profile
-router.get("/:doctorId/clinics", getDoctorClinics); // Get doctor clinics
-router.get("/:doctorId/reviews", getPublicDoctorReviews); // Get public doctor reviews
-router.post("/:doctorId/reviews", createDoctorReview); // Create a new review for a doctor
-router.post("/:doctorId/create-test-slots", createTestTimeSlots); // Create test time slots for a doctor
+// ================== TIME SLOT ROUTES ==================
+router.get("/me/time-slots", getDoctorTimeSlots);
+router.post("/me/time-slots/auto-generate", autoGenerateTimeSlots);
+router.delete("/me/time-slots/:slotId", deleteTimeSlot);
+router.post("/me/time-slots/:slotId/block", blockSingleSlot);
+router.post("/me/time-slots/block", blockSlotsByDateRange);
+router.post("/me/time-slots/unblock", unblockSlotsByDateRange);
+
+// ================== SCHEDULE RULES ROUTES ==================
+router.get("/me/schedule-rules", getDoctorScheduleRules);
+router.put("/me/schedule-rules", updateDoctorScheduleRules);
+
+// ================== LEAVE REQUEST ROUTES ==================
+router.get("/me/leave-requests", getLeaveRequests);
+router.post("/me/leave-requests", createLeaveRequest);
+
+// ================== CONSULTATION ROUTES ==================
+router.get("/me/consultation-records", getConsultationRecords);
+router.get("/me/consultation-summaries", getDoctorConsultationSummaries);
+router.post("/me/consultation-summaries", createConsultationSummary);
+router.get("/me/consultation-advice", getDoctorConsultationAdvice);
+router.post("/me/consultation-advice", createConsultationAdvice);
+router.post("/me/upload-consultation-file", uploadConsultationFile);
+
+// ================== PRESCRIPTION ROUTES ==================
+router.post("/me/prescriptions", createPrescription);
+
+// ================== REVIEW ROUTES ==================
+router.get("/me/reviews", getDoctorReviews);
+router.post("/me/reviews/:reviewId/respond", respondToReview);
 
 export default router;
