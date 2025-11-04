@@ -8,7 +8,7 @@ const { Schema, model } = mongoose;
 
 const SpecializationSchema = new Schema(
   {
-    code: { type: String, unique: true, sparse: true },
+    // code: { type: String, unique: true, sparse: true },
     name: { type: String, required: true },
     description: String,
     avatar: {
