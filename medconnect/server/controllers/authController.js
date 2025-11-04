@@ -26,7 +26,12 @@ export async function loginPassword(req, res) {
   try {
     const { identifier, password } = req.body || {};
     if (!identifier || !password) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Vui lòng nhập email/số điện thoại và mật khẩu");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Vui lòng nhập email/số điện thoại và mật khẩu"
+      );
     }
 
     console.log("[login] identifier:", identifier);
@@ -48,12 +53,22 @@ export async function loginPassword(req, res) {
 
     if (!user) {
       console.log("[login] user not found");
-      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Không tìm thấy người dùng");
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Không tìm thấy người dùng"
+      );
     }
 
     // Check user status
     if (user.status === "blocked") {
-      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin.");
+      return fail(
+        res,
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin."
+      );
     }
 
     if (user.status === "pending") {
@@ -65,23 +80,45 @@ export async function loginPassword(req, res) {
           // Auto sync: doctor is verified but User status is still pending
           user.status = "active";
           await user.save();
-          console.log(`✅ Auto-synced User ${user._id} status to 'active' (doctor is verified)`);
+          console.log(
+            `✅ Auto-synced User ${user._id} status to 'active' (doctor is verified)`
+          );
         } else {
-          return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản này đang chờ xác nhận");
+          return fail(
+            res,
+            403,
+            ERROR_CODES.FORBIDDEN,
+            "Tài khoản này đang chờ xác nhận"
+          );
         }
       } else {
-        return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản của bạn đang chờ kích hoạt. Vui lòng đợi thông báo từ email.");
+        return fail(
+          res,
+          403,
+          ERROR_CODES.FORBIDDEN,
+          "Tài khoản của bạn đang chờ kích hoạt. Vui lòng đợi thông báo từ email."
+        );
       }
     }
 
     if (user.status !== "active") {
-      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Tài khoản của bạn chưa được kích hoạt.");
+      return fail(
+        res,
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "Tài khoản của bạn chưa được kích hoạt."
+      );
     }
 
     // 🔧 ĐÚNG THỨ TỰ so sánh: (plain, hash)
     const okPwd = await verifyPassword(user.passwordHash, password);
     if (!okPwd) {
-      return fail(res, 401, ERROR_CODES.INVALID_CREDENTIALS, "Email/số điện thoại hoặc mật khẩu không đúng");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.INVALID_CREDENTIALS,
+        "Email/số điện thoại hoặc mật khẩu không đúng"
+      );
     }
 
     const uid = `app_${user._id}`;
@@ -108,13 +145,23 @@ export async function googleLogin(req, res) {
   try {
     const { idToken } = req.body || {};
     if (!idToken) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu mã xác thực Google");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Thiếu mã xác thực Google"
+      );
     }
 
     const decoded = await admin.auth().verifyIdToken(idToken, true);
     const email = decoded.email?.toLowerCase();
     if (!email) {
-      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Không tìm thấy email trong mã xác thực");
+      return fail(
+        res,
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "Không tìm thấy email trong mã xác thực"
+      );
     }
 
     const dbUser = await User.findOne({
@@ -122,7 +169,12 @@ export async function googleLogin(req, res) {
       status: "active",
     }).lean();
     if (!dbUser) {
-      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Không tìm thấy người dùng trong hệ thống");
+      return fail(
+        res,
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "Không tìm thấy người dùng trong hệ thống"
+      );
     }
 
     const sessionCookie = await admin.auth().createSessionCookie(idToken, {
@@ -150,7 +202,12 @@ export async function createSession(req, res) {
   try {
     const { idToken } = req.body || {};
     if (!idToken) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu mã xác thực Google");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Thiếu mã xác thực Google"
+      );
     }
 
     const sessionCookie = await admin.auth().createSessionCookie(idToken, {
@@ -192,34 +249,49 @@ export function getCurrentUser(req, res) {
  */
 export async function registerDoctor(req, res) {
   try {
-    const {
-      fullName,
-      email,
-      phone,
-      password,
-      specialty,
-    } = req.body || {};
+    const { fullName, email, phone, password, specialty, clinicDefaultId } =
+      req.body || {};
 
     if (!fullName || !email || !phone || !password || !specialty) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Vui lòng điền đầy đủ thông tin bắt buộc");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Vui lòng điền đầy đủ thông tin bắt buộc"
+      );
     }
-    
+
     // Get uploaded file info
     const licenseFile = req.file;
     if (!licenseFile) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Vui lòng tải lên ảnh chứng chỉ hành nghề");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Vui lòng tải lên ảnh chứng chỉ hành nghề"
+      );
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
     if (!emailRegex.test(email)) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Email không đúng định dạng");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Email không đúng định dạng"
+      );
     }
 
     // Validate phone format (Vietnamese)
     const phoneRegex = /^\+84\d{9}$/;
     if (!phoneRegex.test(phone)) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Số điện thoại không đúng định dạng (VD: 0xxxxxxxxx hoặc +84xxxxxxxxx)");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Số điện thoại không đúng định dạng (VD: 0xxxxxxxxx hoặc +84xxxxxxxxx)"
+      );
     }
 
     // Validate password length
@@ -237,13 +309,23 @@ export async function registerDoctor(req, res) {
       email: email.toLowerCase(),
     }).lean();
     if (existingUserByEmail) {
-      return fail(res, 409, ERROR_CODES.CONFLICT, "Email này đã được sử dụng. Vui lòng sử dụng email khác");
+      return fail(
+        res,
+        409,
+        ERROR_CODES.CONFLICT,
+        "Email này đã được sử dụng. Vui lòng sử dụng email khác"
+      );
     }
 
     // Normalize phone and check
     const normalizedPhone = toE164(phone);
     if (!normalizedPhone) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Số điện thoại không đúng định dạng");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Số điện thoại không đúng định dạng"
+      );
     }
     const existingUserByPhone = await User.findOne({
       phone: normalizedPhone,
@@ -273,13 +355,19 @@ export async function registerDoctor(req, res) {
     });
 
     if (!userDoc) {
-      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Không thể tạo tài khoản. Vui lòng thử lại sau");
+      return fail(
+        res,
+        500,
+        ERROR_CODES.SERVER_ERROR,
+        "Không thể tạo tài khoản. Vui lòng thử lại sau"
+      );
     }
 
     // Find specialization by ID or name
     let specializationIds = [];
     if (specialty) {
-      const Specialization = (await import("../models/specialization.model.js")).default;
+      const Specialization = (await import("../models/specialization.model.js"))
+        .default;
       try {
         // Try to find by ID first (if it's a valid ObjectId)
         const mongoose = (await import("mongoose")).default;
@@ -301,15 +389,96 @@ export async function registerDoctor(req, res) {
       }
     }
 
+    // Validate clinic if provided
+    let clinicId = null;
+    if (clinicDefaultId) {
+      const Clinic = (await import("../models/clinic.model.js")).default;
+      const mongoose = (await import("mongoose")).default;
+      if (mongoose.Types.ObjectId.isValid(clinicDefaultId)) {
+        const clinic = await Clinic.findById(clinicDefaultId);
+        if (clinic) {
+          clinicId = clinic._id;
+        } else {
+          console.warn(
+            `Clinic ${clinicDefaultId} not found, continuing without clinic`
+          );
+        }
+      }
+    }
+
     // Create doctor document
-    await Doctor.create({
-      userId: userDoc._id,
-      fullName: fullName.trim(),
-      licenseNo: licenseFile.filename, // Store uploaded file name
-      specializationIds: specializationIds, // Store specialization IDs
-      isVerified: false, // Cần admin phê duyệt
-      isActive: false, // Chưa được kích hoạt
-      bio: "",
+    let doctorDoc = null;
+    try {
+      const doctorData = {
+        userId: userDoc._id,
+        fullName: fullName.trim(),
+        licenseNo: licenseFile.filename, // Store uploaded file name
+        specializationIds: specializationIds, // Store specialization IDs
+        isVerified: false, // Cần admin phê duyệt
+        isActive: false, // Chưa được kích hoạt
+        bio: "",
+      };
+
+      if (clinicId) {
+        doctorData.clinicDefaultId = clinicId;
+      }
+
+      doctorDoc = await Doctor.create(doctorData);
+      console.log(`✅ Doctor record created successfully:`, {
+        doctorId: doctorDoc._id,
+        userId: doctorDoc.userId,
+        fullName: doctorDoc.fullName,
+        isVerified: doctorDoc.isVerified,
+      });
+    } catch (doctorError) {
+      console.error("❌ Error creating Doctor record:", doctorError);
+
+      // If Doctor creation fails, we should clean up the User
+      await User.findByIdAndDelete(userDoc._id);
+      console.log(
+        `🧹 Cleaned up User ${userDoc._id} due to Doctor creation failure`
+      );
+
+      return fail(
+        res,
+        500,
+        ERROR_CODES.SERVER_ERROR,
+        "Không thể tạo hồ sơ bác sĩ. Lỗi: " +
+          (doctorError.message || String(doctorError))
+      );
+    }
+
+    // Verify Doctor was created
+    if (!doctorDoc) {
+      console.error("❌ Doctor document is null after creation!");
+      await User.findByIdAndDelete(userDoc._id);
+      return fail(
+        res,
+        500,
+        ERROR_CODES.SERVER_ERROR,
+        "Không thể tạo hồ sơ bác sĩ"
+      );
+    }
+
+    // Verify Doctor exists in database
+    const verifyDoctor = await Doctor.findById(doctorDoc._id);
+    if (!verifyDoctor) {
+      console.error(
+        `❌ Doctor ${doctorDoc._id} not found in database after creation!`
+      );
+      await User.findByIdAndDelete(userDoc._id);
+      return fail(
+        res,
+        500,
+        ERROR_CODES.SERVER_ERROR,
+        "Hồ sơ bác sĩ không được lưu vào cơ sở dữ liệu"
+      );
+    }
+
+    console.log(`✅ Verified Doctor exists in database:`, {
+      doctorId: verifyDoctor._id,
+      userId: verifyDoctor.userId,
+      fullName: verifyDoctor.fullName,
     });
 
     // Create AuthProvider record for local login
@@ -324,12 +493,14 @@ export async function registerDoctor(req, res) {
       });
     } catch (e) {
       console.warn("Failed to create AuthProvider record:", e.message || e);
+      // Don't fail the registration if AuthProvider creation fails
     }
 
     console.log("[registerDoctor] success for user:", userDoc._id);
 
     return ok(res, {
-      message: "Đăng ký thành công! Tài khoản của bạn đang được admin phê duyệt. Vui lòng đợi thông báo từ email bạn đã đăng ký.",
+      message:
+        "Đăng ký thành công! Tài khoản của bạn đang được admin phê duyệt. Vui lòng đợi thông báo từ email bạn đã đăng ký.",
       user: {
         id: userDoc._id,
         fullName: userDoc.fullName,
@@ -359,19 +530,34 @@ export async function register(req, res) {
     } = req.body || {};
 
     if (!fullName || !email || !phone || !password) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Vui lòng điền đầy đủ thông tin bắt buộc");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Vui lòng điền đầy đủ thông tin bắt buộc"
+      );
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
     if (!emailRegex.test(email)) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Email không đúng định dạng");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Email không đúng định dạng"
+      );
     }
 
     // Validate phone format (Vietnamese)
     const phoneRegex = /^\+84\d{9}$/;
     if (!phoneRegex.test(phone)) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Số điện thoại không đúng định dạng");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Số điện thoại không đúng định dạng"
+      );
     }
 
     // Validate password length
@@ -390,13 +576,23 @@ export async function register(req, res) {
       email: email.toLowerCase(),
     }).lean();
     if (existingUserByEmail) {
-      return fail(res, 409, ERROR_CODES.CONFLICT, "Email này đã được sử dụng. Vui lòng sử dụng email khác");
+      return fail(
+        res,
+        409,
+        ERROR_CODES.CONFLICT,
+        "Email này đã được sử dụng. Vui lòng sử dụng email khác"
+      );
     }
 
     // Normalize phone and check
     const normalizedPhone = toE164(phone);
     if (!normalizedPhone) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Số điện thoại không đúng định dạng");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Số điện thoại không đúng định dạng"
+      );
     }
     const existingUserByPhone = await User.findOne({
       phone: normalizedPhone,
@@ -421,18 +617,30 @@ export async function register(req, res) {
       status: "active",
       fullName: fullName.trim(),
       phone: normalizedPhone,
+      emailVerified: true, // Set to true for local registration
+      phoneVerified: true, // Set to true for local registration
     });
 
     if (!userDoc) {
-      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Không thể tạo tài khoản. Vui lòng thử lại sau");
+      return fail(
+        res,
+        500,
+        ERROR_CODES.SERVER_ERROR,
+        "Không thể tạo tài khoản. Vui lòng thử lại sau"
+      );
     }
 
     // Create patient document when role is patient
     if ((role || "patient").toLowerCase() === "patient") {
-      await Patient.create({
+      const patientDoc = await Patient.create({
         userId: userDoc._id,
         fullName: fullName.trim(),
         phone: normalizedPhone,
+      });
+      console.log("✅ Patient record created successfully:", {
+        patientId: patientDoc._id,
+        userId: patientDoc.userId,
+        fullName: patientDoc.fullName,
       });
     }
 
@@ -458,6 +666,21 @@ export async function register(req, res) {
     } catch (e) {
       console.warn("Failed to create AuthProvider record:", e.message || e);
     }
+
+    // Send welcome email if role is patient
+    if ((role || "patient").toLowerCase() === "patient") {
+      try {
+        await sendPatientWelcomeEmail(userDoc);
+        console.log("✅ Patient welcome email sent successfully");
+      } catch (emailError) {
+        console.error(
+          "⚠️ Failed to send patient welcome email:",
+          emailError.message
+        );
+        // Don't block registration if email fails
+      }
+    }
+
     return ok(res, {
       customToken,
       role: userDoc.role,
@@ -485,7 +708,12 @@ export async function googleRegister(req, res) {
   try {
     const { idToken, fullName, role = "PATIENT" } = req.body || {};
     if (!idToken)
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu mã xác thực Google");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Thiếu mã xác thực Google"
+      );
 
     // verify idToken
     let decoded;
@@ -509,7 +737,12 @@ export async function googleRegister(req, res) {
 
     const email = decoded.email?.toLowerCase();
     if (!email)
-      return fail(res, 403, ERROR_CODES.FORBIDDEN, "Không tìm thấy email trong mã xác thực");
+      return fail(
+        res,
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "Không tìm thấy email trong mã xác thực"
+      );
 
     const normalizedRole = (role || "patient").toLowerCase();
 
@@ -645,6 +878,124 @@ async function sendOtpMail(to, otp) {
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
+
+/* Helper function: Send welcome email to patient */
+async function sendPatientWelcomeEmail(user) {
+  try {
+    if (!user || !user.email) {
+      console.warn("⚠️ Patient email not found, skipping welcome email");
+      return;
+    }
+
+    const patientName = user.fullName || "Bệnh nhân";
+    const registrationDate = new Date().toLocaleDateString("vi-VN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #059669; border-bottom: 2px solid #059669; padding-bottom: 10px;">
+          Chào mừng bạn đến với MedConnect
+        </h2>
+        <p>Xin chào <strong>${patientName}</strong>,</p>
+        <p>Chúng tôi rất vui mừng chào đón bạn tham gia vào cộng đồng MedConnect - nền tảng chăm sóc sức khỏe trực tuyến hàng đầu.</p>
+        
+        <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #047857;">Thông tin tài khoản của bạn:</h3>
+          <p style="margin: 8px 0;"><strong>Họ và tên:</strong> ${patientName}</p>
+          <p style="margin: 8px 0;"><strong>Email:</strong> ${user.email}</p>
+          <p style="margin: 8px 0;"><strong>Ngày đăng ký:</strong> ${registrationDate}</p>
+        </div>
+
+        <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #0284c7;">Những gì bạn có thể làm với MedConnect:</h3>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Đặt lịch hẹn với bác sĩ phù hợp với nhu cầu của bạn</li>
+            <li>Theo dõi lịch sử khám bệnh và kết quả điều trị</li>
+            <li>Nhận tư vấn sức khỏe từ các chuyên gia hàng đầu</li>
+            <li>Tương tác với bác sĩ qua video call hoặc tin nhắn</li>
+            <li>Truy cập hồ sơ bệnh án điện tử của bạn mọi lúc, mọi nơi</li>
+          </ul>
+        </div>
+
+        <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #d97706;">Lưu ý quan trọng:</h3>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Vui lòng bảo mật thông tin đăng nhập của bạn</li>
+            <li>Kiểm tra và cập nhật thông tin cá nhân để sử dụng dịch vụ tốt nhất</li>
+            <li>Liên hệ với chúng tôi nếu bạn có bất kỳ câu hỏi nào</li>
+          </ul>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${
+            process.env.CLIENT_URL || "http://localhost:5173"
+          }/auth/login" 
+             style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            Bắt đầu sử dụng
+          </a>
+        </div>
+        
+        <p style="margin-top: 30px;">Chúng tôi cam kết mang đến cho bạn trải nghiệm chăm sóc sức khỏe tốt nhất. Chúc bạn luôn khỏe mạnh!</p>
+        
+        <p style="margin-top: 30px;">Trân trọng,<br><strong>MedConnect - Đội ngũ chăm sóc khách hàng</strong></p>
+      </div>
+    `;
+
+    const textContent = `
+Chào mừng bạn đến với MedConnect
+
+Xin chào ${patientName},
+
+Chúng tôi rất vui mừng chào đón bạn tham gia vào cộng đồng MedConnect - nền tảng chăm sóc sức khỏe trực tuyến hàng đầu.
+
+Thông tin tài khoản của bạn:
+- Họ và tên: ${patientName}
+- Email: ${user.email}
+- Ngày đăng ký: ${registrationDate}
+
+Những gì bạn có thể làm với MedConnect:
+- Đặt lịch hẹn với bác sĩ phù hợp với nhu cầu của bạn
+- Theo dõi lịch sử khám bệnh và kết quả điều trị
+- Nhận tư vấn sức khỏe từ các chuyên gia hàng đầu
+- Tương tác với bác sĩ qua video call hoặc tin nhắn
+- Truy cập hồ sơ bệnh án điện tử của bạn mọi lúc, mọi nơi
+
+Lưu ý quan trọng:
+- Vui lòng bảo mật thông tin đăng nhập của bạn
+- Kiểm tra và cập nhật thông tin cá nhân để sử dụng dịch vụ tốt nhất
+- Liên hệ với chúng tôi nếu bạn có bất kỳ câu hỏi nào
+
+Chúng tôi cam kết mang đến cho bạn trải nghiệm chăm sóc sức khỏe tốt nhất. Chúc bạn luôn khỏe mạnh!
+
+Trân trọng,
+MedConnect - Đội ngũ chăm sóc khách hàng
+    `;
+
+    console.log(`📧 Attempting to send patient welcome email via sendMail...`);
+    const emailResult = await sendMail({
+      to: user.email,
+      subject: "Chào mừng bạn đến với MedConnect",
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log(`✅ Patient welcome email sent successfully to ${user.email}`);
+    console.log(`📧 Email result:`, {
+      messageId: emailResult?.messageId,
+      response: emailResult?.response,
+    });
+  } catch (error) {
+    console.error(
+      "❌ Error sending patient welcome email:",
+      error?.message || error
+    );
+    // Không throw error để không ảnh hưởng đến flow chính
+  }
+}
 /**
  * POST /api/auth/forgot
  * body: { email }
@@ -668,7 +1019,12 @@ export async function forgotPassword(req, res) {
 
     // Nếu không tìm thấy user, trả về lỗi để yêu cầu kiểm tra lại email
     if (!user) {
-      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Email không tồn tại trong hệ thống. Vui lòng kiểm tra lại email.");
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Email không tồn tại trong hệ thống. Vui lòng kiểm tra lại email."
+      );
     }
 
     // Kiểm tra xem có OTP đang hoạt động không
@@ -676,12 +1032,17 @@ export async function forgotPassword(req, res) {
       userId: user._id,
       type: "reset",
       used: false,
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: new Date() },
     });
 
     // Hạn chế brute-force: tối đa 5 lần thử khi OTP còn hiệu lực
     if (existingReset && existingReset.attempts >= 5) {
-      return fail(res, 429, ERROR_CODES.TOO_MANY_REQUESTS, "Bạn đã thử quá nhiều lần. Vui lòng đợi một lúc rồi thử lại.");
+      return fail(
+        res,
+        429,
+        ERROR_CODES.TOO_MANY_REQUESTS,
+        "Bạn đã thử quá nhiều lần. Vui lòng đợi một lúc rồi thử lại."
+      );
     }
 
     // Tạo OTP mới
@@ -692,7 +1053,7 @@ export async function forgotPassword(req, res) {
     // Xóa các OTP cũ của user này
     await PasswordReset.deleteMany({
       userId: user._id,
-      type: "reset"
+      type: "reset",
     });
 
     // Tạo record mới trong Password_Resets
@@ -704,15 +1065,16 @@ export async function forgotPassword(req, res) {
       type: "reset",
       expiresAt: expiresAt,
       used: false,
-      attempts: 0
+      attempts: 0,
     });
 
     await sendOtpMail(user.email, otp);
 
-    return ok(res, { 
-      ok: true, 
-      message: "Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.",
-      email: user.email // Trả về email để frontend có thể sử dụng
+    return ok(res, {
+      ok: true,
+      message:
+        "Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.",
+      email: user.email, // Trả về email để frontend có thể sử dụng
     });
   } catch (e) {
     console.error("forgotPassword error:", e);
@@ -735,7 +1097,8 @@ export async function verifyPasswordOtp(req, res) {
       status: "active",
     });
 
-    if (!user) return fail(res, 400, ERROR_CODES.BAD_REQUEST, "OTP không hợp lệ");
+    if (!user)
+      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "OTP không hợp lệ");
 
     // Tìm OTP record trong Password_Resets
     const resetRecord = await PasswordReset.findOne({
@@ -743,11 +1106,16 @@ export async function verifyPasswordOtp(req, res) {
       email: user.email,
       type: "reset",
       used: false,
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: new Date() },
     });
 
     if (!resetRecord) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "OTP không hợp lệ hoặc đã hết hạn");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "OTP không hợp lệ hoặc đã hết hạn"
+      );
     }
 
     // Kiểm tra số lần thử
@@ -774,7 +1142,10 @@ export async function verifyPasswordOtp(req, res) {
       process.env.JWT_RESET_SECRET,
       { expiresIn: process.env.JWT_RESET_EXPIRES || "15m" }
     );
-    const tokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
 
     // Cập nhật record với resetToken
     resetRecord.codeHash = tokenHash;
@@ -808,12 +1179,22 @@ export async function resetPassword(req, res) {
 
     // Validate password length
     if (newPassword.length < 8) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu phải có ít nhất 8 ký tự");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Mật khẩu phải có ít nhất 8 ký tự"
+      );
     }
 
     // Validate password confirmation
     if (newPassword !== confirmPassword) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu xác nhận không khớp");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Mật khẩu xác nhận không khớp"
+      );
     }
 
     // verify JWT
@@ -822,43 +1203,74 @@ export async function resetPassword(req, res) {
       payload = jwt.verify(token, process.env.JWT_RESET_SECRET);
       if (payload?.purpose !== "reset") throw new Error("bad purpose");
     } catch {
-      console.warn("[resetPassword] JWT verify failed for token (first 120 chars):", String(token).slice(0,120));
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mã xác thực không hợp lệ");
+      console.warn(
+        "[resetPassword] JWT verify failed for token (first 120 chars):",
+        String(token).slice(0, 120)
+      );
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Mã xác thực không hợp lệ"
+      );
     }
 
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     console.debug("[resetPassword] tokenHash:", tokenHash);
     console.debug("[resetPassword] payload.sub:", payload?.sub);
-    
+
     // Tìm reset record trong Password_Resets
     const resetRecord = await PasswordReset.findOne({
       userId: payload.sub,
       codeHash: tokenHash,
       type: "reset",
       used: false,
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: new Date() },
     });
 
     if (!resetRecord) {
-      console.warn("[resetPassword] No matching PasswordReset found for userId and tokenHash. Listing recent PasswordReset records for this user:");
+      console.warn(
+        "[resetPassword] No matching PasswordReset found for userId and tokenHash. Listing recent PasswordReset records for this user:"
+      );
       try {
-        const recent = await PasswordReset.find({ userId: payload.sub }).sort({ createdAt: -1 }).limit(10).lean();
+        const recent = await PasswordReset.find({ userId: payload.sub })
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .lean();
         console.warn(JSON.stringify(recent, null, 2));
       } catch (listErr) {
-        console.warn("[resetPassword] Failed to list recent PasswordReset records:", listErr?.message || listErr);
+        console.warn(
+          "[resetPassword] Failed to list recent PasswordReset records:",
+          listErr?.message || listErr
+        );
       }
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mã xác thực không hợp lệ hoặc đã hết hạn");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Mã xác thực không hợp lệ hoặc đã hết hạn"
+      );
     }
 
     // Tìm user và kiểm tra email có khớp không
     const user = await User.findById(payload.sub).select("+passwordHash");
     if (!user) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Người dùng không tồn tại");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Người dùng không tồn tại"
+      );
     }
 
     // Kiểm tra email có khớp với email trong reset record không
     if (user.email.toLowerCase() !== email.toLowerCase()) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Email không khớp với tài khoản đã gửi OTP");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Email không khớp với tài khoản đã gửi OTP"
+      );
     }
 
     // Đặt mật khẩu mới
@@ -884,12 +1296,17 @@ export async function testEmail(req, res) {
   try {
     const isValid = await testEmailConfig();
     if (isValid) {
-      return ok(res, { 
-        ok: true, 
-        message: "Email configuration is valid" 
+      return ok(res, {
+        ok: true,
+        message: "Email configuration is valid",
       });
     } else {
-      return fail(res, 500, ERROR_CODES.SERVER_ERROR, "Email configuration is invalid");
+      return fail(
+        res,
+        500,
+        ERROR_CODES.SERVER_ERROR,
+        "Email configuration is invalid"
+      );
     }
   } catch (e) {
     console.error("testEmail error:", e);
@@ -900,44 +1317,78 @@ export async function testEmail(req, res) {
 /**
  * POST /api/auth/change-password
  * body: { currentPassword, newPassword }
- * 
- * 
- *  đang fix lỗi chưa xong 
+ *
+ * Đổi mật khẩu khi đã đăng nhập vào tài khoản.
+ * Không cần OTP - chỉ cần nhập đúng mật khẩu hiện tại.
+ * Yêu cầu: người dùng phải đã đăng nhập (authGuard).
  */
 export async function changePassword(req, res) {
   try {
     const { currentPassword, newPassword } = req.body || {};
     if (!currentPassword || !newPassword) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Thiếu mật khẩu hiện tại hoặc mật khẩu mới");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Thiếu mật khẩu hiện tại hoặc mật khẩu mới"
+      );
     }
 
     // Validate password length
-    if (newPassword.length < 6) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu mới phải có ít nhất 6 ký tự");
+    if (newPassword.length < 8) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Mật khẩu mới phải có ít nhất 8 ký tự"
+      );
     }
 
     // Lấy user từ req.user (đã được authGuard xác thực)
     const userId = req.user?.app_user_id;
     if (!userId) {
-      return fail(res, 401, ERROR_CODES.UNAUTHORIZED, "Không tìm thấy thông tin người dùng");
+      return fail(
+        res,
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Không tìm thấy thông tin người dùng"
+      );
     }
 
     // Tìm user và lấy passwordHash
     const user = await User.findById(userId).select("+passwordHash");
     if (!user) {
-      return fail(res, 404, ERROR_CODES.USER_NOT_FOUND, "Người dùng không tồn tại");
+      return fail(
+        res,
+        404,
+        ERROR_CODES.USER_NOT_FOUND,
+        "Người dùng không tồn tại"
+      );
     }
 
     // Kiểm tra mật khẩu hiện tại
-    const isCurrentPasswordValid = await verifyPassword(user.passwordHash, currentPassword);
+    const isCurrentPasswordValid = await verifyPassword(
+      user.passwordHash,
+      currentPassword
+    );
     if (!isCurrentPasswordValid) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu hiện tại không đúng");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Mật khẩu hiện tại không đúng"
+      );
     }
 
     // Kiểm tra mật khẩu mới có khác mật khẩu cũ không
     const isSamePassword = await verifyPassword(user.passwordHash, newPassword);
     if (isSamePassword) {
-      return fail(res, 400, ERROR_CODES.BAD_REQUEST, "Mật khẩu mới phải khác mật khẩu hiện tại");
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Mật khẩu mới phải khác mật khẩu hiện tại"
+      );
     }
 
     // Hash mật khẩu mới và lưu vào database
@@ -945,9 +1396,9 @@ export async function changePassword(req, res) {
     user.passwordHash = hashedNewPassword;
     await user.save();
 
-    return ok(res, { 
-      ok: true, 
-      message: "Đổi mật khẩu thành công" 
+    return ok(res, {
+      ok: true,
+      message: "Đổi mật khẩu thành công",
     });
   } catch (e) {
     console.error("changePassword error:", e);

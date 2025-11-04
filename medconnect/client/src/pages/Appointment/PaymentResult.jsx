@@ -6,7 +6,7 @@ import {
   CloseCircleOutlined,
   LoadingOutlined,
 } from "@ant-design/icons";
-import { checkPayOSStatus } from "../../services/payService";
+import { checkPayOSStatus, cancelPayOSPayment } from "../../services/payService";
 import "./PaymentResult.scss";
 
 const { Title, Text } = Typography;
@@ -24,6 +24,7 @@ const PaymentResult = () => {
       try {
         const orderCode = searchParams.get("orderCode");
         const status = searchParams.get("status"); // 'success' or 'failed'
+        const cancel = searchParams.get("cancel"); // 'true' if user cancelled
 
         if (!orderCode) {
           setError("Không tìm thấy thông tin đơn hàng");
@@ -32,8 +33,27 @@ const PaymentResult = () => {
           return;
         }
 
-        // If status is explicitly 'failed', don't check PayOS
+        // If user cancelled payment, call cancel API to clean up database
+        if (cancel === "true") {
+          try {
+            await cancelPayOSPayment(orderCode);
+            console.log("✅ Payment link cancelled and appointment removed");
+          } catch (cancelErr) {
+            console.error("Error cancelling payment:", cancelErr);
+          }
+          setIsSuccess(false);
+          setLoading(false);
+          return;
+        }
+
+        // If status is explicitly 'failed', call cancel API to clean up database
         if (status === "failed") {
+          try {
+            await cancelPayOSPayment(orderCode);
+            console.log("✅ Payment failed - appointment removed");
+          } catch (cancelErr) {
+            console.error("Error cancelling payment:", cancelErr);
+          }
           setIsSuccess(false);
           setLoading(false);
           return;
@@ -48,6 +68,26 @@ const PaymentResult = () => {
           const isPaid =
             response.data.status === "PAID" || response.data.status === "paid";
           setIsSuccess(isPaid);
+          
+          // Clear localStorage nếu thanh toán thành công
+          if (isPaid) {
+            localStorage.removeItem("pendingAppointmentId");
+            localStorage.removeItem("pendingOrderCode");
+          }
+          
+          // If payment is cancelled or failed from PayOS, cleanup appointment
+          const isCancelled = response.data.status === "CANCELLED" || response.data.status === "cancelled";
+          const isFailed = response.data.status === "EXPIRED" || response.data.status === "expired" || 
+                          response.data.status === "FAILED" || response.data.status === "failed";
+          
+          if (isCancelled || isFailed) {
+            try {
+              await cancelPayOSPayment(orderCode);
+              console.log("✅ Payment cancelled/failed - appointment removed");
+            } catch (cancelErr) {
+              console.error("Error cancelling payment:", cancelErr);
+            }
+          }
         } else {
           setError("Không thể xác minh trạng thái thanh toán");
           setIsSuccess(false);

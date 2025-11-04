@@ -51,6 +51,7 @@ export function CurrentConsultation() {
               appointment.doctorId?.name ||
               "Chưa xác định"
             }`,
+            doctorAvatar: appointment.doctorId?.avatarUrl,
             specialty:
               appointment.doctorId?.specializationIds?.[0]?.name ||
               appointment.specialty ||
@@ -181,22 +182,20 @@ export function CurrentConsultation() {
           }}
         >
           {/* Doctor avatar */}
-          <div
+          <img
+            src={currentAppointment.doctorAvatar || "/default-avatar.png"}
+            alt={currentAppointment.doctor}
             style={{
               width: "3rem",
               height: "3rem",
               borderRadius: "50%",
-              backgroundColor: "#3b82f6",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#ffffff",
-              fontSize: "1.25rem",
-              fontWeight: "600",
+              objectFit: "cover",
             }}
-          >
-            BS
-          </div>
+            onError={(e) => {
+              e.target.src = "/default-avatar.png";
+              e.target.onerror = null; // Prevent infinite loop
+            }}
+          />
 
           {/* Doctor details */}
           <div

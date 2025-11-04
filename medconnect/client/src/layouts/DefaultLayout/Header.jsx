@@ -10,6 +10,7 @@ import {
   BellOutlined,
   UserOutlined,
   CalendarOutlined,
+  DownOutlined,
 } from "@ant-design/icons";
 import { Avatar, Dropdown, Badge, Button, Space, Input } from "antd";
 import { NotificationCenter } from "../../components/NotificationCenter/NotificationCenter";
@@ -61,6 +62,7 @@ const Header = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // register dropdown state (was referenced but not defined)
   const [registerDropdownOpen, setRegisterDropdownOpen] = useState(false);
+  const [legalDropdownOpen, setLegalDropdownOpen] = useState(false);
   // search placeholder state (fix: placeholders / phIndex undefined)
   const placeholders = [
     "Tìm bác sĩ, chuyên khoa, cơ sở...",
@@ -177,6 +179,11 @@ const Header = () => {
       setActiveCat("hospital");
     } else if (currentPath === "/gioi-thieu") {
       setActiveCat("about");
+    } else if (
+      currentPath === "/chinh-sach-bao-mat" ||
+      currentPath === "/dieu-khoan-su-dung"
+    ) {
+      setActiveCat("legal");
     } else {
       setActiveCat("all");
     }
@@ -254,6 +261,12 @@ const Header = () => {
       return;
     }
 
+    // manager dashboard shortcut
+    if (key === "manager") {
+      navigate("/manager/trang-chu");
+      return;
+    }
+
     // fallback: navigate to route named by key
     if (key) navigate(`/${key}`);
   };
@@ -292,6 +305,37 @@ const Header = () => {
               {c.label}
             </Link>
           ))}
+
+          {/* Legal dropdown */}
+          <div className="register-dropdown">
+            <button
+              className={`cat dropdown-toggle ${
+                activeCat === "legal" ? "active" : ""
+              }`}
+              onClick={() => setLegalDropdownOpen(!legalDropdownOpen)}
+            >
+              Pháp lý
+              <DownOutlined style={{ fontSize: "12px" }} />
+            </button>
+            {legalDropdownOpen && (
+              <div className="dropdown-menu">
+                <Link
+                  to="/chinh-sach-bao-mat"
+                  className="dropdown-item"
+                  onClick={() => setLegalDropdownOpen(false)}
+                >
+                  Chính sách bảo mật
+                </Link>
+                <Link
+                  to="/dieu-khoan-su-dung"
+                  className="dropdown-item"
+                  onClick={() => setLegalDropdownOpen(false)}
+                >
+                  Điều khoản sử dụng
+                </Link>
+              </div>
+            )}
+          </div>
 
           {/* Search (Ant Design) - REMOVED */}
           {/* {showSearch && (
@@ -416,9 +460,11 @@ const Header = () => {
                     disabled: true,
                   },
                   { type: "divider", key: "d1" },
-                  // Only show profile and dashboard for non-admin users
+                  // Only show profile and dashboard for non-admin, non-manager users
                   ...(userProfile?.role !== "admin" &&
-                  userProfile?.role !== "ADMIN" && userProfile?.role !== ""
+                  userProfile?.role !== "ADMIN" &&
+                  userProfile?.role !== "manager" &&
+                  userProfile?.role !== "MANAGER"
                     ? [
                         {
                           key: "profile",
@@ -449,6 +495,27 @@ const Header = () => {
                               </div>
                               <div style={{ fontSize: 12, color: "#666" }}>
                                 Quản trị hệ thống
+                              </div>
+                            </div>
+                          ),
+                        },
+                      ]
+                    : []),
+                  // Manager Dashboard link - only show for manager users
+                  ...(userProfile?.role === "manager" ||
+                  userProfile?.role === "MANAGER"
+                    ? [
+                        {
+                          key: "manager",
+                          label: (
+                            <div style={{ minWidth: 220 }}>
+                              <div
+                                style={{ fontWeight: 700, color: "#722ed1" }}
+                              >
+                                📅 Manager Dashboard
+                              </div>
+                              <div style={{ fontSize: 12, color: "#666" }}>
+                                Quản lý lịch bác sĩ
                               </div>
                             </div>
                           ),
@@ -578,14 +645,26 @@ const Header = () => {
                       Liên hệ
                     </Link>
                   </li>
+                </ul>
+              </div>
+
+              <div className="sidebar-section">
+                <h4>Pháp lý</h4>
+                <ul>
                   <li>
-                    <Link to="/huong-dan" onClick={() => setSidebarOpen(false)}>
-                      Hướng dẫn sử dụng
+                    <Link
+                      to="/chinh-sach-bao-mat"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      Chính sách bảo mật
                     </Link>
                   </li>
                   <li>
-                    <Link to="/ho-tro" onClick={() => setSidebarOpen(false)}>
-                      Trợ giúp
+                    <Link
+                      to="/dieu-khoan-su-dung"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      Điều khoản sử dụng
                     </Link>
                   </li>
                 </ul>

@@ -33,11 +33,34 @@ export async function getAppointmentBySlotId(req, res) {
 
     console.log("✅ Found appointment:", appointment._id.toString());
 
+    // Ensure patientId is properly populated
+    let patientId = appointment.patientId;
+    if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
+      console.warn(`⚠️ Appointment ${appointment._id} has invalid patientId:`, patientId);
+      patientId = {
+        _id: appointment.patientId?._id || appointment.patientId || null,
+        fullName: appointment.patientId?.fullName || "Không có thông tin",
+        dob: appointment.patientId?.dob || null,
+        gender: appointment.patientId?.gender || null,
+        phone: appointment.patientId?.phone || null,
+      };
+    }
+
+    // Ensure new fields have default values for backward compatibility
+    const appointmentWithDefaults = {
+      ...appointment,
+      patientId, // Use properly populated patientId
+      services: appointment.services || [],
+      totalPay: appointment.totalPay !== undefined && appointment.totalPay !== null ? appointment.totalPay : 0,
+      amountPaid: appointment.amountPaid !== undefined && appointment.amountPaid !== null ? appointment.amountPaid : 0,
+      paymentStatus: appointment.paymentStatus || 'unpaid',
+    };
+
     return res.json({
       success: true,
       data: {
-        appointmentId: appointment._id.toString(),
-        appointment: appointment
+        appointmentId: appointmentWithDefaults._id.toString(),
+        appointment: appointmentWithDefaults
       }
     });
 

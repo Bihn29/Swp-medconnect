@@ -24,7 +24,11 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
-  const { userProfile, loading: profileLoading } = useUserProfile();
+  const {
+    userProfile,
+    loading: profileLoading,
+    refreshProfile,
+  } = useUserProfile();
 
   useEffect(() => {
     const handleResize = () => {
@@ -68,10 +72,24 @@ export function AppSidebar() {
     email: userProfile?.email || "email@example.com",
     role: userProfile?.role === "patient" ? "Bệnh nhân" : "Người dùng",
     avatar:
+      userProfile?.avatarUrl ||
       userProfile?.photoURL ||
       userProfile?.avatar ||
       "/patient-consultation.png",
   };
+
+  // Listen for avatar update events
+  useEffect(() => {
+    const handleAvatarUpdated = () => {
+      // Trigger a refresh of the user profile
+      refreshProfile();
+    };
+
+    window.addEventListener("avatarUpdated", handleAvatarUpdated);
+    return () => {
+      window.removeEventListener("avatarUpdated", handleAvatarUpdated);
+    };
+  }, [refreshProfile]);
 
   const handleLogout = async () => {
     try {

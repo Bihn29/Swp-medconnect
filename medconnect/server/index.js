@@ -36,8 +36,9 @@ const corsOptions = {
 };
 
 // Parse JSON and urlencoded request bodies FIRST
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increased limit to 10MB to handle base64 avatar images
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CORS must be after body parsers
 app.use(cors(corsOptions));
@@ -77,8 +78,27 @@ const server = http.createServer(app);
 
 mongoose
   .connect(process.env.MONGODB_URL || "mongodb://localhost:27017/MedConnect")
-  .then(() => {
+  .then(async () => {
     console.log("✅ Kết nối đến MongoDB thành công");
+    
+    // Fix old unique index on Payments collection if exists
+    try {
+      const db = mongoose.connection.db;
+      const collection = db.collection("Payments");
+      const indexes = await collection.indexes();
+      const oldIndex = indexes.find(idx => 
+        idx.name === "appointmentId_1" && idx.unique === true
+      );
+      
+      if (oldIndex) {
+        await collection.dropIndex("appointmentId_1");
+        console.log("✅ Đã xóa unique index cũ: appointmentId_1 trên collection Payments");
+      }
+    } catch (error) {
+      if (error.code !== 27 && !error.message?.includes("index not found")) {
+        console.log("ℹ️ Kiểm tra index (có thể đã được xóa):", error.message);
+      }
+    }
     
     // Tắt cron job tự động hủy appointments - không giới hạn thời gian thanh toán
     // startAppointmentCleanupJob();

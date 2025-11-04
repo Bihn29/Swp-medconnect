@@ -96,6 +96,15 @@
 }
 
 /* ============================== */
+/*        SIDEBAR CONTENT         */
+/* ============================== */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ============================== */
 /*         DANH MỤC CHÍNH         */
 /* ============================== */
 .sidebar-section {

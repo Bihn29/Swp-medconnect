@@ -30,7 +30,6 @@ const MedicalVisitSchema = new Schema(
         "refunded", // Hoàn tiền thủ công (nếu có)
       ],
       default: "planning",
-      index: true,
     },
 
     // 💰 Tổng phí (tổng hợp từ các lịch hẹn)
@@ -41,7 +40,6 @@ const MedicalVisitSchema = new Schema(
       type: String,
       enum: ["unpaid", "paid", "refunded", "partial_paid"],
       default: "unpaid",
-      index: true,
     },
     paidAt: { type: Date },
     refundReason: { type: String },

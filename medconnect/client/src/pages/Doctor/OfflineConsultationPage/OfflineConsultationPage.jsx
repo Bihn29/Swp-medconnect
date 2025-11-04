@@ -223,7 +223,7 @@ export default function OfflineConsultationPage() {
 
     // Thêm thông báo xác nhận
     const confirmed = window.confirm(
-      `Bạn có chắc chắn muốn hoàn thành khám bệnh và lưu thông tin cho ${patientName}?`
+      `Bạn có chắc chắn muốn lưu hồ sơ cho ${patientName}?`
     );
 
     if (!confirmed) {
@@ -289,20 +289,9 @@ export default function OfflineConsultationPage() {
         throw new Error(errorMessage);
       }
 
-      await fetch(
-        `${
-          import.meta.env.VITE_API_URL || "http://localhost:3000"
-        }/api/doctors/me/appointments/${appointmentId}/status`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ status: "done" }),
-        }
-      );
-
+      // Offline: KHÔNG update status thành "done" sau khi lưu hồ sơ
+      // Status chỉ chuyển thành "done" sau khi thanh toán dịch vụ thành công (trong webhook)
+      
       // End video call if it exists
       try {
         const VideoCallAPI = await import('../../../services/videoCallAPI');
@@ -315,7 +304,7 @@ export default function OfflineConsultationPage() {
         // Don't fail the whole process if video call ending fails
       }
 
-      alert("Đã hoàn thành khám bệnh và lưu thông tin thành công!");
+      alert("Đã lưu hồ sơ thành công! Bạn có thể ghi hóa đơn dịch vụ cho bệnh nhân.");
       navigate("/bac-si/lich-hen");
     } catch (error) {
       console.error("Error submitting consultation:", error);

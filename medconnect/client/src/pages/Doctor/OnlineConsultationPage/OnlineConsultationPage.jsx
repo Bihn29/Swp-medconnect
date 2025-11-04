@@ -168,7 +168,7 @@ export default function OnlineConsultationPage() {
 
     // Thêm thông báo xác nhận
     const confirmed = window.confirm(
-      `Bạn có chắc chắn muốn hoàn thành tư vấn và lưu thông tin cho ${patientName}?`
+      `Bạn có chắc chắn muốn lưu hồ sơ cho ${patientName}?`
     );
 
     if (!confirmed) {
@@ -219,7 +219,7 @@ export default function OnlineConsultationPage() {
         // Don't fail the whole process if video call ending fails
       }
 
-      alert("Đã hoàn thành tư vấn và lưu thông tin thành công!")
+      alert("Đã lưu hồ sơ thành công!")
       navigate("/bac-si/lich-hen")
     } catch (error) {
       console.error("Error submitting consultation:", error)

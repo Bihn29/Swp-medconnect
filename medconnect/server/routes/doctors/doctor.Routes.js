@@ -24,6 +24,10 @@ import {
   debugAuth,
   getDoctorTimeSlots,
   autoGenerateTimeSlots,
+  deleteTimeSlot,
+  blockSingleSlot,
+  blockSlotsByDateRange,
+  unblockSlotsByDateRange,
   getDoctorScheduleRules,
   updateDoctorScheduleRules,
   createTestTimeSlots,
@@ -33,6 +37,11 @@ import {
   uploadConsultationFile,
   createAppointmentByDoctor,
 } from "../../controllers/doctorController.js";
+import { createLeaveRequest } from "../../controllers/leaveRequestController.js";
+import {
+  createServicePayment,
+  getServicePaymentStatus,
+} from "../../controllers/servicePaymentController.js";
 
 const router = express.Router();
 
@@ -87,6 +96,19 @@ router.post(
 );
 router.get("/me/time-slots", authGuard, getDoctorTimeSlots);
 router.post("/me/time-slots/auto-generate", authGuard, autoGenerateTimeSlots);
+router.delete("/me/time-slots/:slotId", authGuard, deleteTimeSlot);
+router.post("/me/leave-requests", authGuard, createLeaveRequest);
+router.post(
+  "/me/appointments/:appointmentId/service-payment",
+  authGuard,
+  createServicePayment
+);
+router.get(
+  "/me/appointments/:appointmentId/service-payment",
+  authGuard,
+  getServicePaymentStatus
+);
+// Note: blockSingleSlot, blockSlotsByDateRange, unblockSlotsByDateRange removed - doctors now use leave requests
 router.get("/me/schedule-rules", authGuard, getDoctorScheduleRules);
 router.put("/me/schedule-rules", authGuard, updateDoctorScheduleRules);
 router.get("/me/debug-auth", authGuard, debugAuth);

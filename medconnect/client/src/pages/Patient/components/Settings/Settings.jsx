@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { User, Lock, CreditCard, Upload, Eye, EyeOff } from "lucide-react";
 import { useUserProfile } from "../../../../hooks/useUserProfile";
-import { updateCurrentPatientProfile } from "../../../../lib/api";
+import {
+  updateCurrentPatientProfile,
+  changePassword,
+} from "../../../../lib/api";
 import "./Settings.scss";
 
 export function Settings() {
@@ -42,6 +45,7 @@ export function Settings() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Password change states
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -184,8 +188,8 @@ export function Settings() {
         break;
 
       case "citizenId":
-        if (value && !/^[0-9]{9,12}$/.test(value)) {
-          errors.citizenId = "CCCD/CMND phải có 9-12 chữ số";
+        if (value && !/^[0-9]{12}$/.test(value)) {
+          errors.citizenId = "Căn cước công dân phải có đúng 12 chữ số";
         }
         break;
 
@@ -238,10 +242,16 @@ export function Settings() {
         break;
 
       case "newPassword":
-        if (value && value.length < 6) {
-          errors.newPassword = "Mật khẩu mới phải có ít nhất 6 ký tự";
+        if (value && value.length < 8) {
+          errors.newPassword = "Mật khẩu mới phải có ít nhất 8 ký tự";
         } else if (value && value.length > 50) {
           errors.newPassword = "Mật khẩu mới không được quá 50 ký tự";
+        } else if (
+          value &&
+          formData.currentPassword &&
+          value === formData.currentPassword
+        ) {
+          errors.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại";
         }
         break;
 
@@ -256,13 +266,41 @@ export function Settings() {
   };
 
   const handleInputChange = (field, value) => {
+    let processedValue = value;
+
+    // Auto-format birth date: DD/MM/YYYY
+    if (field === "birthDate") {
+      // Remove all non-digit characters
+      const digitsOnly = value.replace(/\D/g, "");
+
+      // Limit to 8 digits (DDMMYYYY)
+      const limitedDigits = digitsOnly.slice(0, 8);
+
+      // Format: DD/MM/YYYY
+      if (limitedDigits.length <= 2) {
+        // DD
+        processedValue = limitedDigits;
+      } else if (limitedDigits.length <= 4) {
+        // DD/MM
+        processedValue = `${limitedDigits.slice(0, 2)}/${limitedDigits.slice(
+          2
+        )}`;
+      } else {
+        // DD/MM/YYYY
+        processedValue = `${limitedDigits.slice(0, 2)}/${limitedDigits.slice(
+          2,
+          4
+        )}/${limitedDigits.slice(4)}`;
+      }
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [field]: value,
+      [field]: processedValue,
     }));
 
     // Real-time validation
-    const fieldValidation = validateField(field, value);
+    const fieldValidation = validateField(field, processedValue);
     setFieldErrors((prev) => ({
       ...prev,
       [field]: fieldValidation[field] || null,
@@ -277,6 +315,18 @@ export function Settings() {
       setFieldErrors((prev) => ({
         ...prev,
         confirmPassword: confirmPasswordValidation.confirmPassword || null,
+      }));
+    }
+
+    // If current password changes, re-validate new password to check if they match
+    if (field === "currentPassword" && formData.newPassword) {
+      const newPasswordValidation = validateField(
+        "newPassword",
+        formData.newPassword
+      );
+      setFieldErrors((prev) => ({
+        ...prev,
+        newPassword: newPasswordValidation.newPassword || null,
       }));
     }
   };
@@ -325,9 +375,9 @@ export function Settings() {
       }
     }
 
-    // Validate citizen ID format (Vietnamese CCCD/CMND)
-    if (formData.citizenId && !/^[0-9]{9,12}$/.test(formData.citizenId)) {
-      errors.citizenId = "CCCD/CMND phải có 9-12 chữ số";
+    // Validate citizen ID format (Vietnamese CCCD - must be exactly 12 digits)
+    if (formData.citizenId && !/^[0-9]{12}$/.test(formData.citizenId)) {
+      errors.citizenId = "Căn cước công dân phải có đúng 12 chữ số";
     }
 
     // Validate representative citizen ID
@@ -455,6 +505,7 @@ export function Settings() {
     // Thêm logic hủy thay đổi ở đây
   };
 
+  //--------------------------------- Change Password  ---------------------------------
   const handleChangePassword = async () => {
     try {
       setIsChangingPassword(true);
@@ -468,8 +519,8 @@ export function Settings() {
 
       if (!formData.newPassword?.trim()) {
         passwordErrors.newPassword = "Mật khẩu mới là bắt buộc";
-      } else if (formData.newPassword.length < 6) {
-        passwordErrors.newPassword = "Mật khẩu mới phải có ít nhất 6 ký tự";
+      } else if (formData.newPassword.length < 8) {
+        passwordErrors.newPassword = "Mật khẩu mới phải có ít nhất 8 ký tự";
       }
 
       if (!formData.confirmPassword?.trim()) {
@@ -478,35 +529,157 @@ export function Settings() {
         passwordErrors.confirmPassword = "Mật khẩu xác nhận không khớp";
       }
 
+      // Check if new password is different from current password
+      if (
+        formData.currentPassword &&
+        formData.newPassword &&
+        formData.currentPassword === formData.newPassword
+      ) {
+        passwordErrors.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại";
+      }
+
       if (Object.keys(passwordErrors).length > 0) {
         setFieldErrors(passwordErrors);
-        alert("Vui lòng kiểm tra lại thông tin mật khẩu");
         return;
       }
 
-      // TODO: Implement password change API call
-      // const response = await changePassword({
-      //   currentPassword: formData.currentPassword,
-      //   newPassword: formData.newPassword
-      // });
+      // Call API to change password
+      try {
+        await changePassword(formData.currentPassword, formData.newPassword);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+        // Clear password fields on success
+        setFormData((prev) => ({
+          ...prev,
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        }));
 
-      // Clear password fields
-      setFormData((prev) => ({
-        ...prev,
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      }));
+        // Clear errors
+        setFieldErrors((prev) => ({
+          ...prev,
+          currentPassword: null,
+          newPassword: null,
+          confirmPassword: null,
+        }));
 
-      alert("Đổi mật khẩu thành công!");
+        alert("Đổi mật khẩu thành công!");
+      } catch (error) {
+        // Handle API errors
+        if (error.status === 400 && error.response?.message) {
+          const errorMessage = error.response.message;
+          if (
+            errorMessage.includes("Mật khẩu hiện tại không đúng") ||
+            errorMessage.includes("mật khẩu hiện tại")
+          ) {
+            setFieldErrors({
+              currentPassword: "Mật khẩu hiện tại không đúng",
+            });
+          } else if (errorMessage.includes("khác mật khẩu hiện tại")) {
+            setFieldErrors({
+              newPassword: "Mật khẩu mới phải khác mật khẩu hiện tại",
+            });
+          } else {
+            alert(errorMessage || "Có lỗi xảy ra khi đổi mật khẩu");
+          }
+        } else {
+          alert(
+            error.response?.message ||
+              error.message ||
+              "Có lỗi xảy ra khi đổi mật khẩu. Vui lòng thử lại."
+          );
+        }
+        throw error;
+      }
     } catch (error) {
       console.error("Error changing password:", error);
-      alert("Có lỗi xảy ra khi đổi mật khẩu. Vui lòng thử lại.");
+      // Error handling is done above
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+  //--------------------------------- Change Password ---------------------------------
+
+  // Handle avatar upload
+  const resizeImage = (file, maxWidth, maxHeight, quality = 0.8) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          // Calculate new dimensions
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Ảnh quá lớn, vui lòng chọn ảnh nhỏ hơn 5MB");
+      return;
+    }
+
+    // Check file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      alert("Chỉ chấp nhận file ảnh (JPG, PNG, WebP)");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      // Resize image
+      const compressedImage = await resizeImage(file, 800, 800, 0.8);
+
+      // Update avatar via API
+      await updateCurrentPatientProfile({ avatarUrl: compressedImage });
+
+      // Refresh profile
+      await refreshProfile();
+
+      // Dispatch custom event to update sidebar/header if needed
+      window.dispatchEvent(new CustomEvent("avatarUpdated"));
+
+      alert("Cập nhật ảnh đại diện thành công!");
+    } catch (error) {
+      console.error("Error updating avatar:", error);
+      alert("Có lỗi xảy ra khi cập nhật ảnh đại diện");
+    } finally {
+      setUploadingAvatar(false);
+      // Reset file input
+      e.target.value = "";
     }
   };
 
@@ -553,6 +726,7 @@ export function Settings() {
               <div className="avatar-container">
                 <img
                   src={
+                    userProfile?.avatarUrl ||
                     userProfile?.photoURL ||
                     userProfile?.avatar ||
                     "/patient-consultation.png"
@@ -562,11 +736,25 @@ export function Settings() {
                 />
               </div>
               <div className="upload-section">
-                <button className="upload-button">
+                <input
+                  type="file"
+                  id="avatar-input"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleAvatarChange}
+                  disabled={uploadingAvatar}
+                  style={{ display: "none" }}
+                />
+                <label
+                  htmlFor="avatar-input"
+                  className={`upload-button ${
+                    uploadingAvatar ? "disabled" : ""
+                  }`}
+                  style={{ pointerEvents: uploadingAvatar ? "none" : "auto" }}
+                >
                   <Upload className="upload-icon" />
-                  Tải ảnh lên
-                </button>
-                <p className="upload-text">JPG, PNG tối đa 2MB</p>
+                  {uploadingAvatar ? "Đang tải lên..." : "Tải ảnh lên"}
+                </label>
+                <p className="upload-text">JPG, PNG, WebP tối đa 5MB</p>
               </div>
             </div>
 
@@ -685,6 +873,30 @@ export function Settings() {
                       onChange={(e) =>
                         handleInputChange("birthDate", e.target.value)
                       }
+                      onKeyDown={(e) => {
+                        // Allow: backspace, delete, tab, escape, enter, and numbers
+                        if (
+                          [46, 8, 9, 27, 13, 110, 190].indexOf(e.keyCode) !==
+                            -1 ||
+                          // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                          (e.keyCode === 65 && e.ctrlKey === true) ||
+                          (e.keyCode === 67 && e.ctrlKey === true) ||
+                          (e.keyCode === 86 && e.ctrlKey === true) ||
+                          (e.keyCode === 88 && e.ctrlKey === true) ||
+                          // Allow: home, end, left, right, down, up
+                          (e.keyCode >= 35 && e.keyCode <= 40)
+                        ) {
+                          return;
+                        }
+                        // Ensure that it is a number and stop the keypress
+                        if (
+                          (e.shiftKey || e.keyCode < 48 || e.keyCode > 57) &&
+                          (e.keyCode < 96 || e.keyCode > 105)
+                        ) {
+                          e.preventDefault();
+                        }
+                      }}
+                      maxLength={10}
                       placeholder="DD/MM/YYYY"
                     />
                     {fieldErrors.birthDate && (
@@ -706,17 +918,22 @@ export function Settings() {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">CCCD/CMND</label>
+                    <label className="form-label">Căn cước công dân</label>
                     <input
                       type="text"
                       className={`form-input ${
                         fieldErrors.citizenId ? "error" : ""
                       }`}
                       value={formData.citizenId}
-                      onChange={(e) =>
-                        handleInputChange("citizenId", e.target.value)
-                      }
-                      placeholder="Nhập số CCCD/CMND"
+                      onChange={(e) => {
+                        // Only allow numbers, limit to 12 digits
+                        const digitsOnly = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 12);
+                        handleInputChange("citizenId", digitsOnly);
+                      }}
+                      maxLength={12}
+                      placeholder="Nhập số căn cước công dân (12 số)"
                     />
                     {fieldErrors.citizenId && (
                       <div className="error-text">{fieldErrors.citizenId}</div>

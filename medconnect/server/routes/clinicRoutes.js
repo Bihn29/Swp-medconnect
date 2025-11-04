@@ -5,6 +5,7 @@ import {
   createClinic,
   updateClinic,
   deleteClinic,
+  getUniqueLocations,
 } from "../controllers/clinicController.js";
 import { authGuard } from "../middleware/auth.js";
 
@@ -12,6 +13,7 @@ const router = express.Router();
 
 // Public routes
 router.get("/", getAllClinics);
+router.get("/locations", getUniqueLocations); // Get unique locations
 router.get("/:id", getClinicById);
 
 // Protected routes (require authentication)

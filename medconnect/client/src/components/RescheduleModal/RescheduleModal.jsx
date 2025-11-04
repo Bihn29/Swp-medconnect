@@ -21,7 +21,13 @@ const { TextArea } = Input;
 const { Option } = Select;
 const { Text } = Typography;
 
-export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
+export function RescheduleModal({
+  visible,
+  appointment,
+  onClose,
+  onSuccess,
+  customSubmitHandler, // Optional: custom handler for manager/admin reschedule
+}) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [timeSlotsLoading, setTimeSlotsLoading] = useState(false);
@@ -223,16 +229,34 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
         requestBody.clinicId = values.clinicId;
       }
 
-      const response = await api.post("/api/reschedule/request", requestBody);
+      // Use custom submit handler if provided (for manager/admin), otherwise use default patient request
+      let response;
+      if (customSubmitHandler) {
+        response = await customSubmitHandler({
+          appointmentId: appointment._id,
+          newDateTime: newDateTime,
+          reason: values.reason,
+          mode: selectedMode,
+          clinicId: selectedMode === "offline" ? values.clinicId : undefined,
+        });
+      } else {
+        response = await api.post("/api/reschedule/request", requestBody);
+      }
 
       if (response.success) {
-        message.success("Yêu cầu dời lịch đã được gửi thành công");
+        message.success(
+          customSubmitHandler
+            ? "Dời lịch thành công"
+            : "Yêu cầu dời lịch đã được gửi thành công"
+        );
         form.resetFields();
         setSelectedDate(null);
         setSelectedTimeSlot(null);
         setSelectedMode(null);
         setClinics([]);
-        onSuccess();
+        if (onSuccess) {
+          onSuccess(response);
+        }
       } else {
         message.error(response.message || "Có lỗi xảy ra khi gửi yêu cầu");
       }
@@ -408,24 +432,62 @@ export function RescheduleModal({ visible, appointment, onClose, onSuccess }) {
                     marginTop: "8px",
                   }}
                 >
-                  {availableTimeSlots.map((slot) => (
-                    <Button
-                      key={slot._id || slot.startTime}
-                      type={
-                        selectedTimeSlot?._id === slot._id ||
-                        selectedTimeSlot?.startTime === slot.startTime
-                          ? "primary"
-                          : "default"
-                      }
-                      onClick={() => handleTimeSlotSelect(slot)}
-                      style={{
-                        height: "auto",
-                        padding: "8px 12px",
-                      }}
-                    >
-                      {formatTimeSlot(slot)}
-                    </Button>
-                  ))}
+                  {availableTimeSlots.map((slot) => {
+                    // Xác định slot có bị disable không
+                    // Disable nếu:
+                    // - available = false
+                    // - isBlocked = true (bác sĩ nghỉ)
+                    // - appointmentStatus là: pending_doctor (đang chờ xác nhận), accepted (đã xác nhận), in_progress (đang khám), done (đã khám)
+                    const isDisabled =
+                      !slot.available ||
+                      slot.isBlocked ||
+                      (slot.appointmentStatus &&
+                        [
+                          "pending_doctor",
+                          "accepted",
+                          "in_progress",
+                          "done",
+                        ].includes(slot.appointmentStatus));
+
+                    // Xác định tooltip text cho slot disabled
+                    let disabledReason = "";
+                    if (slot.isBlocked) {
+                      disabledReason = "Bác sĩ nghỉ";
+                    } else if (slot.appointmentStatus === "pending_doctor") {
+                      disabledReason = "Đang chờ xác nhận";
+                    } else if (slot.appointmentStatus === "accepted") {
+                      disabledReason = "Đã xác nhận";
+                    } else if (slot.appointmentStatus === "in_progress") {
+                      disabledReason = "Đang khám";
+                    } else if (slot.appointmentStatus === "done") {
+                      disabledReason = "Đã khám";
+                    }
+
+                    return (
+                      <Button
+                        key={slot._id || slot.startTime}
+                        type={
+                          selectedTimeSlot?._id === slot._id ||
+                          selectedTimeSlot?.startTime === slot.startTime
+                            ? "primary"
+                            : "default"
+                        }
+                        disabled={isDisabled}
+                        onClick={() => {
+                          if (!isDisabled) {
+                            handleTimeSlotSelect(slot);
+                          }
+                        }}
+                        title={isDisabled ? disabledReason : ""}
+                        style={{
+                          height: "auto",
+                          padding: "8px 12px",
+                        }}
+                      >
+                        {formatTimeSlot(slot)}
+                      </Button>
+                    );
+                  })}
                 </div>
               )}
             </Form.Item>

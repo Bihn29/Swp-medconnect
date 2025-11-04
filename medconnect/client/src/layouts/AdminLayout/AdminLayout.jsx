@@ -14,6 +14,7 @@ import {
   UserOutlined,
   DownOutlined,
 } from "@ant-design/icons";
+import { clearUserData } from "../../utils/clearUserData";
 import "./AdminLayout.scss";
 
 const { Header, Sider, Content } = Layout;
@@ -51,24 +52,26 @@ const AdminLayout = () => {
       label: "Quản lý lịch hẹn",
     },
     {
-      key: "/admin/reports",
+      key: "/admin/statistics",
       icon: <FileTextOutlined />,
-      label: "Báo cáo",
+      label: "Thống kê",
     },
-    {
-      key: "/admin/system-settings",
-      icon: <SettingOutlined />,
-      label: "Cài đặt hệ thống",
-    },
+    
   ];
 
   const handleMenuClick = ({ key }) => {
     navigate(key);
   };
 
-  const handleLogout = () => {
-    // Implement logout logic
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      console.log("Admin logout clicked - clearing all user data...");
+      await clearUserData();
+    } catch (error) {
+      console.error("Error during admin logout:", error);
+      // Fallback: just reload the page
+      window.location.reload();
+    }
   };
 
   const userMenuItems = [

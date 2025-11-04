@@ -28,6 +28,8 @@ import {
   SearchOutlined,
   MedicineBoxOutlined,
   HomeOutlined,
+  HeartOutlined,
+  HeartFilled,
 } from "@ant-design/icons";
 import NavigationBreadcrumb from "../../../components/Breadcrumb/NavigationBreadcrumb";
 import { api } from "../../../lib/api";
@@ -51,6 +53,8 @@ const DoctorList = () => {
   const [facilityFilter, setFacilityFilter] = useState("");
   const [totalDoctors, setTotalDoctors] = useState(0);
   const [urlProcessed, setUrlProcessed] = useState(false);
+  const [favoriteDoctorIds, setFavoriteDoctorIds] = useState(new Set());
+  const [favoriteLoadingIds, setFavoriteLoadingIds] = useState(new Set());
 
   // Process URL parameters on component mount
   useEffect(() => {
@@ -62,6 +66,13 @@ const DoctorList = () => {
     }
     setUrlProcessed(true);
   }, [location.search]);
+
+  // Fetch favorite doctors if user is logged in
+  useEffect(() => {
+    if (user) {
+      fetchFavoriteDoctors();
+    }
+  }, [user]);
 
   // Fetch doctors from API
   const fetchDoctors = async () => {
@@ -115,6 +126,106 @@ const DoctorList = () => {
       setDoctors([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch favorite doctors if user is logged in
+  const fetchFavoriteDoctors = async () => {
+    try {
+      const response = await api.get("/api/patients/me/favorite-doctors");
+      if (response.success && response.data.favoriteDoctors) {
+        const favoriteIds = new Set(
+          response.data.favoriteDoctors.map((doc) => doc._id)
+        );
+        setFavoriteDoctorIds(favoriteIds);
+      }
+    } catch (error) {
+      // Silently fail if user is not logged in or endpoint doesn't exist
+      console.log("Could not fetch favorite doctors:", error);
+    }
+  };
+
+  // Toggle favorite status
+  const handleToggleFavorite = async (e, doctorId) => {
+    e.stopPropagation(); // Prevent card click
+
+    if (!user) {
+      message.warning("Vui lòng đăng nhập để sử dụng tính năng này");
+      navigate("/dang-nhap", {
+        state: {
+          from: location.pathname + location.search,
+          message: "Vui lòng đăng nhập để thêm bác sĩ vào danh sách ưa thích",
+        },
+      });
+      return;
+    }
+
+    // Optimistic update - update UI immediately
+    const isFavorite = favoriteDoctorIds.has(doctorId);
+    const previousFavoriteIds = new Set(favoriteDoctorIds);
+
+    // Update state immediately for instant feedback
+    if (isFavorite) {
+      setFavoriteDoctorIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(doctorId);
+        return newSet;
+      });
+    } else {
+      setFavoriteDoctorIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(doctorId);
+        return newSet;
+      });
+    }
+
+    // Add to loading set
+    setFavoriteLoadingIds((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(doctorId);
+      return newSet;
+    });
+
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        const response = await api.delete(
+          `/api/patients/me/favorite-doctors/${doctorId}`
+        );
+        if (!response.success) {
+          // Rollback on error
+          setFavoriteDoctorIds(previousFavoriteIds);
+          message.error("Không thể xóa khỏi danh sách ưa thích");
+        } else {
+          message.success("Đã xóa khỏi danh sách ưa thích");
+        }
+      } else {
+        // Add to favorites
+        const response = await api.post("/api/patients/me/favorite-doctors", {
+          doctorId: doctorId,
+        });
+        if (!response.success) {
+          // Rollback on error
+          setFavoriteDoctorIds(previousFavoriteIds);
+          message.error(
+            response.message || "Không thể thêm vào danh sách ưa thích"
+          );
+        } else {
+          message.success("Đã thêm vào danh sách ưa thích");
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      // Rollback on error - restore previous state
+      setFavoriteDoctorIds(previousFavoriteIds);
+      message.error("Có lỗi xảy ra khi cập nhật danh sách ưa thích");
+    } finally {
+      // Remove from loading set
+      setFavoriteLoadingIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(doctorId);
+        return newSet;
+      });
     }
   };
 
@@ -331,125 +442,154 @@ const DoctorList = () => {
     navigate({ pathname: location.pathname, search: params.toString() });
   };
 
-  const DoctorCard = ({ doctor }) => (
-    <Card
-      className="doctor-card"
-      hoverable
-      onClick={() => handleDoctorClick(doctor._id)}
-      style={{
-        marginBottom: "16px",
-        borderRadius: "12px",
-        border: "1px solid #f0f0f0",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
-      }}
-    >
-      <Row gutter={16} align="middle">
-        <Col flex="120px">
-          <Avatar
-            size={100}
-            src={
-              doctor.avatarUrl && !doctor.avatarUrl.includes("picsum.photos")
-                ? doctor.avatarUrl
-                : "/default-avatar.png"
-            }
-            icon={<UserOutlined />}
-            style={{ borderRadius: "8px" }}
-            onError={() => {
-              // Avatar component will handle fallback to icon
-            }}
-          />
-        </Col>
-        <Col flex="auto">
-          <div className="doctor-info">
-            <Title level={4} style={{ margin: "0 0 8px 0", color: "#1890ff" }}>
-              {(() => {
-                const fullName = doctor.userId?.fullName || doctor.fullName;
-                return fullName?.startsWith("BS.")
-                  ? fullName
-                  : `BS. ${fullName}`;
-              })()}
-            </Title>
-            <Text
-              strong
-              style={{ color: "#666", display: "block", marginBottom: "4px" }}
-            >
-              {getSpecializationNames(doctor.specializationIds) ||
-                "Chuyên khoa"}
-            </Text>
-            <Paragraph
-              ellipsis={{ rows: 2 }}
-              style={{ color: "#666", margin: "8px 0" }}
-            >
-              {doctor.bio || "Bác sĩ chuyên khoa với nhiều năm kinh nghiệm."}
-            </Paragraph>
-            <Space direction="vertical" size="small" style={{ width: "100%" }}>
-              <Space>
-                <StarOutlined style={{ color: "#fadb14" }} />
-                <Rate
-                  disabled
-                  defaultValue={doctor.ratingAvg || 0}
-                  style={{ fontSize: "14px" }}
-                />
-                <Text>({doctor.ratingCount || 0} đánh giá)</Text>
-              </Space>
-              <Space>
-                <EnvironmentOutlined style={{ color: "#45c3d2" }} />
-                <Text>
-                  {doctor.clinicDefaultId?.name || "Phòng khám"} -{" "}
-                  {doctor.clinicDefaultId?.address || "Địa chỉ"}
-                </Text>
-              </Space>
-              <Space>
-                <CalendarOutlined style={{ color: "#45c3d2" }} />
-                <Text>Kinh nghiệm: {doctor.yearsExperience || 0} năm</Text>
-              </Space>
-            </Space>
-          </div>
-        </Col>
-        <Col flex="160px">
-          <div className="doctor-actions">
-            <div
-              className="price"
-              style={{
-                fontSize: "18px",
-                fontWeight: "600",
-                color: "#f5222d",
-                marginBottom: "8px",
+  const DoctorCard = ({ doctor }) => {
+    const isFavorite = favoriteDoctorIds.has(doctor._id);
+    const isLoading = favoriteLoadingIds.has(doctor._id);
+
+    return (
+      <Card
+        className="doctor-card"
+        hoverable
+        onClick={() => handleDoctorClick(doctor._id)}
+        style={{
+          marginBottom: "16px",
+          borderRadius: "12px",
+          border: "1px solid #f0f0f0",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
+          position: "relative",
+        }}
+      >
+        {/* Favorite Button */}
+        <Button
+          type="text"
+          onClick={(e) => handleToggleFavorite(e, doctor._id)}
+          disabled={isLoading}
+          style={{
+            position: "absolute",
+            top: "16px",
+            right: "16px",
+            zIndex: 10,
+            padding: "4px 8px",
+            height: "auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          className="favorite-button"
+        >
+          {isLoading ? (
+            <Spin size="small" style={{ margin: 0 }} />
+          ) : isFavorite ? (
+            <HeartFilled style={{ color: "#ff4d4f", fontSize: "20px" }} />
+          ) : (
+            <HeartOutlined style={{ fontSize: "20px" }} />
+          )}
+        </Button>
+
+        <Row gutter={16} align="middle">
+          <Col flex="120px">
+            <Avatar
+              size={100}
+              src={
+                doctor.avatarUrl && !doctor.avatarUrl.includes("picsum.photos")
+                  ? doctor.avatarUrl
+                  : "/default-avatar.png"
+              }
+              icon={<UserOutlined />}
+              style={{ borderRadius: "8px" }}
+              onError={() => {
+                // Avatar component will handle fallback to icon
               }}
-            >
-              350.000đ
+            />
+          </Col>
+          <Col flex="auto">
+            <div className="doctor-info">
+              <Title
+                level={4}
+                style={{ margin: "0 0 8px 0", color: "#1890ff" }}
+              >
+                {(() => {
+                  const fullName = doctor.userId?.fullName || doctor.fullName;
+                  return fullName?.startsWith("BS.")
+                    ? fullName
+                    : `BS. ${fullName}`;
+                })()}
+              </Title>
+              <Text
+                strong
+                style={{ color: "#666", display: "block", marginBottom: "4px" }}
+              >
+                {getSpecializationNames(doctor.specializationIds) ||
+                  "Chuyên khoa"}
+              </Text>
+              <Paragraph
+                ellipsis={{ rows: 2 }}
+                style={{ color: "#666", margin: "8px 0" }}
+              >
+                {doctor.bio || "Bác sĩ chuyên khoa với nhiều năm kinh nghiệm."}
+              </Paragraph>
+              <Space
+                direction="vertical"
+                size="small"
+                style={{ width: "100%" }}
+              >
+                <Space>
+                  <StarOutlined style={{ color: "#fadb14" }} />
+                  <Rate
+                    disabled
+                    defaultValue={doctor.ratingAvg || 0}
+                    style={{ fontSize: "14px" }}
+                  />
+                  <Text>({doctor.ratingCount || 0} đánh giá)</Text>
+                </Space>
+                <Space>
+                  <EnvironmentOutlined style={{ color: "#45c3d2" }} />
+                  <Text>
+                    {doctor.clinicDefaultId?.name || "Phòng khám"} -{" "}
+                    {doctor.clinicDefaultId?.address || "Địa chỉ"}
+                  </Text>
+                </Space>
+                <Space>
+                  <CalendarOutlined style={{ color: "#45c3d2" }} />
+                  <Text>Kinh nghiệm: {doctor.yearsExperience || 0} năm</Text>
+                </Space>
+              </Space>
             </div>
-            <Button
-              type="primary"
-              size="large"
-              block
-              onClick={(e) => handleBookAppointment(e, doctor)}
-              style={{
-                backgroundColor: "#45c3d2",
-                borderColor: "#45c3d2",
-                marginBottom: "8px",
-                fontWeight: "500",
-              }}
-            >
-              Đặt lịch khám
-            </Button>
-            <Button
-              size="large"
-              block
-              onClick={(e) => {
-                e.stopPropagation();
-                // Navigate to doctor reviews page
-                navigate(`/bac-si/${doctor._id}/danh-gia`);
-              }}
-              style={{ fontWeight: "500" }}
-            >
-              Xem đánh giá
-            </Button>
-          </div>
-        </Col>
-      </Row>
-    </Card>
-  );
+          </Col>
+          <Col flex="160px">
+            <div className="doctor-actions">
+              <Button
+                type="primary"
+                size="large"
+                block
+                onClick={(e) => handleBookAppointment(e, doctor)}
+                style={{
+                  backgroundColor: "#45c3d2",
+                  borderColor: "#45c3d2",
+                  marginBottom: "8px",
+                  fontWeight: "500",
+                }}
+              >
+                Đặt lịch khám
+              </Button>
+              <Button
+                size="large"
+                block
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Navigate to doctor reviews page
+                  navigate(`/bac-si/${doctor._id}/danh-gia`);
+                }}
+                style={{ fontWeight: "500" }}
+              >
+                Xem đánh giá
+              </Button>
+            </div>
+          </Col>
+        </Row>
+      </Card>
+    );
+  };
 
   return (
     <div className="doctor-page">
