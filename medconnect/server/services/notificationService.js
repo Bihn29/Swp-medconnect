@@ -284,6 +284,88 @@ export async function createAppointmentNotification(
 }
 
 /**
+ * Create notification for service payment completion (for doctor)
+ */
+export async function createServicePaymentNotification(
+  paymentId,
+  appointmentId
+) {
+  try {
+    // Get payment with populated data
+    const Payment = (await import("../models/payment.model.js")).default;
+    const payment = await Payment.findById(paymentId)
+      .populate("appointmentId")
+      .lean();
+
+    if (!payment) {
+      console.error("❌ Payment not found:", paymentId);
+      return null;
+    }
+
+    // Get appointment with populated data
+    const appointment = await Appointment.findById(appointmentId)
+      .populate("patientId", "fullName userId")
+      .populate("doctorId", "userId fullName")
+      .populate("doctorId.userId", "email phone")
+      .lean();
+
+    if (!appointment) {
+      console.error("❌ Appointment not found:", appointmentId);
+      return null;
+    }
+
+    const doctorUser = appointment.doctorId?.userId;
+    const patientName = appointment.patientId?.fullName || "Bệnh nhân";
+
+    if (!doctorUser) {
+      console.error("❌ Doctor user not found for appointment:", appointmentId);
+      return null;
+    }
+
+    // Format số tiền
+    const formattedAmount = new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(payment.total);
+
+    // Format danh sách dịch vụ
+    const servicesList = payment.items
+      .map((item) => `${item.description} - ${new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+      }).format(item.unitPrice)}`)
+      .join(", ");
+
+    // Create notification for doctor
+    const notification = await Notification.create({
+      userId: doctorUser._id,
+      type: "payment",
+      title: "Xác nhận thanh toán dịch vụ",
+      message: `Bệnh nhân ${patientName} đã thanh toán thành công ${formattedAmount} cho dịch vụ: ${servicesList}. Mã hóa đơn: ${payment.invoiceNumber}`,
+      priority: "high",
+      relatedId: paymentId,
+      relatedType: "payment",
+      metadata: {
+        appointmentId: appointmentId,
+        paymentId: paymentId,
+        invoiceNumber: payment.invoiceNumber,
+        total: payment.total,
+        services: payment.items,
+        patientName: patientName,
+      },
+    });
+
+    console.log(
+      `✅ Created service payment notification for doctor ${doctorUser._id}`
+    );
+    return notification;
+  } catch (error) {
+    console.error("❌ Error creating service payment notification:", error);
+    throw error;
+  }
+}
+
+/**
  * Create notification for new appointment booking
  * @param {string} appointmentId - The appointment ID
  * @param {object} options - Additional options

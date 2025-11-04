@@ -2109,11 +2109,39 @@ export const getAllAppointments = async (req, res) => {
       })
       .populate("clinicId", "name")
       .select(
-        "patientId doctorId clinicId scheduledStart scheduledEnd status mode reason createdAt cancelledAt cancelledBy cancelReason"
+        "patientId doctorId clinicId scheduledStart scheduledEnd status mode reason createdAt cancelledAt cancelledBy cancelReason services totalPay amountPaid paymentStatus"
       )
       .sort({ scheduledStart: -1 });
 
-    const formattedAppointments = appointments.map((appointment, index) => {
+    // Ensure new fields have default values for backward compatibility
+    // Also ensure patientId is properly populated
+    const appointmentsWithDefaults = appointments.map((apt) => {
+      const aptObj = apt.toObject();
+      
+      // Ensure patientId is properly populated
+      let patientId = aptObj.patientId;
+      if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
+        console.warn(`⚠️ Appointment ${aptObj._id} has invalid patientId:`, patientId);
+        patientId = {
+          _id: aptObj.patientId?._id || aptObj.patientId || null,
+          fullName: aptObj.patientId?.fullName || "Không có thông tin",
+          phone: aptObj.patientId?.phone || null,
+          address: aptObj.patientId?.address || null,
+          userId: aptObj.patientId?.userId || null,
+        };
+      }
+      
+      return {
+        ...aptObj,
+        patientId, // Use properly populated patientId
+        services: aptObj.services || [],
+        totalPay: aptObj.totalPay !== undefined && aptObj.totalPay !== null ? aptObj.totalPay : 0,
+        amountPaid: aptObj.amountPaid !== undefined && aptObj.amountPaid !== null ? aptObj.amountPaid : 0,
+        paymentStatus: aptObj.paymentStatus || 'unpaid',
+      };
+    });
+
+    const formattedAppointments = appointmentsWithDefaults.map((appointment, index) => {
       const patient = appointment.patientId;
       const doctor = appointment.doctorId;
       const specializations = appointment.doctorId?.specializationIds;
@@ -2150,6 +2178,12 @@ export const getAllAppointments = async (req, res) => {
         status: appointment.status,
         mode: appointment.mode,
         reason: appointment.reason || "Không có lý do",
+        
+        // Thông tin thanh toán mới
+        services: appointment.services || [],
+        totalPay: appointment.totalPay || 0,
+        amountPaid: appointment.amountPaid || 0,
+        paymentStatus: appointment.paymentStatus || 'unpaid',
 
         // Thông tin hủy lịch
         cancelledAt: appointment.cancelledAt,

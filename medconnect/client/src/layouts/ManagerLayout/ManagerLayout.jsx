@@ -9,6 +9,7 @@ import {
   UserOutlined,
   DownOutlined,
   FileTextOutlined,
+  DollarOutlined,
 } from "@ant-design/icons";
 import { clearUserData } from "../../utils/clearUserData";
 import "./ManagerLayout.scss";
@@ -59,6 +60,16 @@ const ManagerLayout = () => {
       icon: <FileTextOutlined />,
       label: "Yêu cầu nghỉ phép",
       badge: null, // TODO: Add badge count for pending requests
+    },
+    {
+      key: "/manager/quan-ly-gia-dich-vu",
+      icon: <DollarOutlined />,
+      label: "Quản lý giá dịch vụ",
+    },
+    {
+      key: "/manager/quan-ly-hoa-don",
+      icon: <FileTextOutlined />,
+      label: "Quản lý hóa đơn",
     },
     {
       key: "/manager/thong-bao",

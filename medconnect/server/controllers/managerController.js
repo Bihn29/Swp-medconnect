@@ -356,7 +356,35 @@ export async function getAppointmentDetailForManager(req, res) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Appointment not found");
     }
 
-    return ok(res, appointment);
+    // Ensure patientId is properly populated
+    let patientId = appointment.patientId;
+    if (!patientId || (typeof patientId === 'object' && !patientId.fullName)) {
+      console.warn(`⚠️ Appointment ${appointment._id} has invalid patientId:`, patientId);
+      patientId = {
+        _id: appointment.patientId?._id || appointment.patientId || null,
+        fullName: appointment.patientId?.fullName || "Không có thông tin",
+        dob: appointment.patientId?.dob || null,
+        gender: appointment.patientId?.gender || null,
+        phone: appointment.patientId?.phone || null,
+        relationshipToOwner: appointment.patientId?.relationshipToOwner || null,
+        representativeName: appointment.patientId?.representativeName || null,
+        representativeRelation: appointment.patientId?.representativeRelation || null,
+        representativePhone: appointment.patientId?.representativePhone || null,
+        representativeCitizenId: appointment.patientId?.representativeCitizenId || null,
+      };
+    }
+
+    // Ensure new fields have default values for backward compatibility
+    const appointmentWithDefaults = {
+      ...appointment,
+      patientId, // Use properly populated patientId
+      services: appointment.services || [],
+      totalPay: appointment.totalPay !== undefined && appointment.totalPay !== null ? appointment.totalPay : 0,
+      amountPaid: appointment.amountPaid !== undefined && appointment.amountPaid !== null ? appointment.amountPaid : 0,
+      paymentStatus: appointment.paymentStatus || 'unpaid',
+    };
+
+    return ok(res, appointmentWithDefaults);
   } catch (error) {
     console.error("❌ getAppointmentDetailForManager error:", error);
     return fail(
@@ -1745,6 +1773,161 @@ export async function unblockSlotsByDateRangeForManager(req, res) {
     });
   } catch (error) {
     console.error("❌ unblockSlotsByDateRangeForManager error:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
+    );
+  }
+}
+
+// ================== INVOICE MANAGEMENT CONTROLLERS ==================
+
+/**
+ * Get all invoices (payments) for manager
+ * GET /api/managers/invoices?invoiceType=booking&page=1&limit=20
+ */
+export async function getManagerInvoices(req, res) {
+  try {
+    const { invoiceType, page = 1, limit = 20, status, startDate, endDate } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Build query
+    const query = {};
+
+    // Filter by invoiceType (booking or service)
+    if (invoiceType && invoiceType !== "all") {
+      query.invoiceType = invoiceType;
+    }
+
+    // Filter by status
+    if (status && status !== "all") {
+      query.status = status;
+    }
+
+    // Filter by date range
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    // Get payments with populated data
+    const Payment = (await import("../models/payment.model.js")).default;
+    
+    const payments = await Payment.find(query)
+      .populate("appointmentId", "scheduledStart status mode")
+      .populate("billTo.patientId", "fullName phone dob gender")
+      .populate("billFrom.doctorId", "fullName")
+      .populate("billFrom.clinicId", "name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Payment.countDocuments(query);
+
+    // Format invoices for response
+    const formattedInvoices = payments.map((payment) => ({
+      _id: payment._id,
+      invoiceNumber: payment.invoiceNumber,
+      invoiceType: payment.invoiceType,
+      orderCode: payment.orderCode || payment.pendingOrderCode || null,
+      appointmentId: payment.appointmentId?._id,
+      appointmentDate: payment.appointmentId?.scheduledStart,
+      appointmentStatus: payment.appointmentId?.status,
+      appointmentMode: payment.appointmentId?.mode,
+      patientName: payment.billTo?.name || payment.billTo?.patientId?.fullName || "N/A",
+      patientPhone: payment.billTo?.phone || payment.billTo?.patientId?.phone || null,
+      patientDateOfBirth: payment.billTo?.patientId?.dob || null,
+      patientGender: payment.billTo?.patientId?.gender || null,
+      doctorName: payment.billFrom?.doctorName || payment.billFrom?.doctorId?.fullName || "N/A",
+      clinicName: payment.billFrom?.clinicName || payment.billFrom?.clinicId?.name || null,
+      items: payment.items || [],
+      subtotal: payment.subtotal,
+      discount: payment.discount || 0,
+      total: payment.total,
+      gateway: payment.gateway,
+      method: payment.method,
+      status: payment.status,
+      paidAt: payment.paidAt || payment.capturedAt || payment.createdAt,
+      createdAt: payment.createdAt,
+      currency: payment.currency || "VND",
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        invoices: formattedInvoices,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / parseInt(limit)),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching manager invoices:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi khi tải danh sách hóa đơn",
+      error: error.message,
+    });
+  }
+}
+
+/**
+ * Delete invoice (payment) for manager
+ * Only allows deletion of pending or cancelled invoices
+ * DELETE /api/managers/invoices/:invoiceId
+ */
+export async function deleteManagerInvoice(req, res) {
+  try {
+    const { invoiceId } = req.params;
+
+    if (!invoiceId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Invoice ID is required"
+      );
+    }
+
+    const Payment = (await import("../models/payment.model.js")).default;
+    
+    // Find the payment/invoice
+    const payment = await Payment.findById(invoiceId);
+
+    if (!payment) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Invoice not found");
+    }
+
+    // Only allow deletion of pending or cancelled invoices
+    // Do not allow deletion of paid invoices
+    if (payment.status === "paid") {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Cannot delete a paid invoice. Only pending or cancelled invoices can be deleted."
+      );
+    }
+
+    // Delete the payment/invoice
+    await Payment.findByIdAndDelete(invoiceId);
+
+    console.log(`✅ Manager deleted invoice ${invoiceId}`);
+
+    return ok(res, {
+      message: "Invoice deleted successfully",
+      deletedInvoiceId: invoiceId,
+    });
+  } catch (error) {
+    console.error("❌ deleteManagerInvoice error:", error);
     return fail(
       res,
       500,

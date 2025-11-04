@@ -122,6 +122,11 @@ console.log("[router] mounted /api/payments/payos");
 apiRouter.use("/managers", managerRouter);
 console.log("[router] mounted /api/managers");
 
+// Public service prices route (for doctor to get active services)
+import { getActiveServicePrices } from "../controllers/servicePriceController.js";
+apiRouter.get("/service-prices/active", getActiveServicePrices);
+console.log("[router] mounted /api/service-prices/active");
+
 //admin
 // apiRouter.use("/doctor", adminRouter);
 // //staff
