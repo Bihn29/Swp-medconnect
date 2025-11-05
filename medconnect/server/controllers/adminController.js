@@ -18,6 +18,8 @@ import PatientFavorite from "../models/patientFavorite.model.js";
 import RescheduleRequest from "../models/rescheduleRequest.model.js";
 import Notification from "../models/notification.model.js";
 import { runCleanupNow } from "../services/appointmentCleanupService.js";
+import fs from "fs";
+import path from "path";
 
 // ================== HELPER FUNCTIONS ==================
 
@@ -451,12 +453,22 @@ export const getPendingDoctors = async (req, res) => {
       .lean(); // Use lean() to convert to plain objects
 
     // Format doctors data - license image comes from licenseNo field
+    const doctorUploadDir = path.resolve('uploads/doctors');
+    
     const formattedDoctors = pendingDoctors.map((doctor) => {
       try {
         // Build license image URL - if licenseNo exists, it's a filename in uploads/doctors/
-        const licenseImageUrl = doctor.licenseNo
-          ? `/server-uploads/doctors/${doctor.licenseNo}`
-          : null;
+        // Check if file actually exists before returning URL
+        let licenseImageUrl = null;
+        if (doctor.licenseNo) {
+          const filePath = path.join(doctorUploadDir, doctor.licenseNo);
+          if (fs.existsSync(filePath)) {
+            licenseImageUrl = `/server-uploads/doctors/${doctor.licenseNo}`;
+          } else {
+            console.warn(`⚠️ License file not found for doctor ${doctor._id}: ${doctor.licenseNo}`);
+            // Don't return licenseImageUrl if file doesn't exist
+          }
+        }
 
         // Format specialty - handle null, undefined, or empty array
         let specialty = "Chưa chọn chuyên khoa";
@@ -1256,18 +1268,14 @@ export const getAllUsers = async (req, res) => {
       .select("fullName email role status createdAt updatedAt")
       .sort({ createdAt: -1 });
 
-    // Filter out unverified doctors if role is "all" or not specified
+    console.log(`📊 getAllUsers: Found ${users.length} users from database (role filter: ${role || 'all'})`);
+
+    // For admin user management page, show ALL users including unverified doctors
+    // Only filter when specifically filtering by "doctor" role (which should show verified doctors)
     let filteredUsers = users;
-    if ((role === "all" || !role) && verifiedDoctorUserIds) {
-      filteredUsers = users.filter((user) => {
-        // If user is a doctor, only include if verified
-        if (user.role === "doctor") {
-          return verifiedDoctorUserIds.has(user._id.toString());
-        }
-        // Include all non-doctor users
-        return true;
-      });
-    }
+    // Remove the filter for unverified doctors - admin should see all users
+    // Admin needs to see ALL users for management purposes
+    console.log(`📊 getAllUsers: After filtering, ${filteredUsers.length} users will be returned`);
 
     // Fetch avatars for all users in parallel
     const formattedUsers = await Promise.all(
@@ -1383,6 +1391,8 @@ export const getAllUsers = async (req, res) => {
       })
     );
 
+    console.log(`📊 getAllUsers: Returning ${formattedUsers.length} formatted users`);
+    
     res.json({
       success: true,
       data: formattedUsers,

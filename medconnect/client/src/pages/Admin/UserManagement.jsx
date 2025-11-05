@@ -90,16 +90,31 @@ const UserManagement = () => {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
 
       const params = {};
       if (searchQuery) params.search = searchQuery;
       if (roleFilter !== "all") params.role = roleFilter;
 
       const data = await getAdminUsers(params);
-      setUsers(data.data || data);
+      console.log("Users API response:", data);
+      
+      // Handle different response formats
+      let usersData = [];
+      if (data && data.success && data.data) {
+        usersData = Array.isArray(data.data) ? data.data : [];
+      } else if (Array.isArray(data)) {
+        usersData = data;
+      } else if (data && data.data && Array.isArray(data.data)) {
+        usersData = data.data;
+      }
+      
+      console.log("Users:", usersData);
+      setUsers(usersData);
     } catch (err) {
       console.error("Error fetching users:", err);
-      setError("Không thể tải danh sách người dùng");
+      setError("Không thể tải danh sách người dùng: " + (err.message || "Lỗi không xác định"));
+      setUsers([]);
     } finally {
       setLoading(false);
     }
