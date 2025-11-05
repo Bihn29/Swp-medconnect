@@ -36,26 +36,6 @@ export default function Feedback() {
 
   const { reviews, loading, error, pagination, respondToReview, refetch } = useDoctorReviews(reviewParams);
 
-  // Debug: Log reviews data to see structure
-  useEffect(() => {
-    if (reviews && reviews.length > 0) {
-      console.log("🔍 Feedback - Reviews data:", reviews);
-      console.log("🔍 Feedback - First review structure:", {
-        _id: reviews[0]._id,
-        rating: reviews[0].rating,
-        comment: reviews[0].comment,
-        patientId: reviews[0].patientId,
-        appointmentId: reviews[0].appointmentId,
-        doctorResponse: reviews[0].doctorResponse,
-        doctorResponseAt: reviews[0].doctorResponseAt
-      });
-    } else if (reviews && reviews.length === 0) {
-      console.log("🔍 Feedback - Reviews array is empty");
-    } else {
-      console.log("🔍 Feedback - Reviews is null/undefined");
-    }
-    console.log("🔍 Feedback - Pagination:", pagination);
-  }, [reviews, pagination]);
 
   const renderStars = (rating) => {
     return Array.from({ length: 5 }, (_, index) => (

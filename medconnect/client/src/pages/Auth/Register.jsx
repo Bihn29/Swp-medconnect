@@ -200,7 +200,6 @@ export default function Register() {
               throw new Error("Không tạo được phiên đăng nhập");
             }
 
-            console.log("✅ Auto-login successful after patient registration");
           } else {
             console.warn("Firebase not configured, skipping auto-login");
           }
@@ -281,8 +280,6 @@ export default function Register() {
 
             if (!sessionResponse.ok) {
               console.warn("Session creation failed, but continuing...");
-            } else {
-              console.log("✅ Auto-login successful after Google registration");
             }
           }
         } catch (err) {

@@ -440,8 +440,6 @@ const VerifyDoctors = () => {
         licenseUrl = getDocumentUrl(licenseFilename);
       }
       
-      console.log('Modal license URL:', licenseUrl, 'Has licenseImageUrl:', !!doctor.licenseImageUrl, 'Filename:', licenseFilename);
-      
       if (licenseUrl) {
         documents.push({ 
           name: licenseFilename, 
