@@ -190,10 +190,17 @@ export async function getDoctorTimeSlotsForManager(req, res) {
     // Fetch appointments for these slots
     // Exclude ALL rescheduled appointments (they are replaced by new appointments)
     // A rescheduled appointment means the old appointment is no longer active
+    // IMPORTANT: Only show appointments that have been paid (paymentStatus = "paid")
+    // This ensures appointments created by manager booking only appear after payment success
+    // For manager booking flow, appointments MUST have paymentStatus = "paid" to appear
+    // Legacy appointments without paymentStatus are also excluded to ensure consistency
     const appointments = await Appointment.find({
       slotId: { $in: slotIds },
       // Filter out ALL appointments with status "rescheduled" - they should not appear in the schedule
       status: { $ne: "rescheduled" },
+      // CRITICAL: Only show appointments that are paid
+      // Manager booking appointments MUST be paid before appearing in schedule
+      paymentStatus: "paid",
     })
       .populate({
         path: "patientId",
@@ -2355,14 +2362,34 @@ export async function setEducationLevelPrice(req, res) {
  */
 export async function getPendingServicePayments(req, res) {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, invoiceType, status } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Lấy danh sách payment chờ xử lý (pending_manager hoặc initiated - đang chờ thanh toán PayOS)
-    const payments = await Payment.find({
-      invoiceType: "service",
-      status: { $in: ["pending_manager", "initiated"] },
-    })
+    // Build query for pending payments. Include both booking and service by default.
+    let statusFilter;
+    if (status) {
+      // Nếu status có dấu phẩy, tách thành mảng
+      if (status.includes(",")) {
+        statusFilter = { $in: status.split(",").map(s => s.trim()) };
+      } else {
+        statusFilter = status;
+      }
+    } else {
+      // Mặc định: hiển thị cả pending_manager và initiated
+      statusFilter = { $in: ["pending_manager", "initiated"] };
+    }
+    
+    const query = {
+      status: statusFilter,
+    };
+
+    if (invoiceType === "booking" || invoiceType === "service") {
+      query.invoiceType = invoiceType;
+    } else {
+      query.invoiceType = { $in: ["booking", "service"] };
+    }
+
+    const payments = await Payment.find(query)
       .populate("appointmentId", "scheduledStart status mode")
       .populate("billTo.patientId", "fullName phone dob gender")
       .populate("billFrom.doctorId", "fullName")
@@ -2372,15 +2399,13 @@ export async function getPendingServicePayments(req, res) {
       .limit(parseInt(limit))
       .lean();
 
-    const total = await Payment.countDocuments({
-      invoiceType: "service",
-      status: { $in: ["pending_manager", "initiated"] },
-    });
+    const total = await Payment.countDocuments(query);
 
     // Format payments for response
     const formattedPayments = payments.map((payment) => ({
       _id: payment._id,
       invoiceNumber: payment.invoiceNumber,
+      invoiceType: payment.invoiceType,
       appointmentId: payment.appointmentId?._id,
       appointmentDate: payment.appointmentId?.scheduledStart,
       appointmentStatus: payment.appointmentId?.status,
@@ -2424,6 +2449,257 @@ export async function getPendingServicePayments(req, res) {
       500,
       ERROR_CODES.SERVER_ERROR,
       "Lỗi khi tải danh sách yêu cầu thanh toán"
+    );
+  }
+}
+
+/**
+ * Create booking payment (pending_manager) BEFORE creating appointment
+ * POST /api/managers/booking-payments
+ * Body: { doctorId, slotId, patientId/patientInfo, reason, scheduledStart, scheduledEnd, clinicId }
+ * Appointment will be created AFTER payment is successful
+ */
+export async function createBookingPaymentByManager(req, res) {
+  try {
+    const {
+      doctorId,
+      slotId,
+      patientId,
+      patientName,
+      patientPhone,
+      dob,
+      gender,
+      citizenId,
+      address,
+      allergyNotes,
+      reason,
+      scheduledStart,
+      scheduledEnd,
+      clinicId,
+    } = req.body;
+
+    if (!doctorId || !reason || !scheduledStart || !scheduledEnd || !clinicId) {
+      return fail(
+        res,
+        400,
+        ERROR_CODES.INVALID_INPUT,
+        "Missing required fields: doctorId, reason, scheduledStart, scheduledEnd, clinicId"
+      );
+    }
+
+    // Verify doctor exists
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor not found");
+    }
+
+    // Find or create patient
+    let patient = null;
+    if (patientId) {
+      patient = await Patient.findById(patientId).populate("userId");
+      if (!patient) {
+        return fail(res, 404, ERROR_CODES.NOT_FOUND, "Patient not found");
+      }
+    } else if (patientPhone && patientName) {
+      // Create new patient (same logic as createAppointmentByManager)
+      if (!dob || !gender || !citizenId || !address) {
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Missing required patient information: dob, gender, citizenId, address are required for new patients"
+        );
+      }
+
+      let user = await User.findOne({ phone: patientPhone });
+      if (!user) {
+        const baseEmail = `${patientPhone}@patient.medconnect.local`;
+        let finalEmail = baseEmail;
+        let emailExists = await User.findOne({ email: finalEmail });
+        let counter = 1;
+        while (emailExists) {
+          finalEmail = `${patientPhone}_${Date.now()}_${counter}@patient.medconnect.local`;
+          emailExists = await User.findOne({ email: finalEmail });
+          counter++;
+        }
+
+        user = new User({
+          phone: patientPhone,
+          email: finalEmail,
+          fullName: patientName,
+          role: "patient",
+          status: "active",
+          authProvider: "phone", // Set to "phone" so passwordHash is not required
+        });
+        await user.save();
+      }
+
+      patient = new Patient({
+        userId: user._id,
+        fullName: patientName,
+        phone: patientPhone,
+        dob: new Date(dob),
+        gender,
+        citizenId,
+        address,
+        allergyNotes: allergyNotes || "",
+      });
+      await patient.save();
+    } else {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Patient information is required");
+    }
+
+    // Find doctor offline pricing for this clinic
+    const rate = await DoctorRate.findOne({
+      doctorId: doctor._id,
+      mode: "offline",
+      clinicId: clinicId,
+      isActive: true,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!rate) {
+      return fail(res, 400, ERROR_CODES.INVALID_INPUT, "Offline pricing not configured for this doctor/clinic");
+    }
+
+    // Calculate price based on weekday/weekend
+    const start = new Date(scheduledStart);
+    const isWeekend = [0, 6].includes(start.getDay());
+    const unitPrice = isWeekend ? rate.weekendPrice : rate.weekdayPrice;
+
+    // Verify clinic exists
+    const clinic = await Clinic.findById(clinicId);
+    if (!clinic) {
+      return fail(res, 404, ERROR_CODES.NOT_FOUND, "Clinic not found");
+    }
+
+    // Build invoice items
+    const items = [
+      {
+        description: "Khám tại phòng khám",
+        quantity: 1,
+        unitPrice: unitPrice,
+        lineTotal: unitPrice,
+      },
+    ];
+
+    // Check if slot is already booked by an active PAID appointment
+    // If there's an unpaid appointment for this slot, delete it first (user can re-book)
+    if (slotId) {
+      const existingAppointment = await Appointment.findOne({
+        slotId: slotId,
+        status: { $in: ["pending_doctor", "accepted", "in_progress", "done"] },
+      });
+
+      if (existingAppointment) {
+        // If existing appointment is unpaid, delete it to allow re-booking
+        if (existingAppointment.paymentStatus === "unpaid" || !existingAppointment.paymentStatus) {
+          console.log(`🗑️ Deleting unpaid appointment ${existingAppointment._id} to allow re-booking`);
+          
+          // Delete associated payment if exists
+          await Payment.deleteMany({
+            appointmentId: existingAppointment._id,
+            invoiceType: "booking",
+            status: { $in: ["pending_manager", "initiated"] },
+          });
+          
+          // Delete the unpaid appointment
+          await Appointment.findByIdAndDelete(existingAppointment._id);
+          console.log(`✅ Deleted unpaid appointment, allowing new booking`);
+        } else {
+          // If appointment is paid, cannot override
+          return fail(
+            res,
+            400,
+            ERROR_CODES.INVALID_INPUT,
+            "Time slot has already been booked and paid. Please select a different time slot."
+          );
+        }
+      }
+    }
+
+    const orderCode = Number(String(Date.now()).slice(-10));
+    const invoiceNumber = `INV-BOOKING-${orderCode}`;
+
+    // Create TEMPORARY appointment with status "pending_doctor" 
+    // This appointment will be "activated" after payment success
+    // Slot will NOT be marked as "booked" until payment succeeds
+    const scheduledStartDate = new Date(scheduledStart);
+    const scheduledEndDate = new Date(scheduledEnd);
+
+    let tempAppointment;
+    try {
+      tempAppointment = new Appointment({
+        patientId: patient._id,
+        doctorId: doctor._id,
+        slotId: slotId || null,
+        mode: "offline",
+        clinicId: clinicId,
+        scheduledStart: scheduledStartDate,
+        scheduledEnd: scheduledEndDate,
+        reason,
+        status: "pending_doctor",
+        // Mark as pending payment - will be activated after payment
+        paymentStatus: "unpaid",
+      });
+
+      await tempAppointment.save();
+    } catch (saveError) {
+      // Handle duplicate key error (unique index on slotId)
+      if (saveError.code === 11000) {
+        return fail(
+          res,
+          400,
+          ERROR_CODES.INVALID_INPUT,
+          "Time slot has already been booked. Please select a different time slot."
+        );
+      }
+      throw saveError;
+    }
+
+    // Create payment linked to temporary appointment
+    const payment = new Payment({
+      appointmentId: tempAppointment._id,
+      invoiceType: "booking",
+      invoiceNumber,
+      currency: "VND",
+      issueDate: new Date(),
+      billTo: {
+        patientId: patient._id,
+        name: patient.fullName || "Unknown",
+        email: patient.userId?.email,
+        phone: patient.userId?.phoneNumber || patient.phone,
+      },
+      billFrom: {
+        doctorId: doctor._id,
+        clinicId: clinicId,
+        doctorName: doctor.fullName || "Unknown Doctor",
+        clinicName: clinic.name || "Clinic",
+      },
+      items,
+      subtotal: unitPrice,
+      discount: 0,
+      total: unitPrice,
+      status: "pending_manager",
+      amountPaid: 0,
+    });
+
+    await payment.save();
+
+    // DO NOT mark slot as "booked" yet - only after payment success
+
+    return ok(res, { 
+      payment, 
+      message: "Booking payment created. Appointment will be created after payment success." 
+    });
+  } catch (error) {
+    console.error("❌ Error creating booking payment:", error);
+    return fail(
+      res,
+      500,
+      ERROR_CODES.SERVER_ERROR,
+      error.message || String(error)
     );
   }
 }
@@ -2548,44 +2824,78 @@ export async function processCashPayment(req, res) {
         payment.appointmentId._id || payment.appointmentId
       );
       if (appointment) {
-        // Tính tổng amountPaid từ tất cả service payments của appointment này
-        const allServicePayments = await Payment.find({
-          appointmentId: appointment._id,
-          invoiceType: "service",
-        });
-
-        const totalAmountPaid = allServicePayments.reduce(
-          (sum, p) => sum + (p.amountPaid || 0),
-          0
-        );
-
-        // Cập nhật totalPay từ services nếu chưa có
-        if (!appointment.totalPay || appointment.totalPay === 0) {
-          const totalPay = allServicePayments.reduce(
-            (sum, p) => sum + (p.total || 0),
-            0
-          );
-          appointment.totalPay = totalPay;
-        }
-
-        appointment.amountPaid = totalAmountPaid;
-
-        // Cập nhật paymentStatus
-        if (totalAmountPaid >= appointment.totalPay) {
-          appointment.paymentStatus = "paid";
-          // Khi đã thanh toán đủ, chuyển trạng thái lịch hẹn thành hoàn thành (done)
-          if (appointment.status !== "done") {
-            const prevStatus = appointment.status;
-            appointment.status = "done";
-            console.log(
-              `✅ Appointment status updated from "${prevStatus}" to "done" after cash payment: ${appointment._id}`
-            );
+        if (payment.invoiceType === "booking") {
+          // Booking payment: Update appointment payment status and mark slot as booked
+          if (Number(amountPaid) >= payment.total) {
+            appointment.paymentStatus = "paid";
+            appointment.paymentId = payment._id;
+            
+            // Mark slot as "booked" after payment success
+            if (appointment.slotId) {
+              await DoctorTimeSlot.findByIdAndUpdate(appointment.slotId, {
+                status: "booked",
+                appointmentId: appointment._id,
+              });
+              console.log(`✅ Slot ${appointment.slotId} marked as booked after cash payment success`);
+            }
+            
+            await appointment.save();
+            console.log(`✅ Booking payment completed. Appointment ${appointment._id} activated.`);
+            
+            // Gửi notification cho doctor về lịch hẹn mới (sau khi thanh toán thành công)
+            try {
+              await createBookingNotification(appointment._id, {
+                createdByManager: true,
+                paymentCompleted: true,
+              });
+              console.log(`📬 Booking notification sent to doctor for appointment ${appointment._id}`);
+            } catch (notificationError) {
+              console.error("❌ Error sending booking notification to doctor:", notificationError);
+            }
+          } else {
+            appointment.paymentStatus = "unpaid";
+            await appointment.save();
           }
         } else {
-          appointment.paymentStatus = "unpaid";
-        }
+          // Service payment: Calculate total from all service payments
+          const allServicePayments = await Payment.find({
+            appointmentId: appointment._id,
+            invoiceType: "service",
+          });
 
-        await appointment.save();
+          const totalAmountPaid = allServicePayments.reduce(
+            (sum, p) => sum + (p.amountPaid || 0),
+            0
+          );
+
+          // Cập nhật totalPay từ services nếu chưa có
+          if (!appointment.totalPay || appointment.totalPay === 0) {
+            const totalPay = allServicePayments.reduce(
+              (sum, p) => sum + (p.total || 0),
+              0
+            );
+            appointment.totalPay = totalPay;
+          }
+
+          appointment.amountPaid = totalAmountPaid;
+
+          // Cập nhật paymentStatus
+          if (totalAmountPaid >= appointment.totalPay) {
+            appointment.paymentStatus = "paid";
+            // Khi đã thanh toán đủ, chuyển trạng thái lịch hẹn thành hoàn thành (done)
+            if (appointment.status !== "done") {
+              const prevStatus = appointment.status;
+              appointment.status = "done";
+              console.log(
+                `✅ Appointment status updated from "${prevStatus}" to "done" after cash payment: ${appointment._id}`
+              );
+            }
+          } else {
+            appointment.paymentStatus = "unpaid";
+          }
+
+          await appointment.save();
+        }
 
         // Gửi email xác nhận cho bệnh nhân nếu đã thanh toán đủ (giống chuyển khoản)
         if (appointment.paymentStatus === "paid") {
@@ -2776,10 +3086,16 @@ export async function createBankTransferPayment(req, res) {
       }
 
       const orderCode = Number(String(Date.now()).slice(-10));
+      // Use different description based on invoiceType to help webhook distinguish
+      // PayOS requires description max 25 characters
+      const description = payment.invoiceType === "booking" 
+        ? `MC Booking ${String(orderCode).slice(-6)}`
+        : `MC Service ${String(orderCode).slice(-6)}`;
+      
       const payosPaymentData = {
         orderCode,
         amount: payment.total,
-        description: `MC Service ${String(orderCode).slice(-7)}`,
+        description: description.substring(0, 25), // Ensure max 25 characters
         returnUrl: `${process.env.FRONTEND_URL}/manager/thanh-toan-dich-vu?status=success&orderCode=${orderCode}`,
         cancelUrl: `${process.env.FRONTEND_URL}/manager/thanh-toan-dich-vu?status=failed&orderCode=${orderCode}`,
       };

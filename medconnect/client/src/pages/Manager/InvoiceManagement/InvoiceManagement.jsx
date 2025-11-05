@@ -99,6 +99,7 @@ export default function InvoiceManagement() {
 
   const getStatusText = (status) => {
     const texts = {
+      pending_manager: "Yêu cầu thanh toán",
       captured: "Đã thanh toán",
       initiated: "Đang xử lý",
       failed: "Thất bại",
@@ -690,6 +691,7 @@ function InvoiceDetailModal({ invoice }) {
 
   const getStatusText = (status) => {
     const texts = {
+      pending_manager: "Yêu cầu thanh toán",
       captured: "Đã thanh toán",
       initiated: "Đang xử lý",
       authorized: "Đã ủy quyền",
