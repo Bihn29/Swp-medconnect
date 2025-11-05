@@ -346,6 +346,12 @@ export async function getDoctorAppointments(req, res) {
       filter.scheduledStart = { $gte: startDate, $lt: endDate };
     }
 
+    // CRITICAL: Only show appointments that have been paid (paymentStatus = "paid")
+    // This ensures appointments created by manager booking only appear after payment success
+    // For manager booking flow, appointments MUST have paymentStatus = "paid" to appear
+    // Legacy appointments without paymentStatus are also excluded to ensure consistency
+    filter.paymentStatus = "paid";
+
     const appointments = await Appointment.find(filter)
       .populate({
         path: "patientId",
@@ -4163,7 +4169,11 @@ export async function getAllAppointments(req, res) {
     const { page = 1, limit = 100 } = req.query;
     const skip = (page - 1) * limit;
 
-    const appointments = await Appointment.find({})
+    // CRITICAL: Only show appointments that have been paid (paymentStatus = "paid")
+    // This ensures appointments created by manager booking only appear after payment success
+    const appointments = await Appointment.find({
+      paymentStatus: "paid",
+    })
       .populate({
         path: "patientId",
         select: "fullName dob gender phone email",
