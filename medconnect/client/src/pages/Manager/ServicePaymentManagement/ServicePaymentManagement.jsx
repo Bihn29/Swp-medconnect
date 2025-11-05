@@ -19,10 +19,13 @@ export default function ServicePaymentManagement() {
   const [showBankModal, setShowBankModal] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [creatingLink, setCreatingLink] = useState(false);
+  const [activeTab, setActiveTab] = useState("all"); // all | booking | service
+  const [statusFilter, setStatusFilter] = useState("pending"); // pending | initiated | all
 
   useEffect(() => {
     loadPayments();
-  }, [page]);
+  }, [page, activeTab, statusFilter]);
 
   // Xử lý returnUrl sau khi thanh toán PayOS (chạy riêng khi component mount)
   useEffect(() => {
@@ -99,6 +102,16 @@ export default function ServicePaymentManagement() {
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", "20");
+      if (activeTab === "booking") params.append("invoiceType", "booking");
+      if (activeTab === "service") params.append("invoiceType", "service");
+      if (statusFilter !== "all") {
+        if (statusFilter === "pending") {
+          // Hiển thị cả pending_manager và initiated (đang chờ thanh toán)
+          params.append("status", "pending_manager,initiated");
+        } else {
+          params.append("status", statusFilter);
+        }
+      }
 
       const response = await api.get(
         `/api/managers/service-payments/pending?${params.toString()}`
@@ -145,36 +158,52 @@ export default function ServicePaymentManagement() {
   };
 
   const handleBankTransfer = async (payment) => {
-    // Nếu đã có payUrl và đang ở trạng thái initiated, chỉ hiển thị modal với link hiện có
-    if (payment.payUrl && payment.status === "initiated") {
-      setSelectedPayment(payment);
-      setShowBankModal(true);
+    // Tạo link PayOS ngay lập tức khi ấn nút
+    setSelectedPayment(payment);
+    setShowBankModal(true);
+    
+    // Nếu đã có link, không cần tạo lại
+    if (payment.payUrl) {
       return;
     }
-
+    
+    // Tạo link PayOS ngay
+    setCreatingLink(true);
     try {
-      setProcessing(true);
       const response = await api.post(
         `/api/managers/service-payments/${payment._id}/bank-transfer`
       );
-
       if (response.success) {
-        setSelectedPayment({
+        // Cập nhật payment với link mới
+        const updatedPayment = {
           ...payment,
           payUrl: response.data.payment.payUrl,
           orderCode: response.data.payment.orderCode,
-        });
-        setShowBankModal(true);
-        // Reload để cập nhật trạng thái
-        loadPayments();
+          status: response.data.payment.status,
+        };
+        setSelectedPayment(updatedPayment);
+        // Cập nhật trong danh sách payments
+        setPayments((prevPayments) =>
+          prevPayments.map((p) =>
+            p._id === payment._id ? updatedPayment : p
+          )
+        );
       } else {
         alert(response.message || "Không thể tạo link thanh toán");
+        setShowBankModal(false);
+        setSelectedPayment(null);
       }
     } catch (error) {
       console.error("Error creating bank transfer link:", error);
-      alert("Có lỗi xảy ra khi tạo link thanh toán");
+      const errorMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Có lỗi xảy ra khi tạo link thanh toán";
+      alert(errorMsg);
+      setShowBankModal(false);
+      setSelectedPayment(null);
     } finally {
-      setProcessing(false);
+      setCreatingLink(false);
     }
   };
 
@@ -255,9 +284,29 @@ export default function ServicePaymentManagement() {
             Thanh toán hóa đơn
           </h1>
           <p className="header-description">
-            Xử lý yêu cầu thanh toán hóa đơn dịch vụ từ bác sĩ
+            Xử lý yêu cầu thanh toán đặt lịch và dịch vụ
           </p>
         </div>
+      </div>
+
+      {/* Tabs and Filters */}
+      <div className="filters-row" style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+        <div className="tabs" style={{ display: "flex", gap: 8 }}>
+          {[
+            { key: "all", label: "Tất cả" },
+            { key: "booking", label: "Đặt lịch" },
+            { key: "service", label: "Dịch vụ" },
+          ].map((t) => (
+            <Button key={t.key} size="sm" variant={activeTab === t.key ? "default" : "outline"} onClick={() => { setPage(1); setActiveTab(t.key); }}>
+              {t.label}
+            </Button>
+          ))}
+        </div>
+        <select value={statusFilter} onChange={(e) => { setPage(1); setStatusFilter(e.target.value); }} style={{ padding: 6, borderRadius: 6, border: "1px solid #e5e7eb" }}>
+          <option value="pending">Chờ xử lý</option>
+          <option value="initiated">Đang chờ thanh toán</option>
+          <option value="all">Tất cả trạng thái</option>
+        </select>
       </div>
 
       {/* Search */}
@@ -291,6 +340,7 @@ export default function ServicePaymentManagement() {
               <thead>
                 <tr>
                   <th>Mã hóa đơn</th>
+                  <th>Loại</th>
                   <th>Bệnh nhân</th>
                   <th>Bác sĩ</th>
                   <th>Ngày yêu cầu</th>
@@ -302,6 +352,7 @@ export default function ServicePaymentManagement() {
                 {filteredPayments.map((payment) => (
                   <tr key={payment._id}>
                     <td>{payment.invoiceNumber}</td>
+                    <td>{payment.invoiceType === "booking" ? "Đặt lịch" : "Dịch vụ"}</td>
                     <td>{payment.patientName}</td>
                     <td>{payment.doctorName}</td>
                     <td>{formatDate(payment.createdAt)}</td>
@@ -314,7 +365,7 @@ export default function ServicePaymentManagement() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleCashPayment(payment)}
-                          disabled={payment.status === "captured" || payment.status === "initiated"}
+                          disabled={payment.status === "captured"}
                           className="btn-cash"
                         >
                           <DollarSign className="w-4 h-4" />
@@ -337,11 +388,7 @@ export default function ServicePaymentManagement() {
                             Đã thanh toán
                           </span>
                         )}
-                        {payment.status === "initiated" && payment.payUrl && (
-                          <span className="payment-status-badge pending">
-                            Đang chờ thanh toán
-                          </span>
-                        )}
+                        {/* Ẩn trạng thái chờ thanh toán để người dùng có thể quay lại chọn phương thức khác */}
                       </div>
                     </td>
                   </tr>
@@ -397,10 +444,12 @@ export default function ServicePaymentManagement() {
       {showBankModal && selectedPayment && (
         <BankTransferModal
           payment={selectedPayment}
+          creatingLink={creatingLink}
           onClose={() => {
             setShowBankModal(false);
             setSelectedPayment(null);
-            loadPayments();
+            setCreatingLink(false);
+            // Không reload danh sách để tránh chuyển trạng thái ngay lập tức
           }}
           formatCurrency={formatCurrency}
         />
@@ -553,11 +602,18 @@ function CashPaymentModal({
   );
 }
 
-function BankTransferModal({ payment, onClose, formatCurrency }) {
+function BankTransferModal({ payment, creatingLink: externalCreatingLink, onClose, formatCurrency }) {
+  const [localPayment, setLocalPayment] = React.useState(payment);
+
+  // Update local payment when prop changes
+  React.useEffect(() => {
+    setLocalPayment(payment);
+  }, [payment]);
+
   const handlePayNow = () => {
-    if (payment.payUrl) {
+    if (localPayment.payUrl) {
       // Redirect to PayOS payment page
-      window.location.href = payment.payUrl;
+      window.location.href = localPayment.payUrl;
     }
   };
 
@@ -573,29 +629,29 @@ function BankTransferModal({ payment, onClose, formatCurrency }) {
         <div className="modal-body">
           <div className="invoice-section">
             <h3>Thông tin hóa đơn</h3>
-            <div className="invoice-details">
+              <div className="invoice-details">
               <div className="detail-row">
                 <span>Mã hóa đơn:</span>
-                <span>{payment.invoiceNumber}</span>
+                  <span>{localPayment.invoiceNumber}</span>
               </div>
               <div className="detail-row">
                 <span>Bệnh nhân:</span>
-                <span>{payment.patientName}</span>
+                  <span>{localPayment.patientName}</span>
               </div>
               <div className="detail-row">
                 <span>Bác sĩ:</span>
-                <span>{payment.doctorName}</span>
+                  <span>{localPayment.doctorName}</span>
               </div>
               <div className="detail-row">
                 <span>Tổng tiền:</span>
                 <span className="total-amount">
-                  {formatCurrency(payment.total)}
+                  {formatCurrency(localPayment.total)}
                 </span>
               </div>
             </div>
 
             {/* Items */}
-            {payment.items && payment.items.length > 0 && (
+            {localPayment.items && localPayment.items.length > 0 && (
               <div className="items-section">
                 <h4>Chi tiết dịch vụ</h4>
                 <table className="items-table">
@@ -608,7 +664,7 @@ function BankTransferModal({ payment, onClose, formatCurrency }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {payment.items.map((item, index) => (
+                    {localPayment.items.map((item, index) => (
                       <tr key={index}>
                         <td>{item.description}</td>
                         <td>{item.quantity}</td>
@@ -623,7 +679,16 @@ function BankTransferModal({ payment, onClose, formatCurrency }) {
           </div>
 
           <div className="payment-action-section">
-            {payment.payUrl ? (
+            {localPayment.status === "captured" ? (
+              <>
+                <div className="payment-info" style={{ backgroundColor: "#d1fae5", color: "#065f46" }}>
+                  <Check className="icon" />
+                  <span>
+                    Hóa đơn đã được thanh toán
+                  </span>
+                </div>
+              </>
+            ) : localPayment.payUrl ? (
               <>
                 <div className="payment-info">
                   <Check className="icon" />
@@ -643,7 +708,15 @@ function BankTransferModal({ payment, onClose, formatCurrency }) {
                 </div>
               </>
             ) : (
-              <div className="no-link">Chưa có link thanh toán</div>
+              <div className="payment-button-wrapper">
+                <div className="payment-info" style={{ marginBottom: "16px", color: "#6b7280", textAlign: "center" }}>
+                  {externalCreatingLink ? (
+                    <span>Đang tạo link thanh toán...</span>
+                  ) : (
+                    <span>Vui lòng đợi...</span>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
