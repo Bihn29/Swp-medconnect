@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { api } from "../../../lib/api";
+import { api, updateAppointmentStatus } from "../../../lib/api";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
-import { X, Check, FileText } from "lucide-react";
+import { X, Check, FileText, Search } from "lucide-react";
 import "./ServiceInvoice.scss";
 
 export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
@@ -11,6 +11,8 @@ export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [servicePaymentStatus, setServicePaymentStatus] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [autoCompleted, setAutoCompleted] = useState(false);
 
   useEffect(() => {
     if (appointment) {
@@ -18,6 +20,27 @@ export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
       checkServicePayment();
     }
   }, [appointment]);
+
+  // Tự động chuyển trạng thái lịch hẹn sang hoàn thành khi hóa đơn đã thanh toán
+  useEffect(() => {
+    const tryAutoComplete = async () => {
+      if (
+        appointment?._id &&
+        servicePaymentStatus?.hasServicePayment &&
+        servicePaymentStatus.servicePayment.status === "captured" &&
+        !autoCompleted
+      ) {
+        try {
+          await updateAppointmentStatus(appointment._id, "done");
+          setAutoCompleted(true);
+          if (onSuccess) onSuccess();
+        } catch (e) {
+          // Ignore if transition invalid; status may already be done
+        }
+      }
+    };
+    tryAutoComplete();
+  }, [appointment?._id, servicePaymentStatus, autoCompleted, onSuccess]);
 
   const loadServices = async () => {
     try {
@@ -75,7 +98,7 @@ export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
     }).format(price);
   };
 
-  const handleCreateInvoice = async () => {
+  const handleRequestPayment = async () => {
     if (selectedServices.length === 0) {
       alert("Vui lòng chọn ít nhất một dịch vụ");
       return;
@@ -86,7 +109,7 @@ export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
       const total = calculateTotal();
       const serviceIds = selectedServices.map((s) => s._id);
 
-      // Tạo payment record
+      // Gửi yêu cầu thanh toán đến manager
       const response = await api.post(
         `/api/doctors/me/appointments/${appointment._id}/service-payment`,
         {
@@ -95,23 +118,23 @@ export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
         }
       );
 
-      if (response.success && response.data.payment?.payUrl) {
-        // Lưu paymentId và orderCode vào localStorage để cleanup nếu cần
-        if (response.data.payment.orderCode) {
-          localStorage.setItem("pendingServicePaymentId", response.data.payment._id);
-          localStorage.setItem("pendingServiceOrderCode", response.data.payment.orderCode.toString());
-          localStorage.setItem("pendingServiceAppointmentId", appointment._id);
+      if (response.success) {
+        alert(response.message || "Yêu cầu thanh toán đã được gửi đến manager");
+        // Reload để cập nhật trạng thái
+        checkServicePayment();
+        // Reset selected services
+        setSelectedServices([]);
+        // Close modal nếu cần
+        if (onSuccess) {
+          onSuccess();
         }
-
-        // Redirect to PayOS payment page (giống booking payment)
-        window.location.href = response.data.payment.payUrl;
       } else {
-        alert(response.message || "Không thể tạo link thanh toán");
-        setCreating(false);
+        alert(response.message || "Không thể gửi yêu cầu thanh toán");
       }
     } catch (error) {
-      console.error("Error creating service invoice:", error);
-      alert("Có lỗi xảy ra khi tạo hóa đơn");
+      console.error("Error requesting service payment:", error);
+      alert("Có lỗi xảy ra khi gửi yêu cầu thanh toán");
+    } finally {
       setCreating(false);
     }
   };
@@ -173,34 +196,54 @@ export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
                 Chưa có dịch vụ nào. Vui lòng liên hệ manager để thêm dịch vụ.
               </div>
             ) : (
-              <div className="services-list">
-                {services.map((service) => {
-                  const isSelected = selectedServices.some(
-                    (s) => s._id === service._id
-                  );
-                  return (
-                    <div
-                      key={service._id}
-                      className={`service-item ${isSelected ? "selected" : ""}`}
-                      onClick={() => handleServiceToggle(service)}
-                    >
-                      <div className="service-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleServiceToggle(service)}
-                        />
-                      </div>
-                      <div className="service-details">
-                        <div className="service-name">{service.serviceName}</div>
-                        <div className="service-price">
-                          {formatPrice(service.price)}
+              <>
+                <div className="service-search">
+                  <div className="search-input-wrapper">
+                    <Search className="search-icon" />
+                    <Input
+                      type="text"
+                      placeholder="Tìm kiếm dịch vụ..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="search-input"
+                    />
+                  </div>
+                </div>
+                <div className="services-list">
+                  {services
+                    .filter((service) =>
+                      service.serviceName
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase())
+                    )
+                    .map((service) => {
+                      const isSelected = selectedServices.some(
+                        (s) => s._id === service._id
+                      );
+                      return (
+                        <div
+                          key={service._id}
+                          className={`service-item ${isSelected ? "selected" : ""}`}
+                          onClick={() => handleServiceToggle(service)}
+                        >
+                          <div className="service-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleServiceToggle(service)}
+                            />
+                          </div>
+                          <div className="service-details">
+                            <div className="service-name">{service.serviceName}</div>
+                            <div className="service-price">
+                              {formatPrice(service.price)}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                </div>
+              </>
             )}
           </div>
 
@@ -217,13 +260,18 @@ export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
           )}
 
           {/* Check existing payment */}
-          {servicePaymentStatus?.hasServicePayment &&
-            servicePaymentStatus.servicePayment.status === "captured" && (
-              <div className="already-paid-message">
+          {servicePaymentStatus?.hasServicePayment && (
+              <div className={`already-paid-message ${
+                servicePaymentStatus.servicePayment.status === "captured" ? "paid" : "pending"
+              }`}>
                 <Check className="icon" />
                 <span>
-                  Hóa đơn dịch vụ đã được thanh toán. Mã hóa đơn:{" "}
-                  {servicePaymentStatus.servicePayment.invoiceNumber}
+                  {servicePaymentStatus.servicePayment.status === "captured" 
+                    ? `Hóa đơn dịch vụ đã được thanh toán. Mã hóa đơn: ${servicePaymentStatus.servicePayment.invoiceNumber}`
+                    : servicePaymentStatus.servicePayment.status === "pending_manager"
+                    ? `Yêu cầu thanh toán đã được gửi đến manager. Mã hóa đơn: ${servicePaymentStatus.servicePayment.invoiceNumber}`
+                    : `Trạng thái: ${servicePaymentStatus.servicePayment.status}. Mã hóa đơn: ${servicePaymentStatus.servicePayment.invoiceNumber}`
+                  }
                 </span>
               </div>
             )}
@@ -234,16 +282,18 @@ export default function ServiceInvoice({ appointment, onClose, onSuccess }) {
               Hủy
             </Button>
             <Button
-              onClick={handleCreateInvoice}
+              onClick={handleRequestPayment}
               disabled={
                 selectedServices.length === 0 ||
                 creating ||
                 (servicePaymentStatus?.hasServicePayment &&
-                  servicePaymentStatus.servicePayment.status === "captured")
+                  (servicePaymentStatus.servicePayment.status === "captured" ||
+                   servicePaymentStatus.servicePayment.status === "pending_manager" ||
+                   servicePaymentStatus.servicePayment.status === "initiated"))
               }
               className="btn-create"
             >
-              {creating ? "Đang tạo..." : "Tạo hóa đơn & Thanh toán"}
+              {creating ? "Đang gửi..." : "Yêu cầu thanh toán"}
             </Button>
           </div>
         </div>

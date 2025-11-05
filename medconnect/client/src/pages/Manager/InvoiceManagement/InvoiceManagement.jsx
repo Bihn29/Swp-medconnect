@@ -445,10 +445,15 @@ export default function InvoiceManagement() {
   return (
     <div className="invoice-management">
       <div className="invoice-management-header">
-        <h1>
-          <FileText className="w-6 h-6" />
-          Quản lý hóa đơn
-        </h1>
+        <div className="header-left">
+          <h1>
+            <FileText className="icon" />
+            Quản lý hóa đơn
+          </h1>
+        </div>
+        <div className="header-right">
+          {/* Add action buttons here if needed */}
+        </div>
       </div>
 
       {/* Filters */}
@@ -729,8 +734,22 @@ function InvoiceDetailModal({ invoice }) {
                   </span>
                 </div>
                 <div className="detail-row">
-                  <span>Mã đơn hàng:</span>
-                  <span>{invoice.orderCode || "N/A"}</span>
+                  <span>Phương thức:</span>
+                  <span>
+                    {invoice.method === "cash"
+                      ? "Tiền mặt"
+                      : invoice.gateway === "payos"
+                      ? "Chuyển khoản (PayOS)"
+                      : invoice.method || invoice.gateway || "N/A"}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <span>Mã đơn hàng (PayOS):</span>
+                  <span>
+                    {invoice.method === "cash" || invoice.gateway === "cash"
+                      ? "Không áp dụng"
+                      : invoice.orderCode || "N/A"}
+                  </span>
                 </div>
                 <div className="detail-row">
                   <span>Trạng thái:</span>

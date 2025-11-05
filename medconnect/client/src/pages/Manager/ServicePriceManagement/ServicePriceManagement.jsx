@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../../../lib/api";
 import { Button } from "../../../components/ui/Button";
 import {
@@ -8,12 +8,14 @@ import {
   DialogTitle,
 } from "../../../components/ui/Dialog";
 import { Input } from "../../../components/ui/Input";
-import { Plus, Edit, Trash2, Check, X } from "lucide-react";
+import { Plus, Edit, Trash2, Search, ToggleLeft, ToggleRight } from "lucide-react";
 import "./ServicePriceManagement.scss";
 
 export default function ServicePriceManagement() {
   const [servicePrices, setServicePrices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -26,10 +28,32 @@ export default function ServicePriceManagement() {
   const [filterActive, setFilterActive] = useState("all"); // all, active, inactive
   const [searchTerm, setSearchTerm] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
 
   useEffect(() => {
     loadServicePrices();
-  }, [filterActive]);
+  }, [filterActive, searchTerm, page]);
+
+  useEffect(() => {
+    // Load suggestions for autocomplete
+    const loadSuggestions = async () => {
+      if (searchTerm.trim().length > 0) {
+        try {
+          const response = await api.get(
+            `/api/managers/service-prices?search=${encodeURIComponent(searchTerm.trim())}&limit=5`
+          );
+          if (response.success) {
+            setSuggestions(response.data.servicePrices || []);
+          }
+        } catch (error) {
+          console.error("Error loading suggestions:", error);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    };
+    loadSuggestions();
+  }, [searchTerm]);
 
   const loadServicePrices = async () => {
     try {
@@ -38,6 +62,11 @@ export default function ServicePriceManagement() {
       if (filterActive !== "all") {
         params.append("isActive", filterActive === "active" ? "true" : "false");
       }
+      if (searchTerm.trim()) {
+        params.append("search", searchTerm.trim());
+      }
+      params.append("page", page.toString());
+      params.append("limit", "20");
 
       const response = await api.get(
         `/api/managers/service-prices?${params.toString()}`
@@ -45,6 +74,7 @@ export default function ServicePriceManagement() {
 
       if (response.success) {
         setServicePrices(response.data.servicePrices || []);
+        setTotalPages(response.data.pagination?.pages || 1);
       } else {
         alert("Không thể tải danh sách giá dịch vụ");
       }
@@ -106,7 +136,27 @@ export default function ServicePriceManagement() {
       }
     } catch (error) {
       console.error("Error adding service price:", error);
-      alert("Có lỗi xảy ra khi thêm dịch vụ");
+      let errorMessage = "Có lỗi xảy ra khi thêm dịch vụ";
+      
+      // Try to extract message from error
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        // Check if error.message is a JSON string
+        try {
+          const parsed = JSON.parse(error.message);
+          if (parsed.message) {
+            errorMessage = parsed.message;
+          } else {
+            errorMessage = error.message;
+          }
+        } catch {
+          // Not JSON, use error.message directly
+          errorMessage = error.message;
+        }
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -143,7 +193,27 @@ export default function ServicePriceManagement() {
       }
     } catch (error) {
       console.error("Error updating service price:", error);
-      alert("Có lỗi xảy ra khi cập nhật dịch vụ");
+      let errorMessage = "Có lỗi xảy ra khi cập nhật dịch vụ";
+      
+      // Try to extract message from error
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        // Check if error.message is a JSON string
+        try {
+          const parsed = JSON.parse(error.message);
+          if (parsed.message) {
+            errorMessage = parsed.message;
+          } else {
+            errorMessage = error.message;
+          }
+        } catch {
+          // Not JSON, use error.message directly
+          errorMessage = error.message;
+        }
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -163,7 +233,27 @@ export default function ServicePriceManagement() {
       }
     } catch (error) {
       console.error("Error deleting service price:", error);
-      alert("Có lỗi xảy ra khi xóa dịch vụ");
+      let errorMessage = "Có lỗi xảy ra khi xóa dịch vụ";
+      
+      // Try to extract message from error
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        // Check if error.message is a JSON string
+        try {
+          const parsed = JSON.parse(error.message);
+          if (parsed.message) {
+            errorMessage = parsed.message;
+          } else {
+            errorMessage = error.message;
+          }
+        } catch {
+          // Not JSON, use error.message directly
+          errorMessage = error.message;
+        }
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -174,86 +264,94 @@ export default function ServicePriceManagement() {
     }).format(price);
   };
 
-  const visibleServices = servicePrices.filter((service) => {
-    if (!searchTerm.trim()) return true;
-    return service.serviceName
-      ?.toLowerCase()
-      .includes(searchTerm.trim().toLowerCase());
-  });
+  const handleToggleStatus = async (service) => {
+    try {
+      const response = await api.put(
+        `/api/managers/service-prices/${service._id}`,
+        {
+          isActive: !service.isActive,
+        }
+      );
 
-  const suggestions = searchTerm.trim()
-    ? servicePrices
-        .filter((s) =>
-          s.serviceName
-            ?.toLowerCase()
-            .includes(searchTerm.trim().toLowerCase())
-        )
-        .slice(0, 8)
-    : [];
+      if (response.success) {
+        alert(
+          service.isActive
+            ? "Đã tắt dịch vụ thành công"
+            : "Đã bật dịch vụ thành công"
+        );
+        loadServicePrices();
+      } else {
+        alert(response.message || "Không thể cập nhật trạng thái");
+      }
+    } catch (error) {
+      console.error("Error toggling service status:", error);
+      alert("Có lỗi xảy ra khi cập nhật trạng thái");
+    }
+  };
 
   return (
     <div className="service-price-management">
       <div className="service-price-management-header">
-        <h1>Quản lý giá dịch vụ</h1>
-        <Button onClick={handleAdd} className="btn-add">
-          <Plus className="icon" />
-          Thêm dịch vụ
-        </Button>
-      </div>
-
-      <div className="service-price-management-search">
-        <div className="search-input-wrapper">
-          <Input
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setShowSuggestions(true);
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 120)}
-            placeholder="Tìm kiếm theo tên dịch vụ"
-          />
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="search-suggestions">
-              {suggestions.map((s) => (
-                <button
-                  type="button"
-                  key={s._id}
-                  className="suggestion-item"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    setSearchTerm(s.serviceName);
-                    setShowSuggestions(false);
-                  }}
-                >
-                  {s.serviceName}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="header-left">
+          <h1>
+            <span className="icon">💰</span>
+            Quản lý giá dịch vụ
+          </h1>
+        </div>
+        <div className="header-right">
+          <Button onClick={handleAdd} className="btn-add">
+            <Plus className="icon" />
+            Thêm dịch vụ
+          </Button>
         </div>
       </div>
 
       <div className="service-price-management-filters">
-        <div className="filter-buttons">
-          <Button
-            variant={filterActive === "all" ? "primary" : "outline"}
-            onClick={() => setFilterActive("all")}
-          >
-            Tất cả
-          </Button>
-          <Button
-            variant={filterActive === "active" ? "primary" : "outline"}
-            onClick={() => setFilterActive("active")}
-          >
-            Đang hoạt động
-          </Button>
-          <Button
-            variant={filterActive === "inactive" ? "primary" : "outline"}
-            onClick={() => setFilterActive("inactive")}
-          >
-            Đã tắt
-          </Button>
+        <div className="filters-card">
+          <div className="filters-row">
+            <div className="search-input-group">
+              <Search className="search-icon" />
+              <Input
+                type="text"
+                placeholder="Tìm kiếm dịch vụ..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
+                className="search-input"
+              />
+            </div>
+            <div className="filter-buttons">
+              <Button
+                variant={filterActive === "all" ? "primary" : "outline"}
+                onClick={() => {
+                  setFilterActive("all");
+                  setPage(1);
+                }}
+              >
+                Tất cả
+              </Button>
+              <Button
+                variant={filterActive === "active" ? "primary" : "outline"}
+                onClick={() => {
+                  setFilterActive("active");
+                  setPage(1);
+                }}
+              >
+                Đang hoạt động
+              </Button>
+              <Button
+                variant={filterActive === "inactive" ? "primary" : "outline"}
+                onClick={() => {
+                  setFilterActive("inactive");
+                  setPage(1);
+                }}
+              >
+                Đã tắt
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -277,19 +375,28 @@ export default function ServicePriceManagement() {
               </tr>
             </thead>
             <tbody>
-              {visibleServices.map((service, index) => (
+              {servicePrices.map((service, index) => (
                 <tr key={service._id}>
-                  <td>{index + 1}</td>
+                  <td>{(page - 1) * 20 + index + 1}</td>
                   <td>{service.serviceName}</td>
                   <td>{formatPrice(service.price)}</td>
                   <td>
-                    <span
-                      className={`status-badge ${
-                        service.isActive ? "active" : "inactive"
-                      }`}
-                    >
-                      {service.isActive ? "Đang hoạt động" : "Đã tắt"}
-                    </span>
+                    <div className="status-cell">
+                      <button
+                        className={`status-toggle ${service.isActive ? "active" : "inactive"}`}
+                        onClick={() => handleToggleStatus(service)}
+                        title={service.isActive ? "Click để tắt" : "Click để bật"}
+                      >
+                        {service.isActive ? (
+                          <ToggleRight className="icon" />
+                        ) : (
+                          <ToggleLeft className="icon" />
+                        )}
+                        <span className="status-text">
+                          {service.isActive ? "Đang hoạt động" : "Đã tắt"}
+                        </span>
+                      </button>
+                    </div>
                   </td>
                   <td>
                     <div className="action-buttons">
@@ -317,11 +424,34 @@ export default function ServicePriceManagement() {
             </tbody>
             </table>
           </div>
-          {visibleServices.length === 0 && (
+          {servicePrices.length === 0 && (
             <div className="empty-state" style={{ padding: 16 }}>
               Không tìm thấy dịch vụ phù hợp.
             </div>
           )}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="pagination">
+          <Button
+            variant="outline"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            Trước
+          </Button>
+          <span>
+            Trang {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            Sau
+          </Button>
         </div>
       )}
 
@@ -401,35 +531,6 @@ export default function ServicePriceManagement() {
                 required
               />
             </div>
-            <div className="form-group">
-              <label>Trạng thái</label>
-              <div className="filter-buttons" style={{ gap: 8, display: "flex" }}>
-                <Button
-                  type="button"
-                  variant={formData.isActive ? "primary" : "outline"}
-                  onClick={() => setFormData({ ...formData, isActive: true })}
-                  style={
-                    formData.isActive
-                      ? { backgroundColor: "#16a34a", borderColor: "#16a34a", color: "#fff" }
-                      : { color: "#16a34a", borderColor: "#16a34a" }
-                  }
-                >
-                  Hoạt động
-                </Button>
-                <Button
-                  type="button"
-                  variant={!formData.isActive ? "primary" : "outline"}
-                  onClick={() => setFormData({ ...formData, isActive: false })}
-                  style={
-                    !formData.isActive
-                      ? { backgroundColor: "#dc2626", borderColor: "#dc2626", color: "#fff" }
-                      : { color: "#dc2626", borderColor: "#dc2626" }
-                  }
-                >
-                  Tắt
-                </Button>
-              </div>
-            </div>
             <div className="form-actions">
               <Button
                 type="button"
@@ -455,7 +556,6 @@ export default function ServicePriceManagement() {
           </DialogHeader>
           <p>
             Bạn có chắc chắn muốn xóa dịch vụ "{selectedService?.serviceName}"?
-            (Dịch vụ sẽ được ẩn khỏi danh sách)
           </p>
           <div className="form-actions">
             <Button
