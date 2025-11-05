@@ -65,7 +65,6 @@ const AdminLayout = () => {
 
   const handleLogout = async () => {
     try {
-      console.log("Admin logout clicked - clearing all user data...");
       await clearUserData();
     } catch (error) {
       console.error("Error during admin logout:", error);

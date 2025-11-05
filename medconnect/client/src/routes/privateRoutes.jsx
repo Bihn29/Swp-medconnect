@@ -24,6 +24,7 @@ import SpecializationSelection from "../pages/Appointment/SpecializationSelectio
 import DoctorSelection from "../pages/Appointment/DoctorSelection";
 import TimeSlotSelection from "../pages/Appointment/TimeSlotSelection";
 import PaymentResult from "../pages/Appointment/PaymentResult";
+import MultiSpecializationBooking from "../pages/Appointment/MultiSpecializationBooking";
 import PatientVideoCallPage from "../pages/Patient/components/VideoCallPage/VideoCallPage";
 
 // Doctor Components
@@ -201,6 +202,11 @@ export const privateRoutes = (
         />
         {/* Payment result route - handles both success and failed */}
         <Route path="/dat-lich/payment-result" element={<PaymentResult />} />
+        {/* Multi-specialization booking routes */}
+        <Route
+          path="/dat-lich-nhieu-chuyen-khoa"
+          element={<MultiSpecializationBooking />}
+        />
       </Route>
     </Route>
 

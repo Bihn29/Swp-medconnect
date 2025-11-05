@@ -214,16 +214,9 @@ export default function ManagerScheduleManagement() {
       }
 
       const url = `/api/managers/doctors?${params.toString()}`;
-      console.log("[Manager] Loading doctors with URL:", url);
-      console.log("[Manager] Search name:", searchName);
-      console.log("[Manager] Specialization ID:", selectedSpecializationId);
 
       const response = await api.get(url);
       if (response.success) {
-        console.log(
-          "[Manager] Received doctors:",
-          response.data.doctors?.length || 0
-        );
         setDoctors(response.data.doctors || []);
       } else {
         console.error("[Manager] Failed to load doctors:", response);
@@ -382,11 +375,9 @@ export default function ManagerScheduleManagement() {
 
     try {
       setGenerating(true);
-      console.log("🔍 Generating time slots for doctor:", selectedDoctorId);
       const response = await api.post(
         `/api/managers/doctors/${selectedDoctorId}/generate-slots`
       );
-      console.log("🔍 Generate response:", response);
       if (response.success) {
         const createdCount = response.data.createdSlots || 0;
         const totalSlots = response.data.totalFutureSlots || 0;
@@ -565,42 +556,17 @@ export default function ManagerScheduleManagement() {
 
         // Nếu slot mới có appointment và slot cũ không có, thay thế
         if (newHasAppointment && !existingHasAppointment) {
-          console.log(
-            `🔄 Replacing slot at ${slotTime} for date ${slotDate} (new has appointment)`
-          );
           slotsMap[slotDate][slotTime] = mappedSlot;
         } else if (!newHasAppointment && existingHasAppointment) {
-          console.log(
-            `⏭️ Keeping existing slot at ${slotTime} for date ${slotDate} (existing has appointment)`
-          );
           // Giữ slot cũ
         } else {
           // Cả hai đều có hoặc không có appointment, giữ slot đầu tiên
-          console.log(
-            `⚠️ Duplicate slot time found: ${slotTime} for date: ${slotDate}, keeping first`
-          );
         }
       } else {
         // Chưa có slot, thêm mới
         slotsMap[slotDate][slotTime] = mappedSlot;
 
-        // Log for booked slots
-        if (
-          slot.status === "booked" ||
-          slot.status === "pending" ||
-          slot.status === "confirmed" ||
-          slot.status === "completed" ||
-          slot.status === "in_progress"
-        ) {
-          console.log("✅ Booked slot mapped:", {
-            slotId: slot._id,
-            date: slotDate,
-            time: slotTime,
-            patientName: mappedSlot.patientName,
-            mode: mappedSlot.mode,
-            status: mappedSlot.status,
-          });
-        }
+        // Booked slots are mapped
       }
     });
 
@@ -871,7 +837,7 @@ export default function ManagerScheduleManagement() {
     }
 
     // Calculate age
-    const age = today.getFullYear() - birthDate.getFullYear();
+    let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
     if (
       monthDiff < 0 ||
@@ -1135,12 +1101,6 @@ export default function ManagerScheduleManagement() {
         appointmentData.allergyNotes = bookingData.allergyNotes || "";
       }
 
-      console.log("📤 [Frontend] Creating booking payment (appointment will be created after payment success):", {
-        ...appointmentData,
-        dob: appointmentData.dob || "N/A",
-        scheduledStart: appointmentData.scheduledStart,
-        scheduledEnd: appointmentData.scheduledEnd,
-      });
 
       // Create booking payment FIRST (appointment will be created but slot not booked until payment success)
       const response = await api.post(
@@ -1233,7 +1193,6 @@ export default function ManagerScheduleManagement() {
     }
 
     try {
-      console.log("🗑️ Deleting slot:", slotId);
       const response = await api.delete(
         `/api/managers/doctors/${selectedDoctorId}/time-slots/${slotId}`
       );
