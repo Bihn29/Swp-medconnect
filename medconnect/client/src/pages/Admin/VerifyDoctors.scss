@@ -1,4 +1,8 @@
 .verify-doctors {
+  padding: 24px;
+  background: #f5f5f5;
+  min-height: 100vh;
+
   .page-header {
     margin-bottom: 32px;
 
@@ -19,6 +23,11 @@
   }
 
   .verification-tabs {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
     .ant-tabs-nav {
       margin-bottom: 24px;
 
@@ -26,18 +35,37 @@
         padding: 12px 24px;
         font-size: 16px;
         font-weight: 500;
+        border-radius: 8px;
+        margin-right: 8px;
+        transition: all 0.3s;
+
+        .tab-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .anticon {
+            font-size: 16px;
+          }
+        }
 
         &.ant-tabs-tab-active {
+          background: #f0f0f0;
+          border: 1px solid #e0e0e0;
+
           .ant-tabs-tab-btn {
             color: #1890ff;
             font-weight: 600;
           }
         }
+
+        &:hover {
+          background: #fafafa;
+        }
       }
 
       .ant-tabs-ink-bar {
-        background: #1890ff;
-        height: 3px;
+        display: none;
       }
     }
   }
@@ -45,146 +73,314 @@
   .doctors-list {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #8c8c8c;
+      font-size: 16px;
+    }
   }
 
-  .doctor-card {
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: none;
+  .doctor-row {
+    background: white;
+    border-radius: 8px;
+    padding: 16px 24px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.3s;
 
-    .ant-card-body {
-      padding: 24px;
+    &:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     }
 
-    .doctor-info {
+    .doctor-row-content {
       display: flex;
+      align-items: center;
       gap: 24px;
-      align-items: flex-start;
 
-      .doctor-details {
+      .doctor-avatar {
+        flex-shrink: 0;
+      }
+
+      .doctor-info {
         flex: 1;
+        min-width: 0;
 
         .doctor-name {
+          font-size: 18px;
+          font-weight: 700;
+          color: #262626;
+          margin-bottom: 4px;
+        }
+
+        .doctor-specialty {
+          font-size: 14px;
+          color: #8c8c8c;
+        }
+      }
+
+      .doctor-actions-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+
+        .action-btn {
+          border-radius: 6px;
+          font-weight: 500;
+          height: 36px;
+          padding: 0 16px;
           display: flex;
           align-items: center;
-          gap: 12px;
-          margin-bottom: 8px;
+          gap: 6px;
 
-          h3 {
-            font-size: 20px;
+          &.status-btn {
+            background: #e6f7ff;
+            border-color: #91d5ff;
+            color: #1890ff;
+            cursor: default;
+
+            &:hover {
+              background: #e6f7ff;
+              border-color: #91d5ff;
+              color: #1890ff;
+            }
+          }
+
+          &.view-btn {
+            background: white;
+            border-color: #d9d9d9;
+            color: #262626;
+
+            &:hover {
+              border-color: #40a9ff;
+              color: #40a9ff;
+            }
+          }
+
+          &.approve-btn {
+            background: #52c41a;
+            border-color: #52c41a;
+            color: white;
+
+            &:hover {
+              background: #73d13d;
+              border-color: #73d13d;
+            }
+          }
+
+          &.reject-btn {
+            background: #ff4d4f;
+            border-color: #ff4d4f;
+            color: white;
+
+            &:hover {
+              background: #ff7875;
+              border-color: #ff7875;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Detail Modal Styles
+  .doctor-detail-modal {
+    .ant-modal-header {
+      padding: 0;
+      border-bottom: none;
+    }
+
+    .ant-modal-body {
+      padding: 0;
+    }
+
+    .detail-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid #f0f0f0;
+
+      .modal-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #262626;
+      }
+
+      .close-btn {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+
+        &:hover {
+          background: #f5f5f5;
+        }
+      }
+    }
+
+    .doctor-detail-content {
+      padding: 24px;
+
+      .doctor-detail-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e8e8e8;
+
+        .detail-avatar {
+          flex-shrink: 0;
+        }
+
+        .detail-header-info {
+          flex: 1;
+
+          .detail-name {
+            font-size: 24px;
             font-weight: 700;
             color: #262626;
-            margin: 0;
-            line-height: 1.2;
+            margin-bottom: 12px;
           }
 
-          .ant-tag {
-            border-radius: 16px;
-            padding: 4px 12px;
-            font-size: 12px;
-            font-weight: 500;
-            border: none;
-          }
-        }
-
-        .specialty {
-          font-size: 16px;
-          color: #1890ff;
-          font-weight: 600;
-          margin: 0 0 16px 0;
-        }
-
-        .doctor-meta {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          margin-bottom: 16px;
-
-          .meta-item {
+          .detail-specialty-row {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            color: #595959;
+            gap: 12px;
+            margin-bottom: 8px;
 
-            .anticon {
-              color: #8c8c8c;
-              font-size: 14px;
+            .detail-specialty {
+              font-size: 16px;
+              color: #52c41a;
+              font-weight: 600;
             }
           }
+
+          .submission-date {
+            font-size: 14px;
+            color: #8c8c8c;
+          }
         }
+      }
 
-        .documents {
-          margin-bottom: 16px;
+      .detail-info-section {
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e8e8e8;
 
-          p {
+        .info-item {
+          margin-bottom: 20px;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+
+          label {
+            display: block;
             font-size: 14px;
             font-weight: 600;
-            color: #262626;
-            margin: 0 0 8px 0;
+            color: #595959;
+            margin-bottom: 4px;
           }
 
-          .document-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-
-            .ant-btn {
-              padding: 4px 8px;
-              height: auto;
-              font-size: 12px;
-              border-radius: 6px;
-            }
+          div {
+            font-size: 14px;
+            color: #262626;
           }
         }
+      }
 
-        .submission-info {
-          p {
-            font-size: 14px;
-            color: #595959;
-            margin: 0 0 4px 0;
+      .detail-documents-section {
+        margin-bottom: 24px;
 
-            strong {
-              color: #262626;
+        .section-title {
+          font-size: 18px;
+          font-weight: 700;
+          color: #262626;
+          margin-bottom: 16px;
+        }
+
+        .documents-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+
+          .document-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e8e8e8;
+            cursor: pointer;
+            transition: all 0.3s;
+
+            &:hover {
+              background: #fafafa;
+              border-color: #d9d9d9;
             }
-          }
 
-          .rejection-reason {
-            margin-top: 12px;
+            .download-icon {
+              color: #262626;
+              font-size: 16px;
+              cursor: pointer;
+              transition: color 0.3s;
 
-            .reason-box {
-              background: #fff2f0;
-              border: 1px solid #ffccc7;
-              border-radius: 8px;
-              padding: 12px;
-              margin-top: 8px;
-              color: #ff4d4f;
+              &:hover {
+                color: #595959;
+              }
+            }
+
+            .document-name {
+              flex: 1;
               font-size: 14px;
+              color: #262626;
+              text-align: left;
             }
           }
         }
       }
 
-      .doctor-actions {
+      .detail-action-buttons {
         display: flex;
-        flex-direction: column;
-        gap: 8px;
-        min-width: 120px;
+        justify-content: space-between;
+        gap: 16px;
+        padding-top: 20px;
+        margin-top: 0;
 
-        .ant-btn {
-          width: 100%;
-          border-radius: 8px;
-          font-weight: 500;
+        .reject-profile-btn {
+          flex: 1;
+          height: 44px;
+          font-size: 16px;
+          font-weight: 600;
+          background: #ff4d4f;
+          border-color: #ff4d4f;
 
-          &.ant-btn-primary {
-            background: #1890ff;
-            border-color: #1890ff;
+          &:hover {
+            background: #ff7875;
+            border-color: #ff7875;
           }
+        }
 
-          &.ant-btn-dangerous {
-            background: #ff4d4f;
-            border-color: #ff4d4f;
+        .approve-profile-btn {
+          flex: 1;
+          height: 44px;
+          font-size: 16px;
+          font-weight: 600;
+          background: #13c2c2;
+          border-color: #13c2c2;
+          color: white;
+
+          &:hover {
+            background: #36cfc9;
+            border-color: #36cfc9;
           }
         }
       }
@@ -195,18 +391,34 @@
 // Responsive
 @media (max-width: 768px) {
   .verify-doctors {
-    .doctor-card {
-      .doctor-info {
+    padding: 16px;
+
+    .doctor-row {
+      .doctor-row-content {
         flex-direction: column;
+        align-items: flex-start;
         gap: 16px;
 
-        .doctor-actions {
-          flex-direction: row;
-          min-width: auto;
+        .doctor-actions-row {
           width: 100%;
+          flex-wrap: wrap;
 
-          .ant-btn {
+          .action-btn {
             flex: 1;
+            min-width: 120px;
+          }
+        }
+      }
+    }
+
+    .doctor-detail-modal {
+      .doctor-detail-content {
+        .detail-action-buttons {
+          flex-direction: column;
+
+          .reject-profile-btn,
+          .approve-profile-btn {
+            width: 100%;
           }
         }
       }
