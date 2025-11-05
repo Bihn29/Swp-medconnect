@@ -287,7 +287,6 @@ export function MyAppointments() {
   const upcomingAppointments = appointments.filter((appointment) =>
     ["pending_doctor", "accepted"].includes(appointment.status)
   );
-
   const completedAppointments = appointments.filter(
     (appointment) => appointment.status === "done"
   );

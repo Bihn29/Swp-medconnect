@@ -36,6 +36,10 @@ export function Settings() {
     representativePhone: "",
     // Tiền sử y tế
     medicalHistory: [],
+    // Bảo hiểm y tế
+    healthInsurance: "",
+    healthInsuranceIssueDate: "",
+    healthInsuranceExpiryDate: "",
     // Ghi chú
     notes: "",
     // Password change fields
@@ -96,6 +100,14 @@ export function Settings() {
         representativePhone: userProfile.representativePhone || "",
         // Tiền sử y tế
         medicalHistory: userProfile.medicalHistory || [],
+        // Bảo hiểm y tế
+        healthInsurance: userProfile.healthInsurance || "",
+        healthInsuranceIssueDate: formatDateForDisplay(
+          userProfile.healthInsuranceIssueDate
+        ),
+        healthInsuranceExpiryDate: formatDateForDisplay(
+          userProfile.healthInsuranceExpiryDate
+        ),
         // Ghi chú
         notes: userProfile.notes || "",
       };
@@ -125,6 +137,10 @@ export function Settings() {
         representativePhone: "",
         // Tiền sử y tế
         medicalHistory: [],
+        // Bảo hiểm y tế
+        healthInsurance: "",
+        healthInsuranceIssueDate: "",
+        healthInsuranceExpiryDate: "",
         // Ghi chú
         notes: "",
       });
@@ -152,6 +168,38 @@ export function Settings() {
       case "email":
         if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
           errors.email = "Email không đúng định dạng";
+        }
+        break;
+
+      case "healthInsuranceIssueDate":
+        if (value) {
+          const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+          if (!dateRegex.test(value)) {
+            errors.healthInsuranceIssueDate =
+              "Ngày cấp phải có định dạng DD/MM/YYYY";
+          } else {
+            const [, day, month, year] = value.match(dateRegex);
+            const issueDate = new Date(year, month - 1, day);
+            if (isNaN(issueDate.getTime())) {
+              errors.healthInsuranceIssueDate = "Ngày cấp không hợp lệ";
+            }
+          }
+        }
+        break;
+
+      case "healthInsuranceExpiryDate":
+        if (value) {
+          const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+          if (!dateRegex.test(value)) {
+            errors.healthInsuranceExpiryDate =
+              "Ngày hết hạn phải có định dạng DD/MM/YYYY";
+          } else {
+            const [, day, month, year] = value.match(dateRegex);
+            const expiryDate = new Date(year, month - 1, day);
+            if (isNaN(expiryDate.getTime())) {
+              errors.healthInsuranceExpiryDate = "Ngày hết hạn không hợp lệ";
+            }
+          }
         }
         break;
 
@@ -269,7 +317,11 @@ export function Settings() {
     let processedValue = value;
 
     // Auto-format birth date: DD/MM/YYYY
-    if (field === "birthDate") {
+    if (
+      field === "birthDate" ||
+      field === "healthInsuranceIssueDate" ||
+      field === "healthInsuranceExpiryDate"
+    ) {
       // Remove all non-digit characters
       const digitsOnly = value.replace(/\D/g, "");
 
@@ -371,6 +423,50 @@ export function Settings() {
           errors.birthDate = "Tuổi không hợp lệ";
         } else if (isNaN(birthDate.getTime())) {
           errors.birthDate = "Ngày sinh không hợp lệ";
+        }
+      }
+    }
+
+    // Validate health insurance issue date
+    if (formData.healthInsuranceIssueDate) {
+      const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      if (!dateRegex.test(formData.healthInsuranceIssueDate)) {
+        errors.healthInsuranceIssueDate =
+          "Ngày cấp phải có định dạng DD/MM/YYYY";
+      } else {
+        const [, day, month, year] =
+          formData.healthInsuranceIssueDate.match(dateRegex);
+        const issueDate = new Date(year, month - 1, day);
+        if (isNaN(issueDate.getTime())) {
+          errors.healthInsuranceIssueDate = "Ngày cấp không hợp lệ";
+        }
+      }
+    }
+
+    // Validate health insurance expiry date
+    if (formData.healthInsuranceExpiryDate) {
+      const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      if (!dateRegex.test(formData.healthInsuranceExpiryDate)) {
+        errors.healthInsuranceExpiryDate =
+          "Ngày hết hạn phải có định dạng DD/MM/YYYY";
+      } else {
+        const [, day, month, year] =
+          formData.healthInsuranceExpiryDate.match(dateRegex);
+        const expiryDate = new Date(year, month - 1, day);
+        if (isNaN(expiryDate.getTime())) {
+          errors.healthInsuranceExpiryDate = "Ngày hết hạn không hợp lệ";
+        } else if (formData.healthInsuranceIssueDate) {
+          // Check if expiry date is after issue date
+          const issueDateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+          if (issueDateRegex.test(formData.healthInsuranceIssueDate)) {
+            const [, issueDay, issueMonth, issueYear] =
+              formData.healthInsuranceIssueDate.match(issueDateRegex);
+            const issueDate = new Date(issueYear, issueMonth - 1, issueDay);
+            if (expiryDate <= issueDate) {
+              errors.healthInsuranceExpiryDate =
+                "Ngày hết hạn phải sau ngày cấp";
+            }
+          }
         }
       }
     }
@@ -481,6 +577,14 @@ export function Settings() {
         representativePhone: formData.representativePhone,
         // Tiền sử y tế
         medicalHistory: formData.medicalHistory,
+        // Bảo hiểm y tế (không bắt buộc)
+        healthInsurance: formData.healthInsurance || null,
+        healthInsuranceIssueDate: formData.healthInsuranceIssueDate
+          ? formatDateForAPI(formData.healthInsuranceIssueDate)
+          : null,
+        healthInsuranceExpiryDate: formData.healthInsuranceExpiryDate
+          ? formatDateForAPI(formData.healthInsuranceExpiryDate)
+          : null,
         // Ghi chú
         notes: formData.notes,
       };
@@ -983,37 +1087,113 @@ export function Settings() {
                     </select>
                   </div>
 
-                  <div className="form-group allergies-group">
-                    <label className="form-label">Dị ứng (nếu có)</label>
-                    <textarea
-                      className={`form-textarea allergies-textarea ${
-                        fieldErrors.allergies ? "error" : ""
-                      }`}
-                      placeholder="Nhập các loại thuốc hoặc thực phẩm gây dị ứng..."
-                      value={formData.allergies}
+                  <div className="form-group">
+                    <label className="form-label">Bảo hiểm y tế (nếu có)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.healthInsurance}
                       onChange={(e) =>
-                        handleInputChange("allergies", e.target.value)
+                        handleInputChange("healthInsurance", e.target.value)
                       }
-                      rows={4}
+                      placeholder="Nhập số thẻ BHYT"
+                      maxLength={15}
                     />
-                    {fieldErrors.allergies && (
-                      <div className="error-text">{fieldErrors.allergies}</div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Ngày cấp BHYT (nếu có)</label>
+                    <input
+                      type="text"
+                      className={`form-input ${
+                        fieldErrors.healthInsuranceIssueDate ? "error" : ""
+                      }`}
+                      value={formData.healthInsuranceIssueDate}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "healthInsuranceIssueDate",
+                          e.target.value
+                        )
+                      }
+                      onKeyDown={(e) => {
+                        // Allow: backspace, delete, tab, escape, enter, and numbers
+                        if (
+                          [46, 8, 9, 27, 13, 110, 190].indexOf(e.keyCode) !==
+                            -1 ||
+                          // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                          (e.keyCode === 65 && e.ctrlKey === true) ||
+                          (e.keyCode === 67 && e.ctrlKey === true) ||
+                          (e.keyCode === 86 && e.ctrlKey === true) ||
+                          (e.keyCode === 88 && e.ctrlKey === true) ||
+                          // Allow: home, end, left, right, down, up
+                          (e.keyCode >= 35 && e.keyCode <= 40)
+                        ) {
+                          return;
+                        }
+                        // Ensure that it is a number and stop the keypress
+                        if (
+                          (e.shiftKey || e.keyCode < 48 || e.keyCode > 57) &&
+                          (e.keyCode < 96 || e.keyCode > 105)
+                        ) {
+                          e.preventDefault();
+                        }
+                      }}
+                      maxLength={10}
+                      placeholder="DD/MM/YYYY"
+                    />
+                    {fieldErrors.healthInsuranceIssueDate && (
+                      <div className="error-text">
+                        {fieldErrors.healthInsuranceIssueDate}
+                      </div>
                     )}
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Ghi chú bổ sung</label>
-                    <textarea
-                      className={`form-textarea ${
-                        fieldErrors.notes ? "error" : ""
+                    <label className="form-label">
+                      Ngày hết hạn BHYT (nếu có)
+                    </label>
+                    <input
+                      type="text"
+                      className={`form-input ${
+                        fieldErrors.healthInsuranceExpiryDate ? "error" : ""
                       }`}
-                      placeholder="Nhập các ghi chú khác về sức khỏe..."
-                      value={formData.notes}
-                      onChange={(e) => handleInputChange("notes", e.target.value)}
-                      rows={3}
+                      value={formData.healthInsuranceExpiryDate}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "healthInsuranceExpiryDate",
+                          e.target.value
+                        )
+                      }
+                      onKeyDown={(e) => {
+                        // Allow: backspace, delete, tab, escape, enter, and numbers
+                        if (
+                          [46, 8, 9, 27, 13, 110, 190].indexOf(e.keyCode) !==
+                            -1 ||
+                          // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                          (e.keyCode === 65 && e.ctrlKey === true) ||
+                          (e.keyCode === 67 && e.ctrlKey === true) ||
+                          (e.keyCode === 86 && e.ctrlKey === true) ||
+                          (e.keyCode === 88 && e.ctrlKey === true) ||
+                          // Allow: home, end, left, right, down, up
+                          (e.keyCode >= 35 && e.keyCode <= 40)
+                        ) {
+                          return;
+                        }
+                        // Ensure that it is a number and stop the keypress
+                        if (
+                          (e.shiftKey || e.keyCode < 48 || e.keyCode > 57) &&
+                          (e.keyCode < 96 || e.keyCode > 105)
+                        ) {
+                          e.preventDefault();
+                        }
+                      }}
+                      maxLength={10}
+                      placeholder="DD/MM/YYYY"
                     />
-                    {fieldErrors.notes && (
-                      <div className="error-text">{fieldErrors.notes}</div>
+                    {fieldErrors.healthInsuranceExpiryDate && (
+                      <div className="error-text">
+                        {fieldErrors.healthInsuranceExpiryDate}
+                      </div>
                     )}
                   </div>
                 </div>
