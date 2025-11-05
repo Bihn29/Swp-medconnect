@@ -566,16 +566,21 @@ const UserManagement = () => {
                   <Descriptions.Item label="Dân tộc">
                     {userDetails.roleSpecificData.ethnicity || "Chưa cập nhật"}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Quốc tịch">
-                    {userDetails.roleSpecificData.nationality ||
-                      "Chưa cập nhật"}
-                  </Descriptions.Item>
                   <Descriptions.Item label="CCCD/CMND">
                     {userDetails.roleSpecificData.citizenId || "Chưa cập nhật"}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Phòng khám chính">
-                    {userDetails.roleSpecificData.primaryClinic ||
-                      "Chưa cập nhật"}
+                  <Descriptions.Item label="Dị ứng" span={2}>
+                    {userDetails.roleSpecificData.allergyNotes ||
+                    userDetails.roleSpecificData.allergies
+                      ? userDetails.roleSpecificData.allergyNotes ||
+                        userDetails.roleSpecificData.allergies
+                      : "Không có"}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Tiền sử bệnh lý" span={2}>
+                    {userDetails.roleSpecificData.medicalHistory &&
+                    userDetails.roleSpecificData.medicalHistory.length > 0
+                      ? userDetails.roleSpecificData.medicalHistory.join(", ")
+                      : "Không có"}
                   </Descriptions.Item>
                 </Descriptions>
               </>

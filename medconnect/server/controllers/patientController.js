@@ -311,6 +311,9 @@ export async function getCurrentPatientProfile(req, res) {
             bloodType: patient.bloodType,
             allergyNotes: patient.allergyNotes,
             medicalHistory: patient.medicalHistory,
+            healthInsurance: patient.healthInsurance,
+            healthInsuranceIssueDate: patient.healthInsuranceIssueDate,
+            healthInsuranceExpiryDate: patient.healthInsuranceExpiryDate,
             // Ghi chú
             notes: patient.notes,
             // Legacy fields
@@ -498,6 +501,16 @@ export async function updatePatientProfile(req, res) {
       bloodType: updateData.bloodType,
       allergyNotes: updateData.allergyNotes,
       medicalHistory: updateData.medicalHistory,
+      // Bảo hiểm y tế (không bắt buộc)
+      ...(updateData.healthInsurance !== undefined && {
+        healthInsurance: updateData.healthInsurance || null,
+      }),
+      ...(updateData.healthInsuranceIssueDate !== undefined && {
+        healthInsuranceIssueDate: updateData.healthInsuranceIssueDate || null,
+      }),
+      ...(updateData.healthInsuranceExpiryDate !== undefined && {
+        healthInsuranceExpiryDate: updateData.healthInsuranceExpiryDate || null,
+      }),
       // Ghi chú
       notes: updateData.notes,
     };
@@ -1009,10 +1022,7 @@ export async function getPatientAppointments(req, res) {
       },
     ];
 
-    // Debug: Log query and count
-    console.log("Patient appointments query:", query);
     const totalCount = await Appointment.countDocuments(query);
-    console.log("Total appointments for patient:", totalCount);
 
     const appointments = await Appointment.find(query)
       .populate({
@@ -1037,18 +1047,6 @@ export async function getPatientAppointments(req, res) {
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .lean();
-
-    // Debug: Log returned appointments
-    console.log("Returned appointments count:", appointments.length);
-    console.log(
-      "Appointments details:",
-      appointments.map((apt) => ({
-        id: apt._id,
-        status: apt.status,
-        scheduledStart: apt.scheduledStart,
-        doctor: apt.doctorId?.fullName,
-      }))
-    );
 
     // Ensure new fields have default values for backward compatibility
     // Also ensure patientId is properly populated

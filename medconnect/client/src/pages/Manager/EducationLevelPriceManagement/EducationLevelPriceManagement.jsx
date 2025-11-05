@@ -337,7 +337,7 @@ export default function EducationLevelPriceManagement() {
         <div className="page-header">
           <div>
             <h1>
-              <DollarOutlined /> Quản lý giá theo trình độ học vấn
+              <DollarOutlined /> Quản lý giá khám
             </h1>
             <p>Quản lý giá khám theo trình độ học vấn của bác sĩ</p>
           </div>

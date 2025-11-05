@@ -302,10 +302,6 @@ export async function getDoctorAppointments(req, res) {
       .limit(parseInt(limit))
       .lean();
 
-    // Debug: Log appointments with patientId issues
-    console.log(
-      `🔍 Found ${appointments.length} appointments for doctor ${doctor._id}`
-    );
     const appointmentsWithMissingPatients = appointments.filter(
       (apt) =>
         !apt.patientId ||
@@ -1934,94 +1930,8 @@ export async function getAllDoctors(req, res) {
     );
     console.log(`   ❌ Unverified doctors: ${unverifiedCount}`);
     console.log(`   ❌ Inactive doctors (isActive=false): ${inactiveCount}`);
-    console.log("🔍 Doctor filter applied:", JSON.stringify(filter, null, 2)); // Debug log
-    console.log("🔍 Specialization parameter:", specialization); // Debug log
-    console.log("🔍 Facility parameter:", facility); // Debug log
-    console.log("🔍 Experience parameter:", experience); // Debug log
-    console.log("🔍 Rating parameter:", rating); // Debug log
-    console.log("🔍 PriceRange parameter:", priceRange); // Debug log
-    console.log("🔍 Location parameter:", location); // Debug log
-    console.log("🔍 Availability parameter:", availability); // Debug log
-
-    // Debug: Check specific doctor by ID
-    const specificDoctorId = "690789003d30bfde2698ec1f";
-    const mongoose = await import("mongoose");
-    if (mongoose.default.Types.ObjectId.isValid(specificDoctorId)) {
-      const specificDoctor = await Doctor.findById(specificDoctorId).lean();
-      if (specificDoctor) {
-        console.log(`\n🔍 Checking specific doctor (ID: ${specificDoctorId}):`);
-        console.log(`   Name: ${specificDoctor.fullName}`);
-        console.log(`   isVerified: ${specificDoctor.isVerified}`);
-        console.log(`   isActive: ${specificDoctor.isActive}`);
-        console.log(`   Does it match filter? Testing...`);
-
-        // Test if this doctor matches the filter
-        const matchesFilter = await Doctor.findOne({
-          _id: specificDoctorId,
-          ...filter,
-        }).lean();
-
-        if (matchesFilter) {
-          console.log(
-            `   ✅ Doctor MATCHES the filter - should appear in results`
-          );
-
-          // Before pagination, check position
-          const allMatchingDoctors = await Doctor.find(filter)
-            .select("_id fullName")
-            .sort({ ratingAvg: -1, ratingCount: -1 })
-            .lean();
-          const doctorIndex = allMatchingDoctors.findIndex(
-            (d) => d._id.toString() === specificDoctorId
-          );
-          console.log(`\n📍 Specific doctor position in matching results:`);
-          console.log(
-            `   Total matching doctors: ${allMatchingDoctors.length}`
-          );
-          console.log(`   Doctor index (0-based): ${doctorIndex}`);
-          console.log(`   Page: ${page}, Limit: ${limit}, Skip: ${skip}`);
-          console.log(
-            `   Will appear on page: ${
-              Math.floor(doctorIndex / parseInt(limit)) + 1
-            }`
-          );
-          if (doctorIndex >= skip && doctorIndex < skip + parseInt(limit)) {
-            console.log(`   ✅ Doctor is in current page range`);
-          } else {
-            console.log(
-              `   ❌ Doctor is NOT in current page range (out of pagination)`
-            );
-          }
-        } else {
-          console.log(
-            `   ❌ Doctor does NOT match the filter - checking why...`
-          );
-
-          // Check each filter condition
-          if (filter.isVerified && !specificDoctor.isVerified) {
-            console.log(
-              `   ❌ isVerified mismatch: filter requires true, doctor has ${specificDoctor.isVerified}`
-            );
-          }
-          if (filter.$or) {
-            const matchesActive = specificDoctor.isActive === true;
-            const matchesMissing = !("isActive" in specificDoctor);
-            if (!matchesActive && !matchesMissing) {
-              console.log(
-                `   ❌ isActive mismatch: filter requires (true OR missing), doctor has ${specificDoctor.isActive}`
-              );
-            } else {
-              console.log(`   ✅ isActive condition matches`);
-            }
-          }
-        }
-      } else {
-        console.log(`   ⚠️ Specific doctor not found in database`);
-      }
-    }
-
-    // Query doctors with filter
-    let doctors = await Doctor.find(filter)
+    // Apply filters to find doctors
+    const doctors = await Doctor.find(filter)
       .sort({ ratingAvg: -1, ratingCount: -1 })
       .lean();
 
@@ -2762,8 +2672,6 @@ export async function getDoctorClinics(req, res) {
  */
 export async function debugAuth(req, res) {
   try {
-    console.log("🔍 debugAuth - req.user:", req.user);
-    console.log("🔍 debugAuth - req.user type:", typeof req.user);
     console.log(
       "🔍 debugAuth - req.user keys:",
       req.user ? Object.keys(req.user) : "req.user is null/undefined"
