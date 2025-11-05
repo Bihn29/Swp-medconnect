@@ -907,7 +907,7 @@ export function Settings() {
                   <div className="form-group">
                     <label className="form-label">Giới tính</label>
                     <select
-                      className="form-input"
+                      className="form-input form-select-small"
                       value={formData.gender}
                       onChange={(e) =>
                         handleInputChange("gender", e.target.value)
@@ -930,6 +930,19 @@ export function Settings() {
                         handleInputChange("ethnicity", e.target.value)
                       }
                       placeholder="Nhập dân tộc"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Địa chỉ</label>
+                    <textarea
+                      className="form-textarea"
+                      value={formData.address}
+                      onChange={(e) =>
+                        handleInputChange("address", e.target.value)
+                      }
+                      rows={3}
+                      placeholder="Nhập địa chỉ đầy đủ"
                     />
                   </div>
                 </div>
@@ -1007,43 +1020,7 @@ export function Settings() {
                       placeholder="Nhập nghề nghiệp"
                     />
                   </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Địa chỉ */}
-            <div className="form-section">
-              <h3 className="section-subtitle">Địa chỉ</h3>
-              <div className="form-grid">
-                <div className="form-column">
-                  <div className="form-group">
-                    <label className="form-label">Địa chỉ</label>
-                    <textarea
-                      className="form-textarea"
-                      value={formData.address}
-                      onChange={(e) =>
-                        handleInputChange("address", e.target.value)
-                      }
-                      rows={3}
-                      placeholder="Nhập địa chỉ đầy đủ"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Số nhà</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.houseNumber}
-                      onChange={(e) =>
-                        handleInputChange("houseNumber", e.target.value)
-                      }
-                      placeholder="Nhập số nhà"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-column">
                   <div className="form-group">
                     <label className="form-label">Căn cước công dân</label>
                     <input
@@ -1066,6 +1043,19 @@ export function Settings() {
                       <div className="error-text">{fieldErrors.citizenId}</div>
                     )}
                   </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Số nhà</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.houseNumber}
+                      onChange={(e) =>
+                        handleInputChange("houseNumber", e.target.value)
+                      }
+                      placeholder="Nhập số nhà"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1078,7 +1068,7 @@ export function Settings() {
                   <div className="form-group">
                     <label className="form-label">Nhóm máu</label>
                     <select
-                      className="form-input"
+                      className="form-input form-select-small"
                       value={formData.bloodType}
                       onChange={(e) =>
                         handleInputChange("bloodType", e.target.value)
@@ -1093,7 +1083,7 @@ export function Settings() {
                       <option value="AB-">AB-</option>
                       <option value="O+">O+</option>
                       <option value="O-">O-</option>
-                      <option value="Unknown">Không rõ</option>
+                      <option value="Không rõ">Không rõ</option>
                     </select>
                   </div>
 
@@ -1207,69 +1197,32 @@ export function Settings() {
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Dị ứng và tiền sử y tế */}
-            <div className="form-section">
-              <h3 className="section-subtitle">Thông tin y tế bổ sung</h3>
-
-              <div className="form-group allergies-group">
-                <label className="form-label">Dị ứng (nếu có)</label>
-                <textarea
-                  className={`form-textarea allergies-textarea ${
-                    fieldErrors.allergies ? "error" : ""
-                  }`}
-                  placeholder="Nhập các loại thuốc hoặc thực phẩm gây dị ứng..."
-                  value={formData.allergies}
-                  onChange={(e) =>
-                    handleInputChange("allergies", e.target.value)
-                  }
-                  rows={4}
-                />
-                {fieldErrors.allergies && (
-                  <div className="error-text">{fieldErrors.allergies}</div>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Tiền sử bệnh lý</label>
-                <textarea
-                  className="form-textarea"
-                  placeholder="Nhập các bệnh lý đã mắc phải (mỗi bệnh một dòng)..."
-                  value={
-                    formData.medicalHistory
-                      ? formData.medicalHistory.join("\n")
-                      : ""
-                  }
-                  onChange={(e) => {
-                    const medicalHistory = e.target.value
-                      .split("\n")
-                      .filter((item) => item.trim());
-                    handleInputChange("medicalHistory", medicalHistory);
-                  }}
-                  rows={4}
-                />
-                <div className="form-help-text">
-                  Mỗi bệnh lý một dòng, ví dụ: Tiểu đường, Cao huyết áp, Hen
-                  suyễn
+                <div className="form-column">
+                  <div className="form-group">
+                    <label className="form-label">Tiền sử bệnh lý</label>
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Nhập các bệnh lý đã mắc phải (mỗi bệnh một dòng)..."
+                      value={
+                        formData.medicalHistory
+                          ? formData.medicalHistory.join("\n")
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const medicalHistory = e.target.value
+                          .split("\n")
+                          .filter((item) => item.trim());
+                        handleInputChange("medicalHistory", medicalHistory);
+                      }}
+                      rows={4}
+                    />
+                    <div className="form-help-text">
+                      Mỗi bệnh lý một dòng, ví dụ: Tiểu đường, Cao huyết áp, Hen
+                      suyễn
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Ghi chú bổ sung</label>
-                <textarea
-                  className={`form-textarea ${
-                    fieldErrors.notes ? "error" : ""
-                  }`}
-                  placeholder="Nhập các ghi chú khác về sức khỏe..."
-                  value={formData.notes}
-                  onChange={(e) => handleInputChange("notes", e.target.value)}
-                  rows={3}
-                />
-                {fieldErrors.notes && (
-                  <div className="error-text">{fieldErrors.notes}</div>
-                )}
               </div>
             </div>
 

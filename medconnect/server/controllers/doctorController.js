@@ -1931,7 +1931,7 @@ export async function getAllDoctors(req, res) {
     console.log(`   ❌ Unverified doctors: ${unverifiedCount}`);
     console.log(`   ❌ Inactive doctors (isActive=false): ${inactiveCount}`);
     // Apply filters to find doctors
-    const doctors = await Doctor.find(filter)
+    let doctors = await Doctor.find(filter)
       .sort({ ratingAvg: -1, ratingCount: -1 })
       .lean();
 

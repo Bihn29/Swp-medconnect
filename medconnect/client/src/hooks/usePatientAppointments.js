@@ -57,43 +57,9 @@ export function usePatientAppointments() {
   const fetchAllAppointments = async () => {
     try {
       const response = await api.get("/api/patients/me/appointments?limit=100");
-      console.log("All appointments response:", response);
 
       if (response.success) {
         const allAppts = response.data.appointments || [];
-        console.log("Total appointments in database:", allAppts.length);
-        console.log(
-          "All appointments details:",
-          allAppts.map((apt) => ({
-            id: apt._id,
-            status: apt.status,
-            doctor: apt.doctorId?.fullName,
-            scheduledStart: apt.scheduledStart,
-            scheduledEnd: apt.scheduledEnd,
-          }))
-        );
-
-        // Check status distribution
-        const statusCount = allAppts.reduce((acc, apt) => {
-          acc[apt.status] = (acc[apt.status] || 0) + 1;
-          return acc;
-        }, {});
-        console.log("Status distribution:", statusCount);
-
-        // Check which ones should show
-        const shouldShow = allAppts.filter((apt) =>
-          ["pending_doctor", "accepted"].includes(apt.status)
-        );
-        console.log("Should show appointments:", shouldShow.length);
-        console.log(
-          "Should show details:",
-          shouldShow.map((apt) => ({
-            id: apt._id,
-            status: apt.status,
-            doctor: apt.doctorId?.fullName,
-            scheduledStart: apt.scheduledStart,
-          }))
-        );
       }
     } catch (err) {
       console.error("Error fetching all appointments:", err);

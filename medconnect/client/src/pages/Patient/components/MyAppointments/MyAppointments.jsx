@@ -93,7 +93,6 @@ export function MyAppointments() {
       okType: "danger",
       onOk: async () => {
         try {
-          console.log("Attempting to cancel appointment:", appointmentId);
 
           // Gọi API endpoint mới
           const response = await api.put(
