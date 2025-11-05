@@ -23,6 +23,7 @@ import {
   getPendingServicePayments,
   processCashPayment,
   createBankTransferPayment,
+  createBookingPaymentByManager,
 } from "../controllers/managerController.js";
 import {
   getLeaveRequests,
@@ -84,6 +85,13 @@ router.put(
   "/appointments/:appointmentId/reschedule",
   authGuard,
   rescheduleAppointmentByManager
+);
+
+// Booking payment - creates payment BEFORE appointment (appointment created after payment success)
+router.post(
+  "/booking-payments",
+  authGuard,
+  createBookingPaymentByManager
 );
 
 // Leave request routes
