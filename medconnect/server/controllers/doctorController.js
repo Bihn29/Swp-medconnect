@@ -13,14 +13,83 @@ import DoctorScheduleRule from "../models/doctor_schedule_rules.model.js";
 import DoctorRate from "../models/doctor_rates.model.js";
 import Review from "../models/review.model.js";
 import AuthProvider from "../models/auth_providers.model.js";
+import EducationLevelPrice from "../models/educationLevelPrice.model.js";
 import { createAppointmentNotification } from "../services/notificationService.js";
 import { ok, fail } from "../utils/response.js";
 import { ERROR_CODES } from "../constants/index.js";
 import { sendMail } from "../utils/email.js";
 
 /**
+ * Helper function to create/update DoctorRate based on educationLevel
+ * This will create rates for both online and offline modes based on EducationLevelPrice
+ */
+async function syncDoctorRatesFromEducationLevel(doctorId, educationLevel) {
+  try {
+    if (!educationLevel || !doctorId) {
+      return { success: false, message: "Missing doctorId or educationLevel" };
+    }
+
+    const doctor = await Doctor.findById(doctorId).lean();
+    if (!doctor) {
+      return { success: false, message: "Doctor not found" };
+    }
+
+    // Get education level prices for both modes
+    const onlinePrice = await EducationLevelPrice.findOne({
+      educationLevel,
+      mode: "online",
+      isActive: true,
+    }).lean();
+
+    const offlinePrice = await EducationLevelPrice.findOne({
+      educationLevel,
+      mode: "offline",
+      isActive: true,
+    }).lean();
+
+    // Create or update online rate
+    if (onlinePrice) {
+      await DoctorRate.findOneAndUpdate(
+        { doctorId, mode: "online", clinicId: { $exists: false } },
+        {
+          doctorId,
+          mode: "online",
+          weekdayPrice: onlinePrice.weekdayPrice,
+          weekendPrice: onlinePrice.weekendPrice,
+          currency: onlinePrice.currency || "VND",
+          isActive: true,
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    // Create or update offline rate (if doctor has clinic)
+    if (offlinePrice && doctor.clinicDefaultId) {
+      await DoctorRate.findOneAndUpdate(
+        { doctorId, mode: "offline", clinicId: doctor.clinicDefaultId },
+        {
+          doctorId,
+          mode: "offline",
+          clinicId: doctor.clinicDefaultId,
+          weekdayPrice: offlinePrice.weekdayPrice,
+          weekendPrice: offlinePrice.weekendPrice,
+          currency: offlinePrice.currency || "VND",
+          isActive: true,
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error syncing doctor rates from education level:", error);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
  * Check if doctor has all required information to be active
- * Required fields: yearsExperience > 0, bio (non-empty), and at least one DoctorRate
+ * Required fields: yearsExperience > 0, bio (non-empty), and educationLevel
  */
 async function checkDoctorCanBeActive(doctorId) {
   try {
@@ -45,16 +114,11 @@ async function checkDoctorCanBeActive(doctorId) {
       };
     }
 
-    // Check if doctor has at least one active DoctorRate
-    const doctorRates = await DoctorRate.find({
-      doctorId: doctor._id,
-      isActive: true,
-    }).lean();
-
-    if (!doctorRates || doctorRates.length === 0) {
+    // Check educationLevel
+    if (!doctor.educationLevel || !doctor.educationLevel.trim()) {
       return {
         canBeActive: false,
-        reason: "Chưa có giá tiền cho slot khám (cần set ít nhất 1 mức giá)",
+        reason: "Trình độ học vấn chưa được chọn",
       };
     }
 
@@ -176,6 +240,7 @@ export async function updateDoctorProfile(req, res) {
       avatarUrl,
       clinicDefaultId,
       specializationIds,
+      educationLevel,
     } = req.body;
 
     // Update user basic info first (like in updatePatientProfile)
@@ -201,6 +266,8 @@ export async function updateDoctorProfile(req, res) {
     if (clinicDefaultId) doctorUpdateData.clinicDefaultId = clinicDefaultId;
     if (specializationIds)
       doctorUpdateData.specializationIds = specializationIds;
+    if (educationLevel !== undefined)
+      doctorUpdateData.educationLevel = educationLevel;
 
     const doctor = await Doctor.findOneAndUpdate(
       { userId: appUserId },
@@ -213,6 +280,19 @@ export async function updateDoctorProfile(req, res) {
 
     if (!doctor) {
       return fail(res, 404, ERROR_CODES.NOT_FOUND, "Doctor profile not found");
+    }
+
+    // If educationLevel was updated, sync DoctorRate from EducationLevelPrice
+    if (educationLevel !== undefined && educationLevel) {
+      try {
+        await syncDoctorRatesFromEducationLevel(doctor._id, educationLevel);
+        console.log(
+          `✅ Synced DoctorRate for doctor ${doctor._id} with educationLevel ${educationLevel}`
+        );
+      } catch (rateError) {
+        console.error("Error syncing doctor rates:", rateError);
+        // Don't fail the update if rate sync fails, just log it
+      }
     }
 
     // Note: Doctors cannot update their profile themselves.
@@ -265,6 +345,12 @@ export async function getDoctorAppointments(req, res) {
       endDate.setDate(endDate.getDate() + 1);
       filter.scheduledStart = { $gte: startDate, $lt: endDate };
     }
+
+    // CRITICAL: Only show appointments that have been paid (paymentStatus = "paid")
+    // This ensures appointments created by manager booking only appear after payment success
+    // For manager booking flow, appointments MUST have paymentStatus = "paid" to appear
+    // Legacy appointments without paymentStatus are also excluded to ensure consistency
+    filter.paymentStatus = "paid";
 
     const appointments = await Appointment.find(filter)
       .populate({
@@ -4083,7 +4169,11 @@ export async function getAllAppointments(req, res) {
     const { page = 1, limit = 100 } = req.query;
     const skip = (page - 1) * limit;
 
-    const appointments = await Appointment.find({})
+    // CRITICAL: Only show appointments that have been paid (paymentStatus = "paid")
+    // This ensures appointments created by manager booking only appear after payment success
+    const appointments = await Appointment.find({
+      paymentStatus: "paid",
+    })
       .populate({
         path: "patientId",
         select: "fullName dob gender phone email",

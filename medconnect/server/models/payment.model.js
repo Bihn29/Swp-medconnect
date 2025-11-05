@@ -85,7 +85,7 @@ const PaymentSchema = new Schema(
     status: {
       type: String,
       enum: [
-        "pending_manager", // Chờ manager xử lý (bác sĩ đã yêu cầu)
+        "pending_manager", // Chờ manager xử lý 
         "initiated", // Đã tạo link PayOS, chờ thanh toán
         "authorized",
         "captured",

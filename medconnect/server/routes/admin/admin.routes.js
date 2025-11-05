@@ -16,6 +16,7 @@ import {
 
   // Users controllers
   getAllUsers,
+  banUser,
   suspendUser,
   activateUser,
   getUserDetails,
@@ -38,7 +39,7 @@ import {
 
   // Cleanup controller
   cleanupUnpaidAppointments,
-  
+
   // Payment revenue controller
   getPaymentRevenueStats,
   getAdminInvoices,
@@ -72,6 +73,7 @@ adminRouter.get("/users/:id", getUserDetails);
 adminRouter.put("/users/:id", updateUser);
 adminRouter.put("/users/:id/password", changeUserPassword);
 adminRouter.delete("/users/:id", deleteUser);
+adminRouter.post("/users/:id/ban", banUser);
 adminRouter.post("/users/:id/suspend", suspendUser);
 adminRouter.post("/users/:id/activate", activateUser);
 
@@ -91,8 +93,8 @@ adminRouter.delete("/appointments/:id", deleteAppointment);
 adminRouter.post("/cleanup/unpaid-appointments", cleanupUnpaidAppointments);
 
 // ================== PAYMENT ROUTES ==================
-adminRouter.get('/payment/revenue-stats', getPaymentRevenueStats);
-adminRouter.get('/payment/invoices', getAdminInvoices);
+adminRouter.get("/payment/revenue-stats", getPaymentRevenueStats);
+adminRouter.get("/payment/invoices", getAdminInvoices);
 
 // ================== STATISTICS ROUTES ==================
 adminRouter.get('/statistics', getStatistics);

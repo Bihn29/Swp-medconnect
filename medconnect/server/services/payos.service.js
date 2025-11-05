@@ -210,32 +210,61 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
         return { already: true, orderCode };
       }
     } else {
-      // Booking payment: tìm appointment bằng pendingOrderCode
-      appointment = await Appointment.findOne({
-        pendingOrderCode: orderCode,
-      })
-        .populate("patientId")
-        .populate("doctorId")
-        .populate("clinicId");
-
-      if (!appointment) {
-        console.log(
-          `⚠️ Appointment not found for orderCode: ${orderCode}. Possibly already processed.`
-        );
-        return { already: true, orderCode };
-      }
-
-      // Kiểm tra xem đã có booking payment chưa (idempotent)
+      // Booking payment: Tìm payment bằng pendingOrderCode (manager booking flow)
+      // Hoặc tìm appointment bằng pendingOrderCode (legacy patient booking flow)
       existingPayment = await Payment.findOne({
-        appointmentId: appointment._id,
+        pendingOrderCode: orderCode,
         invoiceType: "booking",
-      });
-      
-      if (existingPayment && existingPayment.status === "captured") {
-        console.log(
-          `ℹ️ Booking payment already captured for appointment: ${appointment._id}`
-        );
-        return { already: true, orderCode, paymentId: existingPayment._id };
+      }).lean();
+
+      if (existingPayment) {
+        console.log(`✅ Found booking payment: ${existingPayment._id}`);
+        
+        // Check if already captured
+        if (existingPayment.status === "captured") {
+          console.log(`ℹ️ Booking payment already captured: ${existingPayment._id}`);
+          return { already: true, orderCode, paymentId: existingPayment._id };
+        }
+
+        // Get appointment from payment
+        const appointmentId = existingPayment.appointmentId?._id || existingPayment.appointmentId;
+        appointment = await Appointment.findById(appointmentId)
+          .populate("patientId")
+          .populate("doctorId")
+          .populate("clinicId");
+
+        if (!appointment) {
+          console.error(`❌ Appointment not found for payment ${existingPayment._id}`);
+          return { already: true, orderCode };
+        }
+      } else {
+        // Fallback: Legacy flow - tìm appointment bằng pendingOrderCode
+        appointment = await Appointment.findOne({
+          pendingOrderCode: orderCode,
+        })
+          .populate("patientId")
+          .populate("doctorId")
+          .populate("clinicId");
+
+        if (!appointment) {
+          console.log(
+            `⚠️ Booking payment or appointment not found for orderCode: ${orderCode}. Possibly already processed.`
+          );
+          return { already: true, orderCode };
+        }
+
+        // Kiểm tra xem đã có booking payment chưa (idempotent)
+        existingPayment = await Payment.findOne({
+          appointmentId: appointment._id,
+          invoiceType: "booking",
+        }).lean();
+        
+        if (existingPayment && existingPayment.status === "captured") {
+          console.log(
+            `ℹ️ Booking payment already captured for appointment: ${appointment._id}`
+          );
+          return { already: true, orderCode, paymentId: existingPayment._id };
+        }
       }
     }
 
@@ -438,51 +467,76 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
           invoiceType: "service"
         };
       } else {
-        // Booking payment: create new payment record
-        patient = await Patient.findById(appointment.patientId._id).populate("userId");
-        doctor = await Doctor.findById(appointment.doctorId._id);
+        // Booking payment: Update existing payment if found, or create new (legacy flow)
+        if (existingPayment) {
+          // Manager booking flow: Update existing payment
+          payment = await Payment.findById(existingPayment._id);
+          if (!payment) {
+            return { already: true, orderCode };
+          }
+          
+          // Get patient and doctor for email
+          patient = await Patient.findById(appointment.patientId._id || appointment.patientId).populate("userId");
+          doctor = await Doctor.findById(appointment.doctorId._id || appointment.doctorId);
+          
+          // Update payment status
+          payment.status = "captured";
+          payment.orderCode = orderCode;
+          payment.providerTxnId = String(orderCode);
+          payment.amountPaid = payment.total;
+          payment.paidAt = new Date();
+          payment.capturedAt = new Date();
+          payment.pendingOrderCode = undefined; // Clear pendingOrderCode
+          payment.gateway = "payos";
+          payment.method = "qr";
+          await payment.save();
+        } else {
+          // Legacy patient booking flow: Create new payment record
+          patient = await Patient.findById(appointment.patientId._id).populate("userId");
+          doctor = await Doctor.findById(appointment.doctorId._id);
 
-        const invoiceNumber = `INV-PAYOS-${orderCode}`;
+          const invoiceNumber = `INV-PAYOS-${orderCode}`;
 
-        payment = new Payment({
-          appointmentId: appointment._id,
-          invoiceType: "booking",
-          invoiceNumber,
-          currency: "VND",
-          issueDate: new Date(),
-          billTo: {
-            patientId: patient._id,
-            name: patient.fullName || patient.userId?.fullName || "Unknown",
-            email: patient.userId?.email,
-            phone: patient.userId?.phoneNumber,
-          },
-          billFrom: {
-            doctorId: doctor._id,
-            clinicId: appointment.clinicId?._id,
-            doctorName: doctor.fullName || "Unknown Doctor",
-            clinicName: appointment.clinicId?.name || "Online Consultation",
-          },
-          items: [
-            {
-              description: "Medical Consultation",
-              quantity: 1,
-              unitPrice: parseInt(amount),
-              lineTotal: parseInt(amount),
+          payment = new Payment({
+            appointmentId: appointment._id,
+            invoiceType: "booking",
+            invoiceNumber,
+            currency: "VND",
+            issueDate: new Date(),
+            billTo: {
+              patientId: patient._id,
+              name: patient.fullName || patient.userId?.fullName || "Unknown",
+              email: patient.userId?.email,
+              phone: patient.userId?.phoneNumber,
             },
-          ],
-          subtotal: parseInt(amount),
-          discount: 0,
-          total: parseInt(amount),
-          gateway: "payos",
-          method: "qr",
-          status: "captured",
-          orderCode: orderCode,
-          providerTxnId: String(orderCode),
-          paidAt: new Date(),
-          capturedAt: new Date(),
-        });
+            billFrom: {
+              doctorId: doctor._id,
+              clinicId: appointment.clinicId?._id,
+              doctorName: doctor.fullName || "Unknown Doctor",
+              clinicName: appointment.clinicId?.name || "Online Consultation",
+            },
+            items: [
+              {
+                description: "Medical Consultation",
+                quantity: 1,
+                unitPrice: parseInt(amount),
+                lineTotal: parseInt(amount),
+              },
+            ],
+            subtotal: parseInt(amount),
+            discount: 0,
+            total: parseInt(amount),
+            gateway: "payos",
+            method: "qr",
+            status: "captured",
+            orderCode: orderCode,
+            providerTxnId: String(orderCode),
+            paidAt: new Date(),
+            capturedAt: new Date(),
+          });
 
-        await payment.save();
+          await payment.save();
+        }
 
         // Cập nhật trạng thái thanh toán của appointment
         appointment.paymentStatus = "paid";
@@ -490,12 +544,34 @@ export const handlePayosWebhook = async (webhookBody, skipVerification = false) 
         appointment.pendingOrderCode = undefined; // Xóa pendingOrderCode
         await appointment.save();
 
+        // Mark slot as "booked" after payment success (for manager booking)
+        if (appointment.slotId) {
+          const DoctorTimeSlot = (await import("../models/doctorTimeSlot.model.js")).default;
+          await DoctorTimeSlot.findByIdAndUpdate(appointment.slotId, {
+            status: "booked",
+            appointmentId: appointment._id,
+          });
+          console.log(`✅ Slot ${appointment.slotId} marked as booked after payment success`);
+        }
+
         // Gửi email thông báo thanh toán thành công cho khách hàng
         try {
           await sendPaymentConfirmationEmail(appointment, payment, patient, doctor);
           console.log(`📧 Payment confirmation email sent for appointment ${appointment._id}`);
         } catch (emailError) {
           console.error("❌ Error sending payment confirmation email:", emailError);
+        }
+
+        // Gửi notification cho doctor về lịch hẹn mới (sau khi thanh toán thành công)
+        try {
+          const { createBookingNotification } = await import("../services/notificationService.js");
+          await createBookingNotification(appointment._id, {
+            createdByManager: true,
+            paymentCompleted: true,
+          });
+          console.log(`📬 Booking notification sent to doctor for appointment ${appointment._id}`);
+        } catch (notificationError) {
+          console.error("❌ Error sending booking notification to doctor:", notificationError);
         }
 
         console.log(`✅ Booking payment processed successfully for appointment ${appointment._id}`);

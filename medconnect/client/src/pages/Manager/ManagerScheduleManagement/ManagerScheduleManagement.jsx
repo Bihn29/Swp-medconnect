@@ -74,7 +74,7 @@ export default function ManagerScheduleManagement() {
     address: "", // Address for new patient
     allergyNotes: "", // Allergy notes for new patient
     reason: "",
-    mode: "online",
+    mode: "offline",
     clinicId: null, // Clinic ID for offline mode
   });
 
@@ -121,12 +121,19 @@ export default function ManagerScheduleManagement() {
     }
   }, [selectedDoctorId]);
 
-  // Load clinics when dialog opens and mode is offline
+  // No need to load clinics anymore - using doctor's default clinic
+
+  // When selecting a doctor, force offline mode and auto-assign clinicId from doctor's default clinic
   useEffect(() => {
-    if (showBookSlot && bookingData.mode === "offline") {
-      loadClinics();
-    }
-  }, [showBookSlot, bookingData.mode]);
+    if (!selectedDoctorId) return;
+    const doctor = doctors.find((d) => d._id === selectedDoctorId);
+    const defaultClinicId = doctor?.clinicDefaultId?._id || doctor?.clinicDefaultId || null;
+    setBookingData((prev) => ({
+      ...prev,
+      mode: "offline",
+      clinicId: defaultClinicId,
+    }));
+  }, [selectedDoctorId, doctors]);
 
   const loadClinics = async () => {
     try {
@@ -760,7 +767,7 @@ export default function ManagerScheduleManagement() {
         address: "",
         allergyNotes: "",
         reason: "",
-        mode: "online",
+        mode: "offline",
         clinicId: null,
       });
       setPatientSearchTerm("");
@@ -1000,9 +1007,12 @@ export default function ManagerScheduleManagement() {
     // Always validate reason
     errors.reason = validateReason(bookingData.reason);
 
-    // Validate clinic if offline
-    if (bookingData.mode === "offline" && !bookingData.clinicId) {
-      errors.clinicId = "Vui lòng chọn phòng khám";
+    // Validate clinic - must exist from doctor's default clinic
+    if (!bookingData.clinicId) {
+      const selectedDoctor = doctors.find((d) => d._id === selectedDoctorId);
+      if (!selectedDoctor?.clinicDefaultId) {
+        errors.clinicId = "Bác sĩ chưa có phòng khám mặc định. Vui lòng cập nhật thông tin bác sĩ.";
+      }
     }
 
     // Set errors
@@ -1087,13 +1097,23 @@ export default function ManagerScheduleManagement() {
         return;
       }
 
+      // Ensure clinicId is set from doctor's default clinic
+      const selectedDoctor = doctors.find((d) => d._id === selectedDoctorId);
+      const defaultClinicId = selectedDoctor?.clinicDefaultId?._id || selectedDoctor?.clinicDefaultId || bookingData.clinicId;
+      
+      if (!defaultClinicId) {
+        alert("Bác sĩ chưa có phòng khám mặc định. Vui lòng cập nhật thông tin bác sĩ trước.");
+        return;
+      }
+
       const appointmentData = {
         doctorId: selectedDoctorId,
         slotId: slotId,
         reason: bookingData.reason,
-        mode: bookingData.mode,
+        mode: "offline", // Always offline
         scheduledStart: scheduledStart,
         scheduledEnd: scheduledEnd,
+        clinicId: defaultClinicId, // Always include clinicId
       };
 
       // Add patientId if selected, otherwise use new patient data
@@ -1115,25 +1135,22 @@ export default function ManagerScheduleManagement() {
         appointmentData.allergyNotes = bookingData.allergyNotes || "";
       }
 
-      // Add clinicId if mode is offline
-      if (bookingData.mode === "offline" && bookingData.clinicId) {
-        appointmentData.clinicId = bookingData.clinicId;
-      }
-
-      console.log("📤 [Frontend] Sending appointment data:", {
+      console.log("📤 [Frontend] Creating booking payment (appointment will be created after payment success):", {
         ...appointmentData,
         dob: appointmentData.dob || "N/A",
         scheduledStart: appointmentData.scheduledStart,
         scheduledEnd: appointmentData.scheduledEnd,
       });
 
+      // Create booking payment FIRST (appointment will be created but slot not booked until payment success)
       const response = await api.post(
-        "/api/managers/appointments",
+        "/api/managers/booking-payments",
         appointmentData
       );
 
       if (response.success) {
-        alert("Đặt lịch thành công!");
+        alert("Đã gửi yêu cầu thanh toán đặt lịch. Vui lòng thanh toán để hoàn tất đặt lịch.");
+        // Close form and reset
         setShowBookSlot(false);
         setBookingData({
           patientId: null,
@@ -1148,7 +1165,7 @@ export default function ManagerScheduleManagement() {
           address: "",
           allergyNotes: "",
           reason: "",
-          mode: "online",
+          mode: "offline",
           clinicId: null,
         });
         setSelectedSlot(null);
@@ -1158,11 +1175,16 @@ export default function ManagerScheduleManagement() {
         setPatients([]);
         setValidationErrors({});
         await loadTimeSlots();
+
+        // Điều hướng tới trang thanh toán để manager xử lý
+        navigate("/manager/thanh-toan-dich-vu");
       } else {
         const errorMsg =
           response.message || response.error?.message || "Unknown error";
         console.error("❌ Error response:", response);
         alert("Lỗi khi đặt lịch: " + errorMsg);
+        // Close form even on error
+        setShowBookSlot(false);
       }
     } catch (error) {
       console.error("❌ Error booking slot:", error);
@@ -1176,6 +1198,8 @@ export default function ManagerScheduleManagement() {
         error.message ||
         "Có lỗi xảy ra khi đặt lịch";
       alert("Có lỗi xảy ra khi đặt lịch: " + errorMsg);
+      // Close form even on error
+      setShowBookSlot(false);
     }
   };
 
@@ -1594,7 +1618,7 @@ export default function ManagerScheduleManagement() {
                                       patientName: "",
                                       patientPhone: "",
                                       reason: "",
-                                      mode: "online",
+                                      mode: "offline",
                                     });
                                     setPatientSearchTerm("");
                                     setPatients([]);
@@ -2582,44 +2606,36 @@ export default function ManagerScheduleManagement() {
           <div className="form-group">
             <label>Hình thức khám:</label>
             <div className="mode-checkboxes">
-              <label className="checkbox-option">
-                <input
-                  type="radio"
-                  name="mode"
-                  value="online"
-                  checked={bookingData.mode === "online"}
-                  onChange={(e) =>
-                    setBookingData({
-                      ...bookingData,
-                      mode: e.target.value,
-                      clinicId: null, // Clear clinicId when switching to online
-                    })
-                  }
-                />
-                <span>Tư vấn online</span>
-              </label>
-              <label className="checkbox-option">
-                <input
-                  type="radio"
-                  name="mode"
-                  value="offline"
-                  checked={bookingData.mode === "offline"}
-                  onChange={(e) => {
-                    setBookingData({
-                      ...bookingData,
-                      mode: e.target.value,
-                    });
-                    // Load clinics when switching to offline
-                    if (!clinics.length && !loadingClinics) {
-                      loadClinics();
-                    }
-                  }}
-                />
-                <span>Khám tại phòng khám</span>
-              </label>
+              <span style={{ fontWeight: 600 }}>Khám tại phòng khám</span>
             </div>
-            {bookingData.mode === "offline" && (
-              <div style={{ marginTop: "12px" }} data-field="clinicId">
+            {/* Price display for offline consultation */}
+            {(() => {
+              let price = null;
+              try {
+                let dateToCheck = null;
+                if (selectedSlot?.startAt) {
+                  dateToCheck = new Date(selectedSlot.startAt);
+                } else if (selectedDate) {
+                  dateToCheck = new Date(`${selectedDate}T00:00:00`);
+                }
+                if (dateToCheck) {
+                  const isWeekend = [0, 6].includes(dateToCheck.getDay());
+                  const p = isWeekend
+                    ? pricingData.offline.weekend
+                    : pricingData.offline.weekday;
+                  if (p && p > 0) {
+                    price = p;
+                  }
+                }
+              } catch (e) {}
+              return price ? (
+                <div style={{ marginTop: "8px", color: "#0f766e" }}>
+                  Giá khám tại phòng: <strong>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price)}</strong>
+                </div>
+              ) : null;
+            })()}
+
+            <div style={{ marginTop: "12px" }} data-field="clinicId">
                 <label
                   style={{
                     display: "block",
@@ -2628,69 +2644,46 @@ export default function ManagerScheduleManagement() {
                     fontWeight: 500,
                   }}
                 >
-                  Chọn phòng khám <span style={{ color: "red" }}>*</span>
+                  Phòng khám
                 </label>
-                {loadingClinics ? (
-                  <div style={{ padding: "12px", color: "#6b7280" }}>
-                    Đang tải danh sách phòng khám...
-                  </div>
-                ) : clinics.length > 0 ? (
-                  (() => {
-                    const selectedClinic = bookingData.clinicId
-                      ? clinics.find(
-                          (c) =>
-                            String(c.id || c._id) ===
-                            String(bookingData.clinicId)
-                        )
-                      : null;
-                    const selectedClinicName = selectedClinic
-                      ? `${selectedClinic.name}${
-                          selectedClinic.address
-                            ? ` - ${selectedClinic.address}`
-                            : ""
-                        }`
-                      : "";
-
+                {(() => {
+                  const selectedDoctor = doctors.find((d) => d._id === selectedDoctorId);
+                  const clinic = selectedDoctor?.clinicDefaultId;
+                  
+                  if (!selectedDoctor) {
                     return (
-                      <Select
-                        value={bookingData.clinicId || ""}
-                        onValueChange={(value) => {
-                          setBookingData({
-                            ...bookingData,
-                            clinicId: value,
-                          });
-                          if (validationErrors.clinicId) {
-                            setValidationErrors({
-                              ...validationErrors,
-                              clinicId: "",
-                            });
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn phòng khám">
-                            {selectedClinicName || ""}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {clinics.map((clinic) => (
-                            <SelectItem
-                              key={clinic.id || clinic._id}
-                              value={String(clinic.id || clinic._id)}
-                            >
-                              {clinic.name}
-                              {clinic.address && ` - ${clinic.address}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div style={{ padding: "12px", color: "#6b7280" }}>
+                        Vui lòng chọn bác sĩ trước
+                      </div>
                     );
-                  })()
-                ) : (
-                  <div style={{ padding: "12px", color: "#ef4444" }}>
-                    Không có phòng khám nào. Vui lòng liên hệ quản trị viên.
-                  </div>
-                )}
+                  }
+                  
+                  if (!clinic) {
+                    return (
+                      <div style={{ padding: "12px", color: "#ef4444" }}>
+                        Bác sĩ chưa có phòng khám mặc định. Vui lòng cập nhật thông tin bác sĩ.
+                      </div>
+                    );
+                  }
+                  
+                  const clinicName = clinic.name || "N/A";
+                  const clinicAddress = clinic.address ? ` - ${clinic.address}` : "";
+                  
+                  return (
+                    <div
+                      style={{
+                        padding: "12px",
+                        backgroundColor: "#f3f4f6",
+                        borderRadius: "6px",
+                        border: "1px solid #e5e7eb",
+                        color: "#374151",
+                      }}
+                    >
+                      <strong>{clinicName}</strong>
+                      {clinicAddress && <span>{clinicAddress}</span>}
+                    </div>
+                  );
+                })()}
                 {validationErrors.clinicId && (
                   <span
                     style={{
@@ -2703,8 +2696,7 @@ export default function ManagerScheduleManagement() {
                     {validationErrors.clinicId}
                   </span>
                 )}
-              </div>
-            )}
+            </div>
           </div>
           <div className="dialog-actions">
             <Button
@@ -2720,7 +2712,7 @@ export default function ManagerScheduleManagement() {
                   address: "",
                   allergyNotes: "",
                   reason: "",
-                  mode: "online",
+                  mode: "offline",
                   clinicId: null,
                 });
                 setSelectedSlot(null);
