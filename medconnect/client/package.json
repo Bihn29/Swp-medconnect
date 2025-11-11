@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "postinstall": "rm -rf node_modules/recharts/node_modules/immer node_modules/recharts/node_modules/reselect || true",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -18,6 +19,7 @@
     "buffer": "^6.0.3",
     "dotenv": "^16.3.1",
     "firebase": "12.3.0",
+    "immer": "^9.0.21",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.545.0",
     "react": "^18.2.0",
@@ -26,11 +28,13 @@
     "react-redux": "^8.1.3",
     "react-router-dom": "^6.19.0",
     "react-slick": "^0.31.0",
-    "recharts": "^3.3.0",
+    "recharts": "^2.12.7",
     "slick-carousel": "^1.8.1",
     "vnpay": "^2.4.4"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react-swc": "^3.3.2",

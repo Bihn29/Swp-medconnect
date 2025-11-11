@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from "react";
+import  { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Row, Col, Button, Space, DatePicker, Spin, Alert } from "antd";
 import {
-  UserOutlined,
   TeamOutlined,
   CalendarOutlined,
-  DollarOutlined,
   DownOutlined,
   MedicineBoxOutlined,
   RiseOutlined,
-  LineChartOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import {
