@@ -231,10 +231,9 @@ export async function createSession(req, res) {
 
     res.cookie(COOKIE_NAME, sessionCookie, {
       maxAge: SESSION_EXPIRES_IN,
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      path: "/",
+      httpOnly: false,
+      secure: false,
+      sameSite: "",
     });
 
     return ok(res);
