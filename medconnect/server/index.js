@@ -26,7 +26,7 @@ initializeFirebase();
 
 /* ================ App & CORS ================ */
 const app = express();
-const allowedOrigins = ["http://localhost:5173"];
+const allowedOrigins = ["http://localhost:5173", "https://swp-medconnect.vercel.app"];
 const corsOptions = {
   origin(origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, curl, server-to-server)
