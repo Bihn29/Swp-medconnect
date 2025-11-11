@@ -41,6 +41,14 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["simple-peer", "buffer"],
+    include: ["simple-peer", "buffer", "recharts", "immer"],
+    // ensure esbuild targets a modern enough syntax for dependencies
+    esbuildOptions: {
+      target: "es2015",
+    },
+  },
+  // prevent Vite from externalizing these during SSR/build on some hosts (like Vercel)
+  ssr: {
+    noExternal: ["recharts", "immer"],
   },
 });
